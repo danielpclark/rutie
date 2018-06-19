@@ -1,0 +1,40 @@
+language: rust
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+cache:
+  cargo: true
+  directories:
+  - $HOME/.cache/pip
+
+matrix:
+  allow_failures:
+    - rust: nightly
+
+before_install:
+- |
+  rvm install "$BUILD_RUBY_VERSION"
+  rvm use "$BUILD_RUBY_VERSION"
+  ruby --version
+  ruby -e 'require "pp"; pp RbConfig::CONFIG'
+
+before_script:
+- if [ "$TRAVIS_OS_NAME" == "linux" ]; then pip install 'travis-cargo<0.2' --user; fi
+- if [ "$TRAVIS_OS_NAME" == "osx" ]; then pip2 install 'travis-cargo<0.2' --user; fi
+- export PATH=$HOME/Library/Python/2.7/bin:$HOME/.local/bin:$PATH
+
+script:
+- |
+  travis-cargo build &&
+  travis-cargo test --features=test
+
+env:
+  global:
+    - TRAVIS_CARGO_NIGHTLY_FEATURE=""
+  matrix:
+    - BUILD_RUBY_VERSION: 2.3.7
+    - BUILD_RUBY_VERSION: 2.4.4
+    - BUILD_RUBY_VERSION: 2.5.1

@@ -1,0 +1,26 @@
+[package]
+name = "rutie"
+version = "0.0.1"
+authors = [
+  "Steve Klabnik <steve@steveklabnik.com>",
+  "Dmitry Gritsay <unseductable@gmail.com>",
+  "Daniel P. Clark <6ftdan@gmail.com>"
+]
+
+description = "The tie between Ruby and Rust."
+repository = "https://github.com/danielpclark/rutie"
+readme = "README.md"
+keywords = ["cruby", "ruby", "rutie"]
+license = "MIT"
+
+build = "build.rs"
+links = "ruby"
+
+[dependencies]
+libc = "0.2.42"
+lazy_static = "1.0.1"
+
+[features]
+default = []
+unstable = []
+test = []
