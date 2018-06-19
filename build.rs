@@ -23,28 +23,36 @@ fn dep(release: &str, file: &str) -> String {
 }
 
 #[inline]
+fn libruby_soname() -> String {
+    // Once Rubies earler than the 2.5 series are deprecated
+    // we can simply use `rbconfig("LIBRUBY_SONAME")`
+    rbconfig("LIBRUBY").rsplitn(2, ".").
+      skip(1).next().unwrap().to_owned()
+}
+
+#[inline]
 fn target_file() -> PathBuf {
-    Path::new(&rbconfig("libdir")).join(&rbconfig("LIBRUBY_SONAME"))
+    Path::new(&rbconfig("libdir")).join(&libruby_soname())
 }
 
 #[cfg(any(unix))]
 fn link() {
     use std::os::unix::fs::symlink;
-    let destination = dep("debug", &rbconfig("LIBRUBY_SONAME"));
+    let destination = dep("debug", &libruby_soname());
     let _ = symlink(target_file(), destination);
 }
 
 #[cfg(any(windows))]
 fn link() {
     use std::os::windows::fs::symlink_file;
-    let destination = dep("debug", &rbconfig("LIBRUBY_SONAME"));
+    let destination = dep("debug", &libruby_soname());
     let _ = symlink_file(target_file(), destination);
 }
 
 #[cfg(not(any(unix,windows)))]
 fn link() {
     use std::fs::{copy, remove_file};
-    let destination = dep("debug", &rbconfig("LIBRUBY_SONAME"));
+    let destination = dep("debug", &libruby_soname());
     let _ = remove_file(&destination);
     let _ = copy(target_file(), destination);
 }
