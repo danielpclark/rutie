@@ -4,7 +4,7 @@ extern crate lazy_static;
 
 mod binding;
 mod class;
-mod rubysys;
+pub mod rubysys;
 
 #[macro_use]
 pub mod dsl;
