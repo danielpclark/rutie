@@ -5,31 +5,27 @@ rust:
   - beta
   - nightly
 
-cache:
-  cargo: true
-  directories:
-  - $HOME/.cache/pip
+cache: cargo
 
 matrix:
   allow_failures:
     - rust: nightly
 
 before_install:
-- |
-  rvm install "$BUILD_RUBY_VERSION"
-  rvm use "$BUILD_RUBY_VERSION"
-  ruby --version
-  ruby -e 'require "pp"; pp RbConfig::CONFIG'
+- rvm install "$BUILD_RUBY_VERSION"
+- rvm use "$BUILD_RUBY_VERSION"
+- ruby --version
+- ruby -e 'require "pp"; pp RbConfig::CONFIG'
 
 before_script:
-- if [ "$TRAVIS_OS_NAME" == "linux" ]; then pip install 'travis-cargo<0.2' --user; fi
-- if [ "$TRAVIS_OS_NAME" == "osx" ]; then pip2 install 'travis-cargo<0.2' --user; fi
-- export PATH=$HOME/Library/Python/2.7/bin:$HOME/.local/bin:$PATH
+- export PATH=$HOME/.cargo/bin:$HOME/.local/bin:$PATH
+- cargo install cargo-update || echo "cargo-update already installed"
+- cargo install-update -a # update outdated cached binaries
 
 script:
 - |
-  travis-cargo build &&
-  travis-cargo test --features=test
+  cargo build &&
+  cargo test --features=test
 
 env:
   global:
