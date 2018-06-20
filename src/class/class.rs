@@ -672,7 +672,7 @@ impl Class {
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     let data_class = Class::from_existing("Data");
+    ///     let data_class = Class::from_existing("Object");
     ///
     ///     Class::new("RubyServer", Some(&data_class)).define(|itself| {
     ///         itself.def_self("new", ruby_server_new);

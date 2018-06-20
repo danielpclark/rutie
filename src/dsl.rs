@@ -472,13 +472,13 @@ macro_rules! methods {
 ///
 /// # Class
 ///
-/// The class which will be used for wrapping data must inherit from
-/// [`Data`](https://ruby-doc.org/core-2.3.1/Data.html) class instead of `Object`.
+/// The class which will be used for wrapping data is `Object` and not `Data`
+/// (See [Ruby issue #3072](https://bugs.ruby-lang.org/issues/3072)).
 ///
 /// ```
 /// # use rutie::{Class, VM};
 /// # VM::init();
-/// let data_class = Class::from_existing("Data");
+/// let data_class = Class::from_existing("Object");
 ///
 /// Class::new("TheNewClass", Some(&data_class));
 /// ```
@@ -546,7 +546,7 @@ macro_rules! methods {
 ///
 /// fn main() {
 ///     # VM::init();
-///     let data_class = Class::from_existing("Data");
+///     let data_class = Class::from_existing("Object");
 ///
 ///     Class::new("RubyServer", Some(&data_class)).define(|itself| {
 ///         itself.def_self("new", ruby_server_new);
@@ -645,7 +645,7 @@ macro_rules! methods {
 ///
 /// fn main() {
 ///     # VM::init();
-///     let data_class = Class::from_existing("Data");
+///     let data_class = Class::from_existing("Object");
 ///
 ///     Class::new("RustyArray", Some(&data_class)).define(|itself| {
 ///         itself.def_self("new", new);
