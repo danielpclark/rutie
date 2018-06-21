@@ -9,7 +9,6 @@ pub mod rubysys;
 #[macro_use]
 pub mod dsl;
 
-pub mod result;
 pub mod typed_data;
 pub mod types;
 pub mod util;

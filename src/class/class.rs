@@ -18,7 +18,7 @@ use {AnyObject, Array, Object, Module, VerifiedObject};
 ///
 /// use std::error::Error;
 ///
-/// use rutie::{Class, Fixnum, Object, VM};
+/// use rutie::{Class, Fixnum, Object, Exception, VM};
 ///
 /// methods!(
 ///    Fixnum,
@@ -27,7 +27,7 @@ use {AnyObject, Array, Object, Module, VerifiedObject};
 ///     fn pow(exp: Fixnum) -> Fixnum {
 ///         // `exp` is not a valid `Fixnum`, raise an exception
 ///         if let Err(ref error) = exp {
-///             VM::raise(error.to_exception(), error.description());
+///             VM::raise(error.class(), &error.description());
 ///         }
 ///
 ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`

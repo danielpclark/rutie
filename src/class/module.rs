@@ -17,7 +17,7 @@ use {AnyObject, Array, Object, Class, VerifiedObject};
 ///
 /// use std::error::Error;
 ///
-/// use rutie::{Module, Fixnum, Object, VM};
+/// use rutie::{Module, Fixnum, Object, Exception, VM};
 /// 
 /// module!(Example);
 ///
@@ -28,7 +28,7 @@ use {AnyObject, Array, Object, Class, VerifiedObject};
 ///     fn square(exp: Fixnum) -> Fixnum {
 ///         // `exp` is not a valid `Fixnum`, raise an exception
 ///         if let Err(ref error) = exp {
-///             VM::raise(error.to_exception(), error.description());
+///             VM::raise(error.class(), &error.description());
 ///         }
 ///
 ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
@@ -359,7 +359,7 @@ impl Module {
     ///
     /// use std::error::Error;
     ///
-    /// use rutie::{Module, Fixnum, Object, VM};
+    /// use rutie::{Module, Fixnum, Object, Exception, VM};
     ///
     /// methods!(
     ///     Fixnum,
@@ -368,7 +368,7 @@ impl Module {
     ///     fn pow(exp: Fixnum) -> Fixnum {
     ///         // `exp` is not a valid `Fixnum`, raise an exception
     ///         if let Err(ref error) = exp {
-    ///             VM::raise(error.to_exception(), error.description());
+    ///             VM::raise(error.class(), &error.description());
     ///         }
     ///
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`

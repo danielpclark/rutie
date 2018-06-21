@@ -4,12 +4,11 @@ use binding::class;
 use binding::vm;
 use binding::global::ValueType;
 use binding::util as binding_util;
-use result::{Error, Result as RuruResult};
 use typed_data::DataTypeWrapper;
 use types::{Callback, Value};
 use util;
 
-use {AnyObject, Boolean, Class, NilClass, VerifiedObject};
+use {AnyObject, AnyException, Exception, Boolean, Class, NilClass, VerifiedObject};
 
 /// `Object`
 ///
@@ -399,7 +398,7 @@ pub trait Object: From<Value> {
     ///
     /// use std::error::Error;
     ///
-    /// use rutie::{Class, Fixnum, Object, VM};
+    /// use rutie::{Class, Fixnum, Object, Exception, VM};
     ///
     /// methods!(
     ///     Fixnum,
@@ -408,7 +407,7 @@ pub trait Object: From<Value> {
     ///     fn pow(exp: Fixnum) -> Fixnum {
     ///         // `exp` is not a valid `Fixnum`, raise an exception
     ///         if let Err(ref error) = exp {
-    ///             VM::raise(error.to_exception(), error.description());
+    ///             VM::raise(error.class(), &error.description());
     ///         }
     ///
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
@@ -518,7 +517,7 @@ pub trait Object: From<Value> {
     ///
     /// use std::error::Error;
     ///
-    /// use rutie::{Class, Fixnum, Object, VM};
+    /// use rutie::{Class, Fixnum, Object, Exception, VM};
     ///
     /// methods!(
     ///     Fixnum,
@@ -527,7 +526,7 @@ pub trait Object: From<Value> {
     ///     fn pow(exp: Fixnum) -> Fixnum {
     ///         // `exp` is not a valid `Fixnum`, raise an exception
     ///         if let Err(ref error) = exp {
-    ///             VM::raise(error.to_exception(), error.description());
+    ///             VM::raise(error.class(), &error.description());
     ///         }
     ///
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
@@ -594,7 +593,7 @@ pub trait Object: From<Value> {
     ///
     /// use std::error::Error;
     ///
-    /// use rutie::{Class, Object, RString, Symbol, VM};
+    /// use rutie::{Class, Object, Exception, RString, Symbol, VM};
     ///
     /// methods!(
     ///     Symbol,
@@ -603,7 +602,7 @@ pub trait Object: From<Value> {
     ///     fn from_string(string: RString) -> Symbol {
     ///         // `string` is not a valid `String`, raise an exception
     ///         if let Err(ref error) = string {
-    ///             VM::raise(error.to_exception(), error.description());
+    ///             VM::raise(error.class(), &error.description());
     ///         }
     ///
     ///         Symbol::new(&string.unwrap().to_string())
@@ -882,7 +881,7 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, Fixnum, Object, Class, VM};
+    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM};
     /// # VM::init();
     /// 
     /// let kernel = Class::from_existing("Kernel");
@@ -904,19 +903,14 @@ pub trait Object: From<Value> {
     /// 
     /// if let Err(error) = result {
     ///     assert_eq!(
-    ///         Class::from(error.value()).
-    ///             send("message", None).
-    ///             try_convert_to::<RString>().
-    ///             ok().
-    ///             unwrap().
-    ///             to_str(),
+    ///         error.message(),
     ///         "flowers"
     ///     );
     /// } else {
     ///     unreachable!()
     /// }
     /// ```
-    fn protect_send(&self, method: String, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyObject> {
+    fn protect_send(&self, method: String, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
         let v = self.value();
         let arguments = util::arguments_to_values(arguments);
 
@@ -929,7 +923,7 @@ pub trait Object: From<Value> {
         if let Ok(value) = result {
             Ok(AnyObject::from(value))
         } else {
-            let output = Err(AnyObject::from(vm::errinfo()));
+            let output = Err(AnyException::from(vm::errinfo()));
 
             // error cleanup
             vm::set_errinfo(NilClass::new().value());
@@ -946,7 +940,7 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, Fixnum, Object, Class, VM};
+    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM};
     /// # VM::init();
     /// 
     /// let kernel = Class::from_existing("Kernel");
@@ -968,19 +962,14 @@ pub trait Object: From<Value> {
     /// 
     /// if let Err(error) = result {
     ///     assert_eq!(
-    ///         Class::from(error.value()).
-    ///             send("message", None).
-    ///             try_convert_to::<RString>().
-    ///             ok().
-    ///             unwrap().
-    ///             to_str(),
+    ///         error.message(),
     ///         "flowers"
     ///     );
     /// } else {
     ///     unreachable!()
     /// }
     /// ```
-    fn protect_public_send(&self, method: String, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyObject> {
+    fn protect_public_send(&self, method: String, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
         let v = self.value();
         let arguments = util::arguments_to_values(arguments);
 
@@ -993,7 +982,7 @@ pub trait Object: From<Value> {
         if let Ok(value) = result {
             Ok(AnyObject::from(value))
         } else {
-            let output = Err(AnyObject::from(vm::errinfo()));
+            let output = Err(AnyException::from(vm::errinfo()));
 
             // error cleanup
             vm::set_errinfo(NilClass::new().value());
@@ -1302,8 +1291,7 @@ pub trait Object: From<Value> {
     /// ### Basic conversions
     ///
     /// ```
-    /// use rutie::result::Error;
-    /// use rutie::{Fixnum, Object, RString, VM};
+    /// use rutie::{AnyException, Exception, Fixnum, Object, RString, VM};
     /// # VM::init();
     ///
     /// let fixnum_as_any_object = Fixnum::new(1).to_any_object();
@@ -1313,7 +1301,7 @@ pub trait Object: From<Value> {
     ///
     /// let string = RString::new("string");
     /// let string_as_fixnum = string.try_convert_to::<Fixnum>();
-    /// let expected_error = Error::TypeError("Error converting to Fixnum".to_string());
+    /// let expected_error = AnyException::new("TypeError", Some("Error converting to Fixnum"));
     ///
     /// assert_eq!(string_as_fixnum, Err(expected_error));
     /// ```
@@ -1398,13 +1386,13 @@ pub trait Object: From<Value> {
     ///   end
     /// end
     /// ```
-    fn try_convert_to<T: VerifiedObject>(&self) -> RuruResult<T> {
+    fn try_convert_to<T: VerifiedObject>(&self) -> Result<T, AnyException> {
         if T::is_correct_type(self) {
             let converted_object = unsafe { self.to::<T>() };
 
             Ok(converted_object)
         } else {
-            Err(Error::TypeError(T::error_message().to_string()))
+            Err(AnyException::new("TypeError", Some(T::error_message())))
         }
     }
 
