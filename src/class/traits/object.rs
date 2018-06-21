@@ -407,7 +407,7 @@ pub trait Object: From<Value> {
     ///     fn pow(exp: Fixnum) -> Fixnum {
     ///         // `exp` is not a valid `Fixnum`, raise an exception
     ///         if let Err(ref error) = exp {
-    ///             VM::raise(error.class(), &error.description());
+    ///             VM::raise(error.class(), &error.message());
     ///         }
     ///
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
@@ -526,7 +526,7 @@ pub trait Object: From<Value> {
     ///     fn pow(exp: Fixnum) -> Fixnum {
     ///         // `exp` is not a valid `Fixnum`, raise an exception
     ///         if let Err(ref error) = exp {
-    ///             VM::raise(error.class(), &error.description());
+    ///             VM::raise(error.class(), &error.message());
     ///         }
     ///
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
@@ -602,7 +602,7 @@ pub trait Object: From<Value> {
     ///     fn from_string(string: RString) -> Symbol {
     ///         // `string` is not a valid `String`, raise an exception
     ///         if let Err(ref error) = string {
-    ///             VM::raise(error.class(), &error.description());
+    ///             VM::raise(error.class(), &error.message());
     ///         }
     ///
     ///         Symbol::new(&string.unwrap().to_string())

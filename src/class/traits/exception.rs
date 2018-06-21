@@ -155,11 +155,6 @@ pub trait Exception: Object {
         RString::from(binding_util::call_method(self.value(), "message", None)).to_string()
     }
 
-    /// Alias for `message`.
-    fn description(&self) -> String {
-        self.message()
-    }
-
     /// Sets the backtrace information associated with exc. The backtrace
     /// must be an array of String objects or a single String in the format
     /// described in #backtrace.

@@ -28,7 +28,7 @@ use {AnyObject, Array, Object, Class, VerifiedObject};
 ///     fn square(exp: Fixnum) -> Fixnum {
 ///         // `exp` is not a valid `Fixnum`, raise an exception
 ///         if let Err(ref error) = exp {
-///             VM::raise(error.class(), &error.description());
+///             VM::raise(error.class(), &error.message());
 ///         }
 ///
 ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
@@ -368,7 +368,7 @@ impl Module {
     ///     fn pow(exp: Fixnum) -> Fixnum {
     ///         // `exp` is not a valid `Fixnum`, raise an exception
     ///         if let Err(ref error) = exp {
-    ///             VM::raise(error.class(), &error.description());
+    ///             VM::raise(error.class(), &error.message());
     ///         }
     ///
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
