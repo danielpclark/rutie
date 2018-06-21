@@ -5,7 +5,7 @@
 
 This README is under process of a rewrite.
 
-*Breaking changes with SemVer minor version changes likely.*
+This project is a continuation of [ruby-sys](https://github.com/steveklabnik/ruby-sys/) (licensed MIT) and [ruru](https://github.com/d-unseductable/ruru/) (licensed MIT).  This project follows SemVer rules.
 
 
 ## Migrating from Ruru to Rutie
