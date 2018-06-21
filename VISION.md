@@ -14,5 +14,5 @@ code execution.
 
 ## 2) Ruby Objects First
 
-At the center of object handled with this library will be a Ruby C object known
+At the center of objects handled with this library will be an internal Ruby C object known
 as a Value.
