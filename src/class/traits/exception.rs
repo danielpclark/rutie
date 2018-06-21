@@ -1,4 +1,4 @@
-use ::{AnyObject, Object, RString, Array, Class, Boolean, Symbol, Hash};
+use ::{AnyObject, Object, RString, Array, Class};
 use binding::util as binding_util;
 
 /// Descendants of class Exception are used to communicate between Kernel#raise
