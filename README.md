@@ -3,7 +3,7 @@
 “The tie between Ruby and Rust.”
 [![Build Status](https://travis-ci.org/danielpclark/rutie.svg?branch=master)](https://travis-ci.org/danielpclark/rutie)
 
-*Breaking changes coming with rewrite underway.*
+*Breaking changes with SemVer minor version changes likely.*
 
 
 ## Migrating from Ruru to Rutie
