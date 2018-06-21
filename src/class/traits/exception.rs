@@ -41,8 +41,8 @@ pub trait Exception: Object {
     /// # VM::init();
     ///
     /// assert_eq!(
-    ///   AnyException::new("StandardError", Some("something went wrong")).to_s(),
-    ///   "something went wrong"
+    ///   AnyException::new("StandardError", Some("something went wrong")).exception(None),
+    ///   AnyException::new("StandardError", Some("something went wrong"))
     /// );
     /// ```
     fn exception(&self, string: Option<&str>) -> Self {
@@ -122,26 +122,6 @@ pub trait Exception: Object {
         Some(Self::from(result))
     }
 
-    // TODO: calling `full_string` panics in Rust
-    // /// Returns formatted string of exception. The returned string is
-    // /// formatted using the same format that Ruby uses when printing an
-    // /// uncaught exceptions to stderr. So it may differ by `$stderr.tty?`
-    // /// at the timing of a call.
-    // ///
-    // /// # Examples
-    // /// ```
-    // /// use rutie::{AnyException, Exception, Object, VM};
-    // /// # VM::init();
-    // ///
-    // /// assert_eq!(
-    // ///   AnyException::new("StandardError", Some("something went wrong")).full_string(),
-    // ///   "StandardError: something went wrong"
-    // /// );
-    // /// ```
-    // fn full_string(&self) -> String {
-    //     RString::from(binding_util::call_method(self.value(), "full_string", None)).to_string()
-    // }
-
     /// Return this exception's class name and message
     ///
     /// # Examples
@@ -186,7 +166,10 @@ pub trait Exception: Object {
     ///
     /// let x = AnyException::new("StandardError", Some("something went wrong"));
     ///
-    /// x.set_backtrace(RString::new("prog.rb:10").to_any_object());
+    /// let mut arr = Array::new();
+    /// arr.push(RString::new("prog.rb:10"));
+    ///
+    /// x.set_backtrace(arr.to_any_object());
     ///
     /// assert_eq!(
     ///   x.backtrace().

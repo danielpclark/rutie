@@ -1,5 +1,7 @@
 use ::{Object, VerifiedObject, Exception};
 use ::types::{Value, ValueType};
+use std::fmt::{Display, Formatter};
+use std::fmt;
 
 pub struct AnyException {
     value: Value
@@ -28,5 +30,23 @@ impl VerifiedObject for AnyException {
 
     fn error_message() -> &'static str {
         "Error converting to AnyException"
+    }
+}
+
+impl Display for AnyException {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.inspect())
+    }
+}
+
+impl fmt::Debug for AnyException {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.inspect())
+    }
+}
+
+impl PartialEq for AnyException {
+    fn eq(&self, other: &AnyException) -> bool {
+        self.equals(other)
     }
 }

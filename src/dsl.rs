@@ -265,10 +265,10 @@ macro_rules! unsafe_methods {
 ///  - it uses safe conversions of arguments (`Object::try_convert_to()`);
 ///  - it checks if arguments are present;
 ///
-/// Each argument will have type `Result<Object, Error>`.
+/// Each argument will have type `Result<Object, AnyException>`.
 ///
 /// For example, if you declare `number: Fixnum` in the method definition, it will have actual
-/// type `number: Result<Fixnum, Error>`.
+/// type `number: Result<Fixnum, AnyException>`.
 ///
 /// See examples below and docs for `Object::try_convert_to()` for more information.
 ///
@@ -375,13 +375,13 @@ macro_rules! methods {
                         _arguments
                             .get(_i)
                             .ok_or_else(|| {
-                                $crate::result::Error::ArgumentError(
-                                    format!(
+                                <$crate::AnyException as $crate::Exception>::new("ArgumentError",
+                                    Some(&format!(
                                         "Argument '{}: {}' not found for method '{}'",
                                         stringify!($arg_name),
                                         stringify!($arg_type),
                                         stringify!($method_name)
-                                    )
+                                    ))
                                 )
                             }).and_then(|argument| {
                                 <$crate::AnyObject as $crate::Object>

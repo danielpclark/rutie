@@ -181,7 +181,7 @@ impl VM {
     /// #[macro_use]
     /// extern crate rutie;
     ///
-    /// use rutie::{Class, Fixnum, Object, RString, VM};
+    /// use rutie::{Class, Fixnum, Object, Exception, RString, VM};
     ///
     /// fn main() {
     ///     # VM::init();
@@ -190,10 +190,8 @@ impl VM {
     ///
     ///     match result {
     ///       Err(ao) => {
-    ///         let err = Class::from(ao.value());
-    ///         let message = err.send("message", None);
-    ///         let s = message.try_convert_to::<RString>();
-    ///         assert_eq!(s.ok().unwrap().to_string(), "flowers");
+    ///         let err = ao.message();
+    ///         assert_eq!(err, "flowers");
     ///       },
     ///       _ => { unreachable!() }
     ///     }
@@ -203,11 +201,11 @@ impl VM {
     /// Be aware when checking for equality amongst types like strings, that even
     /// with the same content in Ruby, they will evaluate to different values in
     /// C/Rust.
-    pub fn eval(string: &str) -> Result<AnyObject, AnyObject> {
+    pub fn eval(string: &str) -> Result<AnyObject, AnyException> {
         vm::eval_string_protect(string).map(|v|
             AnyObject::from(v)
         ).map_err(|_| {
-            let output = AnyObject::from(vm::errinfo());
+            let output = AnyException::from(vm::errinfo());
 
             // error cleanup
             vm::set_errinfo(NilClass::new().value());
@@ -380,77 +378,6 @@ impl VM {
     /// ```
     pub fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject> {
         unsafe { slice::from_raw_parts(arguments, argc as usize).to_vec() }
-    }
-
-    /// Release GVL for current thread.
-    ///
-    /// **Warning!** Due to MRI limitations, interaction with Ruby objects is not allowed while
-    /// GVL is released, it may cause unexpected behaviour.
-    /// [Read more at Ruby documentation](https://github.com/ruby/ruby/blob/2fc5210f31ad23463d7b0a0e36bcfbeee7b41b3e/thread.c#L1314-L1398)
-    ///
-    /// You should extract all the information from Ruby world before invoking
-    /// `thread_call_without_gvl`.
-    ///
-    /// GVL will be re-acquired when the closure is finished.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// #[macro_use] extern crate rutie;
-    ///
-    /// use rutie::{Class, Fixnum, Object, VM};
-    ///
-    /// class!(Calculator);
-    ///
-    /// methods!(
-    ///     Calculator,
-    ///     itself,
-    ///
-    ///     fn heavy_computation() -> Fixnum {
-    ///         let computation = || { 2 * 2 };
-    ///         let unblocking_function = || {};
-    ///
-    ///         // release GVL for current thread until `computation` is completed
-    ///         let result = VM::thread_call_without_gvl(
-    ///             computation,
-    ///             Some(unblocking_function)
-    ///         );
-    ///
-    ///         // GVL is re-acquired, we can interact with Ruby-world
-    ///         Fixnum::new(result)
-    ///     }
-    /// );
-    ///
-    /// fn main() {
-    ///     Class::new("Calculator", None).define(|itself| {
-    ///         itself.def("heavy_computation", heavy_computation);
-    ///     });
-    /// }
-    /// ```
-    #[deprecated(since = "0.9.2", note = "Use `Thread::call_without_gvl()` instead")]
-    pub fn thread_call_without_gvl<F, R, G>(func: F, unblock_func: Option<G>) -> R
-    where
-        F: FnOnce() -> R,
-        G: FnOnce(),
-    {
-        vm::thread_call_without_gvl(func, unblock_func)
-    }
-
-    #[deprecated(since = "0.9.2", note = "Use `Thread::call_without_gvl2()` instead")]
-    pub fn thread_call_without_gvl2<F, R, G>(func: F, unblock_func: Option<G>) -> R
-    where
-        F: FnOnce() -> R,
-        G: FnOnce(),
-    {
-        vm::thread_call_without_gvl2(func, unblock_func)
-    }
-
-    #[deprecated(since = "0.9.2", note = "Use `Thread::call_with_gvl()` instead")]
-    pub fn thread_call_with_gvl<F, R>(func: F) -> R
-    where
-        F: FnOnce() -> R,
-    {
-        vm::thread_call_with_gvl(func)
     }
 
     pub fn protect<F>(func: F) -> Result<Value, i32>
