@@ -3,6 +3,8 @@
 “The tie between Ruby and Rust.”
 [![Build Status](https://travis-ci.org/danielpclark/rutie.svg?branch=master)](https://travis-ci.org/danielpclark/rutie)
 
+This README is under process of a rewrite.
+
 *Breaking changes with SemVer minor version changes likely.*
 
 
