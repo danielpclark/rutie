@@ -22,8 +22,3 @@ lazy_static = "1.0.1"
 
 [build-dependencies]
 pkg-config = "0.3.10"
-
-[features]
-default = []
-unstable = []
-test = []

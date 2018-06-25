@@ -23,7 +23,7 @@ before_script:
 script:
 - |
   cargo build &&
-  cargo test --features=test -vv
+  cargo test
 
 env:
   global:
