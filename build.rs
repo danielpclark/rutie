@@ -44,24 +44,27 @@ fn use_dylib() {
 }
 
 fn main() {
-    // Ruby includes pkgconfig under there lib dir
-    set_env_pkg_config();
+    // Ruby programs calling Rust don't need cc linking
+    if let None = std::env::var_os("NO_LINK_RUTIE") {
+        // Ruby includes pkgconfig under there lib dir
+        set_env_pkg_config();
 
-    if let Ok(_) = pkg_config::probe_library(&rbconfig("RUBY_SO_NAME")) {
-       // Using pkg-config
-   } else if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
-       use_static()
-   } else {
-       match rbconfig("ENABLE_SHARED").as_str() {
-           "no" => use_static(),
-           "yes" => use_dylib(),
-           _ => {
-               let msg = "Error! Couldn't find a valid value for \
-               RbConfig::CONFIG['ENABLE_SHARED']. \
-               This may mean that your ruby's build config is corrupted. \
-               Possible solution: build a new Ruby with the `--enable-shared` configure opt.";
-               panic!(msg)
-           }
-       }
-   }
+        if let Ok(_) = pkg_config::probe_library(&rbconfig("RUBY_SO_NAME")) {
+           // Using pkg-config
+        } else if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
+            use_static()
+        } else {
+            match rbconfig("ENABLE_SHARED").as_str() {
+                "no" => use_static(),
+                "yes" => use_dylib(),
+                _ => {
+                    let msg = "Error! Couldn't find a valid value for \
+                    RbConfig::CONFIG['ENABLE_SHARED']. \
+                    This may mean that your ruby's build config is corrupted. \
+                    Possible solution: build a new Ruby with the `--enable-shared` configure opt.";
+                    panic!(msg)
+                }
+            }
+        }
+    }
 }
