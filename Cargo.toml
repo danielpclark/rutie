@@ -1,6 +1,6 @@
 [package]
 name = "rutie"
-version = "0.1.1"
+version = "0.1.2"
 authors = [
   "Steve Klabnik <steve@steveklabnik.com>",
   "Dmitry Gritsay <unseductable@gmail.com>",
@@ -20,7 +20,5 @@ links = "ruby"
 libc = "0.2.42"
 lazy_static = "1.0.1"
 
-[features]
-default = []
-unstable = []
-test = []
+[build-dependencies]
+pkg-config = "0.3.10"
