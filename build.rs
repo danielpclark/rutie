@@ -2,7 +2,7 @@ extern crate pkg_config;
 use std::env;
 use std::ffi::OsStr;
 use std::process::Command;
-// use std::path::{Path, PathBuf};
+use std::path::{Path};
 
 fn rbconfig(key: &str) -> String {
     let ruby = match env::var_os("RUBY") {
@@ -16,6 +16,12 @@ fn rbconfig(key: &str) -> String {
         .unwrap_or_else(|e| panic!("ruby not found: {}", e));
 
     String::from_utf8(config.stdout).expect("RbConfig value not UTF-8!")
+}
+
+fn set_env_pkg_config() {
+    let key = "PKG_CONFIG_PATH";
+    let value = Path::new(&rbconfig("libdir")).join("pkgconfig");
+    std::env::set_var(key, value);
 }
 
 fn use_libdir() {
@@ -38,9 +44,11 @@ fn use_dylib() {
 }
 
 fn main() {
+    // Ruby includes pkgconfig under there lib dir
+    set_env_pkg_config();
+
     if let Ok(_) = pkg_config::probe_library(&rbconfig("RUBY_SO_NAME")) {
        // Using pkg-config
-       // This occurs with a system Ruby installed
    } else if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
        use_static()
    } else {
