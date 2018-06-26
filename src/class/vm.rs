@@ -1,5 +1,3 @@
-use std::slice;
-
 use binding::vm;
 use types::{Argc, Value};
 
@@ -349,35 +347,6 @@ impl VM {
     /// ```
     pub fn is_block_given() -> bool {
         vm::is_block_given()
-    }
-
-    // TODO: Move to other struct
-    /// Converts a pointer to array of `AnyObject`s to `Vec<AnyObject>`.
-    ///
-    /// This function is a helper for callbacks, do not use it directly.
-    ///
-    /// It will be moved to other struct, because it is not related to VM itself.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rutie::types::Argc;
-    /// use rutie::{AnyObject, Boolean, Class, Object, RString, VM};
-    ///
-    /// #[no_mangle]
-    /// pub extern fn string_eq(argc: Argc, argv: *const AnyObject, itself: RString) -> Boolean {
-    ///     let argv = VM::parse_arguments(argc, argv);
-    ///     let other_string = argv[0].try_convert_to::<RString>().unwrap();
-    ///
-    ///     Boolean::new(itself.to_str() == other_string.to_str())
-    /// }
-    ///
-    /// fn main() {
-    ///     Class::from_existing("String").define_method("==", string_eq);
-    /// }
-    /// ```
-    pub fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject> {
-        unsafe { slice::from_raw_parts(arguments, argc as usize).to_vec() }
     }
 
     pub fn protect<F>(func: F) -> Result<Value, i32>
