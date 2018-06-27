@@ -1,6 +1,5 @@
 ## Rutie
 
-“The tie between Ruby and Rust.”
 [![Build Status](https://travis-ci.org/danielpclark/rutie.svg?branch=master)](https://travis-ci.org/danielpclark/rutie)
 
 Integrate Ruby with your Rust application.  Or integrate Rust with your Ruby application.
