@@ -107,7 +107,7 @@ pub extern "C" fn Init_rutie_ruby_example() {
 ```
 
 And that's it for the Rust side.  Now you just need to load the library in Ruby.  For typing
-less code you may use Thermite to handle the kind of library file that gets built for your
+less code you may use [Thermite](https://github.com/malept/thermite) to handle the kind of library file that gets built for your
 operating system.  Otherwise you'll need to load the library based on the operating system
 with code similar to what follows here in your main ruby file `lib/rutie_ruby_example.rb`:
 
@@ -181,7 +181,7 @@ end
 ```
 
 And to properly test it you will always need to run `cargo build --release` whenever
-you make any changes to the Rust code.  Run the test with:
+you make **any** changes to the Rust code.  Run the test with:
 
 ```bash
 cargo build --release; rake test
@@ -199,17 +199,8 @@ it needs just a few simple things.
 Here's an example excerpt of code from [FasterPath](https://github.com/danielpclark/faster_path).
 
 ```rust
-use rutie::types::{
-    Value,
-    ValueType
-};
-use rutie::{
-    RString,
-    AnyObject,
-    Object,
-    Class,
-    VerifiedObject
-};
+use rutie::types::{ Value, ValueType };
+use rutie::{ RString, AnyObject, Object, Class, VerifiedObject };
 
 pub struct Pathname {
     value: Value
@@ -348,6 +339,19 @@ This may happen when a Ruby program is trying to link with libruby via Rutie.  S
 by setting the environment variable `NO_LINK_RUTIE` before the Rust code is compiled.  This is needed
 to be done on the service TravisCI for example.
 
+## Additional Project History
+
+If you need some more examples of usage or the git blame history please look at the [Ruru](https://github.com/d-unseductable/ruru)
+project as Rutie has had the README completely rewritten and this first git commit is from Ruru.
+Note that there are some fundamental changes which that README won't account for.
+This project also had [ruby-sys](https://github.com/steveklabnik/ruby-sys) merged in which may have some additional beneficial git history.
+
 ## LICENSE
+
+Both projects that were merged into this project contained identifiers under the MIT license.
+This project follows with the same licensing.  **ruby-sys** marked MIT as the license in the
+`Cargo.toml` file whereas **ruru** had that and included a LICENSE file.  This projects LICENSE
+has credited the original author by preserving the MIT license author line and appending new
+author(s) which is permitted by the MIT LICENSE.
 
 MIT LICENSE — see [LICENSE](LICENSE)
