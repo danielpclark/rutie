@@ -6,6 +6,10 @@
 Integrate Ruby with your Rust application.  Or integrate Rust with your Ruby application.
 This project allows you to do either with relative ease.
 
+You are highly encouraged to read the source code for this project.  Every method that has been
+mapped from Ruby for public use in `src/class/*` is **very well documented** with example code.
+This is the best way to take off running with Rutie.
+
 This project is a continuation of [ruby-sys](https://github.com/steveklabnik/ruby-sys/) (licensed MIT) and [ruru](https://github.com/d-unseductable/ruru/) (licensed MIT).
 
 ## Using Ruby in Rust
@@ -248,7 +252,7 @@ If the class does not yet exist in Ruby you'll need to account for creating
 it before generating a new instance of it.  This object is now compatible to
 be returned into Ruby directly from Rust/Rutie.  _Note that this definition is
 merely a Rust compatible representation of the Ruby object and doesn't define
-any Ruby methods which can be used at all._
+any Ruby methods which can be used from Ruby._
 
 ## Variadic Functions / Splat Operator
 
@@ -345,6 +349,22 @@ The way the macro is designed doesn't use the same parameter signatures you've p
 therefore it is recommended to implement any methods you want to re-use in Rust with
 functions outside of the `methods!` macro.  You can simply call that new external
 method in the `methods!` macro when defining methods for Ruby to use.
+
+#### Handling exceptions raised from Ruby in Rust code
+
+If you're using any method that doesn't return a `Result<AnyObject, AnyException>` then
+any exception raised from the Ruby side will interfere with that Ruby thread and cause
+Rust to panic and stop.  Ruby internally uses exceptions to effect the entire thread through
+an internal thread global value.  To handle places where Ruby may raise an exception during Rust 
+code execution you should use methods that are designed to handle that.
+
+* `VM::eval`
+* `Object.protect_send`
+* `Object.protect_public_send`
+
+If you are writing lower level code and want to work more directly with the internal Ruby
+exception you may use `VM::protect` and read the source code for `Object.protect_send` to
+see how it's done.
 
 ## Additional Project History
 
