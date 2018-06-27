@@ -1,6 +1,7 @@
 ## Rutie
 
 [![Build Status](https://travis-ci.org/danielpclark/rutie.svg?branch=master)](https://travis-ci.org/danielpclark/rutie)
+[![crates.io version](https://img.shields.io/crates/v/rutie.svg)](https://crates.io/crates/rutie)
 
 Integrate Ruby with your Rust application.  Or integrate Rust with your Ruby application.
 This project allows you to do either with relative ease.
