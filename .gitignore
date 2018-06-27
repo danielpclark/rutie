@@ -1,3 +1,13 @@
-target
-Cargo.lock
+**/Cargo.lock
+**/target
 **/*.swp
+**/.bundle/
+**/.yardoc
+**/_yardoc/
+**/coverage/
+**/doc/
+**/pkg/
+**/spec/reports/
+**/tmp/
+**/*.swp
+**/*.rs.bk
