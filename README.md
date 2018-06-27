@@ -9,7 +9,20 @@ You are highly encouraged to read the source code for this project.  Every metho
 mapped from Ruby for public use in `src/class/*` is **very well documented** with example code.
 This is the best way to take off running with Rutie.
 
-This project is a continuation of [ruby-sys](https://github.com/steveklabnik/ruby-sys/) (licensed MIT) and [ruru](https://github.com/d-unseductable/ruru/) (licensed MIT).
+This project is a continuation of:
+* [ruru](https://github.com/d-unseductable/ruru/) (licensed MIT)
+* [ruby-sys](https://github.com/steveklabnik/ruby-sys/) (licensed MIT)
+
+## Index
+
+* [Using Ruby in Rust](https://github.com/danielpclark/rutie#using-ruby-in-rust)
+* [Using Rust in Ruby](https://github.com/danielpclark/rutie#using-rust-in-ruby)
+* [Custom Ruby Objects in Rust](https://github.com/danielpclark/rutie#custom-ruby-objects-in-rust)
+* [Variadic Functions / Splat Operator](https://github.com/danielpclark/rutie#variadic-functions--splat-operator)
+* [Migrating from Ruru to Rutie](https://github.com/danielpclark/rutie#migrating-from-ruru-to-rutie)
+* [Troubleshooting](https://github.com/danielpclark/rutie#troubleshooting)
+* [Additional Project History](https://github.com/danielpclark/rutie#additional-project-history)
+* [LICENSE](https://github.com/danielpclark/rutie#license)
 
 ## Using Ruby in Rust
 
@@ -109,8 +122,11 @@ pub extern "C" fn Init_rutie_ruby_example() {
 }
 ```
 
-And that's it for the Rust side.  Now you just need to load the library in Ruby.  For typing
-less code you may use [Thermite](https://github.com/malept/thermite) to handle the kind of library file that gets built for your
+And that's it for the Rust side.  When using the `methods!` macro or `extern` functions
+make sure the method name won't clash with any others.  This is why this example is prefixed with `pub_`.
+
+Now you just need to load the library in Ruby.  For typing less code you may use
+[Thermite](https://github.com/malept/thermite) to handle the kind of library file that gets built for your
 operating system.  Otherwise you'll need to load the library based on the operating system
 with code similar to what follows here in your main ruby file `lib/rutie_ruby_example.rb`:
 
