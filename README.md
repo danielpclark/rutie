@@ -304,8 +304,7 @@ pub extern fn example_method(argc: Argc, argv: *const AnyObject, _: AnyObject) -
 
     let output = // YOUR CODE HERE.  Use arguments as you see fit.
 
-    output.to_any_object() // When mapping a method to Ruby
-                           // the return object needs to be AnyObject
+    output.to_any_object()
 }
 ```
 
