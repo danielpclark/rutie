@@ -339,6 +339,13 @@ This may happen when a Ruby program is trying to link with libruby via Rutie.  S
 by setting the environment variable `NO_LINK_RUTIE` before the Rust code is compiled.  This is needed
 to be done on the service TravisCI for example.
 
+#### Calling methods from other methods within the `methods!` macro doesn't work
+
+The way the macro is designed doesn't use the same parameter signatures you've provided and
+therefore it is recommended to implement any methods you want to re-use in Rust with
+functions outside of the `methods!` macro.  You can simply call that new external
+method in the `methods!` macro when defining methods for Ruby to use.
+
 ## Additional Project History
 
 If you need some more examples of usage or the git blame history please look at the [Ruru](https://github.com/d-unseductable/ruru)
