@@ -1,0 +1,68 @@
+# Based on https://github.com/malept/rusty_blank/blob/master/.appveyor.yml
+
+platform:
+  - x86
+  - x64
+environment:
+  matrix:
+    - RUST_VERSION: stable
+      BUILD_TARGET: gnu
+      RUBY_VERSION: 24
+    - RUST_VERSION: beta
+      BUILD_TARGET: gnu
+      RUBY_VERSION: 24
+    - RUST_VERSION: nightly
+      BUILD_TARGET: gnu
+      RUBY_VERSION: 24
+    - RUST_VERSION: stable
+      BUILD_TARGET: gnu
+      RUBY_VERSION: 25
+    - RUST_VERSION: beta
+      BUILD_TARGET: gnu
+      RUBY_VERSION: 25
+    - RUST_VERSION: nightly
+      BUILD_TARGET: gnu
+      RUBY_VERSION: 25
+cache:
+  - target\debug\build
+  - target\debug\deps
+  - '%USERPROFILE%\.cargo'
+install:
+  - ps: |
+        $env:PATH += ";C:\rust\bin";
+        if ($env:platform -eq 'x86') {
+          $env:RUBY_DIR = "Ruby${env:RUBY_VERSION}"
+          $arch_expanded = "i686-pc-windows-${env:BUILD_TARGET}";
+          $env:ARCH = "x86";
+          $env:bits = "32";
+        } else {
+          $env:RUBY_DIR = "Ruby${env:RUBY_VERSION}-x64"
+          $arch_expanded = "x86_64-pc-windows-${env:BUILD_TARGET}";
+          $env:ARCH = "amd64";
+          $env:bits ="64";
+        }
+        $env:WIN_RUBY_BIN = "C:\${env:RUBY_DIR}\bin";
+        $env:PATH = "${env:WIN_RUBY_BIN};${env:PATH}";
+        if ($env:BUILD_TARGET -eq 'gnu') {
+          $env:PATH += ";C:\msys64\mingw${env:bits}\bin";
+          gcc --version;
+        }
+        if ($env:RUST_VERSION -eq 'stable') {
+          echo "Downloading $channel channel manifest";
+          Start-FileDownload "https://static.rust-lang.org/dist/channel-rust-stable";
+
+          $env:RUST_VERSION = Get-Content channel-rust-stable | Select -first 1 | %{$_.split('-')[1]}
+        }
+        $env:rust_installer = "rust-${env:RUST_VERSION}-${arch_expanded}.exe";
+  - curl --show-error --location --retry 5 --output rust-installer.exe https://static.rust-lang.org/dist/%rust_installer%
+  - .\rust-installer.exe /VERYSILENT /NORESTART /DIR="C:\rust"
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %ARCH%
+  - rustc -vV
+  - cargo -vV
+  - ruby --version
+build: false
+test_script:
+  - cargo test --verbose
+matrix:
+  allow_failures:
+    - RUST_VERSION: nightly
