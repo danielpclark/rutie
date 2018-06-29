@@ -23,6 +23,10 @@ This project is a continuation of:
 * [Variadic Functions / Splat Operator](https://github.com/danielpclark/rutie#variadic-functions--splat-operator)
 * [Migrating from Ruru to Rutie](https://github.com/danielpclark/rutie#migrating-from-ruru-to-rutie)
 * [Troubleshooting](https://github.com/danielpclark/rutie#troubleshooting)
+  * [rust signal: 11, SIGSEGV: invalid memory reference](https://github.com/danielpclark/rutie#rust-signal-11-sigsegv-invalid-memory-reference)
+  * [error while loading shared libraries: libruby.so.#.#: cannot open shared object file: No such file or directory](https://github.com/danielpclark/rutie#error-while-loading-shared-libraries-librubyso-cannot-open-shared-object-file-no-such-file-or-directory)
+  * [Calling methods from other methods within the `methods!` macro doesn't work](https://github.com/danielpclark/rutie#calling-methods-from-other-methods-within-the-methods-macro-doesnt-work)
+  * [Handling exceptions raised from Ruby in Rust code](https://github.com/danielpclark/rutie#handling-exceptions-raised-from-ruby-in-rust-code)
 * [Additional Project History](https://github.com/danielpclark/rutie#additional-project-history)
 * [LICENSE](https://github.com/danielpclark/rutie#license)
 
@@ -301,8 +305,7 @@ pub extern fn example_method(argc: Argc, argv: *const AnyObject, _: AnyObject) -
 
     let output = // YOUR CODE HERE.  Use arguments as you see fit.
 
-    output.to_any_object() // When mapping a method to Ruby
-                           // the return object needs to be AnyObject
+    output.to_any_object()
 }
 ```
 
