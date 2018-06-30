@@ -27,6 +27,7 @@ This project is a continuation of:
   * [error while loading shared libraries: libruby.so.#.#: cannot open shared object file: No such file or directory](https://github.com/danielpclark/rutie#error-while-loading-shared-libraries-librubyso-cannot-open-shared-object-file-no-such-file-or-directory)
   * [Calling methods from other methods within the `methods!` macro doesn't work](https://github.com/danielpclark/rutie#calling-methods-from-other-methods-within-the-methods-macro-doesnt-work)
   * [Handling exceptions raised from Ruby in Rust code](https://github.com/danielpclark/rutie#handling-exceptions-raised-from-ruby-in-rust-code)
+  * [Segfault during GC when using a Ruby method written in C](https://github.com/danielpclark/rutie/blob/master/README.md#segfault-during-gc-when-using-a-ruby-method-written-in-c)
 * [Additional Project History](https://github.com/danielpclark/rutie#additional-project-history)
 * [LICENSE](https://github.com/danielpclark/rutie#license)
 
