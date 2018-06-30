@@ -1,6 +1,6 @@
 use rubysys::util as rubysys_util;
 
-use types::{Id, Value};
+use types::{c_char, c_long, Id, Value};
 use util;
 
 pub fn get_constant(name: &str, parent_object: Value) -> Value {
@@ -10,9 +10,10 @@ pub fn get_constant(name: &str, parent_object: Value) -> Value {
 }
 
 pub fn internal_id(string: &str) -> Id {
-    let str = util::str_to_cstring(string);
+    let str = string.as_ptr() as *const c_char;
+    let len = string.len() as c_long;
 
-    unsafe { rubysys_util::rb_intern(str.as_ptr()) }
+    unsafe { rubysys_util::rb_intern2(str, len) }
 }
 
 pub fn call_method(receiver: Value, method: &str, arguments: Option<Vec<Value>>) -> Value {

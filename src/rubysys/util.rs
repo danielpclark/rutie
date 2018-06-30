@@ -8,5 +8,6 @@ extern "C" {
     pub fn rb_scan_args(argc: Argc, argv: *const Value, fmt: *const c_char, ...) -> c_int;
     pub fn rb_ary_new_from_values(n: c_long, args: *const Value) -> Value;
     pub fn rb_intern(name: *const c_char) -> Id;
+    pub fn rb_intern2(name: *const c_char, len: c_long) -> Id;
     pub fn rb_id2name(method_id: Id) -> *const c_char;
 }
