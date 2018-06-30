@@ -386,6 +386,25 @@ If you are writing lower level code and want to work more directly with the inte
 exception you may use `VM::protect` and read the source code for `Object.protect_send` to
 see how it's done.
 
+#### Segfault during GC when using a Ruby method written in C
+
+One possible issue that may cause this is when you store an item in Rust in heap memory rather than the stack.
+
+An example case that caused this issue is the following:
+
+```rust
+Class::from_existing("Pathname").new_instance(Some(&vec![RString::new(path).to_any_object()]))
+```
+
+> Ruby's GC traces objects from the stack. Rust's Vec, on the other hand, stores elements in the heap. So Ruby's GC may not be able to find the string you created and may release it. — @irxground
+
+To rememdy the issue it required not using Vec but rather Rust's array type to store the argument on the stack rather than the heap.
+
+```rust
+let arguments = [RString::new(path).to_any_object()];
+Class::from_existing("Pathname").new_instance(Some(&arguments))
+```
+
 ## Additional Project History
 
 If you need some more examples of usage or the git blame history please look at the [Ruru](https://github.com/d-unseductable/ruru)
