@@ -2,6 +2,9 @@
 
 [![Build Status](https://travis-ci.org/danielpclark/rutie.svg?branch=master)](https://travis-ci.org/danielpclark/rutie)
 [![Build status](https://ci.appveyor.com/api/projects/status/fm8tpa9aqx80am0i/branch/master?svg=true)](https://ci.appveyor.com/project/danielpclark/rutie/branch/master)
+[![Maintenance](https://img.shields.io/maintenance/yes/2018.svg)](https://github.com/danielpclark/rutie/commits/master)
+[![GitHub contributors](https://img.shields.io/github/contributors/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/graphs/contributors)
+[![license](https://img.shields.io/github/license/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/blob/master/LICENSE)
 [![crates.io version](https://img.shields.io/crates/v/rutie.svg)](https://crates.io/crates/rutie)
 
 Integrate Ruby with your Rust application.  Or integrate Rust with your Ruby application.
@@ -28,6 +31,7 @@ This project is a continuation of:
   * [Calling methods from other methods within the `methods!` macro doesn't work](https://github.com/danielpclark/rutie#calling-methods-from-other-methods-within-the-methods-macro-doesnt-work)
   * [Handling exceptions raised from Ruby in Rust code](https://github.com/danielpclark/rutie#handling-exceptions-raised-from-ruby-in-rust-code)
   * [Segfault during GC when using a Ruby method written in C](https://github.com/danielpclark/rutie/blob/master/README.md#segfault-during-gc-when-using-a-ruby-method-written-in-c)
+* [Contributing](https://github.com/danielpclark/rutie#contributing)
 * [Additional Project History](https://github.com/danielpclark/rutie#additional-project-history)
 * [LICENSE](https://github.com/danielpclark/rutie#license)
 
@@ -37,7 +41,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.2.0"
+rutie = "0.2.1"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
@@ -84,7 +88,7 @@ file.  Add Rutie to the `Cargo.toml` file and define the lib type.
 
 ```toml
 [dependencies]
-rutie = "0.2.0"
+rutie = "0.2.1"
 
 [lib]
 name = "rutie_ruby_example"
@@ -405,6 +409,20 @@ To rememdy the issue it required not using Vec but rather Rust's array type to s
 let arguments = [RString::new(path).to_any_object()];
 Class::from_existing("Pathname").new_instance(Some(&arguments))
 ```
+
+## Contributing
+
+Contributors are welcome!
+
+The code is organized in 3 main layers.  The `rubysys` folder is the raw mapping to Ruby C code and
+all the methods from there are unsafe.  The `binding` folder is where we wrap those methods to abstract
+away all the unsafe methods to safe methods.  The `class` folder is where the public API us implemented
+for using Ruby with Rust code.  These methods in the `class` folder must all be documented and tested within
+the documentation.  There is a subfolder under `class` for traits called `traits`.
+
+Macros for abstracting away complexity are in `src/dsl.rs`.
+
+Ruby's future helper gem is in the submodule folder `gem`.
 
 ## Additional Project History
 
