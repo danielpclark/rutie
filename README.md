@@ -416,7 +416,7 @@ Contributors are welcome!
 
 The code is organized in 3 main layers.  The `rubysys` folder is the raw mapping to Ruby C code and
 all the methods from there are unsafe.  The `binding` folder is where we wrap those methods to abstract
-away all the unsafe methods to safe methods.  The `class` folder is where the public API us implemented
+away all the unsafe methods to safe methods.  The `class` folder is where the public API is implemented
 for using Ruby with Rust code.  These methods in the `class` folder must all be documented and tested within
 the documentation.  There is a subfolder under `class` for traits called `traits`.
 
