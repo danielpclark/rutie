@@ -13,6 +13,7 @@ extern "C" {
     pub fn rb_str_ascii_only_p(str: Value) -> bool;
     pub fn rb_str_export_locale(str: Value) -> Value;
     pub fn rb_str_valid_encoding_p(str: Value) -> bool;
+    pub fn rb_str_cat(str: Value, ptr: *const c_char, len: c_long) -> Value;
 }
 
 #[repr(C)]
