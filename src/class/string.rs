@@ -238,6 +238,32 @@ impl RString {
     pub fn bytesize(&self) -> i64 {
         string::bytesize(self.value())
     }
+
+    /// Appends a given string slice onto the end of this String.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new("Hello, ");
+    /// string.concat("World!");
+    ///
+    /// assert_eq!(string.to_string(), "Hello, World!".to_string());
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// str = 'Hello, '
+    /// str << 'World!'
+    ///
+    /// str == 'Hello, World!'
+    /// ```
+    pub fn concat(&mut self, string: &str) {
+        string::concat(self.value(), string.as_bytes());
+    }
 }
 
 impl From<Value> for RString {

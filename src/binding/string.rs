@@ -61,3 +61,10 @@ pub fn value_to_str_unchecked<'a>(value: Value) -> &'a str {
 pub fn bytesize(value: Value) -> i64 {
     unsafe { string::rb_str_len(value) as i64 }
 }
+
+pub fn concat(value: Value, bytes: &[u8]) -> Value {
+    let str = bytes.as_ptr() as *const c_char;
+    let len = bytes.len() as c_long;
+
+    unsafe { string::rb_str_cat(value, str, len) }
+}
