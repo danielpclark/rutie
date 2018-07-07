@@ -5,14 +5,35 @@ use rubysys::constant::{FL_USHIFT, FL_USER_1, FL_USER_2, FL_USER_3, FL_USER_4, F
 use rubysys::types::{c_char, c_long, InternalValue, RBasic, Value};
 
 extern "C" {
+    // VALUE
+    // rb_str_new(const char *ptr, long len)
     pub fn rb_str_new(str: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_str_new_cstr(const char *ptr)
     pub fn rb_str_new_cstr(str: *const c_char) -> Value;
+    // VALUE
+    // rb_utf8_str_new(const char *ptr, long len)
     pub fn rb_utf8_str_new(str: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_utf8_str_new_cstr(const char *ptr)
+    pub fn rb_utf8_str_new_cstr(str: *const c_char) -> Value;
+    // char *
+    // rb_string_value_cstr(volatile VALUE *ptr)
     pub fn rb_string_value_cstr(str: *const Value) -> *const c_char;
+    // char *
+    // rb_string_value_ptr(volatile VALUE *ptr)
     pub fn rb_string_value_ptr(str: *const Value) -> *const c_char;
-    pub fn rb_str_ascii_only_p(str: Value) -> bool;
+    // int
+    // rb_enc_str_asciionly_p(VALUE str)
+    pub fn rb_enc_str_asciionly_p(str: Value) -> bool;
+    // VALUE
+    // rb_str_export_locale(VALUE str)
     pub fn rb_str_export_locale(str: Value) -> Value;
+    // static VALUE
+    // rb_str_valid_encoding_p(VALUE str)
     pub fn rb_str_valid_encoding_p(str: Value) -> bool;
+    // VALUE
+    // rb_str_cat(VALUE str, const char *ptr, long len)
     pub fn rb_str_cat(str: Value, ptr: *const c_char, len: c_long) -> Value;
 }
 

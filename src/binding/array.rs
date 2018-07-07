@@ -26,7 +26,7 @@ pub fn push(array: Value, item: Value) -> Value {
     unsafe { array::rb_ary_push(array, item) }
 }
 
-pub fn store(array: Value, offset: i64, item: Value) -> Value {
+pub fn store(array: Value, offset: i64, item: Value) {
     unsafe { array::rb_ary_store(array, offset as c_long, item) }
 }
 
