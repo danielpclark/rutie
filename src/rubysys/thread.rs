@@ -1,4 +1,4 @@
-use rubysys::types::{CallbackPtr, c_void, Value};
+use rubysys::types::{CallbackPtr, c_void, Value, c_int};
 
 #[cfg(unix)]
 use rubysys::types::RawFd;
