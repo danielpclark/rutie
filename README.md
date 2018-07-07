@@ -238,8 +238,8 @@ pub struct Pathname {
 
 impl Pathname {
     pub fn new(path: &str) -> Pathname {
-        let mut instance = Class::from_existing("Pathname").allocate();
-        instance.instance_variable_set("@path", RString::new(path).to_any_object());
+        let arguments = [RString::new(path).to_any_object()];
+        let instance = Class::from_existing("Pathname").new_instance(Some(&arguments));
 
         Pathname { value: instance.value() }
     }
