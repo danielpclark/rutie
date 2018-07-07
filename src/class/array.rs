@@ -201,10 +201,8 @@ impl Array {
     ///
     /// array[0] == 2
     /// ```
-    pub fn store<T: Object>(&mut self, index: i64, item: T) -> AnyObject {
-        let result = array::store(self.value(), index, item.value());
-
-        AnyObject::from(result)
+    pub fn store<T: Object>(&mut self, index: i64, item: T) {
+        array::store(self.value(), index, item.value());
     }
 
     /// Removes and returns the last element of the array.
