@@ -17,6 +17,12 @@ pub fn new_utf8(string: &str) -> Value {
     unsafe { string::rb_utf8_str_new(str, len) }
 }
 
+// Returns RString Value or NilClass Value
+// same as method `String.try_convert`
+pub fn method_to_str(str: Value) -> Value {
+    unsafe { string::rb_check_string_type(str) }
+}
+
 pub fn value_to_string(value: Value) -> String {
     unsafe {
         let str = string::rb_string_value_cstr(&value);

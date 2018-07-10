@@ -1,9 +1,9 @@
 use std::convert::From;
 
 use binding::string;
-use types::{Value, ValueType};
+use types::{Value, ValueType, TryConvert};
 
-use {Object, VerifiedObject};
+use {Object, VerifiedObject, NilClass, AnyObject};
 
 /// `String`
 #[derive(Debug, PartialEq)]
@@ -275,6 +275,57 @@ impl From<Value> for RString {
 impl From<String> for RString {
     fn from(string: String) -> Self {
         Self::new(string.as_str())
+    }
+}
+
+/// Implicit or `nil` conversion
+///
+/// # Examples
+///
+/// ```
+/// use rutie::{RString, Fixnum, VM, TryConvert, NilClass, Object};
+/// # VM::init();
+///
+/// let four = Fixnum::new(4);
+/// let result = RString::try_convert(four.to_any_object());
+///
+/// assert_eq!(result, Err(NilClass::new()));
+///
+/// let five = RString::new("5");
+/// let result2 = RString::try_convert(five.to_any_object());
+///
+/// if let Ok(r) = result2 {
+///   assert_eq!(r.to_str(), "5")
+/// } else {
+///   unreachable!()
+/// }
+///
+/// ```
+///
+/// Ruby:
+///
+/// ```ruby
+/// four = 4
+/// result = String.try_convert(four)
+///
+/// result == nil
+///
+/// five = "5"
+/// result = String.try_convert(five)
+///
+/// result == "5"
+/// ```
+impl TryConvert<AnyObject> for RString {
+    type Nil = NilClass;
+
+    fn try_convert(obj: AnyObject) -> Result<Self, NilClass> {
+        let result = string::method_to_str(obj.value());
+
+        if result.is_nil() {
+            Err( NilClass::from(result) )
+        } else {
+            Ok( Self::from(result) )
+        }
     }
 }
 

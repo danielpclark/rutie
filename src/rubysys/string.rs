@@ -35,6 +35,9 @@ extern "C" {
     // VALUE
     // rb_str_cat(VALUE str, const char *ptr, long len)
     pub fn rb_str_cat(str: Value, ptr: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_check_string_type(VALUE str)
+    pub fn rb_check_string_type(str: Value) -> Value;
 }
 
 #[repr(C)]
