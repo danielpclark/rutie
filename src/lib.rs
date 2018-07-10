@@ -35,5 +35,7 @@ pub use class::traits::exception::Exception;
 pub use class::traits::object::Object;
 pub use class::traits::verified_object::VerifiedObject;
 
+pub use types::TryConvert;
+
 #[test]
 fn it_works() {}
