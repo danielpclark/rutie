@@ -344,8 +344,8 @@ impl EncodingSupport for RString {
             return Err(AnyException::new("FrozenError", Some("can't modify frozen String")));
         }
 
-        let value = encoding::force_encoding(self.value(), enc.value());
-        Ok(Self::from(value))
+        self.value = encoding::force_encoding(self.value(), enc.value());
+        Ok(Self::from(self.value()))
     }
 }
 
