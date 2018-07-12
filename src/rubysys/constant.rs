@@ -6,3 +6,4 @@ pub const FL_USER_3: isize = 1 << (FL_USHIFT + 3);
 pub const FL_USER_4: isize = 1 << (FL_USHIFT + 4);
 pub const FL_USER_5: isize = 1 << (FL_USHIFT + 5);
 pub const FL_USER_6: isize = 1 << (FL_USHIFT + 6);
+pub const FL_USER_7: isize = 1 << (FL_USHIFT + 7);

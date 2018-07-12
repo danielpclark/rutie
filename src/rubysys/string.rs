@@ -1,8 +1,10 @@
 use rubysys::libc::size_t;
 use std::mem;
 
-use rubysys::constant::{FL_USHIFT, FL_USER_1, FL_USER_2, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6};
+use rubysys::constant::{FL_USHIFT, FL_USER_1, FL_USER_2, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6, FL_USER_7};
 use rubysys::types::{c_char, c_long, InternalValue, RBasic, Value};
+
+pub const STR_TMPLOCK: isize = FL_USER_7;
 
 extern "C" {
     // VALUE
@@ -38,6 +40,18 @@ extern "C" {
     // VALUE
     // rb_check_string_type(VALUE str)
     pub fn rb_check_string_type(str: Value) -> Value;
+    //-------------------------------------------------------------
+    // LINKER CANNOT FIND
+    // // 
+    // //  call-seq:
+    // //     str.force_encoding(encoding)   -> str
+    // // 
+    // //  Changes the encoding to +encoding+ and returns self.
+    // // 
+    // // static VALUE
+    // // rb_str_force_encoding(VALUE str, VALUE enc)
+    // pub fn rb_str_force_encoding(s: Value, enc: Value) -> Value;
+    //-------------------------------------------------------------
 }
 
 #[repr(C)]

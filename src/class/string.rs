@@ -1,9 +1,20 @@
 use std::convert::From;
 
-use binding::string;
+use binding::{encoding, string, vm};
+use binding::class::is_frozen;
 use types::{Value, ValueType, TryConvert};
 
-use {Object, VerifiedObject, NilClass, AnyObject};
+use {
+  Object,
+  VerifiedObject,
+  NilClass,
+  AnyObject,
+  EncodingSupport,
+  Encoding,
+  AnyException,
+  Exception,
+  Boolean
+};
 
 /// `String`
 #[derive(Debug, PartialEq)]
@@ -263,6 +274,78 @@ impl RString {
     /// ```
     pub fn concat(&mut self, string: &str) {
         string::concat(self.value(), string.as_bytes());
+    }
+}
+
+impl EncodingSupport for RString {
+    /// Get the strings `Encoding`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM, EncodingSupport};
+    /// # VM::init();
+    ///
+    /// let string = RString::new("Hello");
+    /// string.encoding();
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// string = "Hello"
+    /// string.encoding()
+    /// ```
+    fn encoding(&self) -> Encoding {
+        Encoding::from(encoding::from_encoding_index(encoding::enc_get_index(self.value())))
+    }
+
+    /// Changes the encoding to encoding and returns `Result<Self, AnyException>`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM, EncodingSupport, Encoding};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new("Hello");
+    /// string.force_encoding(Encoding::us_ascii());
+    ///
+    /// assert_eq!(string.encoding().name(), "US-ASCII");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// string = "Hello"
+    /// string.force_encoding(Encoding::US_ASCII)
+    ///
+    /// string.encoding.name == "US-ASCII"
+    /// ```
+    ///
+    /// ```
+    /// use rutie::{RString, VM, EncodingSupport, Encoding, Object, Exception};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new("Hello");
+    /// string.force_encoding(Encoding::utf8());
+    /// string.freeze();
+    /// let result = string.force_encoding(Encoding::us_ascii());
+    ///
+    /// match result {
+    ///     Ok(_) => assert_eq!("This is a bad path.", "You shouldn't get this message."),
+    ///     Err(happy_path) => assert_eq!(happy_path.message(), "can\'t modify frozen String"),
+    /// }
+    /// ```
+    fn force_encoding(&mut self, enc: Encoding) -> Result<Self, AnyException> {
+        // TODO: check LOCKED via rubysys::string::STR_TMPLOCK flag and raise if locked.
+
+        if self.is_frozen() {
+            return Err(AnyException::new("FrozenError", Some("can't modify frozen String")));
+        }
+
+        let value = encoding::force_encoding(self.value(), enc.value());
+        Ok(Self::from(value))
     }
 }
 

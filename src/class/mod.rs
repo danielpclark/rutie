@@ -3,6 +3,7 @@ pub mod any_exception;
 pub mod array;
 pub mod boolean;
 pub mod class;
+pub mod encoding;
 pub mod fixnum;
 pub mod float;
 pub mod gc;

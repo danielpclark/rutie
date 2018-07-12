@@ -22,6 +22,8 @@ before_install:
 - ruby -e 'require "pp"; pp RbConfig::CONFIG'
 - rustc -Vv
 - cargo -Vv
+- mkdir -p target/debug/deps
+- cp $(ruby -e 'puts File.join(RbConfig::CONFIG["libdir"], RbConfig::CONFIG["LIBRUBY_ALIASES"].split(" ").first)') target/debug/deps
 
 before_script:
 - export PATH=$HOME/.cargo/bin:$HOME/.local/bin:$PATH
