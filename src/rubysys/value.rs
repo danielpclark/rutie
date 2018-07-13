@@ -1,6 +1,7 @@
 use rubysys::libc::size_t;
 use std::mem;
 use std::convert::From;
+use rubysys::constant;
 
 use rubysys::types::{InternalValue, RBasic};
 
@@ -96,6 +97,10 @@ impl Value {
         self.value == (RubySpecialConsts::Nil as InternalValue)
     }
 
+    pub fn is_node(&self) -> bool {
+        self.value & (ValueType::Node as InternalValue) != 0
+    }
+
     pub fn is_undef(&self) -> bool {
         self.value == (RubySpecialConsts::Undef as InternalValue)
     }
@@ -111,6 +116,33 @@ impl Value {
     pub fn is_flonum(&self) -> bool {
         (self.value & (RubySpecialFlags::FlonumMask as InternalValue)) ==
         (RubySpecialFlags::FlonumFlag as InternalValue)
+    }
+
+    pub fn is_frozen(&self) -> bool {
+        !self.rb_fl_able() || self.rb_obj_frozen_raw()
+    }
+
+    fn rb_fl_able(&self) -> bool {
+        !self.rb_special_const_p() && !self.is_node()
+    }
+
+    fn rb_special_const_p(&self) -> bool {
+        self.rb_immediate_p() || !self.rb_test()
+    }
+
+    fn rb_immediate_p(&self) -> bool {
+        (self.value & RubySpecialFlags::ImmediateMask as size_t) != 0
+    }
+
+    fn rb_test(&self) -> bool {
+        !((self.value & !(RubySpecialConsts::Nil as size_t)) == 0)
+    }
+
+    fn rb_obj_frozen_raw(&self) -> bool {
+        unsafe {
+            let basic: *const RBasic = mem::transmute(self.value);
+            (*basic).flags & (constant::FL_FREEZE as size_t) != 0
+        }
     }
 
     pub fn ty(&self) -> ValueType {

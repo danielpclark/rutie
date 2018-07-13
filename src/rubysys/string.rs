@@ -119,4 +119,3 @@ pub unsafe fn is_lockedtmp(value: Value) -> bool {
 
     flags & STR_TMPLOCK as size_t != 0
 }
-

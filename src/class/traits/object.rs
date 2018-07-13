@@ -1219,9 +1219,7 @@ pub trait Object: From<Value> {
     /// frozen_string.frozen? == true
     /// ```
     fn is_frozen(&self) -> bool {
-        let result = class::is_frozen(self.value());
-
-        Boolean::from(result).to_bool()
+        self.value().is_frozen()
     }
 
     /// Prevents further modifications to the object.
