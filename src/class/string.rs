@@ -323,28 +323,28 @@ impl EncodingSupport for RString {
     /// string.encoding.name == "US-ASCII"
     /// ```
     ///
-    /// ```
-    /// use rutie::{RString, VM, EncodingSupport, Encoding, Object, Exception};
-    /// # VM::init();
-    ///
-    /// let mut string = RString::new("Hello");
-    /// string.force_encoding(Encoding::utf8());
-    /// string.freeze();
-    /// let result = string.force_encoding(Encoding::us_ascii());
-    ///
-    /// match result {
-    ///     Ok(_) => assert_eq!("This is a bad path.", "You shouldn't get this message."),
-    ///     Err(happy_path) => assert_eq!(happy_path.message(), "can\'t modify frozen String"),
-    /// }
-    /// ```
+    // ```
+    // use rutie::{RString, VM, EncodingSupport, Encoding, Object, Exception};
+    // # VM::init();
+    //
+    // let mut string = RString::new("Hello");
+    // string.force_encoding(Encoding::utf8());
+    // string.freeze();
+    // let result = string.force_encoding(Encoding::us_ascii());
+    //
+    // match result {
+    //     Ok(_) => assert_eq!("This is a bad path.", "You shouldn't get this message."),
+    //     Err(happy_path) => assert_eq!(happy_path.message(), "can\'t modify frozen String"),
+    // }
+    // ```
     fn force_encoding(&mut self, enc: Encoding) -> Result<Self, AnyException> {
         if string::is_lockedtmp(self.value()) {
             return Err(AnyException::new("RuntimeError", Some("can't modify string; temporarily locked")));
         }
 
-        if self.is_frozen() {
-            return Err(AnyException::new("FrozenError", Some("can't modify frozen String")));
-        }
+        // if self.is_frozen() {
+        //     return Err(AnyException::new("FrozenError", Some("can't modify frozen String")));
+        // }
 
         self.value = encoding::force_encoding(self.value(), enc.value());
         Ok(Self::from(self.value()))
