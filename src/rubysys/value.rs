@@ -45,6 +45,7 @@ pub enum RubySpecialFlags {
 #[repr(C)]
 pub enum ValueType {
     None = 0x00,
+
     Object = 0x01,
     Class = 0x02,
     Module = 0x03,
@@ -60,15 +61,19 @@ pub enum ValueType {
     Match = 0x0d,
     Complex = 0x0e,
     Rational = 0x0f,
+
     Nil = 0x11,
     True = 0x12,
     False = 0x13,
     Symbol = 0x14,
     Fixnum = 0x15,
-    Undef = 0x1b,
-    Node = 0x1c,
-    IClass = 0x1d,
-    Zombie = 0x1e,
+    Undef = 0x16,
+
+    IMemo = 0x1a,
+    Node = 0x1b,
+    IClass = 0x1c,
+    Zombie = 0x1d,
+
     Mask = 0x1f,
 }
 
