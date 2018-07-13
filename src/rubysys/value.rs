@@ -98,7 +98,7 @@ impl Value {
     }
 
     pub fn is_node(&self) -> bool {
-        self.value & (ValueType::Node as InternalValue) != 0
+        self.builtin_type() == ValueType::Node
     }
 
     pub fn is_undef(&self) -> bool {
