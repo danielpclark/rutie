@@ -52,6 +52,12 @@ extern "C" {
     // // rb_str_force_encoding(VALUE str, VALUE enc)
     // pub fn rb_str_force_encoding(s: Value, enc: Value) -> Value;
     //-------------------------------------------------------------
+    // VALUE
+    // rb_str_locktmp(VALUE str)
+    pub fn rb_str_locktmp(str: Value) -> Value;
+    // VALUE
+    // rb_str_unlocktmp(VALUE str)
+    pub fn rb_str_unlocktmp(str: Value) -> Value;
 }
 
 #[repr(C)]
@@ -91,3 +97,26 @@ pub unsafe fn rb_str_len(value: Value) -> c_long {
         (*rstring).as_.heap.len
     }
 }
+
+// ```
+// use rutie::VM;
+// # VM::init();
+//
+// use rutie::binding::string::*; // binding not public
+//
+// let word = new_utf8("word");
+// unsafe {
+//     assert!(!is_locktmp(word), "word should not be locktmp but is");
+//     locktmp(word);
+//     assert!(is_locktmp(word), "word should be locktmp but is not");
+//     unlocktmp(word);
+//     assert!(!is_locktmp(word), "word should not be locktmp but is");
+// }
+// ```
+pub unsafe fn is_lockedtmp(value: Value) -> bool {
+    let rstring: *const RString = mem::transmute(value.value);
+    let flags = (*rstring).basic.flags;
+
+    flags & STR_TMPLOCK as size_t != 0
+}
+

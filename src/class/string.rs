@@ -338,7 +338,9 @@ impl EncodingSupport for RString {
     /// }
     /// ```
     fn force_encoding(&mut self, enc: Encoding) -> Result<Self, AnyException> {
-        // TODO: check LOCKED via rubysys::string::STR_TMPLOCK flag and raise if locked.
+        if string::is_lockedtmp(self.value()) {
+            return Err(AnyException::new("RuntimeError", Some("can't modify string; temporarily locked")));
+        }
 
         if self.is_frozen() {
             return Err(AnyException::new("FrozenError", Some("can't modify frozen String")));

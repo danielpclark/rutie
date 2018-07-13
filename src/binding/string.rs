@@ -74,3 +74,15 @@ pub fn concat(value: Value, bytes: &[u8]) -> Value {
 
     unsafe { string::rb_str_cat(value, str, len) }
 }
+
+pub fn is_lockedtmp(str: Value) -> bool {
+    unsafe { string::is_lockedtmp(str) }
+}
+
+pub fn locktmp(str: Value) -> Value {
+    unsafe { string::rb_str_locktmp(str) }
+}
+
+pub fn unlocktmp(str: Value) -> Value {
+    unsafe { string::rb_str_unlocktmp(str) }
+}
