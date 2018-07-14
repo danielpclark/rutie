@@ -1,7 +1,7 @@
 use rubysys::types::{c_int, c_char, Value, CallbackPtr};
 
-pub const ENC_DUMMY_FLAG: usize = (1<<24);
-pub const ENC_INDEX_MASK: usize = (!(!0<<24));
+pub const ENC_DUMMY_FLAG: isize = (1<<24);
+pub const ENC_INDEX_MASK: isize = (!(!0<<24));
 
 extern "C" {
     // VALUE
