@@ -1,4 +1,4 @@
-use rubysys::types::{CallbackPtr, c_char, c_int, c_void, Value};
+use rubysys::types::{CallbackPtr, c_char, c_int, c_void, Value, Id, Argc};
 
 extern "C" {
     // void
@@ -34,4 +34,16 @@ extern "C" {
     // VALUE
     // rb_protect(VALUE (* proc) (VALUE), VALUE data, int *pstate)
     pub fn rb_protect(func: CallbackPtr, args: *const c_void, state: *mut c_int) -> Value;
+    // VALUE
+    // rb_funcallv(VALUE recv, ID mid, int argc, const VALUE *argv)
+    pub fn rb_funcallv(receiver: Value, method: Id, argc: Argc, argv: *const Value) -> Value;
+    // VALUE
+    // rb_funcallv_public(VALUE recv, ID mid, int argc, const VALUE *argv)
+    pub fn rb_funcallv_public(receiver: Value, method: Id, argc: Argc, argv: *const Value) -> Value;
+    // VALUE
+    // rb_block_call(VALUE obj, ID mid, int argc, const VALUE * argv,
+    //               VALUE (*bl_proc) (ANYARGS), VALUE data2)
+    pub fn rb_block_call(obj: Value, method_id: Id, argc: Argc, argv: *const Value,
+                         block: extern fn(Value, Value, Argc, *const Value) -> Value,
+                         outer_scope: Value) -> Value;
 }

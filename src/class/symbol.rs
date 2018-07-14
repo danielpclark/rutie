@@ -1,7 +1,6 @@
 use std::convert::From;
 
 use binding::symbol;
-use binding::util;
 use types::{Value, ValueType};
 
 use {Object, VerifiedObject};
@@ -34,7 +33,7 @@ impl Symbol {
     /// sym.to_s == 'hello'
     /// ```
     pub fn new(string: &str) -> Self {
-        let id = util::internal_id(string);
+        let id = symbol::internal_id(string);
 
         Self::from(symbol::id_to_sym(id))
     }

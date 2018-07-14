@@ -38,6 +38,12 @@ extern "C" {
     // rb_define_private_method(VALUE klass, const char *name, VALUE (*func)(ANYARGS), int argc)
     pub fn rb_define_private_method(klass: Value, name: *const c_char, callback: CallbackPtr, argc: Argc);
     // void
+    // rb_define_singleton_method(VALUE obj, const char *name, VALUE (*func)(ANYARGS), int argc)
+    pub fn rb_define_singleton_method(klass: Value,
+                                      name: *const c_char,
+                                      callback: CallbackPtr,
+                                      argc: Argc);
+    // void
     // rb_extend_object(VALUE object, VALUE module)
     pub fn rb_extend_object(object: Value, module: Value);
     // void
@@ -70,10 +76,7 @@ extern "C" {
     // VALUE
     // rb_singleton_class(VALUE obj)
     pub fn rb_singleton_class(object: Value) -> Value;
-    // void
-    // rb_define_singleton_method(VALUE obj, const char *name, VALUE (*func)(ANYARGS), int argc)
-    pub fn rb_define_singleton_method(klass: Value,
-                                      name: *const c_char,
-                                      callback: CallbackPtr,
-                                      argc: Argc);
+    // int
+    // rb_scan_args(int argc, const VALUE *argv, const char *fmt, ...)
+    pub fn rb_scan_args(argc: Argc, argv: *const Value, fmt: *const c_char, ...) -> c_int;
 }

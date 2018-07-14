@@ -2,7 +2,6 @@ use std::convert::From;
 
 use binding::{module, class};
 use binding::global::rb_cObject;
-use binding::util as binding_util;
 use typed_data::DataTypeWrapper;
 use types::{Value, ValueType, Callback};
 
@@ -116,7 +115,7 @@ impl Module {
     pub fn from_existing(name: &str) -> Self {
         let object_module = unsafe { rb_cObject };
 
-        Self::from(binding_util::get_constant(name, object_module))
+        Self::from(class::const_get(object_module, name))
     }
 
     /// Returns a Vector of ancestors of current module
@@ -190,7 +189,7 @@ impl Module {
     /// Outer.const_get('Inner')
     /// ```
     pub fn get_nested_module(&self, name: &str) -> Self {
-        Self::from(binding_util::get_constant(name, self.value()))
+        Self::from(class::const_get(self.value(), name))
     }
 
     /// Retrieves a `Class` nested to current `Module`.
@@ -223,7 +222,7 @@ impl Module {
     /// Outer.const_get('Inner')
     /// ```
     pub fn get_nested_class(&self, name: &str) -> Class {
-        Class::from(binding_util::get_constant(name, self.value()))
+        Class::from(class::const_get(self.value(), name))
     }
 
     /// Creates a new `Module` nested into current `Module`.

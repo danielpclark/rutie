@@ -3,6 +3,7 @@ use std::ptr;
 use rubysys::{thread, vm};
 
 use types::{c_int, c_void, CallbackPtr, Value};
+use binding::symbol::internal_id;
 use util;
 
 pub fn block_proc() -> Value {
@@ -27,6 +28,22 @@ pub fn require(name: &str) {
     unsafe {
         vm::rb_require(name.as_ptr());
     }
+}
+
+pub fn call_method(receiver: Value, method: &str, arguments: Option<Vec<Value>>) -> Value {
+    let (argc, argv) = util::process_arguments(&arguments);
+    let method_id = internal_id(method);
+
+    // TODO: Update the signature of `rb_funcallv` in ruby-sys to receive an `Option`
+    unsafe { vm::rb_funcallv(receiver, method_id, argc, argv) }
+}
+
+pub fn call_public_method(receiver: Value, method: &str, arguments: Option<Vec<Value>>) -> Value {
+    let (argc, argv) = util::process_arguments(&arguments);
+    let method_id = internal_id(method);
+
+    // TODO: Update the signature of `rb_funcallv_public` in ruby-sys to receive an `Option`
+    unsafe { vm::rb_funcallv_public(receiver, method_id, argc, argv) }
 }
 
 // "evaluation can raise an exception."

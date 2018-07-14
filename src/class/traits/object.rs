@@ -3,7 +3,6 @@ use std::convert::From;
 use binding::class;
 use binding::vm;
 use binding::global::ValueType;
-use binding::util as binding_util;
 use typed_data::DataTypeWrapper;
 use types::{Callback, Value};
 use util;
@@ -716,7 +715,7 @@ pub trait Object: From<Value> {
     /// ```
     fn send(&self, method: &str, arguments: Option<&[AnyObject]>) -> AnyObject {
         let arguments = util::arguments_to_values(arguments);
-        let result = binding_util::call_method(self.value(), method, arguments);
+        let result = vm::call_method(self.value(), method, arguments);
 
         AnyObject::from(result)
     }
@@ -752,7 +751,7 @@ pub trait Object: From<Value> {
         let m = "==";
         let a = vec![other.value()];
 
-        binding_util::call_method(v, m, Some(a)).is_true()
+        vm::call_method(v, m, Some(a)).is_true()
     }
 
     /// Alias for Ruby's `===`
@@ -783,7 +782,7 @@ pub trait Object: From<Value> {
         let m = "===";
         let a = vec![other.value()];
 
-        binding_util::call_method(v, m, Some(a)).is_true()
+        vm::call_method(v, m, Some(a)).is_true()
     }
 
     /// Alias for Ruby's `eql?`
@@ -818,7 +817,7 @@ pub trait Object: From<Value> {
         let m = "eql?";
         let a = vec![other.value()];
 
-        binding_util::call_method(v, m, Some(a)).is_true()
+        vm::call_method(v, m, Some(a)).is_true()
     }
 
     /// Alias for Ruby's `equal?`
@@ -853,7 +852,7 @@ pub trait Object: From<Value> {
         let m = "equal?";
         let a = vec![other.value()];
 
-        binding_util::call_method(v, m, Some(a)).is_true()
+        vm::call_method(v, m, Some(a)).is_true()
     }
 
     /// Checks whether the object responds to given method
@@ -915,7 +914,7 @@ pub trait Object: From<Value> {
         let arguments = util::arguments_to_values(arguments);
 
         let closure = move || {
-            binding_util::call_method(v, &method, arguments)
+            vm::call_method(v, &method, arguments)
         };
 
         let result = vm::protect(closure);
@@ -974,7 +973,7 @@ pub trait Object: From<Value> {
         let arguments = util::arguments_to_values(arguments);
 
         let closure = move || {
-            binding_util::call_public_method(v, &method, arguments)
+            vm::call_public_method(v, &method, arguments)
         };
 
         let result = vm::protect(closure);

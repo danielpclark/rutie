@@ -14,7 +14,6 @@ pub mod symbol;
 pub mod thread;
 pub mod typed_data;
 pub mod types;
-pub mod util;
 pub mod value;
 pub mod vm;
 

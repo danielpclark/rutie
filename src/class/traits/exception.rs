@@ -1,5 +1,5 @@
 use ::{AnyObject, Object, RString, Array, Class};
-use binding::util as binding_util;
+use binding::vm;
 
 /// Descendants of class Exception are used to communicate between Kernel#raise
 /// and rescue statements in `begin ... end` blocks. Exception objects carry
@@ -27,7 +27,7 @@ pub trait Exception: Object {
         let class = Class::from_existing(class);
         let arguments = msg.map(|s| vec![RString::new(s).value()]);
 
-        Self::from(binding_util::call_method(class.value(), "new", arguments))
+        Self::from(vm::call_method(class.value(), "new", arguments))
     }
 
     /// With no argument, or if the argument is the same as the receiver,
@@ -48,7 +48,7 @@ pub trait Exception: Object {
     fn exception(&self, string: Option<&str>) -> Self {
         let arguments = string.map(|s| vec![RString::new(s).value()]);
 
-        Self::from(binding_util::call_method(self.value(), "exception", arguments))
+        Self::from(vm::call_method(self.value(), "exception", arguments))
     }
 
     /// Returns any backtrace associated with the exception. The
@@ -65,7 +65,7 @@ pub trait Exception: Object {
     /// assert!(x.backtrace().is_none());
     /// ```
     fn backtrace(&self) -> Option<Array> {
-        let result = binding_util::call_method(self.value(), "backtrace", None);
+        let result = vm::call_method(self.value(), "backtrace", None);
 
         if result.is_nil() {
             return None;
@@ -90,7 +90,7 @@ pub trait Exception: Object {
     /// assert!(x.backtrace_locations().is_none());
     /// ```
     fn backtrace_locations(&self) -> Option<Array> {
-        let result = binding_util::call_method(self.value(), "backtrace_locations", None);
+        let result = vm::call_method(self.value(), "backtrace_locations", None);
 
         if result.is_nil() {
             return None;
@@ -113,7 +113,7 @@ pub trait Exception: Object {
     /// assert!(x.cause().is_none());
     /// ```
     fn cause(&self) -> Option<Self> {
-        let result = binding_util::call_method(self.value(), "cause", None);
+        let result = vm::call_method(self.value(), "cause", None);
 
         if result.is_nil() {
             return None;
@@ -135,7 +135,7 @@ pub trait Exception: Object {
     /// );
     /// ```
     fn inspect(&self) -> String {
-        RString::from(binding_util::call_method(self.value(), "inspect", None)).to_string()
+        RString::from(vm::call_method(self.value(), "inspect", None)).to_string()
     }
 
     /// Returns the result of invoking `exception.to_s`. Normally this
@@ -152,7 +152,7 @@ pub trait Exception: Object {
     /// );
     /// ```
     fn message(&self) -> String {
-        RString::from(binding_util::call_method(self.value(), "message", None)).to_string()
+        RString::from(vm::call_method(self.value(), "message", None)).to_string()
     }
 
     /// Sets the backtrace information associated with exc. The backtrace
@@ -182,7 +182,7 @@ pub trait Exception: Object {
     /// );
     /// ```
     fn set_backtrace(&self, backtrace: AnyObject) -> Option<Array> {
-        let result = binding_util::call_method(self.value(), "set_backtrace", Some(vec![backtrace.value()])); 
+        let result = vm::call_method(self.value(), "set_backtrace", Some(vec![backtrace.value()])); 
 
         if result.is_nil() {
             return None;
@@ -204,6 +204,6 @@ pub trait Exception: Object {
     /// );
     /// ```
     fn to_s(&self) -> String {
-        RString::from(binding_util::call_method(self.value(), "to_s", None)).to_string()
+        RString::from(vm::call_method(self.value(), "to_s", None)).to_string()
     }
 }

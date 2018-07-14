@@ -1,6 +1,6 @@
 use rubysys::symbol;
 
-use types::{c_char, Id, Value};
+use types::{c_char, c_long, Id, Value};
 use util;
 
 pub fn value_to_str<'a>(value: Value) -> &'a str {
@@ -32,3 +32,11 @@ fn sym_to_id(sym: Value) -> Id {
 fn id_to_name(id: Id) -> *const c_char {
     unsafe { symbol::rb_id2name(id) }
 }
+
+pub fn internal_id(string: &str) -> Id {
+    let str = string.as_ptr() as *const c_char;
+    let len = string.len() as c_long;
+
+    unsafe { symbol::rb_intern2(str, len) }
+}
+

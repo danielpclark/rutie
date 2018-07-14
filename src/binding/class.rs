@@ -1,6 +1,6 @@
 use rubysys::{class, typed_data};
 
-use binding::util as binding_util;
+use binding::symbol;
 use typed_data::DataTypeWrapper;
 use types::{c_void, Callback, CallbackPtr, Value};
 use util;
@@ -20,7 +20,7 @@ pub fn define_nested_class(outer: Value, name: &str, superclass: Value) -> Value
 }
 
 pub fn const_get(klass: Value, name: &str) -> Value {
-    unsafe { class::rb_const_get(klass, binding_util::internal_id(name)) }
+    unsafe { class::rb_const_get(klass, symbol::internal_id(name)) }
 }
 
 pub fn const_set(klass: Value, name: &str, value: Value) {
@@ -52,11 +52,11 @@ pub fn new_instance(klass: Value, arguments: Option<Vec<Value>>) -> Value {
 }
 
 pub fn instance_variable_get(object: Value, name: &str) -> Value {
-    unsafe { class::rb_ivar_get(object, binding_util::internal_id(name)) }
+    unsafe { class::rb_ivar_get(object, symbol::internal_id(name)) }
 }
 
 pub fn instance_variable_set(object: Value, name: &str, value: Value) -> Value {
-    unsafe { class::rb_ivar_set(object, binding_util::internal_id(name), value) }
+    unsafe { class::rb_ivar_set(object, symbol::internal_id(name), value) }
 }
 
 pub fn define_attribute(object: Value, name: &str, reader: bool, writer: bool) {
@@ -68,7 +68,7 @@ pub fn define_attribute(object: Value, name: &str, reader: bool, writer: bool) {
 }
 
 pub fn respond_to(object: Value, method: &str) -> bool {
-    let result = unsafe { class::rb_respond_to(object, binding_util::internal_id(method)) };
+    let result = unsafe { class::rb_respond_to(object, symbol::internal_id(method)) };
 
     util::c_int_to_bool(result)
 }

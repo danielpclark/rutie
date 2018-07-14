@@ -1,7 +1,7 @@
 use rubysys::class;
 
 use binding::global::rb_cObject;
-use binding::util as binding_util;
+use binding::class as binding_class;
 use types::{Value, Callback, CallbackPtr};
 use util;
 
@@ -30,7 +30,7 @@ pub fn define_module_function<I: Object, O: Object>(klass: Value, name: &str, ca
 pub fn include_module(klass: Value, module: &str) {
     let object_module = unsafe { rb_cObject };
 
-    let module_value = binding_util::get_constant(module, object_module);
+    let module_value = binding_class::const_get(object_module, module);
 
     unsafe { class::rb_include_module(klass, module_value) };
 }
@@ -38,7 +38,7 @@ pub fn include_module(klass: Value, module: &str) {
 pub fn prepend_module(klass: Value, module: &str) {
     let object_module = unsafe { rb_cObject };
 
-    let module_value = binding_util::get_constant(module, object_module);
+    let module_value = binding_class::const_get(object_module, module);
 
     unsafe { class::rb_prepend_module(klass, module_value) };
 }
