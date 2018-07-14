@@ -11,7 +11,7 @@ environment:
     - channel: stable
       target: x86_64-pc-windows-msvc
       platform: x64
-      RUBY_VERSION: 24-x64
+      RUBY_VERSION: 24
       RUST_BACKTRACE: full
   # Stable 32-bit MSVC
     - channel: stable
@@ -23,7 +23,7 @@ environment:
     - channel: beta
       target: x86_64-pc-windows-msvc
       platform: x64
-      RUBY_VERSION: 24-x64
+      RUBY_VERSION: 24
       RUST_BACKTRACE: full
   # Beta 32-bit MSVC
     - channel: beta
@@ -35,7 +35,7 @@ environment:
     - channel: nightly
       target: x86_64-pc-windows-msvc
       platform: x64
-      RUBY_VERSION: 24-x64
+      RUBY_VERSION: 24
       RUST_BACKTRACE: full
       #cargoflags: --features "unstable"
   # Nightly 32-bit MSVC
@@ -52,7 +52,7 @@ environment:
     - channel: stable
       target: x86_64-pc-windows-msvc
       platform: x64
-      RUBY_VERSION: 25-x64
+      RUBY_VERSION: 25
       RUST_BACKTRACE: full
   # Stable 32-bit MSVC
     - channel: stable
@@ -64,7 +64,7 @@ environment:
     - channel: beta
       target: x86_64-pc-windows-msvc
       platform: x64
-      RUBY_VERSION: 25-x64
+      RUBY_VERSION: 25
       RUST_BACKTRACE: full
   # Beta 32-bit MSVC
     - channel: beta
@@ -76,7 +76,7 @@ environment:
     - channel: nightly
       target: x86_64-pc-windows-msvc
       platform: x64
-      RUBY_VERSION: 25-x64
+      RUBY_VERSION: 25
       RUST_BACKTRACE: full
       #cargoflags: --features "unstable"
   # Nightly 32-bit MSVC
@@ -93,7 +93,7 @@ environment:
     - channel: stable
       target: x86_64-pc-windows-gnu
       platform: x64
-      RUBY_VERSION: 24-x64
+      RUBY_VERSION: 24
       RUST_BACKTRACE: full
   # Stable 32-bit GNU
     - channel: stable
@@ -105,7 +105,7 @@ environment:
     - channel: beta
       target: x86_64-pc-windows-gnu
       platform: x64
-      RUBY_VERSION: 24-x64
+      RUBY_VERSION: 24
       RUST_BACKTRACE: full
   # Beta 32-bit GNU
     - channel: beta
@@ -117,7 +117,7 @@ environment:
     - channel: nightly
       target: x86_64-pc-windows-gnu
       platform: x64
-      RUBY_VERSION: 24-x64
+      RUBY_VERSION: 24
       RUST_BACKTRACE: full
       #cargoflags: --features "unstable"
   # Nightly 32-bit GNU
@@ -134,7 +134,7 @@ environment:
     - channel: stable
       target: x86_64-pc-windows-gnu
       platform: x64
-      RUBY_VERSION: 25-x64
+      RUBY_VERSION: 25
       RUST_BACKTRACE: full
   # Stable 32-bit GNU
     - channel: stable
@@ -146,7 +146,7 @@ environment:
     - channel: beta
       target: x86_64-pc-windows-gnu
       platform: x64
-      RUBY_VERSION: 25-x64
+      RUBY_VERSION: 25
       RUST_BACKTRACE: full
   # Beta 32-bit GNU
     - channel: beta
@@ -158,7 +158,7 @@ environment:
     - channel: nightly
       target: x86_64-pc-windows-gnu
       platform: x64
-      RUBY_VERSION: 25-x64
+      RUBY_VERSION: 25
       RUST_BACKTRACE: full
       #cargoflags: --features "unstable"
   # Nightly 32-bit GNU
