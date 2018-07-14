@@ -66,6 +66,7 @@ matrix:
     - channel: nightly
 
 install:
+  - SET PATH=C:\Ruby%RUBY_VERSION%\bin;%PATH%
   - ps: |
         $env:PATH += ";C:\rust\bin";
         if ($env:platform -eq 'x86') {
@@ -102,4 +103,5 @@ test_script:
 
 cache:
   - '%USERPROFILE%\.cargo'
+  - '%USERPROFILE%\.rustup\downloads'
   - vendor/bundle
