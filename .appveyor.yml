@@ -5,6 +5,78 @@ environment:
 
   # Ruby 2.4
 
+### MSVC Toolchains ###
+
+  # Stable 64-bit MSVC
+    - channel: stable
+      target: x86_64-pc-windows-msvc
+      RUBY_VERSION: 24-x64
+      RUST_BACKTRACE: full
+  # Stable 32-bit MSVC
+    - channel: stable
+      target: i686-pc-windows-msvc
+      RUBY_VERSION: 24
+      RUST_BACKTRACE: full
+  # Beta 64-bit MSVC
+    - channel: beta
+      target: x86_64-pc-windows-msvc
+      RUBY_VERSION: 24-x64
+      RUST_BACKTRACE: full
+  # Beta 32-bit MSVC
+    - channel: beta
+      target: i686-pc-windows-msvc
+      RUBY_VERSION: 24
+      RUST_BACKTRACE: full
+  # Nightly 64-bit MSVC
+    - channel: nightly
+      target: x86_64-pc-windows-msvc
+      RUBY_VERSION: 24-x64
+      RUST_BACKTRACE: full
+      #cargoflags: --features "unstable"
+  # Nightly 32-bit MSVC
+    - channel: nightly
+      target: i686-pc-windows-msvc
+      RUBY_VERSION: 24
+      RUST_BACKTRACE: full
+      #cargoflags: --features "unstable"
+
+  # Ruby 2.5
+
+  # Stable 64-bit MSVC
+    - channel: stable
+      target: x86_64-pc-windows-msvc
+      RUBY_VERSION: 25-x64
+      RUST_BACKTRACE: full
+  # Stable 32-bit MSVC
+    - channel: stable
+      target: i686-pc-windows-msvc
+      RUBY_VERSION: 25
+      RUST_BACKTRACE: full
+  # Beta 64-bit MSVC
+    - channel: beta
+      target: x86_64-pc-windows-msvc
+      RUBY_VERSION: 25-x64
+      RUST_BACKTRACE: full
+  # Beta 32-bit MSVC
+    - channel: beta
+      target: i686-pc-windows-msvc
+      RUBY_VERSION: 25
+      RUST_BACKTRACE: full
+  # Nightly 64-bit MSVC
+    - channel: nightly
+      target: x86_64-pc-windows-msvc
+      RUBY_VERSION: 25-x64
+      RUST_BACKTRACE: full
+      #cargoflags: --features "unstable"
+  # Nightly 32-bit MSVC
+    - channel: nightly
+      target: i686-pc-windows-msvc
+      RUBY_VERSION: 25
+      RUST_BACKTRACE: full
+      #cargoflags: --features "unstable"
+
+### GNU Toolchains ###
+
   # Stable 64-bit GNU
     - channel: stable
       target: x86_64-pc-windows-gnu
@@ -102,9 +174,6 @@ install:
   - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
   - rustup-init -yv --default-toolchain %channel% --default-host %target%
   - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
-  - set "DEPS=%USERPROFILE%\target\debug\deps"
-  - md "%DEPS%"
-  - ruby -e 'lib = File.join(RbConfig::CONFIG["libdir"], RbConfig::CONFIG["LIBRUBY_ALIASES"].split(" ").first); exec "copy #{lib} %USERPROFILE%\target\debug\deps"'
   - rustc -vV
   - cargo -vV
   - ruby --version
@@ -119,4 +188,5 @@ test_script:
 cache:
   - '%USERPROFILE%\.cargo'
   - '%USERPROFILE%\.rustup\downloads'
-  - vendor/bundle
+  - C:\Users\appveyor\.cargo\registry
+  - target
