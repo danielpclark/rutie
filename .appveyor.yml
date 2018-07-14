@@ -174,7 +174,6 @@ matrix:
     - channel: nightly
 
 install:
-  - SET PATH=C:\Ruby%RUBY_VERSION%\bin;%PATH%
   - ps: |
         $env:PATH += ";C:\rust\bin";
         if ($env:platform -eq 'x86') {
