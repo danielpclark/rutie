@@ -1,32 +1,70 @@
-# Based on https://github.com/malept/rusty_blank/blob/master/.appveyor.yml
+os: Visual Studio 2015
 
-platform:
-  - x86
-  - x64
 environment:
   matrix:
-    - RUST_VERSION: stable
-      BUILD_TARGET: gnu
+
+  # Ruby 2.4
+
+  # Stable 64-bit GNU
+    - channel: stable
+      target: x86_64-pc-windows-gnu
+      RUBY_VERSION: 24-x64
+  # Stable 32-bit GNU
+    - channel: stable
+      target: i686-pc-windows-gnu
       RUBY_VERSION: 24
-    - RUST_VERSION: beta
-      BUILD_TARGET: gnu
+  # Beta 64-bit GNU
+    - channel: beta
+      target: x86_64-pc-windows-gnu
+      RUBY_VERSION: 24-x64
+  # Beta 32-bit GNU
+    - channel: beta
+      target: i686-pc-windows-gnu
       RUBY_VERSION: 24
-    - RUST_VERSION: nightly
-      BUILD_TARGET: gnu
+  # Nightly 64-bit GNU
+    - channel: nightly
+      target: x86_64-pc-windows-gnu
+      RUBY_VERSION: 24-x64
+      #cargoflags: --features "unstable"
+  # Nightly 32-bit GNU
+    - channel: nightly
+      target: i686-pc-windows-gnu
       RUBY_VERSION: 24
-    - RUST_VERSION: stable
-      BUILD_TARGET: gnu
+      #cargoflags: --features "unstable"
+
+  # Ruby 2.5
+
+  # Stable 64-bit GNU
+    - channel: stable
+      target: x86_64-pc-windows-gnu
+      RUBY_VERSION: 25-x64
+  # Stable 32-bit GNU
+    - channel: stable
+      target: i686-pc-windows-gnu
       RUBY_VERSION: 25
-    - RUST_VERSION: beta
-      BUILD_TARGET: gnu
+  # Beta 64-bit GNU
+    - channel: beta
+      target: x86_64-pc-windows-gnu
+      RUBY_VERSION: 25-x64
+  # Beta 32-bit GNU
+    - channel: beta
+      target: i686-pc-windows-gnu
       RUBY_VERSION: 25
-    - RUST_VERSION: nightly
-      BUILD_TARGET: gnu
+  # Nightly 64-bit GNU
+    - channel: nightly
+      target: x86_64-pc-windows-gnu
+      RUBY_VERSION: 25-x64
+      #cargoflags: --features "unstable"
+  # Nightly 32-bit GNU
+    - channel: nightly
+      target: i686-pc-windows-gnu
       RUBY_VERSION: 25
-cache:
-  - target\debug\build
-  - target\debug\deps
-  - '%USERPROFILE%\.cargo'
+      #cargoflags: --features "unstable"
+
+matrix:
+  allow_failures:
+    - channel: nightly
+
 install:
   - ps: |
         $env:PATH += ";C:\rust\bin";
@@ -47,22 +85,21 @@ install:
           $env:PATH += ";C:\msys64\mingw${env:bits}\bin";
           gcc --version;
         }
-        if ($env:RUST_VERSION -eq 'stable') {
-          echo "Downloading $channel channel manifest";
-          Start-FileDownload "https://static.rust-lang.org/dist/channel-rust-stable";
-
-          $env:RUST_VERSION = Get-Content channel-rust-stable | Select -first 1 | %{$_.split('-')[1]}
-        }
-        $env:rust_installer = "rust-${env:RUST_VERSION}-${arch_expanded}.exe";
-  - curl --show-error --location --retry 5 --output rust-installer.exe https://static.rust-lang.org/dist/%rust_installer%
-  - .\rust-installer.exe /VERYSILENT /NORESTART /DIR="C:\rust"
-  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %ARCH%
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 15.0\VC\vcvarsall.bat" %ARCH%
+  - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
+  - rustup-init -yv --default-toolchain %channel% --default-host %target%
+  - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
   - rustc -vV
   - cargo -vV
   - ruby --version
+  - gem -v
+  - bundle -v
+
 build: false
+
 test_script:
-  - cargo test --verbose
-matrix:
-  allow_failures:
-    - RUST_VERSION: nightly
+  - cargo test --verbose %cargoflags%
+
+cache:
+  - '%USERPROFILE%\.cargo'
+  - vendor/bundle
