@@ -103,7 +103,7 @@ install:
   - rustup-init -yv --default-toolchain %channel% --default-host %target%
   - set PATH=%PATH%;%USERPROFILE%\.cargo\bin
   - mkdir -p %USERPROFILE%\target\debug\deps
-  - ruby -e 'lib = File.join(RbConfig::CONFIG["libdir"], RbConfig::CONFIG["LIBRUBY_ALIASES"].split(" ").first); `copy #{lib} %USERPROFILE%\target\debug\deps`'
+  - ruby -e 'lib = File.join(RbConfig::CONFIG["libdir"], RbConfig::CONFIG["LIBRUBY_ALIASES"].split(" ").first); exec "copy #{lib} %USERPROFILE%\target\debug\deps"'
   - rustc -vV
   - cargo -vV
   - ruby --version
