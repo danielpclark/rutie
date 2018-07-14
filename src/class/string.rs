@@ -323,6 +323,7 @@ impl EncodingSupport for RString {
     /// string.encoding.name == "US-ASCII"
     /// ```
     ///
+    // TODO: See comment in method definition below.
     // ```
     // use rutie::{RString, VM, EncodingSupport, Encoding, Object, Exception};
     // # VM::init();
@@ -342,6 +343,12 @@ impl EncodingSupport for RString {
             return Err(AnyException::new("RuntimeError", Some("can't modify string; temporarily locked")));
         }
 
+        // TODO: Ruby 2.3.7 & 2.4.4 fail on CI servers for all OSes because of the `is_frozen` check
+        // here.  Works with Ruby 2.5.1 everywhere though and on my machine or Docker with all
+        // versions.  May be CI binaries related but that doesn't explain why `is_frozen` works
+        // elsewhere on the CI same systems.  Either get this to work on the CI servers or wait
+        // till EOL for Ruby 2.3 and 2.4.
+        //
         // if self.is_frozen() {
         //     return Err(AnyException::new("FrozenError", Some("can't modify frozen String")));
         // }
