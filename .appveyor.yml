@@ -1,6 +1,8 @@
 os: Visual Studio 2015
 
 environment:
+  global:
+    - RUST_BACKTRACE=full
   matrix:
 
   # Ruby 2.4
@@ -99,7 +101,7 @@ install:
 build: false
 
 test_script:
-  - cargo test --verbose %cargoflags%
+  - cargo test -vv
 
 cache:
   - '%USERPROFILE%\.cargo'
