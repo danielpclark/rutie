@@ -1,7 +1,6 @@
 os: Visual Studio 2015
 
 environment:
-  RUST_BACKTRACE: full
   matrix:
 
   # Ruby 2.4
@@ -10,27 +9,33 @@ environment:
     - channel: stable
       target: x86_64-pc-windows-gnu
       RUBY_VERSION: 24-x64
+      RUST_BACKTRACE: full
   # Stable 32-bit GNU
     - channel: stable
       target: i686-pc-windows-gnu
       RUBY_VERSION: 24
+      RUST_BACKTRACE: full
   # Beta 64-bit GNU
     - channel: beta
       target: x86_64-pc-windows-gnu
       RUBY_VERSION: 24-x64
+      RUST_BACKTRACE: full
   # Beta 32-bit GNU
     - channel: beta
       target: i686-pc-windows-gnu
       RUBY_VERSION: 24
+      RUST_BACKTRACE: full
   # Nightly 64-bit GNU
     - channel: nightly
       target: x86_64-pc-windows-gnu
       RUBY_VERSION: 24-x64
+      RUST_BACKTRACE: full
       #cargoflags: --features "unstable"
   # Nightly 32-bit GNU
     - channel: nightly
       target: i686-pc-windows-gnu
       RUBY_VERSION: 24
+      RUST_BACKTRACE: full
       #cargoflags: --features "unstable"
 
   # Ruby 2.5
@@ -39,27 +44,33 @@ environment:
     - channel: stable
       target: x86_64-pc-windows-gnu
       RUBY_VERSION: 25-x64
+      RUST_BACKTRACE: full
   # Stable 32-bit GNU
     - channel: stable
       target: i686-pc-windows-gnu
       RUBY_VERSION: 25
+      RUST_BACKTRACE: full
   # Beta 64-bit GNU
     - channel: beta
       target: x86_64-pc-windows-gnu
       RUBY_VERSION: 25-x64
+      RUST_BACKTRACE: full
   # Beta 32-bit GNU
     - channel: beta
       target: i686-pc-windows-gnu
       RUBY_VERSION: 25
+      RUST_BACKTRACE: full
   # Nightly 64-bit GNU
     - channel: nightly
       target: x86_64-pc-windows-gnu
       RUBY_VERSION: 25-x64
+      RUST_BACKTRACE: full
       #cargoflags: --features "unstable"
   # Nightly 32-bit GNU
     - channel: nightly
       target: i686-pc-windows-gnu
       RUBY_VERSION: 25
+      RUST_BACKTRACE: full
       #cargoflags: --features "unstable"
 
 matrix:
