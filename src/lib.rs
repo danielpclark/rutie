@@ -18,6 +18,7 @@ pub use class::any_object::AnyObject;
 pub use class::array::Array;
 pub use class::boolean::Boolean;
 pub use class::class::Class;
+pub use class::encoding::Encoding;
 pub use class::fixnum::Fixnum;
 pub use class::float::Float;
 pub use class::gc::GC;
@@ -31,6 +32,7 @@ pub use class::symbol::Symbol;
 pub use class::thread::Thread;
 pub use class::vm::VM;
 
+pub use class::traits::encoding_support::EncodingSupport;
 pub use class::traits::exception::Exception;
 pub use class::traits::object::Object;
 pub use class::traits::verified_object::VerifiedObject;

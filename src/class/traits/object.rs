@@ -1219,9 +1219,7 @@ pub trait Object: From<Value> {
     /// frozen_string.frozen? == true
     /// ```
     fn is_frozen(&self) -> bool {
-        let result = class::is_frozen(self.value());
-
-        Boolean::from(result).to_bool()
+        self.value().is_frozen()
     }
 
     /// Prevents further modifications to the object.
@@ -1232,14 +1230,22 @@ pub trait Object: From<Value> {
     /// use rutie::{Object, RString, VM};
     /// # VM::init();
     ///
+    /// let mut string = RString::new("String");
+    ///
+    /// assert!(!string.is_frozen(), "String should not be frozen");
+    ///
     /// let frozen_string = RString::new("String").freeze();
     ///
-    /// assert!(frozen_string.is_frozen());
+    /// assert!(frozen_string.is_frozen(), "String should be frozen");
     /// ```
     ///
     /// Ruby:
     ///
     /// ```ruby
+    /// string = 'String'
+    ///
+    /// string.frozen? == false
+    ///
     /// frozen_string = 'String'.freeze
     ///
     /// frozen_string.frozen? == true
