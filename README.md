@@ -1,7 +1,6 @@
 ## Rutie
 
 [![Build Status](https://travis-ci.org/danielpclark/rutie.svg?branch=master)](https://travis-ci.org/danielpclark/rutie)
-[![Build status](https://ci.appveyor.com/api/projects/status/fm8tpa9aqx80am0i/branch/master?svg=true)](https://ci.appveyor.com/project/danielpclark/rutie/branch/master)
 [![Maintenance](https://img.shields.io/maintenance/yes/2018.svg)](https://github.com/danielpclark/rutie/commits/master)
 [![GitHub contributors](https://img.shields.io/github/contributors/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/graphs/contributors)
 [![license](https://img.shields.io/github/license/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/blob/master/LICENSE)
