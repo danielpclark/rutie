@@ -1,5 +1,6 @@
 use ::{AnyObject, Object, RString, Array, Class};
 use binding::vm;
+use util;
 
 /// Descendants of class Exception are used to communicate between Kernel#raise
 /// and rescue statements in `begin ... end` blocks. Exception objects carry
@@ -25,9 +26,9 @@ pub trait Exception: Object {
     /// ```
     fn new(class: &str, msg: Option<&str>) -> Self {
         let class = Class::from_existing(class);
-        let arguments = msg.map(|s| vec![RString::new(s).value()]).unwrap_or_default();
+        let msg = msg.map(|s| RString::new(s).value());
 
-        Self::from(vm::call_method(class.value(), "new", &arguments))
+        Self::from(vm::call_method(class.value(), "new", util::option_to_slice(&msg)))
     }
 
     /// With no argument, or if the argument is the same as the receiver,
@@ -46,9 +47,9 @@ pub trait Exception: Object {
     /// );
     /// ```
     fn exception(&self, string: Option<&str>) -> Self {
-        let arguments = string.map(|s| vec![RString::new(s).value()]).unwrap_or_default();
+        let string = string.map(|s| RString::new(s).value());
 
-        Self::from(vm::call_method(self.value(), "exception", &arguments))
+        Self::from(vm::call_method(self.value(), "exception", util::option_to_slice(&string)))
     }
 
     /// Returns any backtrace associated with the exception. The

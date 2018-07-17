@@ -47,6 +47,13 @@ pub fn process_arguments(arguments: &[Value]) -> (Argc, *const Value) {
     (arguments.len() as Argc, arguments.as_ptr())
 }
 
+pub fn option_to_slice<'a, T>(option: &'a Option<T>) -> &'a [T] {
+    match option {
+        Some(v) => unsafe { slice::from_raw_parts(v, 1) },
+        None => &[],
+    }
+}
+
 // Converts a pointer to array of `AnyObject`s to `Vec<AnyObject>`.
 //
 // This function is a helper for callbacks, do not use it directly.
