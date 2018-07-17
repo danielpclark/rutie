@@ -45,8 +45,8 @@ pub fn ancestors(klass: Value) -> Value {
     unsafe { class::rb_mod_ancestors(klass) }
 }
 
-pub fn new_instance(klass: Value, arguments: Option<Vec<Value>>) -> Value {
-    let (argc, argv) = util::process_arguments(&arguments);
+pub fn new_instance(klass: Value, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
 
     unsafe { class::rb_class_new_instance(argc, argv, klass) }
 }

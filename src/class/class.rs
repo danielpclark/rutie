@@ -167,8 +167,8 @@ impl Class {
     /// Worker.new(1, 2)
     /// ```
     pub fn new_instance(&self, arguments: Option<&[AnyObject]>) -> AnyObject {
-        let arguments = util::arguments_to_values(arguments);
-        let instance = class::new_instance(self.value(), arguments);
+        let arguments = util::arguments_to_values(arguments).unwrap_or_default();
+        let instance = class::new_instance(self.value(), &arguments);
 
         AnyObject::from(instance)
     }

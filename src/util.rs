@@ -43,10 +43,14 @@ pub fn arguments_to_values(arguments: Option<&[AnyObject]>) -> Option<Vec<Value>
     arguments.map(|arguments| arguments.iter().map(Object::value).collect())
 }
 
-pub fn process_arguments(arguments: &Option<Vec<Value>>) -> (Argc, *const Value) {
-    match *arguments {
-        Some(ref arguments) => (arguments.len() as Argc, arguments.as_ptr()),
-        None => (0, ptr::null()),
+pub fn process_arguments(arguments: &[Value]) -> (Argc, *const Value) {
+    (arguments.len() as Argc, arguments.as_ptr())
+}
+
+pub fn option_to_slice<'a, T>(option: &'a Option<T>) -> &'a [T] {
+    match option {
+        Some(v) => unsafe { slice::from_raw_parts(v, 1) },
+        None => &[],
     }
 }
 
