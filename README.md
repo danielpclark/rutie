@@ -40,7 +40,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.2.2"
+rutie = "0.3.0"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
@@ -87,7 +87,7 @@ file.  Add Rutie to the `Cargo.toml` file and define the lib type.
 
 ```toml
 [dependencies]
-rutie = "0.2.2"
+rutie = "0.3.0"
 
 [lib]
 name = "rutie_ruby_example"
@@ -353,6 +353,10 @@ You will have additional considerations to change like `Error` being removed.  F
 #### 0.2
 
 Migrated `parse_arguments` from `VM` to `util`.
+
+#### 0.3
+
+Internal changes `util` from `binding` and `rubysys` have been replaced to reduce confusion and reduce duplication.
 
 ## Troubleshooting
 
