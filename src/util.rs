@@ -43,11 +43,8 @@ pub fn arguments_to_values(arguments: Option<&[AnyObject]>) -> Option<Vec<Value>
     arguments.map(|arguments| arguments.iter().map(Object::value).collect())
 }
 
-pub fn process_arguments(arguments: &Option<Vec<Value>>) -> (Argc, *const Value) {
-    match *arguments {
-        Some(ref arguments) => (arguments.len() as Argc, arguments.as_ptr()),
-        None => (0, ptr::null()),
-    }
+pub fn process_arguments(arguments: &[Value]) -> (Argc, *const Value) {
+    (arguments.len() as Argc, arguments.as_ptr())
 }
 
 // Converts a pointer to array of `AnyObject`s to `Vec<AnyObject>`.

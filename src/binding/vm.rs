@@ -30,16 +30,16 @@ pub fn require(name: &str) {
     }
 }
 
-pub fn call_method(receiver: Value, method: &str, arguments: Option<Vec<Value>>) -> Value {
-    let (argc, argv) = util::process_arguments(&arguments);
+pub fn call_method(receiver: Value, method: &str, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
     let method_id = internal_id(method);
 
     // TODO: Update the signature of `rb_funcallv` in ruby-sys to receive an `Option`
     unsafe { vm::rb_funcallv(receiver, method_id, argc, argv) }
 }
 
-pub fn call_public_method(receiver: Value, method: &str, arguments: Option<Vec<Value>>) -> Value {
-    let (argc, argv) = util::process_arguments(&arguments);
+pub fn call_public_method(receiver: Value, method: &str, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
     let method_id = internal_id(method);
 
     // TODO: Update the signature of `rb_funcallv_public` in ruby-sys to receive an `Option`

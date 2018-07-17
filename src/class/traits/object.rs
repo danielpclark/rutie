@@ -714,8 +714,8 @@ pub trait Object: From<Value> {
     /// assert_eq!(array_string.to_str(), "[1]");
     /// ```
     fn send(&self, method: &str, arguments: Option<&[AnyObject]>) -> AnyObject {
-        let arguments = util::arguments_to_values(arguments);
-        let result = vm::call_method(self.value(), method, arguments);
+        let arguments = util::arguments_to_values(arguments).unwrap_or_default();
+        let result = vm::call_method(self.value(), method, &arguments);
 
         AnyObject::from(result)
     }
@@ -749,9 +749,9 @@ pub trait Object: From<Value> {
     fn equals<T: Object>(&self, other: &T) -> bool {
         let v = self.value();
         let m = "==";
-        let a = vec![other.value()];
+        let a = [other.value()];
 
-        vm::call_method(v, m, Some(a)).is_true()
+        vm::call_method(v, m, &a).is_true()
     }
 
     /// Alias for Ruby's `===`
@@ -780,9 +780,9 @@ pub trait Object: From<Value> {
     fn case_equals<T: Object>(&self, other: &T) -> bool {
         let v = self.value();
         let m = "===";
-        let a = vec![other.value()];
+        let a = [other.value()];
 
-        vm::call_method(v, m, Some(a)).is_true()
+        vm::call_method(v, m, &a).is_true()
     }
 
     /// Alias for Ruby's `eql?`
@@ -815,9 +815,9 @@ pub trait Object: From<Value> {
     fn is_eql<T: Object>(&self, other: &T) -> bool {
         let v = self.value();
         let m = "eql?";
-        let a = vec![other.value()];
+        let a = [other.value()];
 
-        vm::call_method(v, m, Some(a)).is_true()
+        vm::call_method(v, m, &a).is_true()
     }
 
     /// Alias for Ruby's `equal?`
@@ -850,9 +850,9 @@ pub trait Object: From<Value> {
     fn is_equal<T: Object>(&self, other: &T) -> bool {
         let v = self.value();
         let m = "equal?";
-        let a = vec![other.value()];
+        let a = [other.value()];
 
-        vm::call_method(v, m, Some(a)).is_true()
+        vm::call_method(v, m, &a).is_true()
     }
 
     /// Checks whether the object responds to given method
@@ -911,10 +911,10 @@ pub trait Object: From<Value> {
     /// ```
     fn protect_send(&self, method: String, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
         let v = self.value();
-        let arguments = util::arguments_to_values(arguments);
+        let arguments = util::arguments_to_values(arguments).unwrap_or_default();
 
-        let closure = move || {
-            vm::call_method(v, &method, arguments)
+        let closure = || {
+            vm::call_method(v, &method, &arguments)
         };
 
         let result = vm::protect(closure);
@@ -970,10 +970,10 @@ pub trait Object: From<Value> {
     /// ```
     fn protect_public_send(&self, method: String, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
         let v = self.value();
-        let arguments = util::arguments_to_values(arguments);
+        let arguments = util::arguments_to_values(arguments).unwrap_or_default();
 
-        let closure = move || {
-            vm::call_public_method(v, &method, arguments)
+        let closure = || {
+            vm::call_public_method(v, &method, &arguments)
         };
 
         let result = vm::protect(closure);
