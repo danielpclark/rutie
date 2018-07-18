@@ -351,7 +351,7 @@ impl VM {
 
     pub fn protect<F>(func: F) -> Result<Value, i32>
     where
-        F: FnOnce(),
+        F: FnMut() -> Value,
     {
         vm::protect(func)
     }
