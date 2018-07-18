@@ -46,7 +46,7 @@ fn use_dylib() {
 fn main() {
     // Ruby programs calling Rust don't need cc linking
     if let None = std::env::var_os("NO_LINK_RUTIE") {
-        // Ruby includes pkgconfig under there lib dir
+        // Ruby includes pkgconfig under their lib dir
         set_env_pkg_config();
 
         if let Ok(_) = pkg_config::probe_library(&rbconfig("RUBY_SO_NAME")) {
