@@ -162,21 +162,23 @@ extern "C" fn callbox(boxptr: *mut c_void) -> *const c_void {
     fnbox()
 }
 
-pub fn protect<F, R>(func: F) -> Result<Value, c_int>
+pub fn protect<F>(func: F) -> Result<Value, c_int>
 where
-    F: FnOnce() -> R,
+    F: FnMut() -> Value,
 {
     let mut state = 0;
     let value = unsafe {
-        vm::rb_protect(
-            callbox as CallbackPtr,
-            util::closure_to_ptr(func),
-            &mut state as *mut c_int,
-        )
+        let closure = &func as *const F as *const c_void;
+        vm::rb_protect(callback_protect::<F> as CallbackPtr, closure, &mut state as *mut c_int)
     };
     if state == 0 {
         Ok(value)
     } else {
         Err(state)
     }
+}
+
+fn callback_protect<F: FnMut() -> Value>(ptr: *const c_void) -> Value {
+    let f = ptr as *mut F;
+    unsafe { (*f)() }
 }
