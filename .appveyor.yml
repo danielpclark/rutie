@@ -3,171 +3,173 @@ os: Visual Studio 2015
 environment:
   matrix:
 
-  # Ruby 2.4
-
 ### MSVC Toolchains ###
 
+  # Ruby 2.4
+
   # Stable 64-bit MSVC
-    - channel: stable
+    - channel: 1.25.0
       target: x86_64-pc-windows-msvc
       platform: x64
       RUBY_VERSION: 24
       RUST_BACKTRACE: full
   # Stable 32-bit MSVC
-    - channel: stable
+    - channel: 1.25.0
       target: i686-pc-windows-msvc
       platform: x86
       RUBY_VERSION: 24
       RUST_BACKTRACE: full
-  # Beta 64-bit MSVC
-    - channel: beta
-      target: x86_64-pc-windows-msvc
-      platform: x64
-      RUBY_VERSION: 24
-      RUST_BACKTRACE: full
-  # Beta 32-bit MSVC
-    - channel: beta
-      target: i686-pc-windows-msvc
-      platform: x86
-      RUBY_VERSION: 24
-      RUST_BACKTRACE: full
-  # Nightly 64-bit MSVC
-    - channel: nightly
-      target: x86_64-pc-windows-msvc
-      platform: x64
-      RUBY_VERSION: 24
-      RUST_BACKTRACE: full
-      #cargoflags: --features "unstable"
-  # Nightly 32-bit MSVC
-    - channel: nightly
-      target: i686-pc-windows-msvc
-      platform: x86
-      RUBY_VERSION: 24
-      RUST_BACKTRACE: full
-      #cargoflags: --features "unstable"
+#  # Beta 64-bit MSVC
+#    - channel: beta
+#      target: x86_64-pc-windows-msvc
+#      platform: x64
+#      RUBY_VERSION: 24
+#      RUST_BACKTRACE: full
+#  # Beta 32-bit MSVC
+#    - channel: beta
+#      target: i686-pc-windows-msvc
+#      platform: x86
+#      RUBY_VERSION: 24
+#      RUST_BACKTRACE: full
+#  # Nightly 64-bit MSVC
+#    - channel: nightly
+#      target: x86_64-pc-windows-msvc
+#      platform: x64
+#      RUBY_VERSION: 24
+#      RUST_BACKTRACE: full
+#      #cargoflags: --features "unstable"
+#  # Nightly 32-bit MSVC
+#    - channel: nightly
+#      target: i686-pc-windows-msvc
+#      platform: x86
+#      RUBY_VERSION: 24
+#      RUST_BACKTRACE: full
+#      #cargoflags: --features "unstable"
 
   # Ruby 2.5
 
   # Stable 64-bit MSVC
-    - channel: stable
+    - channel: 1.25.0
       target: x86_64-pc-windows-msvc
       platform: x64
       RUBY_VERSION: 25
       RUST_BACKTRACE: full
   # Stable 32-bit MSVC
-    - channel: stable
+    - channel: 1.25.0
       target: i686-pc-windows-msvc
       platform: x86
       RUBY_VERSION: 25
       RUST_BACKTRACE: full
-  # Beta 64-bit MSVC
-    - channel: beta
-      target: x86_64-pc-windows-msvc
-      platform: x64
-      RUBY_VERSION: 25
-      RUST_BACKTRACE: full
-  # Beta 32-bit MSVC
-    - channel: beta
-      target: i686-pc-windows-msvc
-      platform: x86
-      RUBY_VERSION: 25
-      RUST_BACKTRACE: full
-  # Nightly 64-bit MSVC
-    - channel: nightly
-      target: x86_64-pc-windows-msvc
-      platform: x64
-      RUBY_VERSION: 25
-      RUST_BACKTRACE: full
-      #cargoflags: --features "unstable"
-  # Nightly 32-bit MSVC
-    - channel: nightly
-      target: i686-pc-windows-msvc
-      platform: x86
-      RUBY_VERSION: 25
-      RUST_BACKTRACE: full
-      #cargoflags: --features "unstable"
-
+#  # Beta 64-bit MSVC
+#    - channel: beta
+#      target: x86_64-pc-windows-msvc
+#      platform: x64
+#      RUBY_VERSION: 25
+#      RUST_BACKTRACE: full
+#  # Beta 32-bit MSVC
+#    - channel: beta
+#      target: i686-pc-windows-msvc
+#      platform: x86
+#      RUBY_VERSION: 25
+#      RUST_BACKTRACE: full
+#  # Nightly 64-bit MSVC
+#    - channel: nightly
+#      target: x86_64-pc-windows-msvc
+#      platform: x64
+#      RUBY_VERSION: 25
+#      RUST_BACKTRACE: full
+#      #cargoflags: --features "unstable"
+#  # Nightly 32-bit MSVC
+#    - channel: nightly
+#      target: i686-pc-windows-msvc
+#      platform: x86
+#      RUBY_VERSION: 25
+#      RUST_BACKTRACE: full
+#      #cargoflags: --features "unstable"
+#
 ### GNU Toolchains ###
 
+  # Ruby 2.4
+
   # Stable 64-bit GNU
-    - channel: stable
+    - channel: 1.25.0
       target: x86_64-pc-windows-gnu
       platform: x64
       RUBY_VERSION: 24
       RUST_BACKTRACE: full
   # Stable 32-bit GNU
-    - channel: stable
+    - channel: 1.25.0
       target: i686-pc-windows-gnu
       platform: x86
       RUBY_VERSION: 24
       RUST_BACKTRACE: full
-  # Beta 64-bit GNU
-    - channel: beta
-      target: x86_64-pc-windows-gnu
-      platform: x64
-      RUBY_VERSION: 24
-      RUST_BACKTRACE: full
-  # Beta 32-bit GNU
-    - channel: beta
-      target: i686-pc-windows-gnu
-      platform: x86
-      RUBY_VERSION: 24
-      RUST_BACKTRACE: full
-  # Nightly 64-bit GNU
-    - channel: nightly
-      target: x86_64-pc-windows-gnu
-      platform: x64
-      RUBY_VERSION: 24
-      RUST_BACKTRACE: full
-      #cargoflags: --features "unstable"
-  # Nightly 32-bit GNU
-    - channel: nightly
-      target: i686-pc-windows-gnu
-      platform: x86
-      RUBY_VERSION: 24
-      RUST_BACKTRACE: full
-      #cargoflags: --features "unstable"
+#  # Beta 64-bit GNU
+#    - channel: beta
+#      target: x86_64-pc-windows-gnu
+#      platform: x64
+#      RUBY_VERSION: 24
+#      RUST_BACKTRACE: full
+#  # Beta 32-bit GNU
+#    - channel: beta
+#      target: i686-pc-windows-gnu
+#      platform: x86
+#      RUBY_VERSION: 24
+#      RUST_BACKTRACE: full
+#  # Nightly 64-bit GNU
+#    - channel: nightly
+#      target: x86_64-pc-windows-gnu
+#      platform: x64
+#      RUBY_VERSION: 24
+#      RUST_BACKTRACE: full
+#      #cargoflags: --features "unstable"
+#  # Nightly 32-bit GNU
+#    - channel: nightly
+#      target: i686-pc-windows-gnu
+#      platform: x86
+#      RUBY_VERSION: 24
+#      RUST_BACKTRACE: full
+#      #cargoflags: --features "unstable"
 
   # Ruby 2.5
 
   # Stable 64-bit GNU
-    - channel: stable
+    - channel: 1.25.0
       target: x86_64-pc-windows-gnu
       platform: x64
       RUBY_VERSION: 25
       RUST_BACKTRACE: full
   # Stable 32-bit GNU
-    - channel: stable
+    - channel: 1.25.0
       target: i686-pc-windows-gnu
       platform: x86
       RUBY_VERSION: 25
       RUST_BACKTRACE: full
-  # Beta 64-bit GNU
-    - channel: beta
-      target: x86_64-pc-windows-gnu
-      platform: x64
-      RUBY_VERSION: 25
-      RUST_BACKTRACE: full
-  # Beta 32-bit GNU
-    - channel: beta
-      target: i686-pc-windows-gnu
-      platform: x86
-      RUBY_VERSION: 25
-      RUST_BACKTRACE: full
-  # Nightly 64-bit GNU
-    - channel: nightly
-      target: x86_64-pc-windows-gnu
-      platform: x64
-      RUBY_VERSION: 25
-      RUST_BACKTRACE: full
-      #cargoflags: --features "unstable"
-  # Nightly 32-bit GNU
-    - channel: nightly
-      target: i686-pc-windows-gnu
-      platform: x86
-      RUBY_VERSION: 25
-      RUST_BACKTRACE: full
-      #cargoflags: --features "unstable"
+#  # Beta 64-bit GNU
+#    - channel: beta
+#      target: x86_64-pc-windows-gnu
+#      platform: x64
+#      RUBY_VERSION: 25
+#      RUST_BACKTRACE: full
+#  # Beta 32-bit GNU
+#    - channel: beta
+#      target: i686-pc-windows-gnu
+#      platform: x86
+#      RUBY_VERSION: 25
+#      RUST_BACKTRACE: full
+#  # Nightly 64-bit GNU
+#    - channel: nightly
+#      target: x86_64-pc-windows-gnu
+#      platform: x64
+#      RUBY_VERSION: 25
+#      RUST_BACKTRACE: full
+#      #cargoflags: --features "unstable"
+#  # Nightly 32-bit GNU
+#    - channel: nightly
+#      target: i686-pc-windows-gnu
+#      platform: x86
+#      RUBY_VERSION: 25
+#      RUST_BACKTRACE: full
+#      #cargoflags: --features "unstable"
 
 matrix:
   allow_failures:
