@@ -11,7 +11,8 @@ This project allows you to do either with relative ease.
 
 You are highly encouraged to read the source code for this project.  Every method that has been
 mapped from Ruby for public use in `src/class/*` is **very well documented** with example code.
-This is the best way to take off running with Rutie.
+This is the best way to take off running with Rutie.  There are also integration examples in the
+examples directory which are based off of this README.
 
 This project is a continuation of:
 * [ruru](https://github.com/d-unseductable/ruru/) (licensed MIT)
