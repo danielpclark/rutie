@@ -31,8 +31,8 @@ before_script:
 
 script:
 - |
-  cargo -vv build &&
-  cargo -vv test
+  cargo build -vv &&
+  cargo test -vv
 
 env:
   global:
