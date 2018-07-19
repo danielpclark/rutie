@@ -2,7 +2,7 @@ use std::convert::From;
 
 use binding::{encoding, string, vm};
 use binding::class::is_frozen;
-use types::{Value, ValueType, TryConvert};
+use types::{Value, ValueType};
 
 use {
   Object,
@@ -13,7 +13,8 @@ use {
   Encoding,
   AnyException,
   Exception,
-  Boolean
+  Boolean,
+  TryConvert
 };
 
 /// `String`

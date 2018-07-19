@@ -36,8 +36,7 @@ pub use class::traits::encoding_support::EncodingSupport;
 pub use class::traits::exception::Exception;
 pub use class::traits::object::Object;
 pub use class::traits::verified_object::VerifiedObject;
-
-pub use types::TryConvert;
+pub use class::traits::try_convert::TryConvert;
 
 #[test]
 fn it_works() {}
