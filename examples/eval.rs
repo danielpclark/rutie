@@ -15,7 +15,7 @@ fn main() {
             },
         }
     } else {
-        eprintln!("No argument");
+        eprintln!(r#"Usage: eval "puts 'Put ruby code to be evaluated in a string after eval.' ""#);
         process::exit(1);
     }
 }
