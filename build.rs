@@ -59,7 +59,7 @@ fn main() {
 
         match pkg_config::Config::new().atleast_version(trim_teeny(&ruby_version())).probe("ruby") {
             Ok(_) => return,
-            Err(err) => panic!(err),
+            Err(err) => eprintln!("{:?}", err),
         }
         
         if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
