@@ -24,10 +24,10 @@ fn set_env_pkg_config() {
     std::env::set_var(key, value);
 }
 
-fn alt_ruby_name() -> String {
-    let value = rbconfig("RUBY_VERSION_NAME");
-    value.rsplitn(2, '.').collect::<Vec<&str>>().last().unwrap_or(&"").to_string()
-}
+// fn alt_ruby_name() -> String {
+//     let value = rbconfig("RUBY_VERSION_NAME");
+//     value.rsplitn(2, '.').collect::<Vec<&str>>().last().unwrap_or(&"").to_string()
+// }
 
 fn use_libdir() {
     println!("cargo:rustc-link-search={}", rbconfig("libdir"));
@@ -56,8 +56,9 @@ fn main() {
 
         if let Ok(_) = pkg_config::probe_library(&rbconfig("RUBY_SO_NAME")) {
             // Using pkg-config
-        } else if let Ok(_) = pkg_config::probe_library(&alt_ruby_name()) {
-            // Using pkg-config with an alternative lookup
+            println!("# Using pkg-config");
+        // } else if let Ok(_) = pkg_config::probe_library(&alt_ruby_name()) {
+        //     // Using pkg-config with an alternative lookup
         } else if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
             use_static()
         } else {

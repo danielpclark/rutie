@@ -35,7 +35,6 @@ script:
   cargo test -vv
 
 after_script:
-- echo "BUILD OUTPUT"
 - cat target/debug/build/rutie-*/output
 
 env:
