@@ -24,6 +24,14 @@ fn set_env_pkg_config() {
     std::env::set_var(key, value);
 }
 
+fn trim_teeny(version: &str) -> &str {
+    version.rsplitn(2, '.').collect::<Vec<&str>>().last().unwrap()
+}
+
+fn ruby_version() -> String {
+    rbconfig("RUBY_PROGRAM_VERSION")
+}
+
 fn use_libdir() {
     println!("cargo:rustc-link-search={}", rbconfig("libdir"));
 }
@@ -49,9 +57,12 @@ fn main() {
         // Ruby includes pkgconfig under their lib dir
         set_env_pkg_config();
 
-        if let Ok(_) = pkg_config::Config::new().atleast_version(&rbconfig("ruby_version")).probe("ruby") {
-            // Using pkg-config
-        } else if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
+        match pkg_config::Config::new().atleast_version(trim_teeny(&ruby_version())).probe("ruby") {
+            Ok(_) => return,
+            Err(err) => panic!(err),
+        }
+        
+        if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
             use_static()
         } else {
             match rbconfig("ENABLE_SHARED").as_str() {
