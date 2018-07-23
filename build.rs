@@ -43,6 +43,14 @@ fn use_dylib() {
     println!("cargo:rustc-link-lib=dylib={}", rbconfig("RUBY_SO_NAME"));
 }
 
+fn trim_ext(mut name: String, ext: &str) -> String {
+    if name.ends_with(ext) {
+        let len = name.len();
+        name.truncate(len - ext.len());
+    }
+    name
+}
+
 fn main() {
     // Ruby programs calling Rust don't need cc linking
     if let None = std::env::var_os("NO_LINK_RUTIE") {
@@ -51,8 +59,18 @@ fn main() {
 
         if let Ok(_) = pkg_config::probe_library(&rbconfig("RUBY_SO_NAME")) {
            // Using pkg-config
-        } else if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
-            use_static()
+           return;
+        }
+        let pc_name = trim_ext(rbconfig("ruby_pc"), ".pc");
+        if !pc_name.is_empty() {
+            if let Ok(_) = pkg_config::probe_library(&pc_name) {
+                println!("# use ruby_pc");
+                println!("cargo:rustc-link-lib=ruby");
+                return;
+            }
+        }
+        if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
+            use_static();
         } else {
             match rbconfig("ENABLE_SHARED").as_str() {
                 "no" => use_static(),
