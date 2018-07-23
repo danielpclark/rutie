@@ -65,9 +65,7 @@ fn main() {
         if !pc_name.is_empty() {
             if let Ok(_) = pkg_config::probe_library(&pc_name) {
                 println!("# use ruby_pc");
-                if rbconfig("ENABLE_SHARED") == "no" {
-                    println!("cargo:rustc-link-lib=ruby");
-                }
+                println!("cargo:rustc-link-lib=ruby");
                 return;
             }
         }
