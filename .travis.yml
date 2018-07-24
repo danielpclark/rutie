@@ -36,6 +36,7 @@ script:
 
 after_script:
 - cat target/debug/build/rutie-*/output
+- cat target/debug/build/rutie-*/stderr
 
 env:
   global:
