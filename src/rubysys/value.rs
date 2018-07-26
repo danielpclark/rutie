@@ -1,4 +1,3 @@
-use rubysys::libc::size_t;
 use std::mem;
 use std::convert::From;
 use rubysys::constant;
@@ -119,30 +118,7 @@ impl Value {
     }
 
     pub fn is_frozen(&self) -> bool {
-        !self.rb_fl_able() || self.rb_obj_frozen_raw()
-    }
-
-    fn rb_fl_able(&self) -> bool {
-        !self.rb_special_const_p() && !self.is_node()
-    }
-
-    fn rb_special_const_p(&self) -> bool {
-        self.rb_immediate_p() || !self.rb_test()
-    }
-
-    fn rb_immediate_p(&self) -> bool {
-        (self.value & RubySpecialFlags::ImmediateMask as size_t) != 0
-    }
-
-    fn rb_test(&self) -> bool {
-        !((self.value & !(RubySpecialConsts::Nil as size_t)) == 0)
-    }
-
-    fn rb_obj_frozen_raw(&self) -> bool {
-        unsafe {
-            let basic: *const RBasic = mem::transmute(self.value);
-            (*basic).flags & (constant::FL_FREEZE as size_t) != 0
-        }
+        !self.is_fl_able() || self.is_obj_frozen_raw()
     }
 
     pub fn ty(&self) -> ValueType {
@@ -160,7 +136,7 @@ impl Value {
             } else {
                 self.builtin_type()
             }
-        } else if !self.test() {
+        } else if !self.is_test() {
             if self.is_nil() {
                 ValueType::Nil
             } else if self.is_false() {
@@ -173,18 +149,33 @@ impl Value {
         }
     }
 
+    fn is_fl_able(&self) -> bool {
+        !self.is_special_const() && !self.is_node()
+    }
+
+    fn is_special_const(&self) -> bool {
+        self.is_immediate() || !self.is_test()
+    }
+
     fn is_immediate(&self) -> bool {
         (self.value & (RubySpecialFlags::ImmediateMask as InternalValue)) != 0
     }
 
-    fn test(&self) -> bool {
+    fn is_test(&self) -> bool {
         (self.value & !(RubySpecialConsts::Nil as InternalValue)) != 0
+    }
+
+    fn is_obj_frozen_raw(&self) -> bool {
+        unsafe {
+            let basic: *const RBasic = mem::transmute(self.value);
+            (*basic).flags & (constant::FL_FREEZE as InternalValue) != 0
+        }
     }
 
     fn builtin_type(&self) -> ValueType {
         unsafe {
             let basic: *const RBasic = mem::transmute(self.value);
-            let masked = (*basic).flags & (ValueType::Mask as size_t);
+            let masked = (*basic).flags & (ValueType::Mask as InternalValue);
             mem::transmute(masked as u32)
         }
     }
