@@ -7,7 +7,7 @@ use std::path::{Path};
 macro_rules! ci_stderr_log {
     () => (eprint!("\n"));
     ($($arg:tt)*) => ({
-        if env::var("CI").is_ok() { eprintln!($($arg)*) }
+        if env::var("CI_STDERR_LOG").is_ok() { eprintln!($($arg)*) }
     })
 }
 
