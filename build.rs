@@ -4,6 +4,13 @@ use std::ffi::OsStr;
 use std::process::Command;
 use std::path::{Path};
 
+macro_rules! ci_stderr_log {
+    () => (eprint!("\n"));
+    ($($arg:tt)*) => ({
+        if env::var("CI").is_ok() { eprintln!($($arg)*) }
+    })
+}
+
 fn rbconfig(key: &str) -> String {
     let ruby = match env::var_os("RUBY") {
         Some(val) => val.to_os_string(),
@@ -19,9 +26,12 @@ fn rbconfig(key: &str) -> String {
 }
 
 fn set_env_pkg_config() {
-    let key = "PKG_CONFIG_PATH";
-    let value = Path::new(&rbconfig("libdir")).join("pkgconfig");
-    std::env::set_var(key, value);
+    if let None = env::var_os("PKG_CONFIG_PATH") {
+        let key = "PKG_CONFIG_PATH";
+        let value = Path::new(&rbconfig("libdir")).join("pkgconfig");
+        std::env::set_var(key, &value);
+        ci_stderr_log!("Set PKG_CONFIG_PATH to {:?}", value);
+    }
 }
 
 fn trim_teeny(version: &str) -> &str {
@@ -44,11 +54,13 @@ fn use_static() {
     // Ruby gives back the libs in the form: `-lpthread -lgmp`
     // Cargo wants them as: `-l pthread -l gmp`
     println!("cargo:rustc-flags={}", transform_lib_args("LIBS", "-l "));
+    ci_stderr_log!("Using static linker flags{}", "");
 }
 
 fn use_dylib() {
     use_libdir();
     println!("cargo:rustc-link-lib=dylib={}", rbconfig("RUBY_SO_NAME"));
+    ci_stderr_log!("Using dynamic linker flags{}", "");
 }
 
 fn main() {
@@ -59,10 +71,11 @@ fn main() {
 
         match pkg_config::Config::new().atleast_version(trim_teeny(&ruby_version())).probe("ruby") {
             Ok(_) => return,
-            Err(err) => eprintln!("{:?}", err),
+            Err(err) => ci_stderr_log!("{:?}", err),
         }
         
         if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
+            ci_stderr_log!("Not mingw && RUBY_STATIC exists{}", "");
             use_static()
         } else {
             match rbconfig("ENABLE_SHARED").as_str() {
