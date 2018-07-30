@@ -30,7 +30,7 @@ to something like `ruby-2.5` to use pkg-config.  Run `pkg-config
 --list-all | grep -e ruby` to see what Ruby library versions of its name
 are available for `pkg-config` for the build.
 
-For more options on how to set the linkging between bynamic or static
+For more options on how to set the linking between dynamic or static
 linking with Ruby please see the documentation for
 [pkg-config-rs](https://github.com/alexcrichton/pkg-config-rs).
 
