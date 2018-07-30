@@ -1,13 +1,13 @@
 extern crate pkg_config;
 use std::env;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::process::Command;
 use std::path::{Path};
 
 macro_rules! ci_stderr_log {
     () => (eprint!("\n"));
     ($($arg:tt)*) => ({
-        if env::var("CI_STDERR_LOG").is_ok() { eprintln!($($arg)*) }
+        if env::var_os("CI_STDERR_LOG").is_some() { eprintln!($($arg)*) }
     })
 }
 
@@ -23,6 +23,13 @@ fn rbconfig(key: &str) -> String {
         .unwrap_or_else(|e| panic!("ruby not found: {}", e));
 
     String::from_utf8(config.stdout).expect("RbConfig value not UTF-8!")
+}
+
+fn ruby_name() -> OsString {
+    match env::var_os("LIBRUBY_NAME") {
+        Some(name) => name,
+        None => OsString::from("ruby"),
+    }
 }
 
 fn set_env_pkg_config() {
@@ -71,8 +78,14 @@ fn main() {
             // Ruby often includes pkgconfig under their lib dir
             set_env_pkg_config();
 
+            let ruby_version = ruby_version();
+            let version = trim_teeny(&ruby_version);
+
+            let ruby_name = ruby_name();
+            let name = ruby_name.to_str().unwrap_or("ruby");
+
             // To disable the use of pkg-config set the environment variable `RUTIE_NO_PKG_CONFIG`
-            match pkg_config::Config::new().atleast_version(trim_teeny(&ruby_version())).probe("ruby") {
+            match pkg_config::Config::new().atleast_version(version).probe(name) {
                 Ok(_) => {
                     ci_stderr_log!("pkg-config is being used");
                     return;
