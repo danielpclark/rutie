@@ -231,8 +231,8 @@ impl RString {
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
-    /// let string = RString::new("Hello, World!");
-    /// let utf8_string = RString::new("⓯");
+    /// let string = RString::new_utf8("Hello, World!");
+    /// let utf8_string = RString::new_utf8("⓯");
     ///
     /// assert_eq!(string.bytesize(), 13);
     /// assert_eq!(utf8_string.bytesize(), 3);
