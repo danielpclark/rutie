@@ -27,9 +27,6 @@ extern "C" {
     // char *
     // rb_string_value_ptr(volatile VALUE *ptr)
     pub fn rb_string_value_ptr(str: *const Value) -> *const c_char;
-    // long
-    // rb_str_strlen(VALUE str)
-    pub fn rb_str_strlen(str: Value) -> c_long;
     // int
     // rb_enc_str_asciionly_p(VALUE str)
     pub fn rb_enc_str_asciionly_p(str: Value) -> bool;
@@ -93,6 +90,18 @@ struct RStringHeap {
 struct RString {
     basic: RBasic,
     as_: RStringAs,
+}
+
+pub unsafe fn rb_str_len(value: Value) -> c_long {
+    let rstring: *const RString = mem::transmute(value.value);
+    let flags = (*rstring).basic.flags;
+
+    if flags & (RStringEmbed::NoEmbed as size_t) == 0 {
+        ((flags as i64 >> RStringEmbed::LenShift as i64) &
+         (RStringEmbed::LenMask as i64 >> RStringEmbed::LenShift as i64)) as c_long
+    } else {
+        (*rstring).as_.heap.len
+    }
 }
 
 // ```
