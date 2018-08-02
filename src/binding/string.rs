@@ -68,6 +68,10 @@ pub fn bytesize(value: Value) -> i64 {
     unsafe { string::rb_str_len(value) as i64 }
 }
 
+pub fn count_chars(value: Value) -> i64 {
+    unsafe { string::rb_str_strlen(value) as i64 }
+}
+
 pub fn concat(value: Value, bytes: &[u8]) -> Value {
     let str = bytes.as_ptr() as *const c_char;
     let len = bytes.len() as c_long;

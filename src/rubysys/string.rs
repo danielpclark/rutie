@@ -27,6 +27,9 @@ extern "C" {
     // char *
     // rb_string_value_ptr(volatile VALUE *ptr)
     pub fn rb_string_value_ptr(str: *const Value) -> *const c_char;
+    // long
+    // rb_str_strlen(VALUE str)
+    pub fn rb_str_strlen(str: Value) -> c_long;
     // int
     // rb_enc_str_asciionly_p(VALUE str)
     pub fn rb_enc_str_asciionly_p(str: Value) -> bool;
