@@ -231,8 +231,8 @@ impl RString {
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
-    /// let string = RString::new("Hello, World!");
-    /// let utf8_string = RString::new("⓯");
+    /// let string = RString::new_utf8("Hello, World!");
+    /// let utf8_string = RString::new_utf8("⓯");
     ///
     /// assert_eq!(string.bytesize(), 13);
     /// assert_eq!(utf8_string.bytesize(), 3);
@@ -249,6 +249,34 @@ impl RString {
     /// ```
     pub fn bytesize(&self) -> i64 {
         string::bytesize(self.value())
+    }
+
+    /// Returns the number of characters in the string
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_utf8("Hello, World!");
+    /// let utf8_string = RString::new_utf8("⓯");
+    ///
+    /// assert_eq!(string.count_chars(), 13);
+    /// assert_eq!(utf8_string.count_chars(), 1);
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// string = 'Hello, World!'
+    /// utf8_string = '⓯'
+    ///
+    /// string.length == 13
+    /// utf8_string.length == 1
+    /// ```
+    pub fn count_chars(&self) -> i64 {
+        string::count_chars(self.value())
     }
 
     /// Appends a given string slice onto the end of this String.

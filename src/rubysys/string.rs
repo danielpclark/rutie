@@ -95,6 +95,18 @@ struct RString {
     as_: RStringAs,
 }
 
+pub unsafe fn rb_str_len(value: Value) -> c_long {
+    let rstring: *const RString = mem::transmute(value.value);
+    let flags = (*rstring).basic.flags;
+
+    if flags & (RStringEmbed::NoEmbed as size_t) == 0 {
+        ((flags as i64 >> RStringEmbed::LenShift as i64) &
+         (RStringEmbed::LenMask as i64 >> RStringEmbed::LenShift as i64)) as c_long
+    } else {
+        (*rstring).as_.heap.len
+    }
+}
+
 // ```
 // use rutie::VM;
 // # VM::init();
