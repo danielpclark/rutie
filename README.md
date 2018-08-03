@@ -136,64 +136,24 @@ pub extern "C" fn Init_rutie_ruby_example() {
 And that's it for the Rust side.  When using the `methods!` macro or `extern` functions
 make sure the method name won't clash with any others.  This is why this example is prefixed with `pub_`.
 
-Now you just need to load the library in Ruby.  For typing less code you may use
-[Thermite](https://github.com/malept/thermite) to handle the kind of library file that gets built for your
-operating system.  Otherwise you'll need to load the library based on the operating system
-with code similar to what follows here in your main ruby file `lib/rutie_ruby_example.rb`:
+Now you just need to load the library in Ruby.  Add the `rutie` gem to your gemspec or Gemfile.
+
+```ruby
+# gemspec
+spec.add_dependency 'rutie', '~> 0.0.3'
+
+# Gemfile
+gem 'rutie', '~> 0.0.3'
+```
+
+And then load the library in your main project file `lib/rutie_ruby_example.rb`.
 
 ```ruby
 require 'rutie_ruby_example/version'
-require 'fiddle'
+require 'rutie'
 
 module RutieRubyExample
-  module Platform
-    class << self
-      def ffi_library
-        file = [lib_prefix,'rutie_ruby_example.',lib_suffix]
-
-        File.join(rust_release, file.join())
-      end
-
-      def operating_system
-        case host_os()
-        when /linux|bsd|solaris/ then 'linux'
-        when /darwin/ then 'darwin'
-        when /mingw|mswin/ then 'windows'
-        else host_os()
-        end 
-      end 
-
-      def lib_prefix
-        case operating_system()
-        when /windows/ then ''
-        when /cygwin/ then 'cyg'
-        else 'lib'
-        end 
-      end 
-
-      def lib_suffix
-        case operating_system()
-        when /darwin/ then 'dylib'
-        when /linux/ then 'so'
-        when /windows|cygwin/ then 'dll'
-        else 'so'
-        end 
-      end 
-
-      def rust_release
-        File.expand_path('../target/release/', __dir__)
-      end
-
-      def host_os
-        RbConfig::CONFIG['host_os'].downcase
-      end
-    end
-  end
-
-  LIBRARY = Platform.ffi_library()
-  Fiddle::Function.
-    new(Fiddle.dlopen(LIBRARY)['Init_rutie_ruby_example'], [], Fiddle::TYPE_VOIDP).
-    call
+  Rutie.new(:rutie_ruby_example).init 'Init_rutie_ruby_example', __dir__
 end
 ```
 
