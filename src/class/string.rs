@@ -44,8 +44,9 @@ impl RString {
     ///
     /// str == 'Hello, World!'
     /// ```
+    #[deprecated(since="0.3.2", note="please use `new_usascii_unchecked` or `new_utf8` instead")]
     pub fn new(string: &str) -> Self {
-        Self::from(string::new(string))
+        Self::new_usascii_unchecked(string)
     }
 
     /// Creates a new instance of Ruby `String`, with UTF8 encoding, containing
@@ -71,6 +72,30 @@ impl RString {
     /// ```
     pub fn new_utf8(string: &str) -> Self {
         Self::from(string::new_utf8(string))
+    }
+
+    /// Creates a new instance of Ruby `String` containing given `string`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_usascii_unchecked("Hello, World!");
+    ///
+    /// assert_eq!(string.to_str(), "Hello, World!");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// str = 'Hello, World!'
+    ///
+    /// str == 'Hello, World!'
+    /// ```
+    pub fn new_usascii_unchecked(string: &str) -> Self {
+        Self::from(string::new(string))
     }
 
     /// Retrieves underlying Rust `String` from Ruby `String` object.
@@ -395,7 +420,7 @@ impl From<Value> for RString {
 
 impl From<String> for RString {
     fn from(string: String) -> Self {
-        Self::new(string.as_str())
+        Self::new_utf8(string.as_str())
     }
 }
 

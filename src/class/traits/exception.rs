@@ -26,7 +26,7 @@ pub trait Exception: Object {
     /// ```
     fn new(class: &str, msg: Option<&str>) -> Self {
         let class = Class::from_existing(class);
-        let msg = msg.map(|s| RString::new(s).value());
+        let msg = msg.map(|s| RString::new_utf8(s).value());
 
         Self::from(vm::call_method(class.value(), "new", util::option_to_slice(&msg)))
     }
@@ -47,7 +47,7 @@ pub trait Exception: Object {
     /// );
     /// ```
     fn exception(&self, string: Option<&str>) -> Self {
-        let string = string.map(|s| RString::new(s).value());
+        let string = string.map(|s| RString::new_utf8(s).value());
 
         Self::from(vm::call_method(self.value(), "exception", util::option_to_slice(&string)))
     }
