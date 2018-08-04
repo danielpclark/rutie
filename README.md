@@ -249,7 +249,7 @@ but you can still manage to get it done in the following way.
 use rutie::{AnyObject, Array};
 use rutie::types::{Argc, Value};
 use rutie::util::str_to_cstring;
-use rutie::rubysys::util;
+use rutie::rubysys::class;
 use std::mem;
 
 pub extern fn example_method(argc: Argc, argv: *const AnyObject, _: AnyObject) -> AnyObject {
@@ -258,7 +258,7 @@ pub extern fn example_method(argc: Argc, argv: *const AnyObject, _: AnyObject) -
     unsafe {
         let p_argv: *const Value = mem::transmute(argv);
   
-        util::rb_scan_args(
+        class::rb_scan_args(
             argc,
             p_argv,
             str_to_cstring("*").as_ptr(),
