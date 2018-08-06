@@ -18,7 +18,8 @@ matrix:
     - rust: nightly
 
 before_install:
-- rvm reinstall --disable-binary "$BUILD_RUBY_VERSION"
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rvm reinstall --disable-binary "$BUILD_RUBY_VERSION"; fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then rvm install "$BUILD_RUBY_VERSION"; fi
 - rvm use "$BUILD_RUBY_VERSION"
 - ruby --version
 - ruby -e 'require "pp"; pp RbConfig::CONFIG'

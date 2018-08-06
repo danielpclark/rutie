@@ -57,15 +57,11 @@ impl VM {
     ///
     /// let bytes = [254, 255, 1, 65, 0, 97, 1, 66] ;
     ///
-    /// let enc = Encoding::find("UTF-16");
+    /// let enc = Encoding::find("UTF-16").unwrap();
     ///
-    /// match enc {
-    ///     Ok(s) => {
-    ///         let mut string = RString::from_bytes(&bytes, s);
-    ///         assert_eq!(string.to_bytes_unchecked(), bytes);
-    ///     },
-    ///     _ => () // system doesn't support UTF-16
-    /// }
+    /// let mut string = RString::from_bytes(&bytes, enc);
+    ///
+    /// assert_eq!(string.to_bytes_unchecked(), bytes);
     //
     // let result = string.encode(Encoding::utf8(), None);
     //
