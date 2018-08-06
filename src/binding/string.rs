@@ -17,7 +17,7 @@ pub fn new_utf8(string: &str) -> Value {
     unsafe { string::rb_utf8_str_new(str, len) }
 }
 
-pub fn new_from_slice(bytes: &[u8], enc: Value) -> Value {
+pub fn new_from_bytes(bytes: &[u8], enc: Value) -> Value {
     let bts = bytes.as_ptr() as *const c_char;
     let len = bytes.len() as c_long;
 

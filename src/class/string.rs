@@ -116,7 +116,7 @@ impl RString {
     /// assert_eq!(string.to_str(), "łał");
     /// ```
     pub fn from_bytes(bytes: &[u8], enc: &Encoding) -> Self {
-        Self::from(string::new_from_slice(bytes, enc.value()))
+        Self::from(string::new_from_bytes(bytes, enc.value()))
     }
 
     /// Retrieves underlying Rust `String` from Ruby `String` object.
