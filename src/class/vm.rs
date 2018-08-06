@@ -56,11 +56,16 @@ impl VM {
     /// VM::init_loadpath(); // Needed for alternate encodings
     ///
     /// let bytes = [254, 255, 1, 65, 0, 97, 1, 66] ;
-    /// let enc = Encoding::find("UTF-16").unwrap();
     ///
-    /// let mut string = RString::from_bytes(&bytes, enc);
+    /// let enc = Encoding::find("UTF-16");
     ///
-    /// assert_eq!(string.to_bytes_unchecked(), bytes);
+    /// match enc {
+    ///     Ok(s) => {
+    ///         let mut string = RString::from_bytes(&bytes, s);
+    ///         assert_eq!(string.to_bytes_unchecked(), bytes);
+    ///     },
+    ///     _ => () // system doesn't support UTF-16
+    /// }
     //
     // let result = string.encode(Encoding::utf8(), None);
     //
