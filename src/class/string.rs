@@ -98,6 +98,26 @@ impl RString {
         Self::from(string::new(string))
     }
 
+    /// Creates a new instance of Ruby `String` from given byte
+    /// sequence with given `Encoding`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, Encoding, VM};
+    /// # VM::init();
+    ///
+    /// let bytes = [197, 130, 97, 197, 130];
+    /// let enc = Encoding::find("UTF-8").unwrap();
+    ///
+    /// let string = RString::from_bytes(&bytes, enc);
+    ///
+    /// assert_eq!(string.to_str(), "łał");
+    /// ```
+    pub fn from_bytes(bytes: &[u8], enc: Encoding) -> Self {
+        Self::from(string::new_from_slice(bytes, enc.value()))
+    }
+
     /// Retrieves underlying Rust `String` from Ruby `String` object.
     ///
     /// # Examples

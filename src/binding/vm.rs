@@ -22,6 +22,12 @@ pub fn init() {
     }
 }
 
+pub fn init_loadpath() {
+    unsafe {
+        vm::ruby_init_loadpath();
+    }
+}
+
 pub fn require(name: &str) {
     let name = util::str_to_cstring(name);
 

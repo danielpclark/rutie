@@ -1,4 +1,4 @@
-use rubysys::{encoding, string};
+use rubysys::{encoding, string, vm};
 use types::{c_int, Value};
 use std::ffi::CString;
 use util;

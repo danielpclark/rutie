@@ -4,6 +4,9 @@ extern "C" {
     // void
     // ruby_init(void)
     pub fn ruby_init();
+    // void
+    // ruby_init_loadpath(void)
+    pub fn ruby_init_loadpath();
     // VALUE
     // rb_block_proc(void)
     pub fn rb_block_proc() -> Value;

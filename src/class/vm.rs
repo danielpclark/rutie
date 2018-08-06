@@ -37,6 +37,41 @@ impl VM {
         vm::init();
     }
 
+    /// Initializes Ruby load path.
+    ///
+    /// This enables more of Ruby's internal features such as making additional encodings
+    /// available.
+    ///
+    /// This function, like `VM::init`, should **ONLY** be used if you write a standalone
+    /// application which calls Ruby itself.
+    ///
+    /// If you write a library which is being connected to Ruby in runtime (e.g. some gem), this
+    /// function should not be used.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, Encoding, VM, Object};
+    /// # VM::init();
+    /// VM::init_loadpath(); // Needed for alternate encodings
+    ///
+    /// let bytes = [254, 255, 1, 65, 0, 97, 1, 66] ;
+    /// let enc = Encoding::find("UTF-16").unwrap();
+    ///
+    /// let mut string = RString::from_bytes(&bytes, enc);
+    ///
+    /// assert_eq!(string.to_bytes_unchecked(), bytes);
+    ///
+    // let result = string.send("encode", Some(&[RString::new_utf8("UTF-8").to_any_object()]));
+    // match result.try_convert_to::<RString>() {
+    //     Ok(s) => assert_eq!(s.to_str_unchecked(), "łał"),
+    //     Err(_) => unreachable!(),
+    // }
+    /// ```
+    pub fn init_loadpath() {
+        vm::init_loadpath();
+    }
+
     /// Requires Ruby source file.
     ///
     /// # Examples

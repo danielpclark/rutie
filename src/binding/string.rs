@@ -1,4 +1,4 @@
-use rubysys::string;
+use rubysys::{string, encoding};
 
 use types::{c_char, c_long, Value};
 use util;
@@ -15,6 +15,13 @@ pub fn new_utf8(string: &str) -> Value {
     let len = string.len() as c_long;
 
     unsafe { string::rb_utf8_str_new(str, len) }
+}
+
+pub fn new_from_slice(bytes: &[u8], enc: Value) -> Value {
+    let bts = bytes.as_ptr() as *const c_char;
+    let len = bytes.len() as c_long;
+
+    unsafe { string::rb_enc_str_new(bts, len, encoding::rb_to_encoding(enc)) }
 }
 
 // Returns RString Value or NilClass Value
