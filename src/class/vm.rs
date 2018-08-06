@@ -59,13 +59,10 @@ impl VM {
     ///
     /// let enc = Encoding::find("UTF-16").unwrap();
     ///
-    /// let mut string = RString::from_bytes(&bytes, enc);
+    /// let mut string = RString::from_bytes(&bytes, &enc);
     ///
     /// assert_eq!(string.to_bytes_unchecked(), bytes);
-    //
-    // let result = string.encode(Encoding::utf8(), None);
-    //
-    // assert_eq!(result.to_bytes_unchecked(), "łał".as_bytes());
+    /// assert!(string.encoding().equals(&enc), "not equal!");
     /// ```
     pub fn init_loadpath() {
         vm::init_loadpath();

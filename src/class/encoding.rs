@@ -160,17 +160,13 @@ impl Encoding {
     /// }
     /// ```
     pub fn find(s: &str) -> Result<Encoding, AnyException> {
-         let EncodingIndex(idx) = Self::find_index(s);
+         let EncodingIndex(idx) = encoding::find_encoding_index(s);
 
          if idx < 0 {
              Err(AnyException::new("ArgumentError", Some(&format!("unknown encoding name - {}", s))))
          } else {
              Ok(Encoding::from(encoding::from_encoding_index(EncodingIndex(idx))))
          }
-    }
-
-    fn find_index(s: &str) -> EncodingIndex {
-         encoding::find_encoding_index(s)
     }
 }
 
