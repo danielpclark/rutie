@@ -1,7 +1,14 @@
-use rubysys::types::{c_int, c_char, Value, CallbackPtr};
+use rubysys::types::{c_int, c_char, Value, CallbackPtr, RBasic, InternalValue};
+use rubysys::constant::{FL_USER_8, FL_USER_9};
+use std::mem;
 
-pub const ENC_DUMMY_FLAG: isize = (1<<24);
-pub const ENC_INDEX_MASK: isize = (!(!0<<24));
+pub const ENC_DUMMY_FLAG: isize        = (1<<24);
+pub const ENC_INDEX_MASK: isize        = (!(!0<<24));
+pub const ENC_CODERANGE_UNKNOWN: isize = 0;
+pub const ENC_CODERANGE_7BIT: isize    = FL_USER_8;
+pub const ENC_CODERANGE_VALID: isize   = FL_USER_9;
+pub const ENC_CODERANGE_BROKEN: isize  = FL_USER_8 | FL_USER_9;
+pub const ENC_CODERANGE_MASK: isize    = ENC_CODERANGE_7BIT | ENC_CODERANGE_VALID | ENC_CODERANGE_BROKEN;
 
 extern "C" {
     // VALUE
@@ -64,4 +71,22 @@ extern "C" {
     // int
     // rb_utf8_encindex(void)
     pub fn rb_utf8_encindex() -> c_int;
+    // VALUE
+    // rb_str_export_to_enc(VALUE str, rb_encoding *enc)
+    pub fn rb_str_export_to_enc(str: Value, enc: CallbackPtr) -> Value;
+    // VALUE
+    // rb_str_encode(VALUE str, VALUE to, int ecflags, VALUE ecopts)
+    pub fn rb_str_encode(str: Value, to: Value, ecflags: c_int, ecopts: Value) -> Value;
+    // int
+    // rb_econv_prepare_opts(VALUE opthash, VALUE *opts)
+    pub fn rb_econv_prepare_opts(opthash: Value, opts: *const Value) -> c_int;
+}
+
+pub unsafe fn coderange_set(obj: Value, code_range: InternalValue) {
+    let basic: *mut RBasic = mem::transmute(obj.value);
+    (*basic).flags = ((*basic).flags & !(ENC_CODERANGE_MASK as InternalValue)) | code_range
+}
+
+pub unsafe fn coderange_clear(obj: Value) {
+    coderange_set(obj, 0)
 }

@@ -14,7 +14,8 @@ use {
   AnyException,
   Exception,
   Boolean,
-  TryConvert
+  TryConvert,
+  Hash
 };
 
 /// `String`
@@ -382,7 +383,7 @@ impl EncodingSupport for RString {
     /// use rutie::{RString, VM, EncodingSupport, Encoding};
     /// # VM::init();
     ///
-    /// let mut string = RString::new("Hello");
+    /// let mut string = RString::new_utf8("Hello");
     /// string.force_encoding(Encoding::us_ascii());
     ///
     /// assert_eq!(string.encoding().name(), "US-ASCII");
@@ -428,7 +429,53 @@ impl EncodingSupport for RString {
         // }
 
         self.value = encoding::force_encoding(self.value(), enc.value());
+        encoding::coderange_clear(self.value);
+
         Ok(Self::from(self.value()))
+    }
+
+    /// Transcodes to encoding and returns `Self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM, EncodingSupport, Encoding};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("Hello");
+    /// string.encode(Encoding::us_ascii(), None);
+    ///
+    /// assert_eq!(string.encoding().name(), "US-ASCII");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// string = "Hello"
+    /// string.encode(Encoding::US_ASCII)
+    ///
+    /// string.encoding.name == "US-ASCII"
+    /// ```
+    fn encode(&mut self, enc: Encoding, opts: Option<Hash>) -> Self {
+        let nil = NilClass::new().value();
+
+        self.value = match opts {
+            Some(options) => {
+                let ecflags = encoding::econv_prepare_opts(options.value(), &nil);
+
+                encoding::encode(
+                    self.value(),
+                    enc.value(),
+                    ecflags,
+                    options.value()
+                )
+            },
+            None => {
+                encoding::encode(self.value(), enc.value(), 0, nil)
+            },
+        };
+
+        Self::from(self.value())
     }
 }
 

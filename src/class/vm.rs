@@ -51,7 +51,7 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, Encoding, VM, Object};
+    /// use rutie::{RString, Encoding, EncodingSupport, VM, Object};
     /// # VM::init();
     /// VM::init_loadpath(); // Needed for alternate encodings
     ///
@@ -61,12 +61,10 @@ impl VM {
     /// let mut string = RString::from_bytes(&bytes, enc);
     ///
     /// assert_eq!(string.to_bytes_unchecked(), bytes);
-    ///
-    // let result = string.send("encode", Some(&[RString::new_utf8("UTF-8").to_any_object()]));
-    // match result.try_convert_to::<RString>() {
-    //     Ok(s) => assert_eq!(s.to_str_unchecked(), "łał"),
-    //     Err(_) => unreachable!(),
-    // }
+    //
+    // let result = string.encode(Encoding::utf8(), None);
+    //
+    // assert_eq!(result.to_bytes_unchecked(), "łał".as_bytes());
     /// ```
     pub fn init_loadpath() {
         vm::init_loadpath();
