@@ -26,9 +26,9 @@ This project is a continuation of:
 * [Variadic Functions / Splat Operator](https://github.com/danielpclark/rutie#variadic-functions--splat-operator)
 * [Migrating from Ruru to Rutie](https://github.com/danielpclark/rutie#migrating-from-ruru-to-rutie)
 * [Troubleshooting](https://github.com/danielpclark/rutie#troubleshooting)
-  * [it panics for some Rubies on CI server tests](https://github.com/danielpclark/rutie#it-panics-for-some-rubies-on-ci-server-tests)
-  * [rust signal: 11, SIGSEGV: invalid memory reference](https://github.com/danielpclark/rutie#rust-signal-11-sigsegv-invalid-memory-reference)
-  * [error while loading shared libraries: libruby.so.#.#: cannot open shared object file: No such file or directory](https://github.com/danielpclark/rutie#error-while-loading-shared-libraries-librubyso-cannot-open-shared-object-file-no-such-file-or-directory)
+  * [It panics for some Rubies on CI server tests](https://github.com/danielpclark/rutie#it-panics-for-some-rubies-on-ci-server-tests)
+  * [Rust signal: 11, SIGSEGV: invalid memory reference](https://github.com/danielpclark/rutie#rust-signal-11-sigsegv-invalid-memory-reference)
+  * [Error while loading shared libraries: libruby.so.#.#: cannot open shared object file: No such file or directory](https://github.com/danielpclark/rutie#error-while-loading-shared-libraries-librubyso-cannot-open-shared-object-file-no-such-file-or-directory)
   * [Calling methods from other methods within the `methods!` macro doesn't work](https://github.com/danielpclark/rutie#calling-methods-from-other-methods-within-the-methods-macro-doesnt-work)
   * [Handling exceptions raised from Ruby in Rust code](https://github.com/danielpclark/rutie#handling-exceptions-raised-from-ruby-in-rust-code)
   * [Segfault during GC when using a Ruby method written in C](https://github.com/danielpclark/rutie/blob/master/README.md#segfault-during-gc-when-using-a-ruby-method-written-in-c)
@@ -322,18 +322,18 @@ Internal changes `util` from `binding` and `rubysys` have been replaced to reduc
 
 ## Troubleshooting
 
-#### it panics for some Rubies on CI server tests
+#### It panics for some Rubies on CI server tests
 
 Sometimes the Ruby binary built isn't the best for the system.  Be sure to compile Ruby
 for that system if this is the issue.   With RVM do `rvm reinstall --disable-binary` with
 your choice of Ruby version.
 
-#### rust signal: 11, SIGSEGV: invalid memory reference
+#### Rust signal: 11, SIGSEGV: invalid memory reference
 
 This is an indication that you haven't started a Ruby VM in Rust yet with `VM::init();`.  Do this once
 before using Ruby code from Rust.
 
-#### error while loading shared libraries: libruby.so.#.#: cannot open shared object file: No such file or directory
+#### Error while loading shared libraries: libruby.so.#.#: cannot open shared object file: No such file or directory
 
 This may happen when a Ruby program is trying to link with libruby via Rutie.  Simply disable linking
 by setting the environment variable `NO_LINK_RUTIE` before the Rust code is compiled.  This is needed
