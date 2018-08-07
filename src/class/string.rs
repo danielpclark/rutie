@@ -105,7 +105,7 @@ impl RString {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, Encoding, VM};
+    /// use rutie::{RString, Encoding, EncodingSupport, VM};
     /// # VM::init();
     ///
     /// let bytes = [197, 130, 97, 197, 130];
@@ -114,6 +114,14 @@ impl RString {
     /// let string = RString::from_bytes(&bytes, &enc);
     ///
     /// assert_eq!(string.to_str(), "łał");
+    ///
+    /// # VM::init_loadpath();
+    /// VM::require("enc/encdb");
+    /// VM::require("enc/trans/transdb");
+    ///
+    /// let result = string.encode(Encoding::find("UTF-16").unwrap(), None);
+    ///
+    /// assert_eq!(result.to_bytes_unchecked(), [254, 255, 1, 66, 0, 97, 1, 66])
     /// ```
     pub fn from_bytes(bytes: &[u8], enc: &Encoding) -> Self {
         Self::from(string::new_from_bytes(bytes, enc.value()))
@@ -443,23 +451,23 @@ impl EncodingSupport for RString {
     /// # VM::init();
     ///
     /// let mut string = RString::new_utf8("Hello");
-    /// string.encode(Encoding::us_ascii(), None);
+    /// let result = string.encode(Encoding::us_ascii(), None);
     ///
-    /// assert_eq!(string.encoding().name(), "US-ASCII");
+    /// assert_eq!(result.encoding().name(), "US-ASCII");
     /// ```
     ///
     /// Ruby:
     ///
     /// ```ruby
     /// string = "Hello"
-    /// string.encode(Encoding::US_ASCII)
+    /// result = string.encode(Encoding::US_ASCII)
     ///
-    /// string.encoding.name == "US-ASCII"
+    /// result.encoding.name == "US-ASCII"
     /// ```
-    fn encode(&mut self, enc: Encoding, opts: Option<Hash>) -> Self {
+    fn encode(&self, enc: Encoding, opts: Option<Hash>) -> Self {
         let nil = NilClass::new().value();
 
-        self.value = match opts {
+         let value = match opts {
             Some(options) => {
                 let ecflags = encoding::econv_prepare_opts(options.value(), &nil);
 
@@ -475,7 +483,45 @@ impl EncodingSupport for RString {
             },
         };
 
-        Self::from(self.value())
+        Self::from(value)
+    }
+
+    /// Transcodes to encoding and returns `Self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM, EncodingSupport, Encoding, Object};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("Hello");
+    ///
+    /// assert!(string.is_valid_encoding(), "not valid encoding!");
+    ///
+    /// # VM::init_loadpath();
+    /// VM::require("enc/encdb");
+    /// VM::require("enc/trans/transdb");
+    ///
+    /// let result = VM::eval("'Hello'.force_encoding('UTF-32')").unwrap().
+    ///   try_convert_to::<RString>().unwrap();
+    ///
+    /// assert!(!result.is_valid_encoding(), "is valid encoding!");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// string = "Hello"
+    ///
+    /// string.valid_encoding?
+    ///
+    /// result = string.encode(Encoding::UTF_32)
+    ///
+    /// result.valid_encoding?
+    /// ```
+    fn is_valid_encoding(&self) -> bool {
+        let result = self.send("valid_encoding?", None);
+        result.try_convert_to::<Boolean>().unwrap().to_bool()
     }
 }
 
