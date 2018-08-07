@@ -3,7 +3,7 @@ extern crate rutie;
 use rutie::{Object, RString, VM};
 
 fn try_it(s: &str) -> String {
-    let a = RString::new(s);
+    let a = RString::new_utf8(s);
 
     // Send returns an AnyObject type
     let b = a.send("reverse", None);

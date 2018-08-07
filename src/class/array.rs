@@ -126,10 +126,10 @@ impl Array {
     /// # VM::init();
     ///
     /// let array = Array::new()
-    ///     .push(RString::new("Hello"))
-    ///     .push(RString::new("World!"));
+    ///     .push(RString::new_utf8("Hello"))
+    ///     .push(RString::new_utf8("World!"));
     ///
-    /// let joined_string = array.join(RString::new(", "));
+    /// let joined_string = array.join(RString::new_utf8(", "));
     ///
     /// assert_eq!(joined_string.to_str(), "Hello, World!");
     /// ```

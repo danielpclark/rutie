@@ -30,7 +30,7 @@ impl Proc {
     ///     itself,
     ///
     ///     fn greet_rust_with(greeting_template: Proc) -> RString {
-    ///         let name = RString::new("Rust").to_any_object();
+    ///         let name = RString::new_utf8("Rust").to_any_object();
     ///         let rendered_template = greeting_template.unwrap().call(Some(&[name]));
     ///
     ///         rendered_template.try_convert_to::<RString>().unwrap()

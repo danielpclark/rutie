@@ -174,7 +174,7 @@ pub trait Object: From<Value> {
     ///     fn ruby_server_host() -> RString {
     ///         let host = itself.get_data(&*SERVER_WRAPPER).host();
     ///
-    ///         RString::new(host)
+    ///         RString::new_utf8(host)
     ///     }
     ///
     ///     fn ruby_server_port() -> Fixnum {
@@ -235,11 +235,11 @@ pub trait Object: From<Value> {
     ///     itself,
     ///
     ///     fn greeting() -> RString {
-    ///         RString::new("Greeting from class")
+    ///         RString::new_utf8("Greeting from class")
     ///     }
     ///
     ///     fn many_greetings() -> RString {
-    ///         RString::new("Many greetings from instance")
+    ///         RString::new_utf8("Many greetings from instance")
     ///     }
     /// );
     ///
@@ -248,7 +248,7 @@ pub trait Object: From<Value> {
     ///     itself,
     ///
     ///     fn nested_greeting() -> RString {
-    ///         RString::new("Greeting from nested class")
+    ///         RString::new_utf8("Greeting from nested class")
     ///     }
     /// );
     ///
@@ -300,13 +300,13 @@ pub trait Object: From<Value> {
     ///     itself,
     ///
     ///     fn greeting() -> RString {
-    ///         RString::new("Greeting!")
+    ///         RString::new_utf8("Greeting!")
     ///     }
     /// );
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     let mut string = RString::new("Some string");
+    ///     let mut string = RString::new_utf8("Some string");
     ///
     ///     // The same can be done by modifying `string.singleton_class()`
     ///     // or using `string.define_singleton_method("greeting", greeting)`
@@ -641,13 +641,13 @@ pub trait Object: From<Value> {
     ///     itself,
     ///
     ///     fn greeting() -> RString {
-    ///         RString::new("Greeting!")
+    ///         RString::new_utf8("Greeting!")
     ///     }
     /// );
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     let mut string = RString::new("Some string");
+    ///     let mut string = RString::new_utf8("Some string");
     ///
     ///     // The same can be done by modifying `string.singleton_class()`
     ///     // or using `string.define_singleton_method("greeting", greeting)`
@@ -897,7 +897,7 @@ pub trait Object: From<Value> {
     /// 
     /// let result = kernel.protect_send(
     ///     "raise".to_string(),
-    ///     Some(&vec![RString::new("flowers").to_any_object()])
+    ///     Some(&vec![RString::new_utf8("flowers").to_any_object()])
     /// );
     /// 
     /// if let Err(error) = result {
@@ -956,7 +956,7 @@ pub trait Object: From<Value> {
     /// 
     /// let result = kernel.protect_public_send(
     ///     "raise".to_string(),
-    ///     Some(&vec![RString::new("flowers").to_any_object()])
+    ///     Some(&vec![RString::new_utf8("flowers").to_any_object()])
     /// );
     /// 
     /// if let Err(error) = result {
@@ -1205,7 +1205,7 @@ pub trait Object: From<Value> {
     /// use rutie::{Object, RString, VM};
     /// # VM::init();
     ///
-    /// let frozen_string = RString::new("String").freeze();
+    /// let frozen_string = RString::new_utf8("String").freeze();
     ///
     /// assert!(frozen_string.is_frozen());
     /// ```
@@ -1229,11 +1229,11 @@ pub trait Object: From<Value> {
     /// use rutie::{Object, RString, VM};
     /// # VM::init();
     ///
-    /// let mut string = RString::new("String");
+    /// let mut string = RString::new_utf8("String");
     ///
     /// assert!(!string.is_frozen(), "String should not be frozen");
     ///
-    /// let frozen_string = RString::new("String").freeze();
+    /// let frozen_string = RString::new_utf8("String").freeze();
     ///
     /// assert!(frozen_string.is_frozen(), "String should be frozen");
     /// ```
@@ -1304,7 +1304,7 @@ pub trait Object: From<Value> {
     ///
     /// assert_eq!(converted_fixnum, Ok(Fixnum::new(1)));
     ///
-    /// let string = RString::new("string");
+    /// let string = RString::new_utf8("string");
     /// let string_as_fixnum = string.try_convert_to::<Fixnum>();
     /// let expected_error = AnyException::new("TypeError", Some("Error converting to Fixnum"));
     ///

@@ -433,7 +433,7 @@ impl Module {
     /// # VM::init();
     ///
     /// Module::new("Greeter").define(|itself| {
-    ///     itself.const_set("GREETING", &RString::new("Hello, World!"));
+    ///     itself.const_set("GREETING", &RString::new_utf8("Hello, World!"));
     /// });
     ///
     /// let greeting = Module::from_existing("Greeter")
@@ -479,7 +479,7 @@ impl Module {
     /// # VM::init();
     ///
     /// Module::new("Greeter").define(|itself| {
-    ///     itself.const_set("GREETING", &RString::new("Hello, World!"));
+    ///     itself.const_set("GREETING", &RString::new_utf8("Hello, World!"));
     /// });
     ///
     /// let greeting = Module::from_existing("Greeter")
@@ -690,7 +690,7 @@ impl Module {
     ///     fn ruby_server_host() -> RString {
     ///         let host = itself.get_data(&*SERVER_WRAPPER).host();
     ///
-    ///         RString::new(host)
+    ///         RString::new_utf8(host)
     ///     }
     ///
     ///     fn ruby_server_port() -> Fixnum {
