@@ -66,6 +66,9 @@ extern "C" {
     // VALUE
     // rb_str_unlocktmp(VALUE str)
     pub fn rb_str_unlocktmp(str: Value) -> Value;
+    // static VALUE
+    // rb_str_codepoints(VALUE str)
+    pub fn rb_str_codepoints(str: Value) -> Value;
 }
 
 #[derive(Debug, PartialEq)]
