@@ -54,6 +54,8 @@ impl VM {
     /// use rutie::{RString, Encoding, EncodingSupport, VM, Object};
     /// # VM::init();
     /// VM::init_loadpath(); // Needed for alternate encodings
+    /// VM::require("enc/encdb");
+    /// VM::require("enc/trans/transdb");
     ///
     /// let bytes = [254, 255, 1, 65, 0, 97, 1, 66] ;
     ///
