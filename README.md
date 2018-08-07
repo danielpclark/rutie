@@ -54,7 +54,7 @@ extern crate rutie;
 use rutie::{Object, RString, VM};
 
 fn try_it(s: &str) -> String {
-    let a = RString::new(s);
+    let a = RString::new_utf8(s);
 
     // The `send` method returns an AnyObject type.
     let b = a.send("reverse", None);
@@ -115,7 +115,7 @@ methods!(
           map_err(|e| VM::raise_ex(e) ).
           unwrap();
 
-        RString::new(
+        RString::new_utf8(
           &ruby_string.
           to_string().
           chars().
@@ -199,7 +199,7 @@ pub struct Pathname {
 
 impl Pathname {
     pub fn new(path: &str) -> Pathname {
-        let arguments = [RString::new(path).to_any_object()];
+        let arguments = [RString::new_utf8(path).to_any_object()];
         let instance = Class::from_existing("Pathname").new_instance(Some(&arguments));
 
         Pathname { value: instance.value() }
@@ -369,7 +369,7 @@ One possible issue that may cause this is when you store an item in Rust in heap
 An example case that caused this issue is the following:
 
 ```rust
-Class::from_existing("Pathname").new_instance(Some(&vec![RString::new(path).to_any_object()]))
+Class::from_existing("Pathname").new_instance(Some(&vec![RString::new_utf8(path).to_any_object()]))
 ```
 
 > Ruby's GC traces objects from the stack. Rust's Vec, on the other hand, stores elements in the heap. So Ruby's GC may not be able to find the string you created and may release it. — @irxground
@@ -377,7 +377,7 @@ Class::from_existing("Pathname").new_instance(Some(&vec![RString::new(path).to_a
 To rememdy the issue it required not using Vec but rather Rust's array type to store the argument on the stack rather than the heap.
 
 ```rust
-let arguments = [RString::new(path).to_any_object()];
+let arguments = [RString::new_utf8(path).to_any_object()];
 Class::from_existing("Pathname").new_instance(Some(&arguments))
 ```
 

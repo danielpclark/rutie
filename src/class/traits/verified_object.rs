@@ -50,8 +50,8 @@ use Object;
 ///     Request,
 ///     itself,
 ///
-///     fn protocol() -> RString { RString::new("HTTP") }
-///     fn body() -> RString { RString::new("request body") }
+///     fn protocol() -> RString { RString::new_utf8("HTTP") }
+///     fn body() -> RString { RString::new_utf8("request body") }
 /// );
 ///
 /// impl VerifiedObject for Request {

@@ -411,7 +411,7 @@ impl Class {
     /// # VM::init();
     ///
     /// Class::new("Greeter", None).define(|itself| {
-    ///     itself.const_set("GREETING", &RString::new("Hello, World!"));
+    ///     itself.const_set("GREETING", &RString::new_utf8("Hello, World!"));
     /// });
     ///
     /// let greeting = Class::from_existing("Greeter")
@@ -457,7 +457,7 @@ impl Class {
     /// # VM::init();
     ///
     /// Class::new("Greeter", None).define(|itself| {
-    ///     itself.const_set("GREETING", &RString::new("Hello, World!"));
+    ///     itself.const_set("GREETING", &RString::new_utf8("Hello, World!"));
     /// });
     ///
     /// let greeting = Class::from_existing("Greeter")
@@ -659,7 +659,7 @@ impl Class {
     ///     fn ruby_server_host() -> RString {
     ///         let host = itself.get_data(&*SERVER_WRAPPER).host();
     ///
-    ///         RString::new(host)
+    ///         RString::new_utf8(host)
     ///     }
     ///
     ///     fn ruby_server_port() -> Fixnum {

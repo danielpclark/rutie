@@ -18,7 +18,7 @@
 ///     itself,
 ///
 ///     fn anonymous_greeting() -> RString {
-///         RString::new("Hello stranger!")
+///         RString::new_utf8("Hello stranger!")
 ///     }
 ///
 ///     fn friendly_greeting(name: RString) -> RString {
@@ -28,7 +28,7 @@
 ///
 ///         let greeting = format!("Hello dear {}!", name);
 ///
-///         RString::new(&greeting)
+///         RString::new_utf8(&greeting)
 ///     }
 /// );
 ///
@@ -101,7 +101,7 @@ macro_rules! class {
 ///     itself,
 ///
 ///     fn anonymous_greeting() -> RString {
-///         RString::new("Hello stranger!")
+///         RString::new_utf8("Hello stranger!")
 ///     }
 ///
 ///     fn friendly_greeting(name: RString) -> RString {
@@ -111,7 +111,7 @@ macro_rules! class {
 ///
 ///         let greeting = format!("Hello dear {}!", name);
 ///
-///         RString::new(&greeting)
+///         RString::new_utf8(&greeting)
 ///     }
 /// );
 ///
@@ -534,7 +534,7 @@ macro_rules! methods {
 ///     fn ruby_server_host() -> RString {
 ///         let host = itself.get_data(&*SERVER_WRAPPER).host();
 ///
-///         RString::new(host)
+///         RString::new_utf8(host)
 ///     }
 ///
 ///     fn ruby_server_port() -> Fixnum {

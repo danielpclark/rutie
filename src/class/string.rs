@@ -135,7 +135,7 @@ impl RString {
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
-    /// let string = RString::new("Hello, World!");
+    /// let string = RString::new_utf8("Hello, World!");
     ///
     /// assert_eq!(string.to_string(), "Hello, World!".to_string());
     /// ```
@@ -163,7 +163,7 @@ impl RString {
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
-    /// let string = RString::new("Hello,\0World!");
+    /// let string = RString::new_utf8("Hello,\0World!");
     ///
     /// assert_eq!(string.to_string_unchecked(), "Hello,\0World!".to_string());
     /// ```
@@ -191,7 +191,7 @@ impl RString {
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
-    /// let string = RString::new("Hello,\0World!");
+    /// let string = RString::new_utf8("Hello,\0World!");
     ///
     /// assert_eq!(string.to_vec_u8_unchecked(), (b"Hello,\0World!").to_vec());
     /// ```
@@ -207,7 +207,7 @@ impl RString {
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
-    /// let string = RString::new("Hello, World!");
+    /// let string = RString::new_utf8("Hello, World!");
     ///
     /// assert_eq!(string.to_str(), "Hello, World!");
     /// ```
@@ -237,7 +237,7 @@ impl RString {
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
-    /// let string = RString::new("Hello,\0World!");
+    /// let string = RString::new_utf8("Hello,\0World!");
     ///
     /// assert_eq!(string.to_str_unchecked(), "Hello,\0World!");
     /// ```
@@ -267,7 +267,7 @@ impl RString {
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
-    /// let string = RString::new("Hello,\0World!");
+    /// let string = RString::new_utf8("Hello,\0World!");
     ///
     /// assert_eq!(string.to_bytes_unchecked(), b"Hello,\0World!");
     /// ```
@@ -341,7 +341,7 @@ impl RString {
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
-    /// let mut string = RString::new("Hello, ");
+    /// let mut string = RString::new_utf8("Hello, ");
     /// string.concat("World!");
     ///
     /// assert_eq!(string.to_string(), "Hello, World!".to_string());
@@ -369,7 +369,7 @@ impl EncodingSupport for RString {
     /// use rutie::{RString, VM, EncodingSupport};
     /// # VM::init();
     ///
-    /// let string = RString::new("Hello");
+    /// let string = RString::new_utf8("Hello");
     /// string.encoding();
     /// ```
     ///
@@ -411,7 +411,7 @@ impl EncodingSupport for RString {
     // use rutie::{RString, VM, EncodingSupport, Encoding, Object, Exception};
     // # VM::init();
     //
-    // let mut string = RString::new("Hello");
+    // let mut string = RString::new_utf8("Hello");
     // string.force_encoding(Encoding::utf8());
     // string.freeze();
     // let result = string.force_encoding(Encoding::us_ascii());
@@ -550,7 +550,7 @@ impl From<String> for RString {
 ///
 /// assert_eq!(result, Err(NilClass::new()));
 ///
-/// let five = RString::new("5");
+/// let five = RString::new_utf8("5");
 /// let result2 = RString::try_convert(five.to_any_object());
 ///
 /// if let Ok(r) = result2 {

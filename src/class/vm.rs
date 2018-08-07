@@ -54,6 +54,8 @@ impl VM {
     /// use rutie::{RString, Encoding, EncodingSupport, VM, Object};
     /// # VM::init();
     /// VM::init_loadpath(); // Needed for alternate encodings
+    /// VM::require("enc/encdb");
+    /// VM::require("enc/trans/transdb");
     ///
     /// let bytes = [254, 255, 1, 65, 0, 97, 1, 66] ;
     ///
@@ -293,7 +295,7 @@ impl VM {
     ///
     ///     fn greet_rust_with() -> RString {
     ///         let greeting_template = VM::block_proc();
-    ///         let name = RString::new("Rust").to_any_object();
+    ///         let name = RString::new_utf8("Rust").to_any_object();
     ///
     ///         greeting_template.call(Some(&[name])).try_convert_to::<RString>().unwrap()
     ///     }

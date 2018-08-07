@@ -168,7 +168,7 @@ pub trait Exception: Object {
     /// let x = AnyException::new("StandardError", Some("something went wrong"));
     ///
     /// let mut arr = Array::new();
-    /// arr.push(RString::new("prog.rb:10"));
+    /// arr.push(RString::new_utf8("prog.rb:10"));
     ///
     /// x.set_backtrace(arr.to_any_object());
     ///

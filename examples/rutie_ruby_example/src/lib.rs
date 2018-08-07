@@ -14,7 +14,7 @@ methods!(
           map_err(|e| VM::raise_ex(e) ).
           unwrap();
 
-        RString::new(
+        RString::new_utf8(
           &ruby_string.
           to_string().
           chars().
