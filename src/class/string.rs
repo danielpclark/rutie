@@ -513,11 +513,11 @@ impl EncodingSupport for RString {
     /// ```ruby
     /// string = "Hello"
     ///
-    /// string.valid_encoding?
+    /// string.valid_encoding? == true
     ///
     /// result = string.encode(Encoding::UTF_32)
     ///
-    /// result.valid_encoding?
+    /// result.valid_encoding? == false
     /// ```
     fn is_valid_encoding(&self) -> bool {
         let result = self.send("valid_encoding?", None);
