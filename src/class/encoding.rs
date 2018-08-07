@@ -1,7 +1,7 @@
 use binding::encoding;
 
 use {NilClass, Object, RString, VerifiedObject, Class, AnyException, Exception};
-use types::{Value, ValueType};
+use types::{Value, ValueType, EncodingIndex};
 
 #[derive(Debug, PartialEq)]
 pub struct Encoding {
@@ -160,15 +160,14 @@ impl Encoding {
     /// }
     /// ```
     pub fn find(s: &str) -> Result<Encoding, AnyException> {
-         let idx = encoding::find_encoding_index(s);
+         let EncodingIndex(idx) = encoding::find_encoding_index(s);
 
          if idx < 0 {
              Err(AnyException::new("ArgumentError", Some(&format!("unknown encoding name - {}", s))))
          } else {
-             Ok(Encoding::from(encoding::from_encoding_index(idx)))
+             Ok(Encoding::from(encoding::from_encoding_index(EncodingIndex(idx))))
          }
     }
-
 }
 
 impl Default for Encoding {

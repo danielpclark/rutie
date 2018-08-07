@@ -14,7 +14,8 @@ use {
   AnyException,
   Exception,
   Boolean,
-  TryConvert
+  TryConvert,
+  Hash
 };
 
 /// `String`
@@ -96,6 +97,34 @@ impl RString {
     /// ```
     pub fn new_usascii_unchecked(string: &str) -> Self {
         Self::from(string::new(string))
+    }
+
+    /// Creates a new instance of Ruby `String` from given byte
+    /// sequence with given `Encoding`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, Encoding, EncodingSupport, VM};
+    /// # VM::init();
+    ///
+    /// let bytes = [197, 130, 97, 197, 130];
+    /// let enc = Encoding::find("UTF-8").unwrap();
+    ///
+    /// let string = RString::from_bytes(&bytes, &enc);
+    ///
+    /// assert_eq!(string.to_str(), "łał");
+    ///
+    /// # VM::init_loadpath();
+    /// VM::require("enc/encdb");
+    /// VM::require("enc/trans/transdb");
+    ///
+    /// let result = string.encode(Encoding::find("UTF-16").unwrap(), None);
+    ///
+    /// assert_eq!(result.to_bytes_unchecked(), [254, 255, 1, 66, 0, 97, 1, 66])
+    /// ```
+    pub fn from_bytes(bytes: &[u8], enc: &Encoding) -> Self {
+        Self::from(string::new_from_bytes(bytes, enc.value()))
     }
 
     /// Retrieves underlying Rust `String` from Ruby `String` object.
@@ -362,7 +391,7 @@ impl EncodingSupport for RString {
     /// use rutie::{RString, VM, EncodingSupport, Encoding};
     /// # VM::init();
     ///
-    /// let mut string = RString::new("Hello");
+    /// let mut string = RString::new_utf8("Hello");
     /// string.force_encoding(Encoding::us_ascii());
     ///
     /// assert_eq!(string.encoding().name(), "US-ASCII");
@@ -408,7 +437,91 @@ impl EncodingSupport for RString {
         // }
 
         self.value = encoding::force_encoding(self.value(), enc.value());
+        encoding::coderange_clear(self.value);
+
         Ok(Self::from(self.value()))
+    }
+
+    /// Transcodes to encoding and returns `Self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM, EncodingSupport, Encoding};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("Hello");
+    /// let result = string.encode(Encoding::us_ascii(), None);
+    ///
+    /// assert_eq!(result.encoding().name(), "US-ASCII");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// string = "Hello"
+    /// result = string.encode(Encoding::US_ASCII)
+    ///
+    /// result.encoding.name == "US-ASCII"
+    /// ```
+    fn encode(&self, enc: Encoding, opts: Option<Hash>) -> Self {
+        let nil = NilClass::new().value();
+
+         let value = match opts {
+            Some(options) => {
+                let ecflags = encoding::econv_prepare_opts(options.value(), &nil);
+
+                encoding::encode(
+                    self.value(),
+                    enc.value(),
+                    ecflags,
+                    options.value()
+                )
+            },
+            None => {
+                encoding::encode(self.value(), enc.value(), 0, nil)
+            },
+        };
+
+        Self::from(value)
+    }
+
+    /// Transcodes to encoding and returns `Self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM, EncodingSupport, Encoding, Object};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("Hello");
+    ///
+    /// assert!(string.is_valid_encoding(), "not valid encoding!");
+    ///
+    /// # VM::init_loadpath();
+    /// VM::require("enc/encdb");
+    /// VM::require("enc/trans/transdb");
+    ///
+    /// let result = VM::eval("'Hello'.force_encoding('UTF-32')").unwrap().
+    ///   try_convert_to::<RString>().unwrap();
+    ///
+    /// assert!(!result.is_valid_encoding(), "is valid encoding!");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// string = "Hello"
+    ///
+    /// string.valid_encoding? == true
+    ///
+    /// result = string.encode(Encoding::UTF_32)
+    ///
+    /// result.valid_encoding? == false
+    /// ```
+    fn is_valid_encoding(&self) -> bool {
+        let result = self.send("valid_encoding?", None);
+        result.try_convert_to::<Boolean>().unwrap().to_bool()
     }
 }
 

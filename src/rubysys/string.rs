@@ -4,7 +4,7 @@ use std::mem;
 use rubysys::constant::{
     FL_USHIFT, FL_USER_1, FL_USER_2, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6, FL_USER_7, FL_USER_17
 };
-use rubysys::types::{c_char, c_long, InternalValue, RBasic, Value};
+use rubysys::types::{c_char, c_long, InternalValue, RBasic, Value, CallbackPtr};
 
 pub const STR_TMPLOCK: isize = FL_USER_7;
 
@@ -33,6 +33,9 @@ extern "C" {
     // int
     // rb_enc_str_asciionly_p(VALUE str)
     pub fn rb_enc_str_asciionly_p(str: Value) -> bool;
+    // VALUE
+    // rb_enc_str_new(const char *ptr, long len, rb_encoding *enc)
+    pub fn rb_enc_str_new(str: *const c_char, len: c_long, enc: CallbackPtr) -> Value;
     // VALUE
     // rb_str_export_locale(VALUE str)
     pub fn rb_str_export_locale(str: Value) -> Value;

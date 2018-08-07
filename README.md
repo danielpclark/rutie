@@ -26,6 +26,7 @@ This project is a continuation of:
 * [Variadic Functions / Splat Operator](https://github.com/danielpclark/rutie#variadic-functions--splat-operator)
 * [Migrating from Ruru to Rutie](https://github.com/danielpclark/rutie#migrating-from-ruru-to-rutie)
 * [Troubleshooting](https://github.com/danielpclark/rutie#troubleshooting)
+  * [it panics for some Rubies on CI server tests](https://github.com/danielpclark/rutie#it-panics-for-some-rubies-on-ci-server-tests)
   * [rust signal: 11, SIGSEGV: invalid memory reference](https://github.com/danielpclark/rutie#rust-signal-11-sigsegv-invalid-memory-reference)
   * [error while loading shared libraries: libruby.so.#.#: cannot open shared object file: No such file or directory](https://github.com/danielpclark/rutie#error-while-loading-shared-libraries-librubyso-cannot-open-shared-object-file-no-such-file-or-directory)
   * [Calling methods from other methods within the `methods!` macro doesn't work](https://github.com/danielpclark/rutie#calling-methods-from-other-methods-within-the-methods-macro-doesnt-work)
@@ -320,6 +321,12 @@ Migrated `parse_arguments` from `VM` to `util`.
 Internal changes `util` from `binding` and `rubysys` have been replaced to reduce confusion and reduce duplication.
 
 ## Troubleshooting
+
+#### it panics for some Rubies on CI server tests
+
+Sometimes the Ruby binary built isn't the best for the system.  Be sure to compile Ruby
+for that system if this is the issue.   With RVM do `rvm reinstall --disable-binary` with
+your choice of Ruby version.
 
 #### rust signal: 11, SIGSEGV: invalid memory reference
 

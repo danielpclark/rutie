@@ -1,7 +1,7 @@
 use AnyObject;
 
 pub use rubysys::types::{c_char, c_int, c_long, c_void, size_t, Argc, CallbackMutPtr,
-                          CallbackPtr, Id, InternalValue, RbDataType as DataType,
+                          CallbackPtr, Id, InternalValue, RbDataType as DataType, EncodingIndex,
                           RbDataTypeFunction as DataTypeFunction, SignedValue, Value, ValueType};
 
 #[cfg(unix)]

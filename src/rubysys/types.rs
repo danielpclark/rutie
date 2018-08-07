@@ -12,6 +12,8 @@ pub type Id = uintptr_t;
 pub type InternalValue = uintptr_t;
 pub type SignedValue = intptr_t;
 
+pub struct EncodingIndex(pub c_int);
+
 pub type Argc = c_int;
 pub type CallbackPtr = *const c_void;
 pub type CallbackMutPtr = *mut c_void;
