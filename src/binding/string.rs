@@ -24,6 +24,10 @@ pub fn new_from_bytes(bytes: &[u8], enc: Value) -> Value {
     unsafe { string::rb_enc_str_new(bts, len, encoding::rb_to_encoding(enc)) }
 }
 
+pub fn new_frozen(value: Value) -> Value {
+    unsafe { string::rb_str_new_frozen(value) }
+}
+
 // Returns RString Value or NilClass Value
 // same as method `String.try_convert`
 pub fn method_to_str(str: Value) -> Value {
@@ -57,7 +61,7 @@ pub fn value_to_str<'a>(value: Value) -> &'a str {
 pub fn value_to_bytes_unchecked<'a>(value: Value) -> &'a [u8] {
     unsafe {
         let str = string::rb_string_value_ptr(&value) as *const u8;
-        let len = string::rb_str_len(value) as usize;
+        let len = string::rstring_len(value) as usize;
 
         ::std::slice::from_raw_parts(str, len)
     }
@@ -72,7 +76,7 @@ pub fn value_to_str_unchecked<'a>(value: Value) -> &'a str {
 }
 
 pub fn bytesize(value: Value) -> i64 {
-    unsafe { string::rb_str_len(value) as i64 }
+    unsafe { string::rstring_len(value) as i64 }
 }
 
 pub fn count_chars(value: Value) -> i64 {
@@ -96,4 +100,8 @@ pub fn locktmp(str: Value) -> Value {
 
 pub fn unlocktmp(str: Value) -> Value {
     unsafe { string::rb_str_unlocktmp(str) }
+}
+
+pub fn codepoints(str: Value) -> Value {
+    unsafe { string::rb_str_codepoints(str) }
 }

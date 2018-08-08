@@ -66,6 +66,12 @@ extern "C" {
     // VALUE
     // rb_str_unlocktmp(VALUE str)
     pub fn rb_str_unlocktmp(str: Value) -> Value;
+    // static VALUE
+    // rb_str_codepoints(VALUE str)
+    pub fn rb_str_codepoints(str: Value) -> Value;
+    // VALUE
+    // rb_str_new_frozen(VALUE orig)
+    pub fn rb_str_new_frozen(orig: Value) -> Value;
 }
 
 #[derive(Debug, PartialEq)]
@@ -79,17 +85,26 @@ enum RStringEmbed {
     Fstr = FL_USER_17,
 }
 
+#[derive(Copy, Clone)]
 #[repr(C)]
-struct RStringAs {
+union RStringAs {
     heap: RStringHeap,
+    ary: [c_char; RStringEmbed::LenMax as usize + 1],
 }
 
+#[derive(Copy, Clone)]
+#[repr(C)]
+union RStringAux {
+    capa: c_long,
+    value: InternalValue,
+}
+
+#[derive(Copy, Clone)]
 #[repr(C)]
 struct RStringHeap {
     len: c_long,
-    // Really, this is a union but value is the largest item.
-    value: InternalValue,
-    ptr: InternalValue,
+    ptr: *const c_char,
+    aux: RStringAux,
 }
 
 #[repr(C)]
@@ -98,15 +113,51 @@ struct RString {
     as_: RStringAs,
 }
 
-pub unsafe fn rb_str_len(value: Value) -> c_long {
+unsafe fn rstring_and_flags(value: Value) -> (*const RString, InternalValue) {
     let rstring: *const RString = mem::transmute(value.value);
     let flags = (*rstring).basic.flags;
 
-    if flags & (RStringEmbed::NoEmbed as size_t) == 0 {
-        ((flags as i64 >> RStringEmbed::LenShift as i64) &
-         (RStringEmbed::LenMask as i64 >> RStringEmbed::LenShift as i64)) as c_long
+    (rstring, flags)
+}
+
+unsafe fn embed_check(flags: InternalValue) -> bool {
+    flags & (RStringEmbed::NoEmbed as size_t) == 0
+}
+
+pub unsafe fn rstring_embed_len(value: Value) -> c_long {
+    let (_rstring, flags) = rstring_and_flags(value);
+
+    ((flags as i64 >> RStringEmbed::LenShift as i64) &
+      (RStringEmbed::LenMask as i64 >> RStringEmbed::LenShift as i64)) as c_long
+}
+
+pub unsafe fn rstring_len(value: Value) -> c_long {
+    let (rstring, flags) = rstring_and_flags(value);
+
+    if embed_check(flags) {
+        rstring_embed_len(value)
     } else {
         (*rstring).as_.heap.len
+    }
+}
+
+pub unsafe fn rstring_ptr(value: Value) -> *const c_char {
+    let (rstring, flags) = rstring_and_flags(value);
+
+    if embed_check(flags) {
+        (*rstring).as_.ary.as_ptr()
+    } else {
+        (*rstring).as_.heap.ptr
+    }
+}
+
+pub unsafe fn rstring_end(value: Value) -> *const c_char {
+    let (rstring, flags) = rstring_and_flags(value);
+
+    if embed_check(flags) {
+        (*rstring).as_.ary.as_ptr().add(rstring_embed_len(value) as usize)
+    } else {
+        (*rstring).as_.heap.ptr.add((*rstring).as_.heap.len as usize)
     }
 }
 

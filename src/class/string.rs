@@ -15,7 +15,8 @@ use {
   Exception,
   Boolean,
   TryConvert,
-  Hash
+  Hash,
+  Array,
 };
 
 /// `String`
@@ -275,6 +276,37 @@ impl RString {
         let value = self.value();
 
         string::value_to_bytes_unchecked(value)
+    }
+
+    /// Returns an array of each characters codepoints.  This is useful as
+    /// a strings encoding determines where the codepoints are.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rutie::{Object, RString, Array, Fixnum, Encoding, EncodingSupport, VM};
+    /// # VM::init();
+    /// # VM::init_loadpath(); // Needed for alternate encodings
+    /// VM::require("enc/encdb");
+    /// VM::require("enc/trans/transdb");
+    ///
+    /// let string = RString::from_bytes(b"foo\x93_a", &Encoding::find("cp932").unwrap());
+    ///
+    /// let codepoints: Array = [102, 111, 111, 37727, 97].
+    ///   into_iter().map(|cp| Fixnum::new(*cp as i64).to_any_object()).collect();
+    ///
+    /// assert!(string.codepoints().equals(&codepoints), "not equal!");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// str = "foo\x93_a".force_encoding("cp932")
+    ///
+    /// str.codepoints == [102, 111, 111, 37727, 97]
+    /// ```
+    pub fn codepoints(&self) -> Array {
+        Array::from(string::codepoints(self.value()))
     }
 
     /// Returns the length of the string in bytes

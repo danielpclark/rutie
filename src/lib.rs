@@ -4,6 +4,7 @@ extern crate lazy_static;
 
 mod binding;
 mod class;
+mod helpers;
 pub mod rubysys;
 
 #[macro_use]
@@ -37,6 +38,8 @@ pub use class::traits::exception::Exception;
 pub use class::traits::object::Object;
 pub use class::traits::verified_object::VerifiedObject;
 pub use class::traits::try_convert::TryConvert;
+
+pub use helpers::codepoint_iterator::CodepointIterator;
 
 #[test]
 fn it_works() {}
