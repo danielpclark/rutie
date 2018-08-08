@@ -3,12 +3,27 @@ use types::{c_char, c_int, InternalValue};
 use rubysys::string::{rstring_ptr, rstring_end};
 use binding::{string, encoding};
 
+/// `CodepointIterator`
+#[derive(Debug)]
 pub struct CodepointIterator {
     rstring: RString,
     ptr: *const c_char,
 }
 
 impl CodepointIterator {
+    /// Create new codepoint iterator
+    ///
+    /// ```
+    /// use rutie::{RString, VM, CodepointIterator};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_utf8("aeiou");
+    /// let ci = CodepointIterator::new(string);
+    ///
+    /// let result: Vec<usize> = ci.into_iter().collect();
+    ///
+    /// assert_eq!(vec![97, 101, 105, 111, 117], result);
+    /// ```
     pub fn new(rstring: RString) -> Self {
         let fstring = string::new_frozen(rstring.value());
 
