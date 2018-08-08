@@ -177,8 +177,7 @@ pub unsafe fn rstring_end(value: Value) -> *const c_char {
 // }
 // ```
 pub unsafe fn is_lockedtmp(value: Value) -> bool {
-    let rstring: *const RString = mem::transmute(value.value);
-    let flags = (*rstring).basic.flags;
+    let (_rstring, flags) = rstring_and_flags(value);
 
     flags & STR_TMPLOCK as size_t != 0
 }
