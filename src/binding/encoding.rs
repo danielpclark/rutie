@@ -54,7 +54,7 @@ pub fn econv_prepare_opts(opthash: Value, opts: *const Value) -> c_int {
 
 // ptr - pointer for current point in string starting from the beginning
 // end - pointer for the end of the string
-// len_p - a mutable integer pointer for Ruby to give use how much to add on to `ptr`
+// len_p - a mutable integer pointer for Ruby to give us how much we need to add on to `ptr`
 // enc - the encoding the codepoints will be based on
 pub fn next_codepoint(ptr: *const c_char, end: *const c_char, len_p: *mut c_int, enc: Value) -> usize {
     unsafe {
