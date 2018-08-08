@@ -393,7 +393,7 @@ the documentation.  There is a subfolder under `class` for traits called `traits
 
 Macros for abstracting away complexity are in `src/dsl.rs`.
 
-Ruby's future helper gem is in the submodule folder `gem`.
+Ruby's helper gem is in the submodule folder `gem`.
 
 ## Additional Project History
 
