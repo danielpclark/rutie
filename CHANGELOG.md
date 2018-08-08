@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Full encoding support with `VM::init_loadpath`, `RString.encode`,
   `RString.is_valid_encoding`
 - `RString::from_bytes` which takes both a byte sequence for characters
-  and an `Encoding` object to interpret how to get those bytes from characters
+  and an `Encoding` object to interpret how to get those characters from bytes
 - Documentation about what to try if binary installs of Ruby panic on CI
   servers
 - `rubysys::encoding::{coderange_set, coderange_clear}` and encoding flags
