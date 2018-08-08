@@ -1,4 +1,4 @@
-use rubysys::types::{c_int, c_char, Value, CallbackPtr, RBasic, InternalValue};
+use rubysys::types::{size_t, c_int, c_char, Value, CallbackPtr, RBasic, InternalValue};
 use rubysys::constant::{FL_USER_8, FL_USER_9};
 use std::mem;
 
@@ -80,6 +80,9 @@ extern "C" {
     // int
     // rb_econv_prepare_opts(VALUE opthash, VALUE *opts)
     pub fn rb_econv_prepare_opts(opthash: Value, opts: *const Value) -> c_int;
+    // unsigned int
+    // rb_enc_codepoint_len(const char *p, const char *e, int *len_p, rb_encoding *enc)
+    pub fn rb_enc_codepoint_len(ptr: *const c_char, end: *const c_char, len_p: *mut c_int, enc: CallbackPtr) -> size_t;
 }
 
 pub unsafe fn coderange_set(obj: Value, code_range: InternalValue) {
