@@ -1,4 +1,4 @@
-use ::{Object, VerifiedObject, Exception};
+use ::{Object, VerifiedObject, Exception, NilClass, AnyObject, Class, TryConvert};
 use ::types::{Value, ValueType};
 use std::fmt::{Display, Formatter};
 use std::fmt;
@@ -22,10 +22,17 @@ impl Object for AnyException {
 
 impl Exception for AnyException {}
 
+impl TryConvert<AnyObject> for AnyException {
+    type Nil = NilClass;
+
+    fn try_convert(obj: AnyObject) -> Result<Self, NilClass> {
+        obj.try_convert_to::<AnyException>().map_err(|_| NilClass::new() )
+    }
+}
+
 impl VerifiedObject for AnyException {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        object.value().ty() == ValueType::Class &&
-          object.respond_to("set_backtrace")
+        Class::from_existing("Exception").case_equals(object)
     }
 
     fn error_message() -> &'static str {

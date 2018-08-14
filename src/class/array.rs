@@ -5,7 +5,7 @@ use std::iter::{FromIterator, IntoIterator, Iterator};
 use binding::array;
 use types::{Value, ValueType};
 
-use {AnyObject, Object, RString, VerifiedObject};
+use {AnyObject, Object, RString, VerifiedObject, Enumerator};
 
 /// `Array`
 #[derive(Debug, PartialEq)]
@@ -502,6 +502,30 @@ impl Array {
     pub fn sort_bang(&mut self) -> Array {
         let result = array::sort_bang(self.value());
         Array::from(result)
+    }
+
+    /// Sorts the array in place.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, VM, VerifiedObject, Enumerator};
+    /// # VM::init();
+    ///
+    /// let enumerator = Array::new().push(Fixnum::new(2)).push(Fixnum::new(1)).to_enum();
+    ///
+    /// assert!(Enumerator::is_correct_type(&enumerator), "incorrect type!");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// enumerator = [2, 1].to_enum
+    ///
+    /// Enumerator === enumerator
+    /// ```
+    pub fn to_enum(&self) -> Enumerator {
+        self.send("to_enum", None).try_convert_to::<Enumerator>().unwrap()
     }
 }
 
