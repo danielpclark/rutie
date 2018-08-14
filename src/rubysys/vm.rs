@@ -49,4 +49,10 @@ extern "C" {
     pub fn rb_block_call(obj: Value, method_id: Id, argc: Argc, argv: *const Value,
                          block: extern fn(Value, Value, Argc, *const Value) -> Value,
                          outer_scope: Value) -> Value;
+    // VALUE
+    // rb_yield_splat(VALUE values)
+    pub fn rb_yield_splat(values: Value) -> Value;
+    // VALUE
+    // rb_yield(VALUE val)
+    pub fn rb_yield(value: Value) -> Value;
 }
