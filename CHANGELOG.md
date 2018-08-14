@@ -13,6 +13,7 @@ API and may have breaking changes during a teeny version change.
 - `Array.to_enum`
 - `TryConvert` for `AnyException`
 - `VM::error_info` and `VM::clear_error_info`
+- Documentation for `VM::protect`
 
 ### Changed
 - `Object.protect_send` and `Object.protect_public_send` have changed the
