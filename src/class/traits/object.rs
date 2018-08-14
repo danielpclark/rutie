@@ -7,7 +7,7 @@ use typed_data::DataTypeWrapper;
 use types::{Callback, Value};
 use util;
 
-use {AnyObject, AnyException, Exception, Boolean, Class, NilClass, VerifiedObject};
+use {AnyObject, AnyException, Exception, Boolean, Class, NilClass, VerifiedObject, VM};
 
 /// `Object`
 ///
@@ -885,7 +885,7 @@ pub trait Object: From<Value> {
     /// 
     /// let kernel = Class::from_existing("Kernel");
     /// 
-    /// let result = kernel.protect_send("nil?".to_string(), None);
+    /// let result = kernel.protect_send("nil?", None);
     /// 
     /// if let Ok(r) = result {
     ///     assert!(!r.value().is_true());
@@ -896,7 +896,7 @@ pub trait Object: From<Value> {
     /// let kernel = Class::from_existing("Kernel");
     /// 
     /// let result = kernel.protect_send(
-    ///     "raise".to_string(),
+    ///     "raise",
     ///     Some(&vec![RString::new_utf8("flowers").to_any_object()])
     /// );
     /// 
@@ -909,26 +909,19 @@ pub trait Object: From<Value> {
     ///     unreachable!()
     /// }
     /// ```
-    fn protect_send(&self, method: String, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
-        let v = self.value();
-        let arguments = util::arguments_to_values(arguments).unwrap_or_default();
+    fn protect_send(&self, method: &str, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
+        let closure = || { self.send(&method, arguments).value() };
 
-        let closure = || {
-            vm::call_method(v, &method, &arguments)
-        };
+        let result = VM::protect(closure);
 
-        let result = vm::protect(closure);
-
-        if let Ok(value) = result {
-            Ok(AnyObject::from(value))
-        } else {
-            let output = Err(AnyException::from(vm::errinfo()));
+        result.map_err(|_| {
+            let output = VM::error_info().unwrap();
 
             // error cleanup
-            vm::set_errinfo(NilClass::new().value());
+            VM::clear_error_info();
 
             output
-        }
+        })
     }
 
     /// `protect_public_send` returns Result<AnyObject, AnyObject>
@@ -944,7 +937,7 @@ pub trait Object: From<Value> {
     /// 
     /// let kernel = Class::from_existing("Kernel");
     /// 
-    /// let result = kernel.protect_public_send("nil?".to_string(), None);
+    /// let result = kernel.protect_public_send("nil?", None);
     /// 
     /// if let Ok(r) = result {
     ///     assert!(!r.value().is_true());
@@ -955,7 +948,7 @@ pub trait Object: From<Value> {
     /// let kernel = Class::from_existing("Kernel");
     /// 
     /// let result = kernel.protect_public_send(
-    ///     "raise".to_string(),
+    ///     "raise",
     ///     Some(&vec![RString::new_utf8("flowers").to_any_object()])
     /// );
     /// 
@@ -968,7 +961,7 @@ pub trait Object: From<Value> {
     ///     unreachable!()
     /// }
     /// ```
-    fn protect_public_send(&self, method: String, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
+    fn protect_public_send(&self, method: &str, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
         let v = self.value();
         let arguments = util::arguments_to_values(arguments).unwrap_or_default();
 
@@ -976,18 +969,17 @@ pub trait Object: From<Value> {
             vm::call_public_method(v, &method, &arguments)
         };
 
-        let result = vm::protect(closure);
+        let result = VM::protect(closure);
 
-        if let Ok(value) = result {
-            Ok(AnyObject::from(value))
-        } else {
-            let output = Err(AnyException::from(vm::errinfo()));
+
+        result.map_err(|_| {
+            let output = VM::error_info().unwrap();
 
             // error cleanup
-            vm::set_errinfo(NilClass::new().value());
+            VM::clear_error_info();
 
             output
-        }
+        })
     }
 
     /// Checks whether the object is `nil`

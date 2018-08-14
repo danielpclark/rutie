@@ -9,6 +9,16 @@ API and may have breaking changes during a teeny version change.
 ## [Unreleased]
 ### Added
 - Methods `VM::yield_object` and `VM::yield_splat`
+- `Enumerator` object
+- `Array.to_enum`
+- `TryConvert` for `AnyException`
+- `VM::error_info` and `VM::clear_error_info`
+- Documentation for `VM::protect`
+
+### Changed
+- `Object.protect_send` and `Object.protect_public_send` have changed the
+  first parameter from requiring `String` to `&str`
+- `VM::protect` returns `Result<AnyObject, i32>` rather than `Result<Value, i32>`
 
 ## [0.3.4] - 2018-08-08
 ### Added

@@ -1,7 +1,7 @@
 use binding::vm;
 use types::{Argc, Value};
 
-use {AnyObject, AnyException, Class, Object, Proc, NilClass, Array};
+use {AnyObject, AnyException, Class, Object, Proc, NilClass, Array, TryConvert};
 
 /// Virtual Machine and helpers
 pub struct VM;
@@ -508,12 +508,79 @@ impl VM {
         AnyObject::from(vm::yield_splat(objects.value()))
     }
 
-    // TODO: Change result to return `AnyObject` instead of `Value`.
-    // Do this by next :SEMVER:MINOR: change.
-    pub fn protect<F>(func: F) -> Result<Value, i32>
+    /// Run a `closure` and protect from panic during raised excpetions
+    /// by returning `Err<i32>`.
+    ///
+    /// # Examples
+    ///
+    /// ```text
+    /// fn protect_send(&self, method: &str, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
+    ///     let closure = || { self.send(&method, arguments).value() };
+    ///
+    ///     let result = VM::protect(closure);
+    ///
+    ///     result.map_err(|_| {
+    ///         let output = VM::error_info().unwrap();
+    ///
+    ///         // error cleanup
+    ///         VM::clear_error_info();
+    ///
+    ///         output
+    ///     })
+    /// }
+    /// ```
+    pub fn protect<F>(func: F) -> Result<AnyObject, i32>
     where
         F: FnMut() -> Value,
     {
-        vm::protect(func)
+        vm::protect(func).map(|v| AnyObject::from(v) )
+    }
+
+    /// Get current VM error info.
+    ///
+    /// # Examples
+    ///
+    /// ```text
+    /// fn protect_send(&self, method: &str, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
+    ///     let closure = || { self.send(&method, arguments).value() };
+    ///
+    ///     let result = VM::protect(closure);
+    ///
+    ///     result.map_err(|_| {
+    ///         let output = VM::error_info().unwrap();
+    ///
+    ///         // error cleanup
+    ///         VM::clear_error_info();
+    ///
+    ///         output
+    ///     })
+    /// }
+    /// ```
+    pub fn error_info() -> Result<AnyException, NilClass> {
+        AnyException::try_convert(AnyObject::from(vm::errinfo()))
+    }
+
+    /// Clear current VM error info.
+    ///
+    /// # Examples
+    ///
+    /// ```text
+    /// fn protect_send(&self, method: &str, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
+    ///     let closure = || { self.send(&method, arguments).value() };
+    ///
+    ///     let result = VM::protect(closure);
+    ///
+    ///     result.map_err(|_| {
+    ///         let output = VM::error_info().unwrap();
+    ///
+    ///         // error cleanup
+    ///         VM::clear_error_info();
+    ///
+    ///         output
+    ///     })
+    /// }
+    /// ```
+    pub fn clear_error_info() {
+        vm::set_errinfo(NilClass::new().value());
     }
 }
