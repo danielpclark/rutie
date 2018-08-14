@@ -1,7 +1,7 @@
 use binding::vm;
 use types::{Argc, Value};
 
-use {AnyObject, AnyException, Class, Object, Proc, NilClass};
+use {AnyObject, AnyException, Class, Object, Proc, NilClass, Array};
 
 /// Virtual Machine and helpers
 pub struct VM;
@@ -382,6 +382,134 @@ impl VM {
         vm::is_block_given()
     }
 
+    /// Yield object to block
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, VM};
+    ///
+    /// class!(Calculator);
+    ///
+    /// methods!(
+    ///     Calculator,
+    ///     itself,
+    ///
+    ///     fn calculate(a: Fixnum) -> Fixnum {
+    ///         let a = a.map_err(|e| VM::raise_ex(e) ).unwrap();
+    ///
+    ///         if VM::is_block_given() {
+    ///             let argument = a.to_any_object();
+    ///             let result = VM::yield_object(a);
+    ///
+    ///             result.try_convert_to::<Fixnum>().unwrap()
+    ///         } else {
+    ///             VM::raise(Class::from_existing("LocalJumpError"), "no block given (yield)");
+    ///             unreachable!();
+    ///         }
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///
+    ///     Class::new("Calculator", None).define(|itself| {
+    ///         itself.def("calculate", calculate);
+    ///     });
+    ///
+    ///     let result = VM::eval(" Calculator.new().calculate(4) { |n| n * n } ").unwrap();
+    ///     let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///     assert_eq!(num, 16);
+    /// }
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// class Calculator
+    ///   def calculate(a)
+    ///     if block_given?
+    ///       yield a
+    ///     else
+    ///       raise LocalJumpError, "no block given (yield)"
+    ///     end
+    ///   end
+    /// end
+    ///
+    /// result = Calculator.new.calculate(4) { |n| n * n }
+    /// result == 16
+    /// ```
+    pub fn yield_object(object: impl Object) -> AnyObject {
+        AnyObject::from(vm::yield_object(object.value()))
+    }
+
+    /// Yield splat from array of Ruby objects to block
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Array, Class, Fixnum, Object, VM};
+    ///
+    /// class!(Calculator);
+    ///
+    /// methods!(
+    ///     Calculator,
+    ///     itself,
+    ///
+    ///     fn calculate(a: Array) -> Fixnum {
+    ///         let a = a.map_err(|e| VM::raise_ex(e) ).unwrap();
+    ///
+    ///         if VM::is_block_given() {
+    ///             let argument = a.to_any_object();
+    ///             let result = VM::yield_splat(a);
+    ///
+    ///             result.try_convert_to::<Fixnum>().unwrap()
+    ///         } else {
+    ///             VM::raise(Class::from_existing("LocalJumpError"), "no block given (yield)");
+    ///             unreachable!();
+    ///         }
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///
+    ///     Class::new("Calculator", None).define(|itself| {
+    ///         itself.def("calculate", calculate);
+    ///     });
+    ///
+    ///     let result = VM::eval(" Calculator.new().calculate([4,6,8]) { |a,b,c| a*b-c } ").unwrap();
+    ///     let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///     assert_eq!(num, 16);
+    /// }
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// class Calculator
+    ///   def calculate(a)
+    ///     if block_given?
+    ///       yield a
+    ///     else
+    ///       raise LocalJumpError, "no block given (yield)"
+    ///     end
+    ///   end
+    /// end
+    ///
+    /// result = Calculator.new.calculate([4,6,8]) { |a,b,c| a*b-c }
+    /// result == 16
+    /// ```
+    pub fn yield_splat(objects: Array) -> AnyObject {
+        AnyObject::from(vm::yield_splat(objects.value()))
+    }
+
+    // TODO: Change result to return `AnyObject` instead of `Value`.
+    // Do this by next :SEMVER:MINOR: change.
     pub fn protect<F>(func: F) -> Result<Value, i32>
     where
         F: FnMut() -> Value,

@@ -7,6 +7,8 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
+### Added
+- Methods `VM::yield_object` and `VM::yield_splat`
 
 ## [0.3.4] - 2018-08-08
 ### Added

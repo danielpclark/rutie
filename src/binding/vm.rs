@@ -16,6 +16,14 @@ pub fn is_block_given() -> bool {
     util::c_int_to_bool(result)
 }
 
+pub fn yield_object(value: Value) -> Value {
+    unsafe { vm::rb_yield(value) }
+}
+
+pub fn yield_splat(values: Value) -> Value {
+    unsafe { vm::rb_yield_splat(values) }
+}
+
 pub fn init() {
     unsafe {
         vm::ruby_init();
