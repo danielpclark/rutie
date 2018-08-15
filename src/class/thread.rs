@@ -9,7 +9,7 @@ use types::RawFd;
 use {Class, Object, VerifiedObject};
 
 /// `Thread`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Thread {
     value: Value,
 }
@@ -159,5 +159,11 @@ impl VerifiedObject for Thread {
 
     fn error_message() -> &'static str {
         "Error converting to Thread"
+    }
+}
+
+impl PartialEq for Thread {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

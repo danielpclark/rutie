@@ -53,7 +53,7 @@ impl fmt::Debug for AnyException {
 }
 
 impl PartialEq for AnyException {
-    fn eq(&self, other: &AnyException) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.equals(other)
     }
 }

@@ -7,7 +7,7 @@ use util;
 use {AnyObject, Class, Object, VerifiedObject};
 
 /// `Proc` (works with `Lambda` as well)
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Proc {
     value: Value,
 }
@@ -85,5 +85,11 @@ impl VerifiedObject for Proc {
 
     fn error_message() -> &'static str {
         "Error converting to Proc"
+    }
+}
+
+impl PartialEq for Proc {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

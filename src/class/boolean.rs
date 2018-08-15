@@ -6,7 +6,7 @@ use util;
 use {Object, VerifiedObject};
 
 /// `TrueClass` and `FalseClass`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Boolean {
     value: Value,
 }
@@ -75,5 +75,11 @@ impl VerifiedObject for Boolean {
 
     fn error_message() -> &'static str {
         "Error converting to Boolean"
+    }
+}
+
+impl PartialEq for Boolean {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

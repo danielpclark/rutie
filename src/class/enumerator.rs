@@ -14,15 +14,42 @@ use {
 };
 
 /// `Enumerator`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Enumerator {
     value: Value,
 }
 
 impl Enumerator {
+    /// Advances the iterator and returns the next value.
+    ///
+    /// Returns [`Err`] when iteration is finished.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, VM, VerifiedObject, Enumerator};
+    /// # VM::init();
+    ///
+    /// let mut iter = Array::new().push(Fixnum::new(2)).push(Fixnum::new(1)).to_enum();
+    ///
+    /// // A call to next() returns the next value...
+    /// assert_eq!(Ok(Fixnum::new(2).to_any_object()), iter.next());
+    /// assert_eq!(Ok(Fixnum::new(1).to_any_object()), iter.next());
+    ///
+    /// // ... and then Err once it's over.
+    /// assert!(iter.next().is_err(), "not error!");
+    ///
+    /// // More calls will always retirn Err.
+    /// assert!(iter.next().is_err(), "not error!");
+    /// assert!(iter.next().is_err(), "not error!");
+    /// ```
+    pub fn next(&mut self) -> Result<AnyObject, AnyException> {
+        self.protect_send("next", None)
+    }
+
     /// Advances the iterator and returns the next values.
     ///
-    /// Returns [`None`] when iteration is finished.
+    /// Returns [`Err`] when iteration is finished.
     ///
     /// # Examples
     ///
@@ -40,26 +67,26 @@ impl Enumerator {
     /// // A call to next_values() returns the next values...
     /// let mut result1 = Array::with_capacity(1);
     /// result1.push(Fixnum::new(1));
-    /// assert_eq!(Some(result1), iter.next_values());
+    /// assert_eq!(Ok(result1), iter.next_values());
     /// let mut result2 = Array::with_capacity(1);
     /// result2.push(Fixnum::new(2));
-    /// assert_eq!(Some(result2), iter.next_values());
+    /// assert_eq!(Ok(result2), iter.next_values());
     ///
-    /// // ... and then None once it's over.
-    /// assert_eq!(None, iter.next_values());
+    /// // ... and then Err once it's over.
+    /// assert!(iter.next_values().is_err(), "not error!");
     ///
-    /// // More calls will always retirn None.
-    /// assert_eq!(None, iter.next_values());
-    /// assert_eq!(None, iter.next_values());
+    /// // More calls will always retirn Err.
+    /// assert!(iter.next_values().is_err(), "not error!");
+    /// assert!(iter.next_values().is_err(), "not error!");
     /// ```
-    pub fn next_values(&mut self) -> Option<Array> {
+    pub fn next_values(&mut self) -> Result<Array, AnyException> {
         self.protect_send("next_values", None).
-            map(|v| Array::from(v.value()) ).ok()
+            map(|v| Array::from(v.value()) )
     }
 
     /// Peeks into the iterator and returns the next value.
     ///
-    /// Returns [`None`] when iteration is finished.
+    /// Returns [`Err`] when iteration is finished.
     ///
     /// # Examples
     ///
@@ -70,16 +97,16 @@ impl Enumerator {
     /// let mut iter = Array::new().push(Fixnum::new(2)).push(Fixnum::new(1)).to_enum();
     ///
     /// // A call to peek() returns the next value without progressing the iteration
-    /// assert_eq!(Some(Fixnum::new(2).to_any_object()), iter.peek());
-    /// assert_eq!(Some(Fixnum::new(2).to_any_object()), iter.peek());
+    /// assert_eq!(Ok(Fixnum::new(2).to_any_object()), iter.peek());
+    /// assert_eq!(Ok(Fixnum::new(2).to_any_object()), iter.peek());
     /// ```
-    pub fn peek(&self) -> Option<AnyObject> {
-        self.protect_send("peek", None).ok()
+    pub fn peek(&self) -> Result<AnyObject, AnyException> {
+        self.protect_send("peek", None)
     }
 
     /// Peeks into the iterator and returns the next values.
     ///
-    /// Returns [`None`] when iteration is finished.
+    /// Returns [`Err`] when iteration is finished.
     ///
     /// # Examples
     ///
@@ -97,17 +124,17 @@ impl Enumerator {
     /// // A call to peek_values() returns the next values without progressing the iteration
     /// let mut result1 = Array::with_capacity(1);
     /// result1.push(Fixnum::new(1));
-    /// assert_eq!(Some(result1.dup()), iter.peek_values());
-    /// assert_eq!(Some(result1), iter.peek_values());
+    /// assert_eq!(Ok(result1.dup()), iter.peek_values());
+    /// assert_eq!(Ok(result1), iter.peek_values());
     /// ```
-    pub fn peek_values(&self) -> Option<Array> {
+    pub fn peek_values(&self) -> Result<Array, AnyException> {
         self.protect_send("peek_values", None).
-            map(|v| Array::from(v.value()) ).ok()
+            map(|v| Array::from(v.value()) )
     }
 
     /// Rewind the iteration back to the beginning.
     ///
-    /// Returns [`None`] when iteration is finished.
+    /// Returns [`Err`] when iteration is finished.
     ///
     /// # Examples
     ///
@@ -118,22 +145,70 @@ impl Enumerator {
     /// let mut iter = Array::new().push(Fixnum::new(2)).push(Fixnum::new(1)).to_enum();
     ///
     /// // A call to next() returns the next value...
-    /// assert_eq!(Some(Fixnum::new(2).to_any_object()), iter.next());
-    /// assert_eq!(Some(Fixnum::new(1).to_any_object()), iter.next());
-    /// assert_eq!(None, iter.next());
+    /// assert_eq!(Ok(Fixnum::new(2).to_any_object()), iter.next());
+    /// assert_eq!(Ok(Fixnum::new(1).to_any_object()), iter.next());
+    /// assert!(iter.next().is_err(), "not error!");
     ///
     /// iter.rewind();
     ///
     /// // A call to next() returns the next value...
-    /// assert_eq!(Some(Fixnum::new(2).to_any_object()), iter.next());
-    /// assert_eq!(Some(Fixnum::new(1).to_any_object()), iter.next());
-    /// assert_eq!(None, iter.next());
+    /// assert_eq!(Ok(Fixnum::new(2).to_any_object()), iter.next());
+    /// assert_eq!(Ok(Fixnum::new(1).to_any_object()), iter.next());
+    /// assert!(iter.next().is_err(), "not error!");
     /// ```
     pub fn rewind(&mut self) -> &mut Self {
         self.send("rewind", None);
         self
     }
 
+    /// Feed a return value back in to internal yield inside enumerator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, VM, VerifiedObject, Enumerator, Class};
+    /// # VM::init();
+    ///
+    /// let mut e_iter = VM::eval("[1,2,3].map").unwrap().
+    ///   try_convert_to::<Enumerator>().unwrap();
+    ///
+    /// assert_eq!(Ok(Fixnum::new(1).to_any_object()), e_iter.next());
+    /// e_iter.feed(Fixnum::new(999).to_any_object());
+    /// assert_eq!(Ok(Fixnum::new(2).to_any_object()), e_iter.next());
+    /// e_iter.feed(Fixnum::new(888).to_any_object());
+    /// assert_eq!(Ok(Fixnum::new(3).to_any_object()), e_iter.next());
+    /// e_iter.feed(Fixnum::new(777).to_any_object());
+    /// 
+    /// match e_iter.next() {
+    ///     Ok(_) => unreachable!(),
+    ///     Err(e) => {
+    ///         let mut expected = Array::with_capacity(3);
+    ///         expected.push(Fixnum::new(999).to_any_object());
+    ///         expected.push(Fixnum::new(888).to_any_object());
+    ///         expected.push(Fixnum::new(777).to_any_object());
+    ///
+    ///         assert!(Class::from_existing("StopIteration").case_equals(&e));
+    ///         assert_eq!(expected.to_any_object(), e.send("result", None));
+    ///     },
+    /// }
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// e = [1,2,3].map
+    /// p e.next           #=> 1
+    /// e.feed "a"
+    /// p e.next           #=> 2
+    /// e.feed "b"
+    /// p e.next           #=> 3
+    /// e.feed "c"
+    /// begin
+    ///   e.next
+    /// rescue StopIteration
+    ///   p $!.result      #=> ["a", "b", "c"]
+    /// end
+    /// ```
     pub fn feed(&mut self, object: AnyObject) -> Result<(), AnyException> {
         self.protect_send("feed", Some(&[object])).map(|_|())
     }
@@ -162,34 +237,8 @@ impl VerifiedObject for Enumerator {
     }
 }
 
-impl Iterator for Enumerator {
-    /// The return type for the iterator.
-    type Item = AnyObject;
-
-    /// Advances the iterator and returns the next value.
-    ///
-    /// Returns [`None`] when iteration is finished.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rutie::{Array, Fixnum, Object, VM, VerifiedObject, Enumerator};
-    /// # VM::init();
-    ///
-    /// let mut iter = Array::new().push(Fixnum::new(2)).push(Fixnum::new(1)).to_enum();
-    ///
-    /// // A call to next() returns the next value...
-    /// assert_eq!(Some(Fixnum::new(2).to_any_object()), iter.next());
-    /// assert_eq!(Some(Fixnum::new(1).to_any_object()), iter.next());
-    ///
-    /// // ... and then None once it's over.
-    /// assert_eq!(None, iter.next());
-    ///
-    /// // More calls will always retirn None.
-    /// assert_eq!(None, iter.next());
-    /// assert_eq!(None, iter.next());
-    /// ```
-    fn next(&mut self) -> Option<AnyObject> {
-        self.protect_send("next", None).ok()
+impl PartialEq for Enumerator {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

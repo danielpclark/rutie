@@ -20,7 +20,7 @@ use {
 };
 
 /// `String`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct RString {
     value: Value,
 }
@@ -634,5 +634,11 @@ impl VerifiedObject for RString {
 
     fn error_message() -> &'static str {
         "Error converting to String"
+    }
+}
+
+impl PartialEq for RString {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

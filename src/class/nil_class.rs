@@ -7,7 +7,7 @@ use types::{InternalValue, Value, ValueType};
 use {Object, VerifiedObject};
 
 /// `NilClass`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct NilClass {
     value: Value,
 }
@@ -60,5 +60,11 @@ impl VerifiedObject for NilClass {
 
     fn error_message() -> &'static str {
         "Error converting to NilClass"
+    }
+}
+
+impl PartialEq for NilClass {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }
