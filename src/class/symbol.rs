@@ -6,7 +6,7 @@ use types::{Value, ValueType};
 use {Object, VerifiedObject};
 
 /// `Symbol`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Symbol {
     value: Value,
 }
@@ -107,5 +107,11 @@ impl VerifiedObject for Symbol {
 
     fn error_message() -> &'static str {
         "Error converting to Symbol"
+    }
+}
+
+impl PartialEq for Symbol {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

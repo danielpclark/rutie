@@ -6,7 +6,7 @@ use types::{Value, ValueType};
 use {Object, VerifiedObject};
 
 /// `Integer`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Integer {
     value: Value,
 }
@@ -77,5 +77,11 @@ impl VerifiedObject for Integer {
 
     fn error_message() -> &'static str {
         "Error converting to Integer"
+    }
+}
+
+impl PartialEq for Integer {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

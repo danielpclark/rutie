@@ -7,7 +7,7 @@ use types::{Value, ValueType};
 use {AnyObject, Object, VerifiedObject};
 
 /// `Hash`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Hash {
     value: Value,
 }
@@ -286,5 +286,11 @@ impl VerifiedObject for Hash {
 
     fn error_message() -> &'static str {
         "Error converting to Hash"
+    }
+}
+
+impl PartialEq for Hash {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

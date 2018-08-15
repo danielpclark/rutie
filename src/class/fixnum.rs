@@ -6,7 +6,7 @@ use types::{Value, ValueType};
 use {Object, VerifiedObject};
 
 /// `Fixnum`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Fixnum {
     value: Value,
 }
@@ -77,5 +77,11 @@ impl VerifiedObject for Fixnum {
 
     fn error_message() -> &'static str {
         "Error converting to Fixnum"
+    }
+}
+
+impl PartialEq for Fixnum {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

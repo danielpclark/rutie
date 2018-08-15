@@ -6,7 +6,7 @@ use types::{Value, ValueType};
 use {Object, VerifiedObject};
 
 /// `Float`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Float {
     value: Value,
 }
@@ -77,5 +77,11 @@ impl VerifiedObject for Float {
 
     fn error_message() -> &'static str {
         "Error converting to Float"
+    }
+}
+
+impl PartialEq for Float {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

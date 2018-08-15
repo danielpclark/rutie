@@ -8,7 +8,7 @@ use types::{Value, ValueType};
 use {AnyObject, Object, RString, VerifiedObject, Enumerator};
 
 /// `Array`
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Array {
     value: Value,
 }
@@ -555,6 +555,12 @@ impl VerifiedObject for Array {
 
     fn error_message() -> &'static str {
         "Error converting to Array"
+    }
+}
+
+impl PartialEq for Array {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }
 

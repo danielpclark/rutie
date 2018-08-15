@@ -55,7 +55,7 @@ use {AnyObject, Array, Object, Module, VerifiedObject};
 ///   end
 /// end
 /// ```
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Class {
     value: Value,
 }
@@ -724,5 +724,11 @@ impl VerifiedObject for Class {
 
     fn error_message() -> &'static str {
         "Error converting to Class"
+    }
+}
+
+impl PartialEq for Class {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }

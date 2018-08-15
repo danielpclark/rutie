@@ -3,7 +3,7 @@ use binding::encoding;
 use {NilClass, Object, RString, VerifiedObject, Class, AnyException, Exception};
 use types::{Value, ValueType, EncodingIndex};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Encoding {
     value: Value
 }
@@ -197,5 +197,11 @@ impl VerifiedObject for Encoding {
 
     fn error_message() -> &'static str {
         "Error converting to Encoding"
+    }
+}
+
+impl PartialEq for Encoding {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }
