@@ -198,15 +198,15 @@ impl Enumerator {
     /// ```ruby
     /// e = [1,2,3].map
     /// p e.next           #=> 1
-    /// e.feed "a"
+    /// e.feed 999
     /// p e.next           #=> 2
-    /// e.feed "b"
+    /// e.feed 888
     /// p e.next           #=> 3
-    /// e.feed "c"
+    /// e.feed 777
     /// begin
     ///   e.next
     /// rescue StopIteration
-    ///   p $!.result      #=> ["a", "b", "c"]
+    ///   p $!.result      #=> [999, 888, 777]
     /// end
     /// ```
     pub fn feed(&mut self, object: AnyObject) -> Result<(), AnyException> {
