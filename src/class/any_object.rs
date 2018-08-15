@@ -48,7 +48,7 @@ use {Object, VerifiedObject};
 /// ```
 ///
 /// You can find more examples in `Class`, `Object` and `VerifiedObject` documentation.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct AnyObject {
     value: Value,
 }
@@ -74,5 +74,11 @@ impl VerifiedObject for AnyObject {
 
     fn error_message() -> &'static str {
         unreachable!()
+    }
+}
+
+impl PartialEq for AnyObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.equals(other)
     }
 }
