@@ -1,10 +1,17 @@
 use std::convert::From;
 use std::default::Default;
-use std::iter::{FromIterator, IntoIterator, Iterator};
 
 use types::{Value, ValueType};
 
-use {AnyObject, Object, VerifiedObject, Class, Fixnum, Array};
+use {
+    AnyObject,
+    AnyException,
+    Array,
+    Class,
+    Fixnum,
+    Object,
+    VerifiedObject,
+};
 
 /// `Enumerator`
 #[derive(Debug, PartialEq)]
@@ -41,30 +48,43 @@ impl VerifiedObject for Enumerator {
     }
 }
 
+pub trait Iterator {
+    type Item;
+    fn next(&mut self) -> Option<Self::Item>;
+    fn next_values(&mut self) -> Option<Array>;
+    fn peek(&self) -> Option<Self::Item>;
+    fn peek_values(&self) -> Option<Array>;
+    fn rewind(&mut self) -> &mut Self;
+    fn feed(&mut self, object: AnyObject) -> Result<(), AnyException>;
+}
+
 impl Iterator for Enumerator {
     type Item = AnyObject;
 
     fn next(&mut self) -> Option<AnyObject> {
         self.protect_send("next", None).ok()
     }
-}
-
-pub trait IteratorValues {
-    type Item;
-    fn next_values(&mut self) -> Option<Self::Item>;
-}
-
-impl IteratorValues for Enumerator {
-    type Item = Array;
 
     fn next_values(&mut self) -> Option<Array> {
         self.protect_send("next_values", None).
             map(|v| Array::from(v.value()) ).ok()
     }
-}
 
-impl ExactSizeIterator for Enumerator {
-    fn len(&self) -> usize {
-        self.count() as usize
+    fn peek(&self) -> Option<AnyObject> {
+        self.protect_send("peek", None).ok()
+    }
+
+    fn peek_values(&self) -> Option<Array> {
+        self.protect_send("peek_values", None).
+            map(|v| Array::from(v.value()) ).ok()
+    }
+
+    fn rewind(&mut self) -> &mut Self {
+        self.send("rewind", None);
+        self
+    }
+
+    fn feed(&mut self, object: AnyObject) -> Result<(), AnyException> {
+        self.protect_send("feed", Some(&[object])).map(|_|())
     }
 }
