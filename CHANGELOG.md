@@ -104,3 +104,54 @@ API and may have breaking changes during a teeny version change.
 
 ### Fixed
 - A few Ruby `ValueType` flags were incorrect in `rubysys`
+
+## [0.2.2] - 2018-07-07
+### Added
+- `String#concat`
+- Method signatures for all of `rubysys` direct method mappings documented
+
+### Fixed
+- `Array.store` does not return anything
+- Misnamed `rubysys::string` method `rb_str_ascii_only_p` to `rb_enc_str_asciionly_p`
+
+## [0.2.1] - 2018-06-30
+### Added
+- OSX testing on Travis CI
+- `Cargo.toml` badges for Travis CI and maintenance status
+- Full README details
+- Ruby & Rust examples
+
+## [0.2.0] - 2018-06-26
+### Changed
+- Migrated `parse_arguments` from `VM` to `util`
+
+## [0.1.4] - 2018-05-25
+### Changed
+- Refactor build script
+
+## [0.1.3] - 2018-05-25
+### Added
+- Verbose CI output for Rust
+- Set default `pkg-config` path for Ruby
+
+## [0.1.2] - 2018-05-25
+### Added
+- `pkg-config` support
+- Basic migrating from Ruru to Rutie notes
+
+### Changed
+- TravisCI testing to not use feature flag
+
+## [0.1.0] - 2018-05-20
+### Added
+- `Display` and `Debug` traits for `AnyException`
+
+### Changed
+- Migrated from `Error` to `AnyException`
+- `Object.protect_send`, `Object.protect_public_send`, `Object.try_convert_to`,
+  `VM::eval` method signatures changed to return `AnyException` on `Err`
+- Macro DSL to have the error types as `AnyException`
+
+### Removed
+- Duplicate thread methods from `VM`
+- `result::Error`
