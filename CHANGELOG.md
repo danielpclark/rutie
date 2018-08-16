@@ -155,3 +155,24 @@ API and may have breaking changes during a teeny version change.
 ### Removed
 - Duplicate thread methods from `VM`
 - `result::Error`
+
+## [0.0.3] - 2018-05-20
+### Added
+- Officially forked [Ruru](https://github.com/d-unseductable/ruru) and renamed
+  to `Rutie` with the following Pull Requests merged
+  * 79 [eval functions with panic safe implementation](https://github.com/d-unseductable/ruru/pull/79)
+  * 80 [Module support](https://github.com/d-unseductable/ruru/pull/80)
+  * 82 [Private method and module function](https://github.com/d-unseductable/ruru/pull/82)
+  * 87 [Object equality methods](https://github.com/d-unseductable/ruru/pull/87)
+  * 88 [Protect send: a panic safe feature for Ruby interaction](https://github.com/d-unseductable/ruru/pull/88)
+  * 89 [allocate -> Class](https://github.com/d-unseductable/ruru/pull/89)
+  * 93 [Working `Exception` and `AnyException`](https://github.com/d-unseductable/ruru/pull/93)
+  * 98 [String methods to convert to `&[u8]` and `Vec<u8>`](https://github.com/d-unseductable/ruru/pull/98)
+- Merged [ruby-sys](https://github.com/steveklabnik/ruby-sys) into `src/rubysys` with
+  the following Pull Requests merged
+  * 26 [private method and module method added](https://github.com/steveklabnik/ruby-sys/pull/26)
+  * 27 [Two additional type data check methods](https://github.com/steveklabnik/ruby-sys/pull/27)
+  * 28 [Thread specific error setter and getter](https://github.com/steveklabnik/ruby-sys/pull/28)
+  * 29 [public send](https://github.com/steveklabnik/ruby-sys/pull/29)
+  * 30 [variadic function support](https://github.com/steveklabnik/ruby-sys/pull/30)
+  * 33 [Encoding support](https://github.com/steveklabnik/ruby-sys/pull/33)
