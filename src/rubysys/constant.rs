@@ -36,3 +36,5 @@ pub const FL_USER_18     : isize = 1 << (FL_USHIFT + 18);
 pub const ELTS_SHARED : isize = FL_USER_2;
 pub const FL_DUPPED   : isize = (ValueType::Mask as isize|FL_EXIVAR|FL_TAINT);
 pub const FL_SINGLETON: isize = FL_USER_0;
+
+pub const UNLIMITED_ARGUMENTS: isize = -1;
