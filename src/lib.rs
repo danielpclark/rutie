@@ -17,6 +17,7 @@ pub mod util;
 pub use class::any_exception::AnyException;
 pub use class::any_object::AnyObject;
 pub use class::array::Array;
+pub use class::binding::Binding;
 pub use class::boolean::Boolean;
 pub use class::class::Class;
 pub use class::encoding::Encoding;

@@ -897,7 +897,7 @@ pub trait Object: From<Value> {
     /// 
     /// let result = kernel.protect_send(
     ///     "raise",
-    ///     Some(&vec![RString::new_utf8("flowers").to_any_object()])
+    ///     Some(&[RString::new_utf8("flowers").to_any_object()])
     /// );
     /// 
     /// if let Err(error) = result {
@@ -949,7 +949,7 @@ pub trait Object: From<Value> {
     /// 
     /// let result = kernel.protect_public_send(
     ///     "raise",
-    ///     Some(&vec![RString::new_utf8("flowers").to_any_object()])
+    ///     Some(&[RString::new_utf8("flowers").to_any_object()])
     /// );
     /// 
     /// if let Err(error) = result {

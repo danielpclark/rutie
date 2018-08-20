@@ -39,7 +39,7 @@ pub fn bool_to_c_int(state: bool) -> c_int {
     state as c_int
 }
 
-pub fn arguments_to_values(arguments: Option<&[AnyObject]>) -> Option<Vec<Value>> {
+pub fn arguments_to_values(arguments: Option<&[impl Object]>) -> Option<Vec<Value>> {
     arguments.map(|arguments| arguments.iter().map(Object::value).collect())
 }
 

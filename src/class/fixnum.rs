@@ -3,7 +3,7 @@ use std::convert::From;
 use binding::fixnum;
 use types::{Value, ValueType};
 
-use {Object, VerifiedObject};
+use {Object, VerifiedObject, AnyObject};
 
 /// `Fixnum`
 #[derive(Debug)]
@@ -60,6 +60,18 @@ impl Fixnum {
 impl From<Value> for Fixnum {
     fn from(value: Value) -> Self {
         Fixnum { value: value }
+    }
+}
+
+impl Into<Value> for Fixnum {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Fixnum {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

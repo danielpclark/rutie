@@ -22,6 +22,11 @@ extern "C" {
     // VALUE
     // rb_eval_string_protect(const char *str, int *pstate)
     pub fn rb_eval_string_protect(string: *const c_char, state: *mut c_int) -> Value;
+    // //////////////// UNAVAILABLE METHOD ////////////////
+    // // VALUE
+    // // rb_f_eval(int argc, const VALUE *argv, VALUE self)
+    // pub fn rb_f_eval(argc: c_int, argv: *const Value, self_: Value) -> Value;
+    // ///////////////// ///////////////// ///////////////
     // void
     // rb_exc_raise(VALUE mesg)
     pub fn rb_exc_raise(exception: Value);

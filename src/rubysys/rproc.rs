@@ -26,7 +26,12 @@ extern "C" {
     // VALUE
     // rb_func_lambda_new(rb_block_call_func_t func, VALUE val, int min_argc, int max_argc)
     pub fn rb_func_lambda_new(func: CallbackPtr, block_code: Value, min_argc: c_int, max_argc: c_int) -> Value;
-
+    // static VALUE
+    // rb_f_binding(VALUE self)
+    pub fn rb_f_binding(self_: Value) -> Value;
+    // VALUE
+    // rb_binding_new(void)
+    pub fn rb_binding_new() -> Value;
 }
 
 #[link_name = "vm_ifunc_argc"]

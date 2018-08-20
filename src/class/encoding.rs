@@ -1,6 +1,6 @@
 use binding::encoding;
 
-use {NilClass, Object, RString, VerifiedObject, Class, AnyException, Exception};
+use {NilClass, Object, RString, VerifiedObject, Class, AnyException, Exception, AnyObject};
 use types::{Value, ValueType, EncodingIndex};
 
 #[derive(Debug)]
@@ -179,6 +179,18 @@ impl Default for Encoding {
 impl From<Value> for Encoding {
     fn from(value: Value) -> Self {
         Encoding { value: value }
+    }
+}
+
+impl Into<Value> for Encoding {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Encoding {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

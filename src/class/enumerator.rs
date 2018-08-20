@@ -220,6 +220,18 @@ impl From<Value> for Enumerator {
     }
 }
 
+impl Into<Value> for Enumerator {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Enumerator {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
+    }
+}
+
 impl Object for Enumerator {
     #[inline]
     fn value(&self) -> Value {
