@@ -64,7 +64,7 @@ fn try_it(s: &str) -> String {
     match b.try_convert_to::<RString>() {
         Ok(ruby_string) => ruby_string.to_string(),
         Err(_) => "Fail!".to_string(),
-    }   
+    }
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn it_works() {
 
     // Rust projects must start the Ruby VM
     VM::init();
-    
+
     assert_eq!("selppa", try_it("apples"));
 }
 
@@ -163,12 +163,12 @@ That's all you need to load your Ruby things from Rust.  Now to write the test i
 
 ```ruby
 require "test_helper"
-        
+
 class RutieRubyExampleTest < Minitest::Test
   def test_it_reverses
     assert_equal "selppa", RutieExample.reverse("apples")
-  end   
-end  
+  end
+end
 ```
 
 And to properly test it you will always need to run `cargo build --release` whenever
@@ -255,18 +255,18 @@ use std::mem;
 
 pub extern fn example_method(argc: Argc, argv: *const AnyObject, _: AnyObject) -> AnyObject {
     let args = Value::from(0);
-  
+
     unsafe {
         let p_argv: *const Value = mem::transmute(argv);
-  
+
         class::rb_scan_args(
             argc,
             p_argv,
             str_to_cstring("*").as_ptr(),
             &args
-        )   
-    };  
-  
+        )
+    };
+
     let arguments = Array::from(args);
 
     let output = // YOUR CODE HERE.  Use arguments as you see fit.
@@ -351,7 +351,7 @@ method in the `methods!` macro when defining methods for Ruby to use.
 If you're using any method that doesn't return a `Result<AnyObject, AnyException>` then
 any exception raised from the Ruby side will interfere with that Ruby thread and cause
 Rust to panic and stop.  Ruby internally uses exceptions to effect the entire thread through
-an internal thread global value.  To handle places where Ruby may raise an exception during Rust 
+an internal thread global value.  To handle places where Ruby may raise an exception during Rust
 code execution you should use methods that are designed to handle that.
 
 * `VM::eval`

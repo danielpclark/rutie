@@ -17,7 +17,7 @@ use {AnyObject, Array, Object, Class, VerifiedObject};
 /// use std::error::Error;
 ///
 /// use rutie::{Module, Fixnum, Object, Exception, VM};
-/// 
+///
 /// module!(Example);
 ///
 /// methods!(
@@ -515,13 +515,13 @@ impl Module {
     }
 
     /// Includes module into current module
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use rutie::{Module, VM};
     /// # VM::init();
-    /// 
+    ///
     /// Module::new("A");
     /// Module::new("B").include("A");
     ///
@@ -539,13 +539,13 @@ impl Module {
     }
 
     /// Prepends module into current module
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// use rutie::{Module, VM};
     /// # VM::init();
-    /// 
+    ///
     /// Module::new("A");
     /// Module::new("B").prepend("A");
     ///

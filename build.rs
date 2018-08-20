@@ -93,7 +93,7 @@ fn main() {
                 Err(err) => ci_stderr_log!("{:?}", err),
             }
         }
-        
+
         if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
             ci_stderr_log!("Not mingw && RUBY_STATIC exists");
             use_static()

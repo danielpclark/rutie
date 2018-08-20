@@ -769,7 +769,7 @@ macro_rules! eval {
         let eval_str: $crate::AnyObject = $crate::RString::from($string_arg).into();
         let bndng: $crate::AnyObject = $binding_arg.into();
         let arguments = &[eval_str, bndng];
-    
+
         $crate::Class::from_existing("Kernel").protect_send("eval", Some(arguments))
     }};
     ($string_arg:expr, $binding_arg:expr, $filename:expr) => {{

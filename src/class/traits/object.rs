@@ -873,33 +873,33 @@ pub trait Object: From<Value> {
     }
 
     /// `protect_send` returns Result<AnyObject, AnyObject>
-    /// 
+    ///
     /// Protects against crash with `send` when exception object raised which will
     /// be returned in the `Err` result.
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
     /// use rutie::{RString, Fixnum, Object, Exception, Class, VM};
     /// # VM::init();
-    /// 
+    ///
     /// let kernel = Class::from_existing("Kernel");
-    /// 
+    ///
     /// let result = kernel.protect_send("nil?", None);
-    /// 
+    ///
     /// if let Ok(r) = result {
     ///     assert!(!r.value().is_true());
     /// } else {
     ///     unreachable!()
     /// }
-    /// 
+    ///
     /// let kernel = Class::from_existing("Kernel");
-    /// 
+    ///
     /// let result = kernel.protect_send(
     ///     "raise",
     ///     Some(&[RString::new_utf8("flowers").to_any_object()])
     /// );
-    /// 
+    ///
     /// if let Err(error) = result {
     ///     assert_eq!(
     ///         error.message(),
@@ -925,33 +925,33 @@ pub trait Object: From<Value> {
     }
 
     /// `protect_public_send` returns Result<AnyObject, AnyObject>
-    /// 
+    ///
     /// Protects against crash with `public_send` when exception object raised which will
     /// be returned in the `Err` result.
-    /// 
+    ///
     /// # Examples
     ///
     /// ```
     /// use rutie::{RString, Fixnum, Object, Exception, Class, VM};
     /// # VM::init();
-    /// 
+    ///
     /// let kernel = Class::from_existing("Kernel");
-    /// 
+    ///
     /// let result = kernel.protect_public_send("nil?", None);
-    /// 
+    ///
     /// if let Ok(r) = result {
     ///     assert!(!r.value().is_true());
     /// } else {
     ///     unreachable!()
     /// }
-    /// 
+    ///
     /// let kernel = Class::from_existing("Kernel");
-    /// 
+    ///
     /// let result = kernel.protect_public_send(
     ///     "raise",
     ///     Some(&[RString::new_utf8("flowers").to_any_object()])
     /// );
-    /// 
+    ///
     /// if let Err(error) = result {
     ///     assert_eq!(
     ///         error.message(),

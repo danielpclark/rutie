@@ -44,7 +44,7 @@ API and may have breaking changes during a teeny version change.
 ### Changed
 - `rubysys::rb_str_len` renamed to `rubysys::rstring_len` to match the name
   of the Ruby C macro which it is a copy of
- 
+
 ### Fixed
 - `rubysys::string::{RStringAs, RStringHeap, RStringAux}` to match Ruby's
   C code implementation perfectly

@@ -178,7 +178,7 @@ impl Enumerator {
     /// e_iter.feed(Fixnum::new(888).to_any_object());
     /// assert_eq!(Ok(Fixnum::new(3).to_any_object()), e_iter.next());
     /// e_iter.feed(Fixnum::new(777).to_any_object());
-    /// 
+    ///
     /// match e_iter.next() {
     ///     Ok(_) => unreachable!(),
     ///     Err(e) => {

@@ -50,12 +50,12 @@ extern "C" {
     pub fn rb_check_string_type(str: Value) -> Value;
     //-------------------------------------------------------------
     // LINKER CANNOT FIND
-    // // 
+    // //
     // //  call-seq:
     // //     str.force_encoding(encoding)   -> str
-    // // 
+    // //
     // //  Changes the encoding to +encoding+ and returns self.
-    // // 
+    // //
     // // static VALUE
     // // rb_str_force_encoding(VALUE str, VALUE enc)
     // pub fn rb_str_force_encoding(s: Value, enc: Value) -> Value;
