@@ -59,6 +59,12 @@ impl From<Value> for AnyObject {
     }
 }
 
+impl Into<Value> for AnyObject {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
 impl Object for AnyObject {
     #[inline]
     fn value(&self) -> Value {

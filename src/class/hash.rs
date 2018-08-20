@@ -272,6 +272,18 @@ impl From<Value> for Hash {
     }
 }
 
+impl Into<Value> for Hash {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Hash {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
+    }
+}
+
 impl Object for Hash {
     #[inline]
     fn value(&self) -> Value {

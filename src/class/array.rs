@@ -541,6 +541,18 @@ impl From<Value> for Array {
     }
 }
 
+impl Into<Value> for Array {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Array {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
+    }
+}
+
 impl Object for Array {
     #[inline]
     fn value(&self) -> Value {

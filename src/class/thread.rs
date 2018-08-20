@@ -6,7 +6,7 @@ use types::Value;
 #[cfg(unix)]
 use types::RawFd;
 
-use {Class, Object, VerifiedObject};
+use {Class, Object, VerifiedObject, AnyObject};
 
 /// `Thread`
 #[derive(Debug)]
@@ -142,6 +142,18 @@ impl Thread {
 impl From<Value> for Thread {
     fn from(value: Value) -> Self {
         Thread { value: value }
+    }
+}
+
+impl Into<Value> for Thread {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Thread {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

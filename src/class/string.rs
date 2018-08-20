@@ -569,6 +569,24 @@ impl From<String> for RString {
     }
 }
 
+impl From<&'static str> for RString {
+    fn from(string: &'static str) -> Self {
+        Self::new_utf8(string)
+    }
+}
+
+impl Into<Value> for RString {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for RString {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
+    }
+}
+
 /// Implicit or `nil` conversion
 ///
 /// # Examples

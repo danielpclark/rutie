@@ -3,7 +3,7 @@ use std::convert::From;
 use types::Value;
 use util;
 
-use {Object, VerifiedObject};
+use {Object, VerifiedObject, AnyObject};
 
 /// `TrueClass` and `FalseClass`
 #[derive(Debug)]
@@ -56,6 +56,18 @@ impl Boolean {
 impl From<Value> for Boolean {
     fn from(value: Value) -> Self {
         Boolean { value: value }
+    }
+}
+
+impl Into<Value> for Boolean {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Boolean {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

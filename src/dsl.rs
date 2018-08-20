@@ -739,3 +739,54 @@ macro_rules! wrappable_struct {
         }
     };
 }
+
+/// eval(string [, binding [, filename [,lineno]]]) → obj
+///
+/// # Examples
+/// ```
+/// #[macro_use]
+/// extern crate rutie;
+/// use rutie::{Object, Integer, Binding, VM};
+///
+/// fn main() {
+///     # VM::init();
+///
+///     let binding = eval!("asdf = 1; binding").unwrap().
+///       try_convert_to::<Binding>().unwrap();
+///
+///     let result = eval!("asdf", binding).unwrap();
+///
+///     match result.try_convert_to::<Integer>() {
+///         Ok(v) => assert_eq!(1, v.to_i64()),
+///         Err(_) => unreachable!(),
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! eval {
+    ($string_arg:expr) => {{ $crate::VM::eval($string_arg) }};
+    ($string_arg:expr, $binding_arg:expr) => {{
+        let eval_str: $crate::AnyObject = $crate::RString::from($string_arg).into();
+        let bndng: $crate::AnyObject = $binding_arg.into();
+        let arguments = &[eval_str, bndng];
+    
+        $crate::Class::from_existing("Kernel").protect_send("eval", Some(arguments))
+    }};
+    ($string_arg:expr, $binding_arg:expr, $filename:expr) => {{
+        let eval_str: $crate::AnyObject = $crate::RString::from($string_arg).into();
+        let bndng: $crate::AnyObject = $binding_arg.into();
+        let filename: $crate::AnyObject = $crate::RString::from($filename).into();
+        let arguments = &[eval_str, bndng, filename];
+
+        $crate::Class::from_existing("Kernel").protect_send("eval", Some(arguments))
+    }};
+    ($string_arg:expr, $binding_arg:expr, $filename:expr, $linenumber:expr) => {{
+        let eval_str: $crate::AnyObject = $crate::RString::from($string_arg).into();
+        let bndng: $crate::AnyObject = $binding_arg.into();
+        let filename: $crate::AnyObject = $crate::RString::from($filename).into();
+        let linenumber: $crate::AnyObject = $crate::Integer::from($linenumber as i64).into();
+        let arguments = &[eval_str, bndng, filename, linenumber];
+
+        $crate::Class::from_existing("Kernel").protect_send("eval", Some(arguments))
+    }};
+}

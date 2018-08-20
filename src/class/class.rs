@@ -710,6 +710,18 @@ impl From<Value> for Class {
     }
 }
 
+impl Into<Value> for Class {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Class {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
+    }
+}
+
 impl Object for Class {
     #[inline]
     fn value(&self) -> Value {

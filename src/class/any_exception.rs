@@ -13,6 +13,18 @@ impl From<Value> for AnyException {
     }
 }
 
+impl Into<Value> for AnyException {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for AnyException {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
+    }
+}
+
 impl Object for AnyException {
     #[inline]
     fn value(&self) -> Value {

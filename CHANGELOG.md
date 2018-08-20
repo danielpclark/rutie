@@ -14,6 +14,13 @@ API and may have breaking changes during a teeny version change.
 - `TryConvert` for `AnyException`
 - `VM::error_info` and `VM::clear_error_info`
 - Documentation for `VM::protect`
+- `Binding`
+- `Into<Value>` for all types which `impl Object`
+- `Into<AnyObject>` for all types which `impl Object`
+- `From<i64>` and `Into<i64>` for `Integer`
+- `From<&'static str>` for `RString`
+- `eval!()` macro with `binding, filename, linenum` for *optional* arguments
+- `rubysys::rproc::check_arity` for simple numeric bounds checking
 
 ### Changed
 - `Object.protect_send` and `Object.protect_public_send` have changed the

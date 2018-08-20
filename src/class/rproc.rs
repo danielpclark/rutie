@@ -71,6 +71,18 @@ impl From<Value> for Proc {
     }
 }
 
+impl Into<Value> for Proc {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Proc {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
+    }
+}
+
 impl Object for Proc {
     #[inline]
     fn value(&self) -> Value {

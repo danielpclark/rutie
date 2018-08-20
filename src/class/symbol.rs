@@ -3,7 +3,7 @@ use std::convert::From;
 use binding::symbol;
 use types::{Value, ValueType};
 
-use {Object, VerifiedObject};
+use {Object, VerifiedObject, AnyObject};
 
 /// `Symbol`
 #[derive(Debug)]
@@ -90,6 +90,18 @@ impl Symbol {
 impl From<Value> for Symbol {
     fn from(value: Value) -> Self {
         Symbol { value: value }
+    }
+}
+
+impl Into<Value> for Symbol {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Symbol {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

@@ -4,7 +4,7 @@ use std::default::Default;
 use binding::global::RubySpecialConsts;
 use types::{InternalValue, Value, ValueType};
 
-use {Object, VerifiedObject};
+use {Object, VerifiedObject, AnyObject};
 
 /// `NilClass`
 #[derive(Debug)]
@@ -43,6 +43,18 @@ impl Default for NilClass {
 impl From<Value> for NilClass {
     fn from(value: Value) -> Self {
         NilClass { value: value }
+    }
+}
+
+impl Into<Value> for NilClass {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for NilClass {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

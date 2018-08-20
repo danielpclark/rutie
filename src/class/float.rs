@@ -3,7 +3,7 @@ use std::convert::From;
 use binding::float;
 use types::{Value, ValueType};
 
-use {Object, VerifiedObject};
+use {Object, VerifiedObject, AnyObject};
 
 /// `Float`
 #[derive(Debug)]
@@ -60,6 +60,18 @@ impl Float {
 impl From<Value> for Float {
     fn from(value: Value) -> Self {
         Float { value: value }
+    }
+}
+
+impl Into<Value> for Float {
+    fn into(self) -> Value {
+        self.value
+    }
+}
+
+impl Into<AnyObject> for Float {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 
