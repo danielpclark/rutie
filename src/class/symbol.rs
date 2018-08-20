@@ -3,7 +3,7 @@ use std::convert::From;
 use binding::symbol;
 use types::{Value, ValueType};
 
-use {Object, VerifiedObject, AnyObject};
+use {Object, VerifiedObject, AnyObject, Proc};
 
 /// `Symbol`
 #[derive(Debug)]
@@ -84,6 +84,30 @@ impl Symbol {
     /// ```
     pub fn to_string(&self) -> String {
         symbol::value_to_string(self.value())
+    }
+
+    /// Converts `Symbol` to `Proc`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Symbol, Proc, VM, VerifiedObject};
+    /// # VM::init();
+    ///
+    /// let symbol = Symbol::new("hello");
+    ///
+    /// assert!(Proc::is_correct_type(&symbol.to_proc()), "not correct type!");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// sym = :hello
+    ///
+    /// sym.to_s == 'hello'
+    /// ```
+    pub fn to_proc(&self) -> Proc {
+        Proc::from(self.send("to_proc", None).value())
     }
 }
 

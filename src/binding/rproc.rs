@@ -20,7 +20,3 @@ pub fn call(rproc: Value, arguments: &[Value]) -> Value {
 pub fn binding_new() -> Value {
     unsafe { rproc::rb_binding_new() }
 }
-
-pub fn f_binding(self_: Value) -> Value {
-    unsafe { rproc::rb_f_binding(self_) }
-}

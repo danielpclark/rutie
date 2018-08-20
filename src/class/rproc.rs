@@ -4,7 +4,7 @@ use binding::rproc;
 use types::Value;
 use util;
 
-use {AnyObject, Class, Object, VerifiedObject};
+use {AnyObject, Class, Object, VerifiedObject, Boolean};
 
 /// `Proc` (works with `Lambda` as well)
 #[derive(Debug)]
@@ -63,6 +63,30 @@ impl Proc {
 
         AnyObject::from(result)
     }
+
+    /// Check if Proc is a lambda
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, Proc, VM, VerifiedObject};
+    /// # VM::init();
+    ///
+    /// let procish = VM::eval("lambda {|a,b| a + b }").unwrap();
+    ///
+    /// assert!(Proc::is_correct_type(&procish), "not Proc!");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// procish = lambda {|a,b| a + b }
+    ///
+    /// procish.lambda? # => true
+    /// ```
+    pub fn is_lambda(&self) -> bool {
+        Boolean::from(self.send("lambda?", None).value()).to_bool()
+    }
 }
 
 impl From<Value> for Proc {
@@ -92,7 +116,7 @@ impl Object for Proc {
 
 impl VerifiedObject for Proc {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        object.class() == Class::from_existing("Proc")
+        Class::from_existing("Proc").case_equals(object)
     }
 
     fn error_message() -> &'static str {

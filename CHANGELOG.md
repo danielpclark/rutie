@@ -21,6 +21,8 @@ API and may have breaking changes during a teeny version change.
 - `From<&'static str>` for `RString`
 - `eval!()` macro with `binding, filename, linenum` for *optional* arguments
 - `rubysys::rproc::check_arity` for simple numeric bounds checking
+- `Symbol.to_proc`
+- `Proc.is_lambda`
 
 ### Changed
 - `Object.protect_send` and `Object.protect_public_send` have changed the
