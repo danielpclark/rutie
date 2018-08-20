@@ -2,8 +2,6 @@ use rubysys::types::{Argc, Value, c_int, c_void, CallbackPtr};
 use rubysys::constant::UNLIMITED_ARGUMENTS;
 use {AnyException, Exception};
 
-use std::mem;
-
 extern "C" {
     // VALUE
     // rb_proc_call_with_block(VALUE self, int argc, const VALUE *argv, VALUE passed_procval)
