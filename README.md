@@ -225,8 +225,7 @@ impl Object for Pathname {
 
 impl VerifiedObject for Pathname {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        object.value().ty() == ValueType::Class &&
-          Class::from_existing("Pathname").case_equals(object)
+        Class::from_existing("Pathname").case_equals(object)
     }
 
     fn error_message() -> &'static str {
