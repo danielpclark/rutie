@@ -1,5 +1,4 @@
 use std::convert::From;
-use std::default::Default;
 
 use types::{Value, ValueType};
 
