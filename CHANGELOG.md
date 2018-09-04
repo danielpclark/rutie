@@ -81,10 +81,12 @@ API and may have breaking changes during a teeny version change.
 
 ### Changed
 - Refactor of `VM::protect`
-- Deprecated `RString::new` — use either `RString::new_utf8` or `RString::new_usascii_unchecked`
 - Internally use `RString::new_utf8`
 - `TryConvert` moved to `src/class/traits/try_convert.rs` but still shared in root of crate
 - Refactor internal method names for `Value` in `src/rubysys/value.rs` to match Ruby source code
+
+### Deprecated
+- `RString::new` — use either `RString::new_utf8` or `RString::new_usascii_unchecked`
 
 ### Removed
 - Use of `fiddle` from examples and documentation
