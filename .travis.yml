@@ -9,7 +9,12 @@ rust:
   - beta
   - nightly
 
-cache: cargo
+cache:
+  directories:
+    - /home/travis/.cargo
+
+before_cache:
+  - rm -rf /home/travis/.cargo/registry
 
 matrix:
   allow_failures:
