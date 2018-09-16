@@ -10,8 +10,11 @@ rust:
   - nightly
 
 cache:
+  bundler: true
   directories:
     - /home/travis/.cargo
+    - /home/travis/.rvm/archives
+    - /home/travis/.rvm/gems
 
 before_cache:
   - rm -rf /home/travis/.cargo/registry
