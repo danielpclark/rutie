@@ -23,7 +23,7 @@ matrix:
     - rust: nightly
 
 before_install:
-- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rvm reinstall --disable-binary "$BUILD_RUBY_VERSION"; fi
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rvm install --disable-binary "$BUILD_RUBY_VERSION"; fi
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then rvm install "$BUILD_RUBY_VERSION"; fi
 - rvm use "$BUILD_RUBY_VERSION"
 - ruby --version
