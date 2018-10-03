@@ -57,10 +57,43 @@ fn transform_lib_args(rbconfig_key: &str, replacement: &str) -> String {
     rbconfig(rbconfig_key).replace("-l", replacement)
 }
 
+// returns a list of the current systems executable paths
+fn path() -> Vec<String> {
+    env::var_os("PATH").unwrap_or(OsString::new()).
+        to_string_lossy().split(':').map(|s| s.into()).collect()
+}
+
+fn rvm_path() -> Option<String> {
+    for p in path() {
+        if p.contains("rvm/bin") {
+            return Some(p[0..p.len()-4].to_string())
+        }
+    }
+    return None;
+}
+
+fn rvm_libruby_static_path() -> Option<String> {
+    rvm_path().map(|pth|
+        format!("{}/src/ruby-{}", pth, rbconfig("RUBY_PROGRAM_VERSION"))
+    )
+}
+
 fn use_static() {
     // Ruby gives back the libs in the form: `-lpthread -lgmp`
     // Cargo wants them as: `-l pthread -l gmp`
     println!("cargo:rustc-flags={}", transform_lib_args("LIBS", "-l "));
+
+    // Ruby removed libruby-static.a by default in https://bugs.ruby-lang.org/issues/12845
+    // so we'll have to check known locations based on which ruby version manager
+    // is in use or default install.
+    let static_ruby_location: String = rvm_libruby_static_path().
+        unwrap_or(rbconfig("libdir"));
+    println!("cargo:rustc-link-search={}", static_ruby_location);
+
+    let ruby_static = rbconfig("LIBRUBY_A");
+    let ruby_static = &ruby_static[3..ruby_static.len() - 2];
+
+    println!("cargo:rustc-link-lib={}", ruby_static);
     ci_stderr_log!("Using static linker flags");
 }
 
@@ -74,7 +107,7 @@ fn main() {
     // Ruby programs calling Rust don't need cc linking
     if let None = std::env::var_os("NO_LINK_RUTIE") {
 
-        if let None = env::var_os("RUTIE_NO_PKG_CONFIG") {
+        if env::var_os("RUTIE_NO_PKG_CONFIG").is_none() && env::var_os("RUBY_STATIC").is_none() {
             // Ruby often includes pkgconfig under their lib dir
             set_env_pkg_config();
 
