@@ -46,6 +46,26 @@ environment variable `RUBY_STATIC` to force static linking.  Otherwise the
 value of `ENABLE_SHARED` from Ruby's `RbConfig::CONFIG` will determine
 whether static or dynamic linking is used.
 
+## Static Builds
+
+Set `RUBY_STATIC` environment variable first and read the following.
+
+Ruby removed the static ruby library with [issue #12845](https://bugs.ruby-lang.org/issues/12845)
+by default.  Because of this you will need to provide a path where this
+static library `libruby-static.a` can be found in `RUBY_STATIC_PATH` if you
+wish to build a statically linked build.  If you compile Ruby with RVM then
+the build script will work without you providing the `RUBY_STATIC_PATH` env
+var.
+
+NOTE: there are a three methods as of this writing that don't work when using
+statically built code.  They are:
+
+- `class::string::RString::from_bytes`
+- `class::string::RString::is_valid_encoding`
+- `class::vm::VM::init_loadpath`
+
+NOTE: code seems to run much slower when using static builds.
+
 ## Logging
 
 Currently when `CI_STDERR_LOG` is set logging is mapped to the builds
