@@ -93,6 +93,7 @@ fn use_static() {
 
     // Ruby gives back the libs in the form: `-lpthread -lgmp`
     // Cargo wants them as: `-l pthread -l gmp`
+    // **Flags must be last in order for linking!**
     println!("cargo:rustc-flags={}", transform_lib_args("LIBS", "-l "));
 
     ci_stderr_log!("Using static linker flags");
