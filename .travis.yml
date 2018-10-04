@@ -21,6 +21,11 @@ matrix:
   allow_failures:
     - rust: beta
     - rust: nightly
+    - rust: stable
+      env: RUBY_STATIC=true
+  include:
+    - rust: stable
+      env: RUBY_STATIC=true
 
 before_install:
 - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rvm install --disable-binary "$BUILD_RUBY_VERSION"; fi

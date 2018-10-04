@@ -79,10 +79,6 @@ fn rvm_libruby_static_path() -> Option<String> {
 }
 
 fn use_static() {
-    // Ruby gives back the libs in the form: `-lpthread -lgmp`
-    // Cargo wants them as: `-l pthread -l gmp`
-    println!("cargo:rustc-flags={}", transform_lib_args("LIBS", "-l "));
-
     // Ruby removed libruby-static.a by default in https://bugs.ruby-lang.org/issues/12845
     // so we'll have to check known locations based on which ruby version manager
     // is in use or default install.
@@ -94,6 +90,11 @@ fn use_static() {
     let ruby_static = &ruby_static[3..ruby_static.len() - 2];
 
     println!("cargo:rustc-link-lib={}", ruby_static);
+
+    // Ruby gives back the libs in the form: `-lpthread -lgmp`
+    // Cargo wants them as: `-l pthread -l gmp`
+    println!("cargo:rustc-flags={}", transform_lib_args("LIBS", "-l "));
+
     ci_stderr_log!("Using static linker flags");
 }
 
