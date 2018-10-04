@@ -2,7 +2,7 @@ extern crate pkg_config;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::process::Command;
-use std::path::{Path};
+use std::path::Path;
 
 macro_rules! ci_stderr_log {
     () => (eprint!("\n"));
@@ -57,10 +57,58 @@ fn transform_lib_args(rbconfig_key: &str, replacement: &str) -> String {
     rbconfig(rbconfig_key).replace("-l", replacement)
 }
 
+// returns a list of the current systems executable paths
+fn path() -> Vec<String> {
+    env::var_os("PATH").unwrap_or(OsString::new()).
+        to_string_lossy().split(':').map(|s| s.into()).collect()
+}
+
+fn rvm_path() -> Option<String> {
+    for p in path() {
+        if p.contains("rvm/bin") {
+            return Some(p[0..p.len()-4].to_string())
+        }
+    }
+    return None;
+}
+
+fn rvm_libruby_static_path() -> Option<String> {
+    let pth = rvm_path();
+    if pth.is_none() { return None; }
+
+    let path = format!("{}/src/ruby-{}", pth.unwrap(), rbconfig("RUBY_PROGRAM_VERSION"));
+
+    if !Path::new(&path).exists() {
+        return None;
+    }
+
+    Some(path)
+}
+
+fn static_ruby_location() -> String {
+    let location: Option<String> = env::var_os("RUBY_STATIC_PATH").map(|s|s.to_string_lossy().to_string());
+    let location: String = location.unwrap_or(rvm_libruby_static_path().unwrap_or(rbconfig("libdir")));
+
+    if !Path::new(&location).join("libruby-static.a").exists() {
+        panic!("libruby-static.a was not found in path but static build was chosen.\n\
+               Please use environment variable RUBY_STATIC_PATH to define where libruby-static.a is located.");
+    }
+
+    location
+}
+
 fn use_static() {
+    // Ruby removed libruby-static.a by default in https://bugs.ruby-lang.org/issues/12845
+    // so we'll have to check known locations based on which ruby version manager
+    // is in use or default install.
+    println!("cargo:rustc-link-search={}", static_ruby_location());
+    println!("cargo:rustc-link-lib={}", "ruby-static");
+
     // Ruby gives back the libs in the form: `-lpthread -lgmp`
     // Cargo wants them as: `-l pthread -l gmp`
+    // **Flags must be last in order for linking!**
     println!("cargo:rustc-flags={}", transform_lib_args("LIBS", "-l "));
+
     ci_stderr_log!("Using static linker flags");
 }
 
@@ -74,7 +122,7 @@ fn main() {
     // Ruby programs calling Rust don't need cc linking
     if let None = std::env::var_os("NO_LINK_RUTIE") {
 
-        if let None = env::var_os("RUTIE_NO_PKG_CONFIG") {
+        if env::var_os("RUTIE_NO_PKG_CONFIG").is_none() && env::var_os("RUBY_STATIC").is_none() {
             // Ruby often includes pkgconfig under their lib dir
             set_env_pkg_config();
 
