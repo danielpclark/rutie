@@ -49,10 +49,6 @@ fn ruby_version() -> String {
     rbconfig("RUBY_PROGRAM_VERSION")
 }
 
-fn use_libdir() {
-    println!("cargo:rustc-link-search={}", rbconfig("libdir"));
-}
-
 fn transform_lib_args(rbconfig_key: &str, replacement: &str) -> String {
     rbconfig(rbconfig_key).replace("-l", replacement)
 }
@@ -78,9 +74,8 @@ fn rvm_libruby_static_path() -> Option<String> {
 
     let path = format!("{}/src/ruby-{}", pth.unwrap(), rbconfig("RUBY_PROGRAM_VERSION"));
 
-    if !Path::new(&path).exists() {
-        return None;
-    }
+    if !Path::new(&path).exists() { return None; }
+    if !Path::new(&path).join("libruby-static.a").exists() { return None; }
 
     Some(path)
 }
@@ -113,7 +108,7 @@ fn use_static() {
 }
 
 fn use_dylib() {
-    use_libdir();
+    println!("cargo:rustc-link-search={}", rbconfig("libdir"));
     println!("cargo:rustc-link-lib=dylib={}", rbconfig("RUBY_SO_NAME"));
     ci_stderr_log!("Using dynamic linker flags");
 }
