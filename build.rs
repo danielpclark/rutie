@@ -2,7 +2,7 @@ extern crate pkg_config;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::process::Command;
-use std::path::{Path};
+use std::path::Path;
 
 macro_rules! ci_stderr_log {
     () => (eprint!("\n"));
@@ -73,23 +73,36 @@ fn rvm_path() -> Option<String> {
 }
 
 fn rvm_libruby_static_path() -> Option<String> {
-    rvm_path().map(|pth|
-        format!("{}/src/ruby-{}", pth, rbconfig("RUBY_PROGRAM_VERSION"))
-    )
+    let pth = rvm_path();
+    if pth.is_none() { return None; }
+
+    let path = format!("{}/src/ruby-{}", pth.unwrap(), rbconfig("RUBY_PROGRAM_VERSION"));
+
+    if !Path::new(&path).exists() {
+        return None;
+    }
+
+    Some(path)
+}
+
+fn static_ruby_location() -> String {
+    let location: Option<String> = env::var_os("RUBY_STATIC_PATH").map(|s|s.to_string_lossy().to_string());
+    let location: String = location.unwrap_or(rvm_libruby_static_path().unwrap_or(rbconfig("libdir")));
+
+    if !Path::new(&location).join("libruby-static.a").exists() {
+        panic!("libruby-static.a was not found in path but static build was chosen.\n\
+               Please use environment variable RUBY_STATIC_PATH to define where libruby-static.a is located.");
+    }
+
+    location
 }
 
 fn use_static() {
     // Ruby removed libruby-static.a by default in https://bugs.ruby-lang.org/issues/12845
     // so we'll have to check known locations based on which ruby version manager
     // is in use or default install.
-    let static_ruby_location: String = rvm_libruby_static_path().
-        unwrap_or(rbconfig("libdir"));
-    println!("cargo:rustc-link-search={}", static_ruby_location);
-
-    let ruby_static = rbconfig("LIBRUBY_A");
-    let ruby_static = &ruby_static[3..ruby_static.len() - 2];
-
-    println!("cargo:rustc-link-lib={}", ruby_static);
+    println!("cargo:rustc-link-search={}", static_ruby_location());
+    println!("cargo:rustc-link-lib={}", "ruby-static");
 
     // Ruby gives back the libs in the form: `-lpthread -lgmp`
     // Cargo wants them as: `-l pthread -l gmp`
