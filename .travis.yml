@@ -21,7 +21,7 @@ matrix:
   allow_failures:
     - rust: beta
     - rust: nightly
-    - env: RUBY_STATIC=true
+    - env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.5.1
   include:
     - os: linux
       rust: stable
