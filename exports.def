@@ -1,4 +1,5 @@
 EXPORTS
+rb_cObject
 rb_ary_concat
 rb_ary_dup
 rb_ary_entry
@@ -124,3 +125,5 @@ rb_utf8_str_new
 rb_utf8_str_new_cstr
 rb_yield
 rb_yield_splat
+ruby_init
+ruby_init_loadpath
