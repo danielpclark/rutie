@@ -18,13 +18,13 @@ impl CodepointIterator {
     /// # VM::init();
     ///
     /// let string = RString::new_utf8("aeiou");
-    /// let ci = CodepointIterator::new(string);
+    /// let ci = CodepointIterator::new(&string);
     ///
     /// let result: Vec<usize> = ci.into_iter().collect();
     ///
     /// assert_eq!(vec![97, 101, 105, 111, 117], result);
     /// ```
-    pub fn new(rstring: RString) -> Self {
+    pub fn new(rstring: &RString) -> Self {
         let fstring = string::new_frozen(rstring.value());
 
         CodepointIterator {

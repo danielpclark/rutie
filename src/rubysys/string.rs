@@ -68,6 +68,7 @@ extern "C" {
     pub fn rb_str_unlocktmp(str: Value) -> Value;
     // static VALUE
     // rb_str_codepoints(VALUE str)
+    #[cfg(not(target_os = "windows"))]
     pub fn rb_str_codepoints(str: Value) -> Value;
     // VALUE
     // rb_str_new_frozen(VALUE orig)

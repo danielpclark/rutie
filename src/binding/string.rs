@@ -102,6 +102,7 @@ pub fn unlocktmp(str: Value) -> Value {
     unsafe { string::rb_str_unlocktmp(str) }
 }
 
+#[cfg(not(target_os = "windows"))]
 pub fn codepoints(str: Value) -> Value {
     unsafe { string::rb_str_codepoints(str) }
 }
