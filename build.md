@@ -37,7 +37,7 @@ linking with Ruby please see the documentation for
 ## Disabling PKG-CONFIG
 
 Disabling the use of pkg-config will guarantee using the default fallback
-settings which were written in to the Ruru library.  You can disable the
+settings which were written in to the Rutie library.  You can disable the
 use of pkg-config in Rutie with setting the environment variable
 `RUTIE_NO_PKG_CONFIG`.
 
