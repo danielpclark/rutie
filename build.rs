@@ -113,9 +113,41 @@ fn use_dylib() {
     ci_stderr_log!("Using dynamic linker flags");
 }
 
+#[cfg(target_os = "windows")]
+fn windows_support() {
+    let mingw_libs = env::var_os("MINGW_LIBS").unwrap_or(
+        Path::new(&rbconfig("prefix")).join("msys64").join("mingw64").join("bin")
+    );
+    println!("cargo:rustc-link-search={}", mingw_libs);
+
+    let deps_dir = Path::new("target").join(env::var_os("PROFILE")).join("deps");
+    let ruby_dll = Path::new(&rbconfig("LIBRUBY_SO"));
+    let name = ruby_dll.file_stem().unwrap();
+    let target = deps_dir.join(format!("{}.lib", name));
+
+    Command::new("build/windows/vcbuild.cmd")
+        .arg("-arch=x64")
+        .arg("-host_arch=x64")
+        .arg("&&")
+        .arg("lib")
+        .arg("/def:exports.def")
+        .arg(format!("/name:{}", name))
+        .arg(format!("/libpath:{}", rbconfig(bindir)))
+        .arg("/machine:x64")
+        .arg(format!("/out:{}", target))
+        .output()
+        .unwrap_or_else(|e| panic!("Failed to generate lib for ruby; {}", e));
+}
+
+#[cfg(not(target_os = "windows"))]
+fn windows_support() {}
+
 fn main() {
-    // Ruby programs calling Rust don't need cc linking
+    // Ruby programs calling Rust doesn't need cc linking
     if let None = std::env::var_os("NO_LINK_RUTIE") {
+
+        // If windows OS do windows stuff
+        windows_support();
 
         if env::var_os("RUTIE_NO_PKG_CONFIG").is_none() && env::var_os("RUBY_STATIC").is_none() {
             // Ruby often includes pkgconfig under their lib dir
