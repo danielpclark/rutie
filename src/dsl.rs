@@ -700,7 +700,7 @@ macro_rules! wrappable_struct {
 
         impl<T> $wrapper<T> {
             fn new() -> $wrapper<T> {
-                let name = concat!("Ruru/", stringify!($struct_name));
+                let name = concat!("Rutie/", stringify!($struct_name));
                 let name = $crate::util::str_to_cstring(name);
                 let reserved_bytes: [*mut $crate::types::c_void; 2] = [::std::ptr::null_mut(); 2];
 

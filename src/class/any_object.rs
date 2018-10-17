@@ -4,7 +4,7 @@ use {Object, VerifiedObject};
 
 /// Representation of any Ruby object while its type is unknown
 ///
-/// As Ruby is a dynamically typed language, at some points Ruru does not know the exact Ruby type
+/// As Ruby is a dynamically typed language, at some points Rutie does not know the exact Ruby type
 /// of the object, for example:
 ///
 /// - Retrieving an object from array;

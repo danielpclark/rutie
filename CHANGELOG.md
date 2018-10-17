@@ -8,6 +8,14 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
+## [0.4.2]
+### Fixed
+- Wrapping struct changed from Ruru to Rutie & some of the same changes in documentation
+
+## [0.4.1]
+### Added
+- Static build support
+
 ## [0.4.0] - 2018-08-20
 ### Added
 - Methods `VM::yield_object` and `VM::yield_splat`
