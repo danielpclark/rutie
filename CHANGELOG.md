@@ -8,11 +8,11 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
-## [0.4.2]
+## [0.4.2] - 2018-10-16
 ### Fixed
 - Wrapping struct changed from Ruru to Rutie & some of the same changes in documentation
 
-## [0.4.1]
+## [0.4.1] - 2018-10-04
 ### Added
 - Static build support
 
