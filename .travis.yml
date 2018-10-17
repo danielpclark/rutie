@@ -20,7 +20,7 @@ before_cache:
 before_install:
 - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rvm install --disable-binary "$BUILD_RUBY_VERSION"; fi
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then rvm install "$BUILD_RUBY_VERSION"; fi
-- if [[ "$TRAVIS_OS_NAME" != "windows" ]]; rvm use "$BUILD_RUBY_VERSION"; fi
+- if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then rvm use "$BUILD_RUBY_VERSION"; fi
 - ruby --version
 - ruby -e 'require "pp"; pp RbConfig::CONFIG'
 - rustc -Vv
@@ -33,6 +33,9 @@ matrix:
     - rust: beta
     - rust: nightly
     - env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.5.1
+    - os: windows
+      rust: stable
+      env: BUILD_RUBY_VERSION=2.5.1
   include:
     - os: linux
       rust: stable
@@ -48,8 +51,9 @@ before_script:
 - export PATH=$HOME/.cargo/bin:$HOME/.local/bin:$PATH
 
 script:
-- cargo build -vv &&
-- cargo test -vv
+- |
+  cargo build -vv &&
+  cargo test -vv
 
 after_script:
 - cat target/debug/build/rutie-*/output

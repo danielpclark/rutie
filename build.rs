@@ -115,15 +115,16 @@ fn use_dylib() {
 
 #[cfg(target_os = "windows")]
 fn windows_support() {
-    let mingw_libs = env::var_os("MINGW_LIBS").unwrap_or(
-        Path::new(&rbconfig("prefix")).join("msys64").join("mingw64").join("bin")
+    let mingw_libs: OsString = env::var_os("MINGW_LIBS").unwrap_or(
+        Path::new(&rbconfig("prefix")).join("msys64").join("mingw64").join("bin").as_os_str().to_os_string()
     );
-    println!("cargo:rustc-link-search={}", mingw_libs);
+    println!("cargo:rustc-link-search={}", mingw_libs.to_string_lossy());
 
-    let deps_dir = Path::new("target").join(env::var_os("PROFILE")).join("deps");
-    let ruby_dll = Path::new(&rbconfig("LIBRUBY_SO"));
+    let deps_dir = Path::new("target").join(env::var_os("PROFILE").unwrap()).join("deps");
+    let libruby_so = rbconfig("LIBRUBY_SO");
+    let ruby_dll = Path::new(&libruby_so);
     let name = ruby_dll.file_stem().unwrap();
-    let target = deps_dir.join(format!("{}.lib", name));
+    let target = deps_dir.join(format!("{}.lib", name.to_string_lossy()));
 
     Command::new("build/windows/vcbuild.cmd")
         .arg("-arch=x64")
@@ -131,10 +132,10 @@ fn windows_support() {
         .arg("&&")
         .arg("lib")
         .arg("/def:exports.def")
-        .arg(format!("/name:{}", name))
-        .arg(format!("/libpath:{}", rbconfig(bindir)))
+        .arg(format!("/name:{}", name.to_string_lossy()))
+        .arg(format!("/libpath:{}", rbconfig("bindir")))
         .arg("/machine:x64")
-        .arg(format!("/out:{}", target))
+        .arg(format!("/out:{}", target.to_string_lossy()))
         .output()
         .unwrap_or_else(|e| panic!("Failed to generate lib for ruby; {}", e));
 }
