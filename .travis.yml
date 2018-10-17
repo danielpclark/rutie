@@ -20,13 +20,17 @@ before_cache:
 before_install:
 - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rvm install --disable-binary "$BUILD_RUBY_VERSION"; fi
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then rvm install "$BUILD_RUBY_VERSION"; fi
-- if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then rvm use "$BUILD_RUBY_VERSION"; fi
+- |
+  if [[ "$TRAVIS_OS_NAME" != "windows" ]]
+  then
+    rvm use "$BUILD_RUBY_VERSION"
+    mkdir -p target/debug/deps
+    cp $(ruby -e 'puts File.join(RbConfig::CONFIG["libdir"], RbConfig::CONFIG["LIBRUBY_ALIASES"].split(" ").first)') target/debug/deps
+  fi
 - ruby --version
 - ruby -e 'require "pp"; pp RbConfig::CONFIG'
 - rustc -Vv
 - cargo -Vv
-- mkdir -p target/debug/deps
-- cp $(ruby -e 'puts File.join(RbConfig::CONFIG["libdir"], RbConfig::CONFIG["LIBRUBY_ALIASES"].split(" ").first)') target/debug/deps
 
 matrix:
   allow_failures:
