@@ -10,7 +10,7 @@ API and may have breaking changes during a teeny version change.
 ### Changed
 - `CodepointIterator::new` now borrows ownership of the string parameter rather than consuming it
 - Switched CI testing for Windows to TravisCI
-- `RString.codepoints` uses a new internal implementation on the Windows OS as `rb_str_codepoints` isn't available on windows
+- `RString.codepoints` uses a new internal implementation on the Windows OS as `rb_str_codepoints` isn't available on Windows
 
 ## [0.4.2] - 2018-10-16
 ### Fixed
