@@ -1,5 +1,5 @@
 extern crate pkg_config;
-use std::env;
+use std::{env, fs};
 use std::ffi::{OsStr, OsString};
 use std::process::Command;
 use std::path::Path;
@@ -80,13 +80,24 @@ fn rvm_libruby_static_path() -> Option<String> {
     Some(path)
 }
 
+#[cfg(not(target_os = "windows"))]
+fn static_ruby_file_name() -> String {
+    "libruby-static.a"
+}
+
+#[cfg(target_os = "windows")]
+fn static_ruby_file_name() -> String {
+    rbconfig("LIBRUBY")
+}
+
 fn static_ruby_location() -> String {
     let location: Option<String> = env::var_os("RUBY_STATIC_PATH").map(|s|s.to_string_lossy().to_string());
     let location: String = location.unwrap_or(rvm_libruby_static_path().unwrap_or(rbconfig("libdir")));
 
-    if !Path::new(&location).join("libruby-static.a").exists() {
+    if !Path::new(&location).join(static_ruby_file_name()).exists() {
         panic!("libruby-static.a was not found in path but static build was chosen.\n\
-               Please use environment variable RUBY_STATIC_PATH to define where libruby-static.a is located.");
+               Please use environment variable RUBY_STATIC_PATH to define where {} is located.",
+               static_ruby_file_name());
     }
 
     location
@@ -115,8 +126,9 @@ fn use_dylib() {
 
 #[cfg(target_os = "windows")]
 fn windows_support() {
+    println!("cargo:rustc-link-search={}", rbconfig("bindir"));
     let mingw_libs: OsString = env::var_os("MINGW_LIBS").unwrap_or(
-        Path::new(&rbconfig("prefix")).join("msys64").join("mingw64").join("bin").as_os_str().to_os_string()
+        OsString::from(format!("{}/msys64/mingw64/bin", rbconfig("prefix")))
     );
     println!("cargo:rustc-link-search={}", mingw_libs.to_string_lossy());
 
@@ -130,6 +142,19 @@ fn windows_support() {
         .arg("-arch=x64")
         .arg("-host_arch=x64")
         .arg("&&")
+        .arg("dumpbin")
+        .arg("/exports")
+        .arg("/out:exports.txt")
+        .arg(Path::new(&rbconfig("bindir")).join(&libruby_so))
+        .output()
+        .unwrap();
+
+    Command::new("build/windows/exports.bat").output().unwrap();
+
+    Command::new("build/windows/vcbuild.cmd")
+        .arg("-arch=x64")
+        .arg("-host_arch=x64")
+        .arg("&&")
         .arg("lib")
         .arg("/def:exports.def")
         .arg(format!("/name:{}", name.to_string_lossy()))
@@ -137,7 +162,10 @@ fn windows_support() {
         .arg("/machine:x64")
         .arg(format!("/out:{}", target.to_string_lossy()))
         .output()
-        .unwrap_or_else(|e| panic!("Failed to generate lib for ruby; {}", e));
+        .unwrap();
+
+    fs::remove_file("exports.def").expect("couldn't remove exports.def");
+    fs::remove_file("exports.txt").expect("couldn't remove exports.txt");
 }
 
 #[cfg(not(target_os = "windows"))]
