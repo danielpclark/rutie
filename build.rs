@@ -90,7 +90,10 @@ fn static_ruby_file_name() -> String {
 
 #[cfg(target_os = "windows")]
 fn static_ruby_file_name() -> String {
-    rbconfig("LIBRUBY")
+    let libruby_so = rbconfig("LIBRUBY_SO");
+    let ruby_dll = Path::new(&libruby_so);
+    let name = ruby_dll.file_stem().unwrap();
+    format!("{}.lib", name.to_string_lossy())
 }
 
 fn static_ruby_location() -> String {
