@@ -128,6 +128,26 @@ fn use_dylib() {
 }
 
 #[cfg(target_os = "windows")]
+fn delete<'a>(s: &'a str, from: &'a str) -> String {
+    let mut result = String::new();
+    let mut last_end = 0;
+    for (start, part) in s.match_indices(from) {
+        result.push_str(unsafe { s.get_unchecked(last_end..start) });
+        last_end = start + part.len();
+    }
+    result.push_str(unsafe { s.get_unchecked(last_end..s.len()) });
+    result
+}
+
+#[cfg(target_os = "windows")]
+fn purge_refptr_text() {
+    let buffer = fs::read_to_string("exports.def")
+        .expect("Failed to read 'exports.def'");
+    fs::write("exports.def", delete(buffer, ".refptr."))
+        .expect("Failed to write update to 'exports.def'");
+}
+
+#[cfg(target_os = "windows")]
 fn windows_support() {
     println!("cargo:rustc-link-search={}", rbconfig("bindir"));
     let mingw_libs: OsString = env::var_os("MINGW_LIBS").unwrap_or(
@@ -154,6 +174,8 @@ fn windows_support() {
 
     Command::new("build/windows/exports.bat").output().unwrap();
 
+    purge_refptr_text();
+   
     Command::new("build/windows/vcbuild.cmd")
         .arg("-arch=x64")
         .arg("-host_arch=x64")
