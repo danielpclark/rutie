@@ -7,6 +7,8 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
+### Added
+- Windows build support (partially working).  Has linking issue with libgmp-10.dll
 
 ## [0.5.0] - 2018-10-23
 ### Changed

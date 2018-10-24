@@ -17,11 +17,29 @@ cache:
 before_cache:
   - rm -rf /home/travis/.cargo/registry
 
+before_install:
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rvm install --disable-binary "$BUILD_RUBY_VERSION"; fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then rvm install "$BUILD_RUBY_VERSION"; fi
+- |
+  if [[ "$TRAVIS_OS_NAME" != "windows" ]]
+  then
+    rvm use "$BUILD_RUBY_VERSION"
+    mkdir -p target/debug/deps
+    cp $(ruby -e 'puts File.join(RbConfig::CONFIG["libdir"], RbConfig::CONFIG["LIBRUBY_ALIASES"].split(" ").first)') target/debug/deps
+  fi
+- ruby --version
+- ruby -e 'require "pp"; pp RbConfig::CONFIG'
+- rustc -Vv
+- cargo -Vv
+
 matrix:
   allow_failures:
     - rust: beta
     - rust: nightly
     - env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.5.1
+    - os: windows
+      rust: stable
+      env: BUILD_RUBY_VERSION=2.5.1
   include:
     - os: linux
       rust: stable
@@ -29,17 +47,9 @@ matrix:
     - os: osx
       rust: stable
       env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.5.1
-
-before_install:
-- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then rvm install --disable-binary "$BUILD_RUBY_VERSION"; fi
-- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then rvm install "$BUILD_RUBY_VERSION"; fi
-- rvm use "$BUILD_RUBY_VERSION"
-- ruby --version
-- ruby -e 'require "pp"; pp RbConfig::CONFIG'
-- rustc -Vv
-- cargo -Vv
-- mkdir -p target/debug/deps
-- cp $(ruby -e 'puts File.join(RbConfig::CONFIG["libdir"], RbConfig::CONFIG["LIBRUBY_ALIASES"].split(" ").first)') target/debug/deps
+    - os: windows
+      rust: stable
+      env: BUILD_RUBY_VERSION=2.5.1
 
 before_script:
 - export PATH=$HOME/.cargo/bin:$HOME/.local/bin:$PATH

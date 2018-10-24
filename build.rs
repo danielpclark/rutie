@@ -1,8 +1,11 @@
 extern crate pkg_config;
-use std::env;
 use std::ffi::{OsStr, OsString};
 use std::process::Command;
 use std::path::Path;
+use std::env;
+
+#[cfg(target_os = "windows")]
+use std::fs;
 
 macro_rules! ci_stderr_log {
     () => (eprint!("\n"));
@@ -80,13 +83,24 @@ fn rvm_libruby_static_path() -> Option<String> {
     Some(path)
 }
 
+#[cfg(not(target_os = "windows"))]
+fn static_ruby_file_name() -> String {
+    "libruby-static.a".to_string()
+}
+
+#[cfg(target_os = "windows")]
+fn static_ruby_file_name() -> String {
+    rbconfig("LIBRUBY")
+}
+
 fn static_ruby_location() -> String {
     let location: Option<String> = env::var_os("RUBY_STATIC_PATH").map(|s|s.to_string_lossy().to_string());
     let location: String = location.unwrap_or(rvm_libruby_static_path().unwrap_or(rbconfig("libdir")));
 
-    if !Path::new(&location).join("libruby-static.a").exists() {
+    if !Path::new(&location).join(static_ruby_file_name()).exists() {
         panic!("libruby-static.a was not found in path but static build was chosen.\n\
-               Please use environment variable RUBY_STATIC_PATH to define where libruby-static.a is located.");
+               Please use environment variable RUBY_STATIC_PATH to define where {} is located.",
+               static_ruby_file_name());
     }
 
     location
@@ -113,9 +127,59 @@ fn use_dylib() {
     ci_stderr_log!("Using dynamic linker flags");
 }
 
+#[cfg(target_os = "windows")]
+fn windows_support() {
+    println!("cargo:rustc-link-search={}", rbconfig("bindir"));
+    let mingw_libs: OsString = env::var_os("MINGW_LIBS").unwrap_or(
+        OsString::from(format!("{}/msys64/mingw64/bin", rbconfig("prefix")))
+    );
+    println!("cargo:rustc-link-search={}", mingw_libs.to_string_lossy());
+
+    let deps_dir = Path::new("target").join(env::var_os("PROFILE").unwrap()).join("deps");
+    let libruby_so = rbconfig("LIBRUBY_SO");
+    let ruby_dll = Path::new(&libruby_so);
+    let name = ruby_dll.file_stem().unwrap();
+    let target = deps_dir.join(format!("{}.lib", name.to_string_lossy()));
+
+    Command::new("build/windows/vcbuild.cmd")
+        .arg("-arch=x64")
+        .arg("-host_arch=x64")
+        .arg("&&")
+        .arg("dumpbin")
+        .arg("/exports")
+        .arg("/out:exports.txt")
+        .arg(Path::new(&rbconfig("bindir")).join(&libruby_so))
+        .output()
+        .unwrap();
+
+    Command::new("build/windows/exports.bat").output().unwrap();
+
+    Command::new("build/windows/vcbuild.cmd")
+        .arg("-arch=x64")
+        .arg("-host_arch=x64")
+        .arg("&&")
+        .arg("lib")
+        .arg("/def:exports.def")
+        .arg(format!("/name:{}", name.to_string_lossy()))
+        .arg(format!("/libpath:{}", rbconfig("bindir")))
+        .arg("/machine:x64")
+        .arg(format!("/out:{}", target.to_string_lossy()))
+        .output()
+        .unwrap();
+
+    fs::remove_file("exports.def").expect("couldn't remove exports.def");
+    fs::remove_file("exports.txt").expect("couldn't remove exports.txt");
+}
+
+#[cfg(not(target_os = "windows"))]
+fn windows_support() {}
+
 fn main() {
-    // Ruby programs calling Rust don't need cc linking
+    // Ruby programs calling Rust doesn't need cc linking
     if let None = std::env::var_os("NO_LINK_RUTIE") {
+
+        // If windows OS do windows stuff
+        windows_support();
 
         if env::var_os("RUTIE_NO_PKG_CONFIG").is_none() && env::var_os("RUBY_STATIC").is_none() {
             // Ruby often includes pkgconfig under their lib dir
