@@ -82,7 +82,7 @@ fn rvm_libruby_static_path() -> Option<String> {
 
 #[cfg(not(target_os = "windows"))]
 fn static_ruby_file_name() -> String {
-    "libruby-static.a"
+    "libruby-static.a".to_string()
 }
 
 #[cfg(target_os = "windows")]
