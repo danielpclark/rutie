@@ -307,7 +307,7 @@ impl RString {
     ///
     /// str.codepoints == [102, 111, 111, 37727, 97]
     /// ```
-    pub fn codepoints(self) -> Array {
+    pub fn codepoints(&self) -> Array {
         CodepointIterator::new(self).
             into_iter().
             map(|n| Integer::new(n as i64).to_any_object()).

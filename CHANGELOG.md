@@ -8,6 +8,10 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
+## [0.5.0] - 2018-10-23
+### Changed
+- `CodepointIterator` now borrows RString parameter instead of consuming ownership.
+
 ## [0.4.3] - 2018-10-23
 ### Fixed
 - `RString.codepoints` uses a new internal implementation as `rb_str_codepoints` isn't exported/available on some OSes
