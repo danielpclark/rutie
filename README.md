@@ -380,6 +380,20 @@ let arguments = [RString::new_utf8(path).to_any_object()];
 Class::from_existing("Pathname").new_instance(Some(&arguments))
 ```
 
+## Operating System Requirements
+
+Everything is tested against 64 bit operating systems with 64 bit Ruby & Rust builds.  32 bit isn't currently supported.
+
+#### Linux & Mac
+
+- Rust 1.26 or later
+- Ruby (64 bit) 2.3 or later
+
+#### Windows
+- Rust 1.26 or later
+- Ruby 2.5+ built with MingW (64 bit)
+- MS Visual Studio (Build Tools)
+
 ## Contributing
 
 Contributors are welcome!
