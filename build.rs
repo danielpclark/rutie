@@ -57,11 +57,13 @@ fn transform_lib_args(rbconfig_key: &str, replacement: &str) -> String {
 }
 
 // returns a list of the current systems executable paths
+#[cfg(not(target_os = "windows"))]
 fn path() -> Vec<String> {
     env::var_os("PATH").unwrap_or(OsString::new()).
         to_string_lossy().split(':').map(|s| s.into()).collect()
 }
 
+#[cfg(not(target_os = "windows"))]
 fn rvm_path() -> Option<String> {
     for p in path() {
         if p.contains("rvm/bin") {
@@ -71,6 +73,7 @@ fn rvm_path() -> Option<String> {
     return None;
 }
 
+#[cfg(not(target_os = "windows"))]
 fn rvm_libruby_static_path() -> Option<String> {
     let pth = rvm_path();
     if pth.is_none() { return None; }
@@ -96,17 +99,66 @@ fn static_ruby_file_name() -> String {
     format!("{}.lib", name.to_string_lossy())
 }
 
+#[cfg(not(target_os = "windows"))]
 fn static_ruby_location() -> String {
     let location: Option<String> = env::var_os("RUBY_STATIC_PATH").map(|s|s.to_string_lossy().to_string());
     let location: String = location.unwrap_or(rvm_libruby_static_path().unwrap_or(rbconfig("libdir")));
 
     if !Path::new(&location).join(static_ruby_file_name()).exists() {
-        panic!("libruby-static.a was not found in path but static build was chosen.\n\
+        panic!("{} was not found in path but static build was chosen.\n\
                Please use environment variable RUBY_STATIC_PATH to define where {} is located.",
-               static_ruby_file_name());
+               static_ruby_file_name(), static_ruby_file_name());
     }
 
     location
+}
+
+#[cfg(target_os = "windows")]
+fn static_ruby_location() -> String {
+    let location: Option<String> = env::var_os("RUBY_STATIC_PATH").map(|s|s.to_string_lossy().to_string());
+    let location: String = location.unwrap_or(
+      Path::new("target").join(env::var_os("PROFILE").unwrap()).join("deps").to_string_lossy().to_string()
+    );
+
+    location
+}
+
+#[cfg(not(target_os = "windows"))]
+fn windows_static_ruby_dep() {}
+
+// Windows needs ligmp-10.dll as gmp.lib
+#[cfg(target_os = "windows")]
+fn windows_static_ruby_dep() {
+    Command::new("build/windows/vcbuild.cmd")
+        .arg("-arch=x64")
+        .arg("-host_arch=x64")
+        .arg("&&")
+        .arg("dumpbin")
+        .arg("/exports")
+        .arg("/out:exports.txt")
+        .arg(format!("{}/ruby_builtin_dlls/libgmp-10.dll", rbconfig("bindir")))
+        .output()
+        .unwrap();
+
+    Command::new("build/windows/exports.bat").output().unwrap();
+
+    let deps_dir = Path::new("target").join(env::var_os("PROFILE").unwrap()).join("deps");
+
+    Command::new("build/windows/vcbuild.cmd")
+        .arg("-arch=x64")
+        .arg("-host_arch=x64")
+        .arg("&&")
+        .arg("lib")
+        .arg("/def:exports.def")
+        .arg("/name:gmp")
+        .arg(format!("/libpath:{}/ruby_builtin_dlls", rbconfig("bindir")))
+        .arg("/machine:x64")
+        .arg(format!("/out:{}/gmp.lib", deps_dir.to_string_lossy()))
+        .output()
+        .unwrap();
+
+    fs::remove_file("exports.def").expect("couldn't remove exports.def");
+    fs::remove_file("exports.txt").expect("couldn't remove exports.txt");
 }
 
 fn use_static() {
@@ -114,7 +166,12 @@ fn use_static() {
     // so we'll have to check known locations based on which ruby version manager
     // is in use or default install.
     println!("cargo:rustc-link-search={}", static_ruby_location());
-    println!("cargo:rustc-link-lib={}", "ruby-static");
+    let static_name = static_ruby_file_name();
+    let static_name = Path::new(&static_name).file_stem().unwrap().to_string_lossy();
+    println!("cargo:rustc-link-lib={}", static_name);
+
+    // If Windows
+    windows_static_ruby_dep();
 
     // Ruby gives back the libs in the form: `-lpthread -lgmp`
     // Cargo wants them as: `-l pthread -l gmp`
@@ -226,8 +283,9 @@ fn main() {
             }
         }
 
-        if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
-            ci_stderr_log!("Not mingw && RUBY_STATIC exists");
+        // if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
+        if env::var_os("RUBY_STATIC").is_some() {
+            ci_stderr_log!("RUBY_STATIC is set");
             use_static()
         } else {
             match rbconfig("ENABLE_SHARED").as_str() {
