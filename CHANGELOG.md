@@ -8,6 +8,18 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
+## [0.4.3] - 2018-10-23
+### Fixed
+- `RString.codepoints` uses a new internal implementation as `rb_str_codepoints` isn't exported/available on some OSes
+
+## [0.4.2] - 2018-10-16
+### Fixed
+- Wrapping struct changed from Ruru to Rutie & some of the same changes in documentation
+
+## [0.4.1] - 2018-10-04
+### Added
+- Static build support
+
 ## [0.4.0] - 2018-08-20
 ### Added
 - Methods `VM::yield_object` and `VM::yield_splat`

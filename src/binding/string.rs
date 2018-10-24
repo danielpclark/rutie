@@ -101,7 +101,3 @@ pub fn locktmp(str: Value) -> Value {
 pub fn unlocktmp(str: Value) -> Value {
     unsafe { string::rb_str_unlocktmp(str) }
 }
-
-pub fn codepoints(str: Value) -> Value {
-    unsafe { string::rb_str_codepoints(str) }
-}
