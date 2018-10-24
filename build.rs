@@ -283,7 +283,6 @@ fn main() {
             }
         }
 
-        // if rbconfig("target_os") != "mingw32" && env::var_os("RUBY_STATIC").is_some() {
         if env::var_os("RUBY_STATIC").is_some() {
             ci_stderr_log!("RUBY_STATIC is set");
             use_static()
