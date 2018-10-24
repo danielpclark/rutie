@@ -17,6 +17,8 @@ use {
   TryConvert,
   Hash,
   Array,
+  CodepointIterator,
+  Integer,
 };
 
 /// `String`
@@ -305,8 +307,11 @@ impl RString {
     ///
     /// str.codepoints == [102, 111, 111, 37727, 97]
     /// ```
-    pub fn codepoints(&self) -> Array {
-        Array::from(string::codepoints(self.value()))
+    pub fn codepoints(self) -> Array {
+        CodepointIterator::new(self).
+            into_iter().
+            map(|n| Integer::new(n as i64).to_any_object()).
+            collect()
     }
 
     /// Returns the length of the string in bytes
