@@ -143,7 +143,7 @@ fn delete<'a>(s: &'a str, from: &'a str) -> String {
 fn purge_refptr_text() {
     let buffer = fs::read_to_string("exports.def")
         .expect("Failed to read 'exports.def'");
-    fs::write("exports.def", delete(buffer, ".refptr."))
+    fs::write("exports.def", delete(&buffer, ".refptr."))
         .expect("Failed to write update to 'exports.def'");
 }
 
@@ -151,7 +151,7 @@ fn purge_refptr_text() {
 fn windows_support() {
     println!("cargo:rustc-link-search={}", rbconfig("bindir"));
     let mingw_libs: OsString = env::var_os("MINGW_LIBS").unwrap_or(
-        OsString::from(format!("{}/msys64/mingw64/bin", rbconfig("prefix")))
+        OsString::from(format!("{}/ruby_builtin_dlls", rbconfig("bindir")))
     );
     println!("cargo:rustc-link-search={}", mingw_libs.to_string_lossy());
 
