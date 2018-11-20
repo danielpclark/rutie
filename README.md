@@ -385,7 +385,7 @@ Class::from_existing("Pathname").new_instance(Some(&arguments))
 
 ## Operating System Requirements
 
-Everything is tested against 64 bit operating systems with 64 bit Ruby & Rust builds.  32 bit isn't currently supported.
+Everything is tested against 64 bit operating systems with 64 bit Ruby & Rust builds.  32 bit isn't currently supported.  Ruby needs to be compiled with the `--enable shared` option.  
 
 #### Linux & Mac
 
