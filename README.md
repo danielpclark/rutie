@@ -387,6 +387,16 @@ Class::from_existing("Pathname").new_instance(Some(&arguments))
 
 Everything is tested against 64 bit operating systems with 64 bit Ruby & Rust builds.  32 bit isn't currently supported.  
 
+#### Linux & Mac
+
+- Rust 1.26 or later
+- Ruby (64 bit) 2.3 or later
+
+#### Windows
+- Rust 1.26 or later
+- Ruby 2.5+ built with MingW (64 bit)
+- MS Visual Studio (Build Tools)
+
 #### Dynamic vs Static Builds
 
 Ruby needs to be compiled with the `--enable shared` option.  Dynamic linking to the Ruby library provides the best performance and best support.  Static build support is incomplete for now.
@@ -400,16 +410,6 @@ You can check if your Ruby is compiled to be dynamically linked to by running th
     ruby -e "pp RbConfig::CONFIG['ENABLE_SHARED']"
 
 If you'd like to make a pull request for adding static build support there are currently 3 methods not working with it and linking to the proper name of the ruby static lib file & path needs to be updated.
-
-#### Linux & Mac
-
-- Rust 1.26 or later
-- Ruby (64 bit) 2.3 or later
-
-#### Windows
-- Rust 1.26 or later
-- Ruby 2.5+ built with MingW (64 bit)
-- MS Visual Studio (Build Tools)
 
 ## Contributing
 
