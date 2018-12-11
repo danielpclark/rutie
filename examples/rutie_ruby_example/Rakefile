@@ -1,9 +1,15 @@
+require "rbconfig"
 require "bundler/gem_tasks"
 require "rake/testtask"
 
 desc 'Build Rust extension'
 task :build_lib do
-  sh 'cargo build --release'
+  case RbConfig::CONFIG['host_os']
+  when /darwin|mac os/
+    sh 'cargo rustc --release -- -C link-args=-Wl,-undefined,dynamic_lookup'
+  else
+    sh 'cargo build --release'
+  end
 end
 
 Rake::TestTask.new(test: :build_lib) do |t|

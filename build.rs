@@ -1,5 +1,5 @@
 extern crate pkg_config;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::process::Command;
 use std::path::Path;
 use std::env;
@@ -15,10 +15,8 @@ macro_rules! ci_stderr_log {
 }
 
 fn rbconfig(key: &str) -> String {
-    let ruby = match env::var_os("RUBY") {
-        Some(val) => val.to_os_string(),
-        None => OsStr::new("ruby").to_os_string(),
-    };
+    let ruby = env::var_os("RUBY").unwrap_or(OsString::from("ruby"));
+
     let config = Command::new(ruby)
         .arg("-e")
         .arg(format!("print RbConfig::CONFIG['{}']", key))
@@ -28,11 +26,10 @@ fn rbconfig(key: &str) -> String {
     String::from_utf8(config.stdout).expect("RbConfig value not UTF-8!")
 }
 
-fn ruby_name() -> OsString {
-    match env::var_os("LIBRUBY_NAME") {
-        Some(name) => name,
-        None => OsString::from("ruby"),
-    }
+fn ruby_name() -> String {
+    env::var_os("LIBRUBY_NAME")
+        .map(|var| var.to_string_lossy().to_string())
+        .unwrap_or(String::from("ruby"))
 }
 
 fn set_env_pkg_config() {
@@ -56,39 +53,9 @@ fn transform_lib_args(rbconfig_key: &str, replacement: &str) -> String {
     rbconfig(rbconfig_key).replace("-l", replacement)
 }
 
-// returns a list of the current systems executable paths
-#[cfg(not(target_os = "windows"))]
-fn path() -> Vec<String> {
-    env::var_os("PATH").unwrap_or(OsString::new()).
-        to_string_lossy().split(':').map(|s| s.into()).collect()
-}
-
-#[cfg(not(target_os = "windows"))]
-fn rvm_path() -> Option<String> {
-    for p in path() {
-        if p.contains("rvm/bin") {
-            return Some(p[0..p.len()-4].to_string())
-        }
-    }
-    return None;
-}
-
-#[cfg(not(target_os = "windows"))]
-fn rvm_libruby_static_path() -> Option<String> {
-    let pth = rvm_path();
-    if pth.is_none() { return None; }
-
-    let path = format!("{}/src/ruby-{}", pth.unwrap(), rbconfig("RUBY_PROGRAM_VERSION"));
-
-    if !Path::new(&path).exists() { return None; }
-    if !Path::new(&path).join("libruby-static.a").exists() { return None; }
-
-    Some(path)
-}
-
 #[cfg(not(target_os = "windows"))]
 fn static_ruby_file_name() -> String {
-    "libruby-static.a".to_string()
+    rbconfig("LIBRUBY_A")
 }
 
 #[cfg(target_os = "windows")]
@@ -101,13 +68,14 @@ fn static_ruby_file_name() -> String {
 
 #[cfg(not(target_os = "windows"))]
 fn static_ruby_location() -> String {
-    let location: Option<String> = env::var_os("RUBY_STATIC_PATH").map(|s|s.to_string_lossy().to_string());
-    let location: String = location.unwrap_or(rvm_libruby_static_path().unwrap_or(rbconfig("libdir")));
+    let location = env::var_os("RUBY_STATIC_PATH")
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or(rbconfig("libdir"));
 
     if !Path::new(&location).join(static_ruby_file_name()).exists() {
-        panic!("{} was not found in path but static build was chosen.\n\
+        panic!("{} was not found in path {}, but static build was chosen.\n\
                Please use environment variable RUBY_STATIC_PATH to define where {} is located.",
-               static_ruby_file_name(), static_ruby_file_name());
+               static_ruby_file_name(), location, static_ruby_file_name());
     }
 
     location
@@ -121,6 +89,14 @@ fn static_ruby_location() -> String {
     );
 
     location
+}
+
+#[cfg(not(target_os = "macos"))]
+fn macos_static_ruby_dep() {}
+
+#[cfg(target_os = "macos")]
+fn macos_static_ruby_dep() {
+    println!("cargo:rustc-link-lib=framework=Foundation");
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -162,16 +138,16 @@ fn windows_static_ruby_dep() {
 }
 
 fn use_static() {
-    // Ruby removed libruby-static.a by default in https://bugs.ruby-lang.org/issues/12845
-    // so we'll have to check known locations based on which ruby version manager
-    // is in use or default install.
     println!("cargo:rustc-link-search={}", static_ruby_location());
     let static_name = static_ruby_file_name();
     let static_name = Path::new(&static_name).file_stem().unwrap().to_string_lossy();
-    println!("cargo:rustc-link-lib={}", static_name);
+    println!("cargo:rustc-link-lib={}", static_name.trim_left_matches("lib"));
 
     // If Windows
     windows_static_ruby_dep();
+
+    // If Mac OS
+    macos_static_ruby_dep();
 
     // Ruby gives back the libs in the form: `-lpthread -lgmp`
     // Cargo wants them as: `-l pthread -l gmp`
@@ -235,7 +211,6 @@ fn windows_support() {
     Command::new("build/windows/exports.bat").output().unwrap();
 
     purge_refptr_text();
-   
     Command::new("build/windows/vcbuild.cmd")
         .arg("-arch=x64")
         .arg("-host_arch=x64")
@@ -270,11 +245,8 @@ fn main() {
             let ruby_version = ruby_version();
             let version = trim_teeny(&ruby_version);
 
-            let ruby_name = ruby_name();
-            let name = ruby_name.to_str().unwrap_or("ruby");
-
             // To disable the use of pkg-config set the environment variable `RUTIE_NO_PKG_CONFIG`
-            match pkg_config::Config::new().atleast_version(version).probe(name) {
+            match pkg_config::Config::new().atleast_version(version).probe(&ruby_name()) {
                 Ok(_) => {
                     ci_stderr_log!("pkg-config is being used");
                     return;
@@ -300,5 +272,6 @@ fn main() {
                 }
             }
         }
+
     }
 }
