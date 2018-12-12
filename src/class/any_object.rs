@@ -88,17 +88,3 @@ impl PartialEq for AnyObject {
         self.equals(other)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_it_loads_lib() {
-        use crate::{Array, Fixnum, Object, VM};
-        VM::init();
-
-        let array = Array::new().push(Fixnum::new(1));
-        let value = array.at(0).try_convert_to::<Fixnum>(); // `Array::at()` returns `AnyObject`
-
-        assert_eq!(value, Ok(Fixnum::new(1)));
-    }
-}

@@ -141,7 +141,7 @@ fn use_static() {
     println!("cargo:rustc-link-search={}", static_ruby_location());
     let static_name = static_ruby_file_name();
     let static_name = Path::new(&static_name).file_stem().unwrap().to_string_lossy();
-    println!("cargo:rustc-link-lib={}", static_name.trim_left_matches("lib"));
+    println!("cargo:rustc-link-lib=static={}", static_name.trim_left_matches("lib"));
 
     // If Windows
     windows_static_ruby_dep();
@@ -156,15 +156,6 @@ fn use_static() {
 
     ci_stderr_log!("Using static linker flags");
 }
-
-fn debug_lib_dir() {
-    ci_stderr_log!("[DEBUG] Debugging library directory.");
-    let paths = std::fs::read_dir(rbconfig("libdir")).unwrap();
-    for path in paths {
-        ci_stderr_log!("File: {}", path.unwrap().path().display());
-    }
-}
-
 
 fn use_dylib() {
     println!("cargo:rustc-link-search={}", rbconfig("libdir"));
@@ -270,10 +261,7 @@ fn main() {
         } else {
             match rbconfig("ENABLE_SHARED").as_str() {
                 "no" => use_static(),
-                "yes" => {
-                    use_dylib();
-                    debug_lib_dir();
-                }
+                "yes" => use_dylib(),
                 _ => {
                     let msg = "Error! Couldn't find a valid value for \
                     RbConfig::CONFIG['ENABLE_SHARED']. \
