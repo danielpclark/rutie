@@ -44,4 +44,8 @@ pub use class::traits::try_convert::TryConvert;
 pub use helpers::codepoint_iterator::CodepointIterator;
 
 #[test]
-fn it_works() {}
+fn it_works() {
+    VM::init();
+    VM::init_loadpath();
+    VM::require("zlib");
+}
