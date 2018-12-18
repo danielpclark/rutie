@@ -104,7 +104,6 @@ impl Into<i32> for Integer {
     }
 }
 
-
 impl From<Fixnum> for Integer {
     fn from(num: Fixnum) -> Self {
         Integer { value: num.value() }
