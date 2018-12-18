@@ -53,6 +53,28 @@ impl Fixnum {
     /// 1 == 1
     /// ```
     pub fn to_i64(&self) -> i64 {
+        fixnum::num_to_long(self.value())
+    }
+
+    /// Retrieves an `i32` value from `Fixnum`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, VM};
+    /// # VM::init();
+    ///
+    /// let fixnum = Fixnum::new(1);
+    ///
+    /// assert_eq!(fixnum.to_i32(), 1);
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// 1 == 1
+    /// ```
+    pub fn to_i32(&self) -> i32 {
         fixnum::num_to_int(self.value())
     }
 }

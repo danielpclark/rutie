@@ -53,6 +53,29 @@ impl Integer {
     /// 1 == 1
     /// ```
     pub fn to_i64(&self) -> i64 {
+        fixnum::num_to_long(self.value())
+    }
+
+
+    /// Retrieves an `i32` value from `Integer`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, VM};
+    /// # VM::init();
+    ///
+    /// let integer = Integer::new(1);
+    ///
+    /// assert_eq!(integer.to_i32(), 1);
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// 1 == 1
+    /// ```
+    pub fn to_i32(&self) -> i32 {
         fixnum::num_to_int(self.value())
     }
 }
@@ -71,9 +94,16 @@ impl From<i64> for Integer {
 
 impl Into<i64> for Integer {
     fn into(self) -> i64 {
+        fixnum::num_to_long(self.value())
+    }
+}
+
+impl Into<i32> for Integer {
+    fn into(self) -> i32 {
         fixnum::num_to_int(self.value())
     }
 }
+
 
 impl From<Fixnum> for Integer {
     fn from(num: Fixnum) -> Self {
