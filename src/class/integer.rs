@@ -56,7 +56,6 @@ impl Integer {
         fixnum::num_to_long(self.value())
     }
 
-
     /// Retrieves an `i32` value from `Integer`.
     ///
     /// # Examples
