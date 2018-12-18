@@ -32,7 +32,7 @@ pub fn length(hash: Value) -> i64 {
     unsafe {
         let size = hash::rb_hash_size(hash);
 
-        fixnum::num_to_int(size)
+        fixnum::num_to_long(size)
     }
 }
 
