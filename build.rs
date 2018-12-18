@@ -141,7 +141,7 @@ fn use_static() {
     println!("cargo:rustc-link-search={}", static_ruby_location());
     let static_name = static_ruby_file_name();
     let static_name = Path::new(&static_name).file_stem().unwrap().to_string_lossy();
-    println!("cargo:rustc-link-lib={}", static_name.trim_left_matches("lib"));
+    println!("cargo:rustc-link-lib={}", static_name.trim_start_matches("lib"));
 
     // If Windows
     windows_static_ruby_dep();
