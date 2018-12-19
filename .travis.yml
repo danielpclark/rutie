@@ -66,6 +66,6 @@ env:
     - RUST_BACKTRACE=full
     - CI_STDERR_LOG=true
   matrix:
-    - BUILD_RUBY_VERSION: 2.3.8
     - BUILD_RUBY_VERSION: 2.4.5
     - BUILD_RUBY_VERSION: 2.5.3
+    - BUILD_RUBY_VERSION: 2.6.0-rc2
