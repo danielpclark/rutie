@@ -7,12 +7,27 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
+
+## [0.5.2] - 2018-12-18
 ### Added
-- Windows build support (partially working).  Has linking issue with libgmp-10.dll
+- `impl Into<i32> for Integer` thanks to @Antti
+- `Integer.to_i32`, thanks to @Antti
+- `Fixname.to_i32`, thanks to @Antti
+
+### Fixed
+- `Integer.to_i64` to use `rb_num2long` for genuine `i64` result, thanks to @Antti
+- `impl Into<i64> for Integer` to use `rb_num2long` for genuine `i64` result, thanks to @Antti
+- `Fixname.to_i64` to use `rb_num2long` for genuine `i64` result, thanks to @Antti
+
+## [0.5.1] - 2018-12-11
+### Added
+- Windows build support (partially working)
+- Mac static build support, thanks to @felix-d
+- Rutie pronunciation guide
 
 ## [0.5.0] - 2018-10-23
 ### Changed
-- `CodepointIterator` now borrows RString parameter instead of consuming ownership.
+- `CodepointIterator` now borrows RString parameter instead of consuming ownership
 
 ## [0.4.3] - 2018-10-23
 ### Fixed
@@ -20,7 +35,7 @@ API and may have breaking changes during a teeny version change.
 
 ## [0.4.2] - 2018-10-16
 ### Fixed
-- Wrapping struct changed from Ruru to Rutie & some of the same changes in documentation
+- Wrapping struct changed from Ruru to Rutie & some of the same changes in documentation, thanks to @turboladen
 
 ## [0.4.1] - 2018-10-04
 ### Added
@@ -94,11 +109,11 @@ API and may have breaking changes during a teeny version change.
 - Documentation for Ruby gem `rutie`
 - Build documentation with `build.md`
 - Customization options for using `pkg-config`
-- Example CLI eval program in examples directory
-- `RString::count_chars`
+- Example CLI eval program in examples directory, thanks to @irxground
+- `RString::count_chars`, thanks to @irxground
 
 ### Changed
-- Refactor of `VM::protect`
+- Refactor of `VM::protect`, thanks to @irxground
 - Internally use `RString::new_utf8`
 - `TryConvert` moved to `src/class/traits/try_convert.rs` but still shared in root of crate
 - Refactor internal method names for `Value` in `src/rubysys/value.rs` to match Ruby source code
@@ -131,14 +146,14 @@ API and may have breaking changes during a teeny version change.
 ### Changed
 - Refactor Pathname example in README
 - Refactor away `util.rs` files from `binding` and `rubysys`
-- Refactor away from using heap to stack memory
+- Refactor away from using heap to stack memory, thanks to @irxground
 
 ### Fixed
 - A few Ruby `ValueType` flags were incorrect in `rubysys`
 
 ## [0.2.2] - 2018-07-07
 ### Added
-- `String#concat`
+- `String#concat`, thanks to @irxground
 - Method signatures for all of `rubysys` direct method mappings documented
 
 ### Fixed
