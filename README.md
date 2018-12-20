@@ -45,7 +45,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.6.0"
+rutie = "0.5.2"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
@@ -92,7 +92,7 @@ file.  Add Rutie to the `Cargo.toml` file and define the lib type.
 
 ```toml
 [dependencies]
-rutie = "0.6.0"
+rutie = "0.5.2"
 
 [lib]
 name = "rutie_ruby_example"
