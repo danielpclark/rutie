@@ -2,7 +2,7 @@ use std::ptr;
 
 use rubysys::thread;
 
-use types::{c_void, CallbackPtr, Value};
+use types::{c_void, CallbackPtr, CallbackMutPtr, Value};
 use util;
 
 #[cfg(unix)]
@@ -17,7 +17,7 @@ where
 {
     let fnbox = Box::new(func) as Box<FnOnce() -> R>;
 
-    let closure_ptr = Box::into_raw(Box::new(fnbox)) as *mut c_void;
+    let closure_ptr = Box::into_raw(Box::new(fnbox)) as CallbackMutPtr;
 
     unsafe { thread::rb_thread_create(thread_create_callbox::<R>, closure_ptr) }
 }
@@ -45,7 +45,7 @@ where
                 thread_call_callbox as CallbackPtr,
                 util::closure_to_ptr(func),
                 ptr::null() as CallbackPtr,
-                ptr::null() as *const c_void,
+                ptr::null() as CallbackPtr,
             )
         };
 
@@ -71,7 +71,7 @@ where
                 thread_call_callbox as CallbackPtr,
                 util::closure_to_ptr(func),
                 ptr::null() as CallbackPtr,
-                ptr::null() as *const c_void,
+                ptr::null() as CallbackPtr,
             )
         };
 
@@ -93,7 +93,7 @@ where
     }
 }
 
-extern "C" fn thread_create_callbox<R>(boxptr: *mut c_void) -> Value
+extern "C" fn thread_create_callbox<R>(boxptr: CallbackMutPtr) -> Value
 where
     R: Object,
 {
@@ -103,9 +103,9 @@ where
     fnbox().value()
 }
 
-extern "C" fn thread_call_callbox(boxptr: *mut c_void) -> *const c_void {
-    let mut fnbox: Box<Box<FnMut() -> *const c_void>> =
-        unsafe { Box::from_raw(boxptr as *mut Box<FnMut() -> *const c_void>) };
+extern "C" fn thread_call_callbox(boxptr: CallbackMutPtr) -> CallbackPtr {
+    let mut fnbox: Box<Box<FnMut() -> CallbackPtr>> =
+        unsafe { Box::from_raw(boxptr as *mut Box<FnMut() -> CallbackPtr>) };
 
     fnbox()
 }
