@@ -1,4 +1,4 @@
-use rubysys::types::{Argc, Value, c_int, c_void, CallbackPtr};
+use rubysys::types::{Argc, Value, c_int};
 use rubysys::constant::UNLIMITED_ARGUMENTS;
 use {AnyException, Exception};
 
@@ -13,6 +13,8 @@ extern "C" {
     // VALUE
     // rb_binding_new(void)
     pub fn rb_binding_new() -> Value;
+    pub fn rb_obj_is_proc(obj: Value) -> Value;
+    pub fn rb_obj_is_method(obj: Value) -> Value;
 }
 
 pub fn check_arity(argc: c_int, min: c_int, max: c_int) -> Result<c_int, AnyException> {

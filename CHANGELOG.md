@@ -7,6 +7,8 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
+### Added
+- `util::is_proc` & `util::is_method`
 ### Changed
 - Removed Ruby 2.3 support & added 2.6
 
