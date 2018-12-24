@@ -1,4 +1,5 @@
 **/Cargo.lock
+**/Gemfile.lock
 **/target
 **/*.swp
 **/.bundle/
