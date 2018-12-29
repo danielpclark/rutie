@@ -395,6 +395,33 @@ impl RString {
     pub fn concat(&mut self, string: &str) {
         string::concat(self.value(), string.as_bytes());
     }
+
+    /// Reveals if the given object has a compatible encoding with this String.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// let string1 = RString::new_utf8("Hello");
+    /// let string2 = RString::new_usascii_unchecked("Hello");
+    ///
+    /// assert!(string1.compatible_with(string2));
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// str1 = 'Hello'.force_encoding("UTF-8")
+    /// str2 = 'Hello'.force_encoding("US-ASCII")
+    ///
+    /// str1 + str2 == "HelloHello"
+    /// ```
+    pub fn compatible_with<T>(&self, other: T) -> bool
+    where T: Into<AnyObject> {
+        encoding::is_compatible_encoding(self.value(), other.into().value())
+    }
 }
 
 impl EncodingSupport for RString {
