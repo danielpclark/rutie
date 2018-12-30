@@ -17,6 +17,9 @@ extern "C" {
     // VALUE
     // rb_enc_associate_index(VALUE obj, int idx)
     pub fn rb_enc_associate_index(obj: Value, idx: c_int) -> Value;
+    // rb_encoding*
+    // rb_enc_compatible(VALUE str1, VALUE str2)
+    pub fn rb_enc_compatible(str1: Value, str2: Value) -> CallbackPtr;
     // VALUE
     // rb_enc_default_external(void)
     pub fn rb_enc_default_external() -> Value;

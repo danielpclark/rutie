@@ -1,5 +1,5 @@
 use rubysys::{encoding, string, vm};
-use types::{c_char, size_t, c_int, Value, EncodingIndex};
+use types::{c_char, size_t, c_int, Value, EncodingIndex, ValueType};
 use std::ffi::CString;
 use util;
 
@@ -17,6 +17,15 @@ pub fn force_encoding(s: Value, enc: Value) -> Value {
 
 pub fn coderange_clear(obj: Value) {
     unsafe { encoding::coderange_clear(obj) }
+}
+
+// best str1/str2 encoding or nil if incompatible
+pub fn encoding_compatible(str1: Value, str2: Value) -> Value {
+    unsafe { encoding::rb_enc_from_encoding(encoding::rb_enc_compatible(str1, str2)) }
+}
+
+pub fn is_compatible_encoding(str1: Value, str2: Value) -> bool {
+    encoding_compatible(str1, str2).ty() != ValueType::Nil
 }
 
 pub fn from_encoding_index(idx: EncodingIndex) -> Value {
