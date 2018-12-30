@@ -16,6 +16,7 @@ API and may have breaking changes during a teeny version change.
 
 ### Changed
 - Removed Ruby 2.3 support & added 2.6
+- `VM::raise_ex` now accepts `Into<AnyException>` rather than just `AnyException`
 
 ## [0.5.2] - 2018-12-18
 ### Added
