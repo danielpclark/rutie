@@ -1,6 +1,7 @@
 use types::Value;
 
 use {Object, VerifiedObject};
+use std::ops::Deref;
 
 /// Representation of any Ruby object while its type is unknown
 ///
@@ -69,6 +70,14 @@ impl Object for AnyObject {
     #[inline]
     fn value(&self) -> Value {
         self.value
+    }
+}
+
+impl Deref for AnyObject {
+    type Target = Value;
+
+    fn deref(&self) -> &Value {
+        &self.value
     }
 }
 

@@ -12,9 +12,11 @@ API and may have breaking changes during a teeny version change.
 - `rb_enc_compatible` useful for internal string encoding compatibilty checks from
   which we now have `binding::is_compatible_encoding` and `binding::encoding_compatible`
 - `RString.compatible_with` as the public API for `rb_enc_compatible`
+- Implemented `Deref` for `AnyObject` and `AnyException` to deref into `&Value`
 
 ### Changed
 - Removed Ruby 2.3 support & added 2.6
+- `VM::raise_ex` now accepts `Into<AnyException>` rather than just `AnyException`
 
 ## [0.5.2] - 2018-12-18
 ### Added
