@@ -1,4 +1,4 @@
-use {AnyException, Encoding, Hash, AnyObject, Object, RString};
+use {AnyException, Encoding, Hash, AnyObject, Object};
 
 pub trait EncodingSupport {
     fn encode(&self, enc: Encoding, opts: Option<Hash>) -> Self where Self: Sized;

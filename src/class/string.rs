@@ -3,7 +3,6 @@ use std::convert::From;
 use binding::{encoding, string, vm};
 use binding::class::is_frozen;
 use types::{Value, ValueType};
-use std::ops::Deref;
 
 use {
   Object,
