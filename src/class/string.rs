@@ -395,33 +395,6 @@ impl RString {
     pub fn concat(&mut self, string: &str) {
         string::concat(self.value(), string.as_bytes());
     }
-
-    /// Reveals if the given object has a compatible encoding with this String.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rutie::{RString, VM};
-    /// # VM::init();
-    ///
-    /// let string1 = RString::new_utf8("Hello");
-    /// let string2 = RString::new_usascii_unchecked("Hello");
-    ///
-    /// assert!(string1.compatible_with(string2));
-    /// ```
-    ///
-    /// Ruby:
-    ///
-    /// ```ruby
-    /// str1 = 'Hello'.force_encoding("UTF-8")
-    /// str2 = 'Hello'.force_encoding("US-ASCII")
-    ///
-    /// str1 + str2 == "HelloHello"
-    /// ```
-    pub fn compatible_with<T>(&self, other: T) -> bool
-    where T: Into<AnyObject> {
-        encoding::is_compatible_encoding(self.value(), other.into().value())
-    }
 }
 
 impl EncodingSupport for RString {
@@ -586,6 +559,65 @@ impl EncodingSupport for RString {
     fn is_valid_encoding(&self) -> bool {
         let result = self.send("valid_encoding?", None);
         result.try_convert_to::<Boolean>().unwrap().to_bool()
+    }
+
+    /// Reveals if the given object has a compatible encoding with this String.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM, EncodingSupport};
+    /// # VM::init();
+    ///
+    /// let string1 = RString::new_utf8("Hello");
+    /// let string2 = RString::new_usascii_unchecked("Hello");
+    ///
+    /// assert!(string1.compatible_with(string2));
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// str1 = 'Hello'.force_encoding("UTF-8")
+    /// str2 = 'Hello'.force_encoding("US-ASCII")
+    ///
+    /// str1 + str2 == "HelloHello"
+    /// ```
+    fn compatible_with<T>(&self, other: T) -> bool
+    where T: Into<AnyObject> {
+        encoding::is_compatible_encoding(self.value(), other.into().value())
+    }
+
+    /// Returns `AnyObject` of the compatible encoding between the two objects
+    /// or nil if incompatible.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM, EncodingSupport};
+    /// # VM::init();
+    ///
+    /// let string1 = RString::new_utf8("Hello");
+    /// let string2 = RString::new_usascii_unchecked("Hello");
+    ///
+    /// string1.compatible_encoding(string2);
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// str1 = 'Hello'.force_encoding("UTF-8")
+    /// str2 = 'Hello'.force_encoding("US-ASCII")
+    ///
+    /// begin
+    ///   (str1 + str2).encoding
+    /// rescue
+    ///   nil
+    /// end
+    /// ```
+    fn compatible_encoding<T>(&self, other: T) -> AnyObject
+    where T: Into<AnyObject> {
+        encoding::compatible_encoding(self.value(), other.into().value()).into()
     }
 }
 

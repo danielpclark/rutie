@@ -20,12 +20,12 @@ pub fn coderange_clear(obj: Value) {
 }
 
 // best str1/str2 encoding or nil if incompatible
-pub fn encoding_compatible(str1: Value, str2: Value) -> Value {
+pub fn compatible_encoding(str1: Value, str2: Value) -> Value {
     unsafe { encoding::rb_enc_from_encoding(encoding::rb_enc_compatible(str1, str2)) }
 }
 
 pub fn is_compatible_encoding(str1: Value, str2: Value) -> bool {
-    encoding_compatible(str1, str2).ty() != ValueType::Nil
+    compatible_encoding(str1, str2).ty() != ValueType::Nil
 }
 
 pub fn from_encoding_index(idx: EncodingIndex) -> Value {
