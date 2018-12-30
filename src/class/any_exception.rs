@@ -2,6 +2,7 @@ use ::{Object, VerifiedObject, Exception, NilClass, AnyObject, Class, TryConvert
 use ::types::{Value, ValueType};
 use std::fmt::{Display, Formatter};
 use std::fmt;
+use std::ops::Deref;
 
 pub struct AnyException {
     value: Value
@@ -29,6 +30,14 @@ impl Object for AnyException {
     #[inline]
     fn value(&self) -> Value {
         self.value
+    }
+}
+
+impl Deref for AnyException {
+    type Target = Value;
+
+    fn deref(&self) -> &Value {
+        &self.value
     }
 }
 

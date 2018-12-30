@@ -174,8 +174,9 @@ impl VM {
     ///
     /// raise CustomException, 'Something went wrong'
     /// ```
-    pub fn raise_ex(exception: AnyException) {
-        vm::raise_ex(exception.value());
+    pub fn raise_ex<E>(exception: E) 
+    where E: Into<AnyException> {
+        vm::raise_ex(exception.into().value());
     }
 
     /// Evals string and returns an Result<AnyObject, c_int>
