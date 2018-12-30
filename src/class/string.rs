@@ -3,6 +3,7 @@ use std::convert::From;
 use binding::{encoding, string, vm};
 use binding::class::is_frozen;
 use types::{Value, ValueType};
+use std::ops::Deref;
 
 use {
   Object,
@@ -572,7 +573,7 @@ impl EncodingSupport for RString {
     /// let string1 = RString::new_utf8("Hello");
     /// let string2 = RString::new_usascii_unchecked("Hello");
     ///
-    /// assert!(string1.compatible_with(string2));
+    /// assert!(string1.compatible_with(&string2));
     /// ```
     ///
     /// Ruby:
@@ -583,9 +584,8 @@ impl EncodingSupport for RString {
     ///
     /// str1 + str2 == "HelloHello"
     /// ```
-    fn compatible_with<T>(&self, other: T) -> bool
-    where T: Into<AnyObject> {
-        encoding::is_compatible_encoding(self.value(), other.into().value())
+    fn compatible_with(&self, other: &impl Object) -> bool {
+        encoding::is_compatible_encoding(self.value(), other.value())
     }
 
     /// Returns `AnyObject` of the compatible encoding between the two objects
@@ -600,7 +600,7 @@ impl EncodingSupport for RString {
     /// let string1 = RString::new_utf8("Hello");
     /// let string2 = RString::new_usascii_unchecked("Hello");
     ///
-    /// string1.compatible_encoding(string2);
+    /// string1.compatible_encoding(&string2);
     /// ```
     ///
     /// Ruby:
@@ -615,9 +615,8 @@ impl EncodingSupport for RString {
     ///   nil
     /// end
     /// ```
-    fn compatible_encoding<T>(&self, other: T) -> AnyObject
-    where T: Into<AnyObject> {
-        encoding::compatible_encoding(self.value(), other.into().value()).into()
+    fn compatible_encoding(&self, other: &impl Object) -> AnyObject {
+        encoding::compatible_encoding(self.value(), other.value()).into()
     }
 }
 

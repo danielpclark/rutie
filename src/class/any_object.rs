@@ -1,7 +1,11 @@
 use types::Value;
 
 use {Object, VerifiedObject};
-use std::ops::Deref;
+use std::{
+  ops::Deref,
+  borrow::Borrow,
+  convert::AsRef,
+};
 
 /// Representation of any Ruby object while its type is unknown
 ///
@@ -56,13 +60,38 @@ pub struct AnyObject {
 
 impl From<Value> for AnyObject {
     fn from(value: Value) -> Self {
-        AnyObject { value: value }
+        AnyObject { value }
     }
 }
 
 impl Into<Value> for AnyObject {
     fn into(self) -> Value {
         self.value
+    }
+}
+
+impl Borrow<Value> for AnyObject {
+    fn borrow(&self) -> &Value {
+        &self.value
+    }
+}
+
+impl AsRef<Value> for AnyObject {
+    fn as_ref(&self) -> &Value {
+        &self.value
+    }
+}
+
+impl AsRef<AnyObject> for AnyObject {
+    #[inline]
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
+impl<T: Object> From<&T> for AnyObject {
+    fn from(value: &T) -> Self {
+        value.to_any_object()
     }
 }
 
