@@ -13,7 +13,12 @@ API and may have breaking changes during a teeny version change.
   which we now have `binding::is_compatible_encoding` and `binding::compatible_encoding`
 - `RString.compatible_with` as the public API for `rb_enc_compatible` with trait `EncodingSupport`
 - `RString.compatible_encoding` as the public API for `rb_enc_compatible` with trait `EncodingSupport`
-- Implemented `Deref` for `AnyObject` and `AnyException` to deref into `&Value`
+- `impl Deref for AnyException`
+- `impl Deref for AnyObject`
+- `impl Borrow<Value> for AnyObject`
+- `impl AsRef<Value> for AnyObject`
+- `impl AsRef<AnyObject> for AnyObject`
+- `impl<T: Object> From<&T> for AnyObject`
 
 ### Changed
 - Removed Ruby 2.3 support & added 2.6
