@@ -10,8 +10,9 @@ API and may have breaking changes during a teeny version change.
 ### Added
 - `util::is_proc` & `util::is_method`
 - `rb_enc_compatible` useful for internal string encoding compatibilty checks from
-  which we now have `binding::is_compatible_encoding` and `binding::encoding_compatible`
-- `RString.compatible_with` as the public API for `rb_enc_compatible`
+  which we now have `binding::is_compatible_encoding` and `binding::compatible_encoding`
+- `RString.compatible_with` as the public API for `rb_enc_compatible` with trait `EncodingSupport`
+- `RString.compatible_encoding` as the public API for `rb_enc_compatible` with trait `EncodingSupport`
 - Implemented `Deref` for `AnyObject` and `AnyException` to deref into `&Value`
 
 ### Changed
