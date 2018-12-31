@@ -617,6 +617,21 @@ impl EncodingSupport for RString {
     fn compatible_encoding(obj1: &impl Object, obj2: &impl Object) -> AnyObject {
         encoding::compatible_encoding(obj1.value(), obj2.value()).into()
     }
+
+    /// Checks if object is US-ASCII compatible.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{EncodingSupport, VM, RString};
+    /// # VM::init();
+    ///
+    /// let x = RString::new_utf8(":-)");
+    /// assert!(x.is_ascii_compatible(), "ascii compat example fail!");
+    /// ```
+    fn is_ascii_compatible(&self) -> bool {
+        encoding::is_ascii_compatible(self.value())
+    }
 }
 
 impl From<Value> for RString {

@@ -7,12 +7,14 @@ pub use std::os::unix::io::RawFd;
 
 pub use rubysys::typed_data::{RbDataType, RbDataTypeFunction};
 pub use rubysys::value::{Value, ValueType};
+use rubysys::onig::OnigEncodingType;
 
 pub type Id = uintptr_t;
 pub type InternalValue = uintptr_t;
 pub type SignedValue = intptr_t;
 
-pub struct EncodingIndex(pub c_int);
+pub type EncodingIndex = c_int;
+pub type EncodingType = *const OnigEncodingType;
 
 pub type Argc = c_int;
 pub type CallbackPtr = *const c_void;

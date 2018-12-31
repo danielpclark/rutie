@@ -7,4 +7,5 @@ pub trait EncodingSupport {
     fn is_valid_encoding(&self) -> bool;
     fn compatible_with(&self, other: &impl Object) -> bool;
     fn compatible_encoding(obj1: &impl Object, obj2: &impl Object) -> AnyObject;
+    fn is_ascii_compatible(&self) -> bool;
 }
