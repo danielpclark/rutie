@@ -6,6 +6,5 @@ pub trait EncodingSupport {
     fn force_encoding(&mut self, enc: Encoding) -> Result<Self, AnyException> where Self: Sized;
     fn is_valid_encoding(&self) -> bool;
     fn compatible_with(&self, other: &impl Object) -> bool;
-    fn compatible_encoding(&self, other: &impl Object) -> AnyObject;
+    fn compatible_encoding(obj1: &impl Object, obj2: &impl Object) -> AnyObject;
 }
-

@@ -599,7 +599,7 @@ impl EncodingSupport for RString {
     /// let string1 = RString::new_utf8("Hello");
     /// let string2 = RString::new_usascii_unchecked("Hello");
     ///
-    /// string1.compatible_encoding(&string2);
+    /// RString::compatible_encoding(&string1, &string2);
     /// ```
     ///
     /// Ruby:
@@ -614,8 +614,8 @@ impl EncodingSupport for RString {
     ///   nil
     /// end
     /// ```
-    fn compatible_encoding(&self, other: &impl Object) -> AnyObject {
-        encoding::compatible_encoding(self.value(), other.value()).into()
+    fn compatible_encoding(obj1: &impl Object, obj2: &impl Object) -> AnyObject {
+        encoding::compatible_encoding(obj1.value(), obj2.value()).into()
     }
 }
 
