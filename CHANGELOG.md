@@ -12,12 +12,15 @@ API and may have breaking changes during a teeny version change.
 - `rb_enc_compatible` useful for internal string encoding compatibilty checks from
   which we now have `binding::is_compatible_encoding` and `binding::compatible_encoding`
 - `RString.compatible_with` as the public API for `rb_enc_compatible` with trait `EncodingSupport`
-- `RString.compatible_encoding` as the public API for `rb_enc_compatible` with trait `EncodingSupport`
+- `RString::compatible_encoding` as the public API for `rb_enc_compatible` with trait `EncodingSupport`
 - `impl Deref for AnyException`
 - `impl Deref for AnyObject`
 - `impl Borrow<Value> for AnyObject`
+- `impl Borrow<Value> for AnyException`
 - `impl AsRef<Value> for AnyObject`
+- `impl AsRef<Value> for AnyException`
 - `impl AsRef<AnyObject> for AnyObject`
+- `impl AsRef<AnyException> for AnyException`
 - `impl<T: Object> From<&T> for AnyObject`
 
 ### Changed

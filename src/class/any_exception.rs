@@ -2,7 +2,10 @@ use ::{Object, VerifiedObject, Exception, NilClass, AnyObject, Class, TryConvert
 use ::types::{Value, ValueType};
 use std::fmt::{Display, Formatter};
 use std::fmt;
-use std::ops::Deref;
+use std::{
+  ops::Deref,
+  borrow::Borrow,
+};
 
 pub struct AnyException {
     value: Value
@@ -23,6 +26,25 @@ impl Into<Value> for AnyException {
 impl Into<AnyObject> for AnyException {
     fn into(self) -> AnyObject {
         AnyObject::from(self.value)
+    }
+}
+
+impl Borrow<Value> for AnyException {
+    fn borrow(&self) -> &Value {
+        &self.value
+    }
+}
+
+impl AsRef<Value> for AnyException {
+    fn as_ref(&self) -> &Value {
+        &self.value
+    }
+}
+
+impl AsRef<AnyException> for AnyException {
+    #[inline]
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
 
