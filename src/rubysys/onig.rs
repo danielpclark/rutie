@@ -44,7 +44,7 @@ pub type OnigApplyAllCaseFoldFunc =
 #[repr(C)]
 pub struct OnigEncodingType {
     // int    (*precise_mbc_enc_len)(const OnigUChar* p,const OnigUChar* e, const struct OnigEncodingTypeST* enc);
-    pub mbc_enc_len: extern "C" fn(p: *const OnigUChar) -> c_int,
+    pub precise_mbc_enc_len: extern "C" fn(p: *const OnigUChar) -> c_int,
     // const char*   name;
     pub name: *const c_char,
     // int           max_enc_len;
@@ -90,16 +90,15 @@ pub struct OnigEncodingType {
     // int    (*is_allowed_reverse_match)(const OnigUChar* p, const OnigUChar* end, const struct OnigEncodingTypeST* enc);
     pub is_allowed_reverse_match:
         extern "C" fn(p: *const OnigUChar, end: *const OnigUChar) -> c_int,
-
-    // 
-    // // pub init: extern "C" fn() -> c_int,
-
-    //
-    // // pub is_initialised: extern "C" fn() -> c_int,
- 
     // int    (*case_map)(OnigCaseFoldType* flagP, const OnigUChar** pp, const OnigUChar* end, OnigUChar* to, OnigUChar* to_end, const struct OnigEncodingTypeST* enc);
-    // TODO: pub case_map
-
+    pub case_map: extern "C" fn(
+        flag_p: *const OnigCaseFoldType,
+        pp: *const *const OnigUChar,
+        end: *const OnigUChar,
+        to: *const OnigUChar,
+        to_end: *const OnigUChar,
+        /* ... */
+    ) -> c_int,
     // int ruby_encoding_index;
     pub ruby_encoding_index: EncodingIndex,
     // unsigned int  flags;
