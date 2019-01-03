@@ -1,5 +1,5 @@
 use rubysys::{encoding, string, vm};
-use types::{c_char, size_t, c_int, Value, EncodingIndex, ValueType};
+use types::{c_char, size_t, c_int, Value, EncodingIndex, ValueType, EncodingType};
 use std::ffi::CString;
 use util;
 
@@ -29,28 +29,28 @@ pub fn is_compatible_encoding(str1: Value, str2: Value) -> bool {
 }
 
 pub fn from_encoding_index(idx: EncodingIndex) -> Value {
-    unsafe { encoding::rb_enc_from_encoding(encoding::rb_enc_from_index(idx.0)) }
+    unsafe { encoding::rb_enc_from_encoding(encoding::rb_enc_from_index(idx)) }
 }
 
 pub fn usascii_encoding() -> Value {
-    unsafe { from_encoding_index(EncodingIndex(encoding::rb_usascii_encindex())) }
+    unsafe { from_encoding_index(encoding::rb_usascii_encindex()) }
 }
 
 pub fn utf8_encoding() -> Value {
-    unsafe { from_encoding_index(EncodingIndex(encoding::rb_utf8_encindex())) }
+    unsafe { from_encoding_index(encoding::rb_utf8_encindex()) }
 }
 
 pub fn enc_get_index(s: Value) -> EncodingIndex {
     let idx = unsafe { encoding::rb_enc_get_index(s) };
 
-    EncodingIndex(idx)
+    idx
 }
 
 pub fn find_encoding_index(name: &str) -> EncodingIndex {
     let cstr = CString::new(name).unwrap();
     let idx = unsafe { encoding::rb_enc_find_index(cstr.as_ptr()) };
 
-    EncodingIndex(idx)
+    idx
 }
 
 pub fn encode(str: Value, to: Value, ecflags: c_int, ecopts: Value) -> Value {
