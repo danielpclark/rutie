@@ -107,8 +107,8 @@ pub fn set_errinfo(err: Value) {
 
 pub fn thread_call_without_gvl<F, R, G>(func: F, unblock_func: Option<G>) -> R
 where
-    F: FnOnce() -> R,
-    G: FnOnce(),
+    F: FnMut() -> R,
+    G: FnMut(),
 {
     unsafe {
         let ptr = if let Some(ubf) = unblock_func {
@@ -133,8 +133,8 @@ where
 
 pub fn thread_call_without_gvl2<F, R, G>(func: F, unblock_func: Option<G>) -> R
 where
-    F: FnOnce() -> R,
-    G: FnOnce(),
+    F: FnMut() -> R,
+    G: FnMut(),
 {
     unsafe {
         let ptr = if let Some(ubf) = unblock_func {
@@ -159,7 +159,7 @@ where
 
 pub fn thread_call_with_gvl<F, R>(func: F) -> R
 where
-    F: FnOnce() -> R,
+    F: FnMut() -> R,
 {
     unsafe {
         let ptr =
