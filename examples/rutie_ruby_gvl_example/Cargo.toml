@@ -1,0 +1,17 @@
+[package]
+name = "rutie_ruby_gvl_example"
+version = "0.1.0"
+authors = ["Daniel P. Clark <6ftdan@gmail.com>"]
+
+[dependencies]
+rutie = { path = "../../" }
+
+[lib]
+name = "rutie_ruby_gvl_example"
+crate-type = ["dylib"]
+
+[profile.release]
+debug = true
+opt-level = 0
+rpath = true
+debug-assertions = true
