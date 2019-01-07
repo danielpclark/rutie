@@ -25,4 +25,9 @@ class RutieRubyExampleTest < Minitest::Test
     ret = RutieExample.call_ruby_in_call_with_gvl
     assert_equal "Object", ret
   end
+
+  def test_it_spawns_a_ruby_thread
+    ret = RutieExample.create_thread
+    assert_equal "Object", ret
+  end
 end

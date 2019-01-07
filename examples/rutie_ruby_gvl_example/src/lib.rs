@@ -1,7 +1,10 @@
 #[macro_use]
 extern crate rutie;
 
-use rutie::{Class, Object, RString, Thread, Fixnum, AnyObject};
+use rutie::{Class, Object, RString, Thread, Fixnum, AnyObject, NilClass};
+use std::sync::mpsc;
+use std::os::unix::io::AsRawFd;
+use std::os::unix::net::UnixStream;
 
 class!(RutieExample);
 
@@ -65,6 +68,24 @@ methods! {
         );
         b
     }
+
+    fn create_thread() -> AnyObject {
+        let (tx, rx) = mpsc::channel();
+        Thread::new(move || {
+            let ruby_class = Class::from_existing("Object");
+            let name = ruby_class.send("name", None);
+            tx.send(name).unwrap();
+            NilClass::new()
+        });
+        let (unix_socket, _) = UnixStream::pair().unwrap();
+        loop {
+            if let Ok(ret) = rx.try_recv() {
+                return ret;
+            } else {
+                Thread::wait_fd(unix_socket.as_raw_fd());
+            }
+        }
+    }
 }
 
 fn fibonacci(n: u32) -> u32 {
@@ -84,5 +105,6 @@ pub extern "C" fn Init_rutie_ruby_gvl_example() {
         itself.def_self("heap_allocated_returning_input", heap_allocated_returning_input);
         itself.def_self("heap_allocated_returning_from_closure", heap_allocated_returning_from_closure);
         itself.def_self("call_ruby_in_call_with_gvl", call_ruby_in_call_with_gvl);
+        itself.def_self("create_thread", create_thread);
     });
 }

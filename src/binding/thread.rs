@@ -12,10 +12,10 @@ use Object;
 
 pub fn create<F, R>(func: F) -> Value
 where
-    F: 'static + FnOnce() -> R,
+    F: FnMut() -> R,
     R: Object,
 {
-    let fnbox = Box::new(func) as Box<FnOnce() -> R>;
+    let fnbox = Box::new(func) as Box<FnMut() -> R>;
 
     let closure_ptr = Box::into_raw(Box::new(fnbox)) as CallbackMutPtr;
 

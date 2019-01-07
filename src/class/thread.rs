@@ -43,7 +43,7 @@ impl Thread {
     /// ```
     pub fn new<F, R>(func: F) -> Self
     where
-        F: 'static + FnMut() -> R,
+        F: FnMut() -> R,
         R: Object,
     {
         Self::from(thread::create(func))
