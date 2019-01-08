@@ -56,6 +56,11 @@ script:
 - |
   cargo build -vv &&
   cargo test -vv
+  cd examples/rutie_ruby_gvl_example
+  gem uninstall bundler -ax
+  gem install bundler -v 1.17.3
+  bundle install
+  bundle exec rake
 
 after_script:
 - cat target/debug/build/rutie-*/output
