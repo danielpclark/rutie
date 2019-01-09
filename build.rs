@@ -3,8 +3,6 @@ use std::ffi::OsString;
 use std::process::Command;
 use std::path::{Path, PathBuf};
 use std::env;
-
-#[cfg(target_os = "windows")]
 use std::fs;
 
 macro_rules! ci_stderr_log {
@@ -129,8 +127,7 @@ fn use_static() {
 }
 
 fn use_dylib() {
-    println!("cargo:rustc-link-search={}", rbconfig("libdir"));
-    println!("cargo:rustc-link-lib=dylib={}", rbconfig("RUBY_SO_NAME"));
+    //println!("cargo:rustc-link-search={}", rbconfig("libdir"));
     dynamic_linker_args();
     ci_stderr_log!("Using dynamic linker flags");
 }
@@ -203,15 +200,61 @@ fn windows_support() {
 #[cfg(not(target_os = "windows"))]
 fn windows_support() {}
 
+#[cfg(target_os = "linux")]
+use std::os::unix::fs::symlink;
+
+#[cfg(target_os = "linux")]
+fn ruby_lib_link_name() -> String {
+    // Rust with linker serach paths doesn't seem to use those paths
+    // but rather resorts to the systems Ruby.  So we symlink into
+    // our own deps directory for it to work.
+    let so_file = format!("libruby.so.{}.{}", rbconfig("MAJOR"), rbconfig("MINOR"));
+    let destination = format!("target/{}/deps", env::var("PROFILE").unwrap());
+    let _ = fs::create_dir_all(&destination).map_err(|_|()).expect("create_dir_all fail");
+    let source = format!("{}/{}", rbconfig("libdir"), so_file);
+    let target = format!("{}/{}", destination, so_file);
+
+    if !Path::new(&target).exists() {
+        let _ = symlink(source, target).expect("symlink fail");
+    }
+    // The following only works with system installed Ruby
+    // ```
+    // format!(
+    //   "{}-{}.{}",
+    //   rbconfig("RUBY_BASE_NAME"),
+    //   rbconfig("MAJOR"),
+    //   rbconfig("MINOR")
+    // )
+    // ```
+    rbconfig("RUBY_SO_NAME")
+}
+
+#[cfg(target_os = "macos")]
+fn ruby_lib_link_name() -> String {
+    format!(
+      "{}.{}.{}.{}",
+      rbconfig("RUBY_BASE_NAME"),
+      rbconfig("MAJOR"),
+      rbconfig("MINOR").
+      rbconfig("TEENY")
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn ruby_lib_link_name() -> String {
+    rbconfig("RUBY_SO_NAME")
+}
+
 fn dynamic_linker_args() {
-   let mut library = Library::new();
-   library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes());
-   library.parse_libs_cflags(rbconfig("LIBS").as_bytes());
+    let mut library = Library::new();
+    library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes());
+    println!("cargo:rustc-link-lib=dylib={}", ruby_lib_link_name());
+    library.parse_libs_cflags(rbconfig("LIBS").as_bytes());
 }
 
 fn static_linker_args() {
-   let mut library = Library::new();
-   library.parse_libs_cflags(rbconfig("LIBRUBYARG_STATIC").as_bytes());
+    let mut library = Library::new();
+    library.parse_libs_cflags(rbconfig("LIBRUBYARG_STATIC").as_bytes());
 }
 
 #[derive(Debug)]
