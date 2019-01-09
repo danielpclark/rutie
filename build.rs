@@ -1,7 +1,7 @@
-extern crate pkg_config;
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::process::Command;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::env;
 
 #[cfg(target_os = "windows")]
@@ -24,33 +24,6 @@ fn rbconfig(key: &str) -> String {
         .unwrap_or_else(|e| panic!("ruby not found: {}", e));
 
     String::from_utf8(config.stdout).expect("RbConfig value not UTF-8!")
-}
-
-fn ruby_name() -> String {
-    env::var_os("LIBRUBY_NAME")
-        .map(|var| var.to_string_lossy().to_string())
-        .unwrap_or(String::from("ruby"))
-}
-
-fn set_env_pkg_config() {
-    if env::var_os("PKG_CONFIG_PATH").is_none() {
-        let key = "PKG_CONFIG_PATH";
-        let value = Path::new(&rbconfig("libdir")).join("pkgconfig");
-        std::env::set_var(key, &value);
-        ci_stderr_log!("Set PKG_CONFIG_PATH to {:?}", value);
-    }
-}
-
-fn trim_teeny(version: &str) -> &str {
-    version.rsplitn(2, '.').collect::<Vec<&str>>().last().unwrap()
-}
-
-fn ruby_version() -> String {
-    rbconfig("RUBY_PROGRAM_VERSION")
-}
-
-fn transform_lib_args(rbconfig_key: &str, replacement: &str) -> String {
-    rbconfig(rbconfig_key).replace("-l", replacement)
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -149,10 +122,8 @@ fn use_static() {
     // If Mac OS
     macos_static_ruby_dep();
 
-    // Ruby gives back the libs in the form: `-lpthread -lgmp`
-    // Cargo wants them as: `-l pthread -l gmp`
     // **Flags must be last in order for linking!**
-    println!("cargo:rustc-flags={}", transform_lib_args("LIBS", "-l "));
+    static_linker_args();
 
     ci_stderr_log!("Using static linker flags");
 }
@@ -160,6 +131,7 @@ fn use_static() {
 fn use_dylib() {
     println!("cargo:rustc-link-search={}", rbconfig("libdir"));
     println!("cargo:rustc-link-lib=dylib={}", rbconfig("RUBY_SO_NAME"));
+    dynamic_linker_args();
     ci_stderr_log!("Using dynamic linker flags");
 }
 
@@ -231,6 +203,140 @@ fn windows_support() {
 #[cfg(not(target_os = "windows"))]
 fn windows_support() {}
 
+fn dynamic_linker_args() {
+   let mut library = Library::new();
+   library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes());
+   library.parse_libs_cflags(rbconfig("LIBS").as_bytes());
+}
+
+fn static_linker_args() {
+   let mut library = Library::new();
+   library.parse_libs_cflags(rbconfig("LIBRUBYARG_STATIC").as_bytes());
+}
+
+#[derive(Debug)]
+pub struct Library {
+    pub libs: Vec<String>,
+    pub link_paths: Vec<PathBuf>,
+    pub frameworks: Vec<String>,
+    pub framework_paths: Vec<PathBuf>,
+    pub include_paths: Vec<PathBuf>,
+    pub defines: HashMap<String, Option<String>>,
+    pub version: String,
+    _priv: (),
+}
+
+impl Library {
+    fn new() -> Library {
+        Library {
+            libs: Vec::new(),
+            link_paths: Vec::new(),
+            include_paths: Vec::new(),
+            frameworks: Vec::new(),
+            framework_paths: Vec::new(),
+            defines: HashMap::new(),
+            version: String::new(),
+            _priv: (),
+        }
+    }
+
+    fn parse_libs_cflags(&mut self, output: &[u8]) {
+        let mut is_msvc = false;
+        if let Ok(target) = env::var("TARGET") {
+            if target.contains("msvc") {
+                is_msvc = true;
+            }
+        }
+
+        let words = split_flags(output);
+        let parts = words.iter()
+                          .filter(|l| l.len() > 2)
+                          .map(|arg| (&arg[0..2], &arg[2..]))
+                          .collect::<Vec<_>>();
+
+        let mut dirs = Vec::new();
+        for &(flag, val) in &parts {
+            match flag {
+                "-L" => {
+                    let meta = format!("rustc-link-search=native={}", val);
+                    println!("cargo:{}", &meta);
+                    dirs.push(PathBuf::from(val));
+                    self.link_paths.push(PathBuf::from(val));
+                }
+                "-F" => {
+                    let meta = format!("rustc-link-search=framework={}", val);
+                    println!("cargo:{}", &meta);
+                    self.framework_paths.push(PathBuf::from(val));
+                }
+                "-I" => {
+                    self.include_paths.push(PathBuf::from(val));
+                }
+                "-l" => {
+                    // These are provided by the CRT with MSVC
+                    if is_msvc && ["m", "c", "pthread"].contains(&val) {
+                        continue;
+                    }
+
+                    if is_static() {
+                        let meta = format!("rustc-link-lib=static={}", val);
+                        println!("cargo:{}", &meta);
+                    } else {
+                        let meta = format!("rustc-link-lib={}", val);
+                        println!("cargo:{}", &meta);
+                    }
+
+                    self.libs.push(val.to_string());
+                }
+                "-D" => {
+                    let mut iter = val.split("=");
+                    self.defines.insert(iter.next().unwrap().to_owned(), iter.next().map(|s| s.to_owned()));
+                }
+                _ => {}
+            }
+        }
+
+        let mut iter = words.iter()
+                            .flat_map(|arg| if arg.starts_with("-Wl,") {
+                                 arg[4..].split(',').collect()
+                             } else {
+                                 vec![arg.as_ref()]
+                             });
+        while let Some(part) = iter.next() {
+            if part != "-framework" {
+                continue
+            }
+            if let Some(lib) = iter.next() {
+                let meta = format!("rustc-link-lib=framework={}", lib);
+                println!("cargo:{}", &meta);
+                self.frameworks.push(lib.to_string());
+            }
+        }
+    }
+}
+
+fn split_flags(output: &[u8]) -> Vec<String> {
+    let mut word = Vec::new();
+    let mut words = Vec::new();
+
+    for &b in output {
+        match b {
+            b' ' => {
+                if !word.is_empty() {
+                    words.push(String::from_utf8(word).unwrap());
+                    word = Vec::new();
+                }
+            }
+            _ => word.push(b),
+        }
+    }
+
+    words
+}
+
+fn is_static() -> bool {
+    env::var_os("RUBY_STATIC").is_some()
+}
+
 fn main() {
     // Ruby programs calling Rust doesn't need cc linking
     if let None = std::env::var_os("NO_LINK_RUTIE") {
@@ -238,24 +344,7 @@ fn main() {
         // If windows OS do windows stuff
         windows_support();
 
-        if env::var_os("RUTIE_NO_PKG_CONFIG").is_none() && env::var_os("RUBY_STATIC").is_none() {
-            // Ruby often includes pkgconfig under their lib dir
-            set_env_pkg_config();
-
-            let ruby_version = ruby_version();
-            let version = trim_teeny(&ruby_version);
-
-            // To disable the use of pkg-config set the environment variable `RUTIE_NO_PKG_CONFIG`
-            match pkg_config::Config::new().atleast_version(version).probe(&ruby_name()) {
-                Ok(_) => {
-                    ci_stderr_log!("pkg-config is being used");
-                    return;
-                },
-                Err(err) => ci_stderr_log!("{:?}", err),
-            }
-        }
-
-        if env::var_os("RUBY_STATIC").is_some() {
+        if is_static() {
             ci_stderr_log!("RUBY_STATIC is set");
             use_static()
         } else {
