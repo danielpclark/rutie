@@ -3,7 +3,7 @@
 install () {
     local RVM_OPTS=()
 
-    if [[ "$BUILD_RUBY_VERSION" == "2.4"* ]]; then
+    if [[ "$BUILD_RUBY_VERSION" == "2.4"* ]] && [[ "$TRAVIS_OS_NAME" = "linux" ]]; then
         RVM_OPTS+=("--disable-binary")
     fi
 
