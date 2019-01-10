@@ -26,44 +26,6 @@ fn rbconfig(key: &str) -> String {
     String::from_utf8(config.stdout).expect("RbConfig value not UTF-8!")
 }
 
-#[cfg(not(target_os = "windows"))]
-fn static_ruby_file_name() -> String {
-    rbconfig("LIBRUBY_A")
-}
-
-#[cfg(target_os = "windows")]
-fn static_ruby_file_name() -> String {
-    let libruby_so = rbconfig("LIBRUBY_SO");
-    let ruby_dll = Path::new(&libruby_so);
-    let name = ruby_dll.file_stem().unwrap();
-    format!("{}.lib", name.to_string_lossy())
-}
-
-#[cfg(not(target_os = "windows"))]
-fn static_ruby_location() -> String {
-    let location = env::var_os("RUBY_STATIC_PATH")
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or(rbconfig("libdir"));
-
-    if !Path::new(&location).join(static_ruby_file_name()).exists() {
-        panic!("{} was not found in path {}, but static build was chosen.\n\
-               Please use environment variable RUBY_STATIC_PATH to define where {} is located.",
-               static_ruby_file_name(), location, static_ruby_file_name());
-    }
-
-    location
-}
-
-#[cfg(target_os = "windows")]
-fn static_ruby_location() -> String {
-    let location: Option<String> = env::var_os("RUBY_STATIC_PATH").map(|s|s.to_string_lossy().to_string());
-    let location: String = location.unwrap_or(
-      Path::new("target").join(env::var_os("PROFILE").unwrap()).join("deps").to_string_lossy().to_string()
-    );
-
-    location
-}
-
 #[cfg(not(target_os = "macos"))]
 fn macos_static_ruby_dep() {}
 
@@ -111,10 +73,9 @@ fn windows_static_ruby_dep() {
 }
 
 fn use_static() {
-    println!("cargo:rustc-link-search={}", static_ruby_location());
-    let static_name = static_ruby_file_name();
-    let static_name = Path::new(&static_name).file_stem().unwrap().to_string_lossy();
-    println!("cargo:rustc-link-lib={}", static_name.trim_start_matches("lib"));
+    if let Some(location) = env::var_os("RUBY_STATIC_PATH").map(|s|s.to_string_lossy().to_string()) {
+        println!("cargo:rustc-link-search={}", location);
+    }
 
     // If Windows
     windows_static_ruby_dep();
@@ -240,14 +201,15 @@ fn ruby_lib_link_name() -> String {
 
 fn dynamic_linker_args() {
     let mut library = Library::new();
-    library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes());
+    library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), false);
     println!("cargo:rustc-link-lib=dylib={}", ruby_lib_link_name());
-    library.parse_libs_cflags(rbconfig("LIBS").as_bytes());
+    library.parse_libs_cflags(rbconfig("LIBS").as_bytes(), false);
 }
 
 fn static_linker_args() {
     let mut library = Library::new();
-    library.parse_libs_cflags(rbconfig("LIBRUBYARG_STATIC").as_bytes());
+    library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), true);
+    library.parse_libs_cflags(rbconfig("MAINLIBS").as_bytes(), false);
 }
 
 #[derive(Debug)]
@@ -276,7 +238,7 @@ impl Library {
         }
     }
 
-    fn parse_libs_cflags(&mut self, output: &[u8]) {
+    fn parse_libs_cflags(&mut self, output: &[u8], statik: bool) {
         let mut is_msvc = false;
         if let Ok(target) = env::var("TARGET") {
             if target.contains("msvc") {
@@ -313,7 +275,7 @@ impl Library {
                         continue;
                     }
 
-                    if is_static() {
+                    if is_static() && statik {
                         let meta = format!("rustc-link-lib=static={}", val);
                         println!("cargo:{}", &meta);
                     } else {
