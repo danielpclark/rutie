@@ -3,6 +3,8 @@ use std::ffi::OsString;
 use std::process::Command;
 use std::path::{Path, PathBuf};
 use std::env;
+
+#[cfg(not(target_os = "macos"))]
 use std::fs;
 
 macro_rules! ci_stderr_log {

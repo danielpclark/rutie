@@ -7,7 +7,6 @@ os:
 rust:
   - stable
   - beta
-  - nightly
 
 cache:
   bundler: true
