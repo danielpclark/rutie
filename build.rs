@@ -126,19 +126,8 @@ fn use_static() {
     ci_stderr_log!("Using static linker flags");
 }
 
-#[cfg(target_os = "macos")]
-fn mac_use_dylib() {
-    println!("cargo:rustc-link-search={}", rbconfig("libdir"));
-}
-
-#[cfg(not(target_os = "macos"))]
-fn mac_use_dylib() {}
-
 fn use_dylib() {
-    // Need search path for Mac
-    mac_use_dylib();
-
-    // Process all of Ruby's cflag linker args
+    println!("cargo:rustc-link-search={}", rbconfig("libdir"));
     dynamic_linker_args();
     ci_stderr_log!("Using dynamic linker flags");
 }
