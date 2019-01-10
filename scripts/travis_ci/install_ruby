@@ -3,10 +3,6 @@
 install () {
     local RVM_OPTS=()
 
-    if [[ "$TRAVIS_OS_NAME" = "linux" ]]; then
-        RVM_OPTS+=("--disable-binary")
-    fi
-
     if [[ ! -z "$RUBY_STATIC" ]]; then
         RVM_OPTS+=("--disable-shared")
     fi
@@ -22,16 +18,6 @@ install () {
 
     source "$HOME/.rvm/scripts/rvm"
     rvm use "$BUILD_RUBY_VERSION"
-
-    if [[ ! -z "$RUBY_STATIC" ]]; then
-        local LIB=$(ruby -e 'puts File.join(RbConfig::CONFIG["libdir"], RbConfig::CONFIG["LIBRUBY_A"])')
-    else
-        local LIB=$(ruby -e 'puts File.join(RbConfig::CONFIG["libdir"], RbConfig::CONFIG["LIBRUBY_ALIASES"].split(" ").first)')
-    fi
-
-    echo "Copying $LIB to target/debug/deps"
-    mkdir -p target/debug/deps
-    cp -f "$LIB" target/debug/deps
 }
 
 if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then
