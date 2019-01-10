@@ -226,11 +226,10 @@ fn ruby_lib_link_name() -> String {
 #[cfg(target_os = "macos")]
 fn ruby_lib_link_name() -> String {
     format!(
-      "{}.{}.{}.{}",
+      "{}.{}.{}",
       rbconfig("RUBY_BASE_NAME"),
       rbconfig("MAJOR"),
-      rbconfig("MINOR"),
-      rbconfig("TEENY")
+      rbconfig("MINOR")
     )
 }
 
