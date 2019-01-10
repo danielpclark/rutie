@@ -7,6 +7,8 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
+
+## [0.5.3] - 2019-01-10
 ### Added
 - `util::is_proc` & `util::is_method`
 - `rb_enc_compatible` useful for internal string encoding compatibilty checks from
