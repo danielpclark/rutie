@@ -6,7 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 for the public APIs. `rubysys`, even though shared publicly, is considered a private
 API and may have breaking changes during a teeny version change.
 
+
 ## [Unreleased]
+### Added
+- `GC::adjust_memory_usage`, thanks to @Antti
+
+### Fixed
+- `GC::mark` documentation notes.
 
 ## [0.5.3] - 2019-01-10
 ### Added

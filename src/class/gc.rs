@@ -6,7 +6,11 @@ use Object;
 pub struct GC;
 
 impl GC {
-    /// Mark an object for garbage collection.
+    /// Mark an object for Ruby to avoid garbage collecting item.
+    ///
+    /// If the wrapped struct in Rust references Ruby objects, then
+    /// you'll have to mark those in the mark callback you are passing
+    /// to wrapped struct.
     ///
     /// # Examples
     ///
