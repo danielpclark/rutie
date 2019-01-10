@@ -329,6 +329,10 @@ fn split_flags(output: &[u8]) -> Vec<String> {
         }
     }
 
+    if !word.is_empty() {
+        words.push(String::from_utf8(word).unwrap());
+    }
+
     words
 }
 
