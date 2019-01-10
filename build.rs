@@ -126,8 +126,19 @@ fn use_static() {
     ci_stderr_log!("Using static linker flags");
 }
 
+#[cfg(target_os = "macos")]
+fn mac_use_dylib() {
+    println!("cargo:rustc-link-search={}", rbconfig("libdir"));
+}
+
+#[cfg(not(target_os = "macos"))]
+fn mac_use_dylib() {}
+
 fn use_dylib() {
-    //println!("cargo:rustc-link-search={}", rbconfig("libdir"));
+    // Need search path for Mac
+    mac_use_dylib();
+
+    // Process all of Ruby's cflag linker args
     dynamic_linker_args();
     ci_stderr_log!("Using dynamic linker flags");
 }
@@ -205,7 +216,7 @@ use std::os::unix::fs::symlink;
 
 #[cfg(target_os = "linux")]
 fn ruby_lib_link_name() -> String {
-    // Rust with linker serach paths doesn't seem to use those paths
+    // Rust with linker search paths doesn't seem to use those paths
     // but rather resorts to the systems Ruby.  So we symlink into
     // our own deps directory for it to work.
     let so_file = format!("libruby.so.{}.{}", rbconfig("MAJOR"), rbconfig("MINOR"));
@@ -217,15 +228,7 @@ fn ruby_lib_link_name() -> String {
     if !Path::new(&target).exists() {
         let _ = symlink(source, target).expect("symlink fail");
     }
-    // The following only works with system installed Ruby
-    // ```
-    // format!(
-    //   "{}-{}.{}",
-    //   rbconfig("RUBY_BASE_NAME"),
-    //   rbconfig("MAJOR"),
-    //   rbconfig("MINOR")
-    // )
-    // ```
+
     rbconfig("RUBY_SO_NAME")
 }
 
