@@ -20,9 +20,6 @@ links = "ruby"
 libc = "0.2.42"
 lazy_static = "1.0.1"
 
-[build-dependencies]
-pkg-config = "0.3.10"
-
 [badges]
 travis-ci = { repository = "danielpclark/rutie", branch = "master" }
 maintenance = { status = "actively-developed" }

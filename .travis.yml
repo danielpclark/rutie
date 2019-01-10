@@ -7,7 +7,6 @@ os:
 rust:
   - stable
   - beta
-  - nightly
 
 cache:
   bundler: true
@@ -28,26 +27,26 @@ matrix:
   allow_failures:
     - rust: beta
     - rust: nightly
-    - env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.5.3
+    - env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
     - os: windows
       rust: stable
-      env: BUILD_RUBY_VERSION=2.5.3
+      env: BUILD_RUBY_VERSION=2.6.0
     - os: windows
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.5.3
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
   include:
     - os: linux
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.5.3
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
     - os: osx
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.5.3
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
     - os: windows
       rust: stable
-      env: BUILD_RUBY_VERSION=2.5.3
+      env: BUILD_RUBY_VERSION=2.6.0
     - os: windows
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.5.3
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
 
 before_script:
 - export PATH=$HOME/.cargo/bin:$HOME/.local/bin:$PATH
