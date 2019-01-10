@@ -1,6 +1,6 @@
 use rubysys::libc::{intptr_t, uintptr_t};
 
-pub use rubysys::libc::{c_char, c_double, c_int, c_long, c_void, size_t};
+pub use rubysys::libc::{c_char, c_double, c_int, c_long, c_void, size_t, ssize_t};
 
 #[cfg(unix)]
 pub use std::os::unix::io::RawFd;
