@@ -235,7 +235,7 @@ fn ruby_lib_link_name() -> String {
       "{}.{}.{}.{}",
       rbconfig("RUBY_BASE_NAME"),
       rbconfig("MAJOR"),
-      rbconfig("MINOR").
+      rbconfig("MINOR"),
       rbconfig("TEENY")
     )
 }
