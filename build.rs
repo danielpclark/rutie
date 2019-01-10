@@ -209,6 +209,7 @@ fn dynamic_linker_args() {
 fn static_linker_args() {
     let mut library = Library::new();
     library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), true);
+    library.parse_libs_cflags(format!("-l{}-static", rbconfig("RUBY_SO_NAME")).as_bytes(), true);
     library.parse_libs_cflags(rbconfig("MAINLIBS").as_bytes(), false);
 }
 
