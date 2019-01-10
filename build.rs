@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::process::Command;
 use std::path::{Path, PathBuf};
@@ -250,7 +250,7 @@ impl Library {
         let parts = words.iter()
                           .filter(|l| l.len() > 2)
                           .map(|arg| (&arg[0..2], &arg[2..]))
-                          .collect::<Vec<_>>();
+                          .collect::<HashSet<_>>();
 
         let mut dirs = Vec::new();
         for &(flag, val) in &parts {
