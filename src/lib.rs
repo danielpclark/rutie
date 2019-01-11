@@ -43,5 +43,25 @@ pub use class::traits::try_convert::TryConvert;
 
 pub use helpers::codepoint_iterator::CodepointIterator;
 
-#[test]
-fn it_works() {}
+#[cfg(test)]
+mod current_ruby {
+    use std::process::Command;
+    use super::{Object, RString, VM};
+
+    #[test]
+    fn is_linked_ruby() {
+        VM::init();
+       
+        let rv = RString::from(VM::eval("RUBY_VERSION").unwrap().value()).to_string();
+        let output = Command::new("ruby").arg("-e").arg("printf RUBY_VERSION").output().unwrap().stdout;
+        let crv = String::from_utf8_lossy(&output);
+       
+        assert_eq!(rv, crv,
+                   "\nCurrent console Ruby is version {} but the \
+                   linked Ruby is version {} \
+                   Please run `cargo clean` first to remove previously used symbolic link in \
+                   the dependency directory.", crv, rv
+        );
+    }
+   
+}
