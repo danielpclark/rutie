@@ -10,9 +10,15 @@ API and may have breaking changes during a teeny version change.
 ## [Unreleased]
 ### Added
 - `GC::adjust_memory_usage`, thanks to @Antti
+- `examples/rutie_ruby_gvl_example`, thanks to @dsander
 
 ### Fixed
 - `GC::mark` documentation notes.
+- `util::closure_to_ptr` from `'static + FnOnce` to `FnMut`, thanks to @dsander
+- `Thread::new` from `'static + FnOnce` to `FnMut`, thanks to @dsander
+- `Thread::call_without_gvl` from `'static + FnOnce` to `FnMut`, thanks to @dsander
+- `Thread::call_without_gvl2` from `'static + FnOnce` to `FnMut`, thanks to @dsander
+- `Thread::call_with_gvl` from `'static + FnOnce` to `FnMut`, thanks to @dsander
 
 ## [0.5.3] - 2019-01-10
 ### Added
