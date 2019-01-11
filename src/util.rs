@@ -86,16 +86,16 @@ pub fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject
     unsafe { slice::from_raw_parts(arguments, argc as usize).to_vec() }
 }
 
-pub fn closure_to_ptr<F, R>(func: F) -> *const c_void
+pub fn closure_to_ptr<F, R>(mut func: F) -> *const c_void
 where
-    F: FnOnce() -> R,
+    F: FnMut() -> R,
 {
-    let wrap_return = || {
+    let wrap_return = move || {
         let r = func();
         Box::into_raw(Box::new(r)) as *const c_void
     };
 
-    let fnbox = Box::new(wrap_return) as Box<FnOnce() -> *const c_void>;
+    let fnbox = Box::new(wrap_return) as Box<FnMut() -> *const c_void>;
 
     Box::into_raw(Box::new(fnbox)) as *const c_void
 }

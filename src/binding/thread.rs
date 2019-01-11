@@ -12,10 +12,10 @@ use Object;
 
 pub fn create<F, R>(func: F) -> Value
 where
-    F: 'static + FnOnce() -> R,
+    F: FnMut() -> R,
     R: Object,
 {
-    let fnbox = Box::new(func) as Box<FnOnce() -> R>;
+    let fnbox = Box::new(func) as Box<FnMut() -> R>;
 
     let closure_ptr = Box::into_raw(Box::new(fnbox)) as CallbackMutPtr;
 
@@ -29,8 +29,8 @@ pub fn wait_fd(fd: RawFd) {
 
 pub fn call_without_gvl<F, R, G>(func: F, unblock_func: Option<G>) -> R
 where
-    F: 'static + FnOnce() -> R,
-    G: 'static + FnOnce(),
+    F: FnMut() -> R,
+    G: FnMut(),
 {
     unsafe {
         let ptr = if let Some(ubf) = unblock_func {
@@ -55,8 +55,8 @@ where
 
 pub fn call_without_gvl2<F, R, G>(func: F, unblock_func: Option<G>) -> R
 where
-    F: 'static + FnOnce() -> R,
-    G: 'static + FnOnce(),
+    F: FnMut() -> R,
+    G: FnMut(),
 {
     unsafe {
         let ptr = if let Some(ubf) = unblock_func {
@@ -81,7 +81,7 @@ where
 
 pub fn call_with_gvl<F, R>(func: F) -> R
 where
-    F: 'static + FnOnce() -> R,
+    F: FnMut() -> R,
 {
     unsafe {
         let ptr = thread::rb_thread_call_with_gvl(

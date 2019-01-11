@@ -37,6 +37,15 @@ matrix:
   include:
     - os: linux
       rust: stable
+      env: RUBY_THREADING=true BUILD_RUBY_VERSION=2.6.0
+      script: - |
+                cd examples/rutie_ruby_gvl_example
+                gem uninstall bundler -ax
+                gem install bundler -v 1.17.3
+                bundle install
+                bundle exec rake
+    - os: linux
+      rust: stable
       env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
     - os: osx
       rust: stable
