@@ -148,15 +148,15 @@ impl Class {
     /// use rutie::{Class, Fixnum, Object};
     ///
     /// // Without arguments
-    /// Class::from_existing("Hello").new_instance(None);
+    /// Class::from_existing("Hello").new_instance(&[]);
     ///
     /// // With arguments passing arguments to constructor
-    /// let arguments = [
+    /// let arguments = vec![
     ///     Fixnum::new(1).to_any_object(),
     ///     Fixnum::new(2).to_any_object()
     /// ];
     ///
-    /// Class::from_existing("Worker").new_instance(Some(&arguments));
+    /// Class::from_existing("Worker").new_instance(&arguments);
     /// ```
     ///
     /// Ruby:
@@ -166,8 +166,8 @@ impl Class {
     ///
     /// Worker.new(1, 2)
     /// ```
-    pub fn new_instance(&self, arguments: Option<&[AnyObject]>) -> AnyObject {
-        let arguments = util::arguments_to_values(arguments).unwrap_or_default();
+    pub fn new_instance(&self, arguments: &[AnyObject]) -> AnyObject {
+        let arguments = util::arguments_to_values(arguments);
         let instance = class::new_instance(self.value(), &arguments);
 
         AnyObject::from(instance)
@@ -189,7 +189,7 @@ impl Class {
     /// String.allocate
     /// ```
     pub fn allocate(&self) -> Class {
-        Class::from(self.send("allocate", None).value())
+        Class::from(self.send("allocate", &[]).value())
     }
 
     /// Returns a superclass of the current class

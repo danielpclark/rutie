@@ -298,7 +298,7 @@ impl VM {
     ///         let greeting_template = VM::block_proc();
     ///         let name = RString::new_utf8("Rust").to_any_object();
     ///
-    ///         greeting_template.call(Some(&[name])).try_convert_to::<RString>().unwrap()
+    ///         greeting_template.call(&[name]).try_convert_to::<RString>().unwrap()
     ///     }
     /// );
     ///
@@ -348,7 +348,7 @@ impl VM {
     ///
     ///         if VM::is_block_given() {
     ///             let arguments = [a.to_any_object(), b.to_any_object()];
-    ///             let result = VM::block_proc().call(Some(&arguments));
+    ///             let result = VM::block_proc().call(&arguments);
     ///
     ///             result.try_convert_to::<Fixnum>().unwrap()
     ///         } else {
@@ -515,8 +515,8 @@ impl VM {
     /// # Examples
     ///
     /// ```text
-    /// fn protect_send(&self, method: &str, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
-    ///     let closure = || { self.send(&method, arguments).value() };
+    /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
+    ///     let closure = || self.send(&method, arguments.as_ref()).value();
     ///
     ///     let result = VM::protect(closure);
     ///
@@ -542,8 +542,8 @@ impl VM {
     /// # Examples
     ///
     /// ```text
-    /// fn protect_send(&self, method: &str, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
-    ///     let closure = || { self.send(&method, arguments).value() };
+    /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
+    ///     let closure = || self.send(&method, arguments.as_ref()).value();
     ///
     ///     let result = VM::protect(closure);
     ///
@@ -566,8 +566,8 @@ impl VM {
     /// # Examples
     ///
     /// ```text
-    /// fn protect_send(&self, method: &str, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
-    ///     let closure = || { self.send(&method, arguments).value() };
+    /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
+    ///     let closure = || self.send(&method, arguments.as_ref()).value();
     ///
     ///     let result = VM::protect(closure);
     ///
