@@ -100,7 +100,7 @@ impl GC {
     ///
     /// GC::mark(&object);
     /// ```
-    pub fn mark<T: Object>(object: &T) {
+    pub fn mark(object: &impl Object) {
         gc::mark(object.value());
     }
 
@@ -123,6 +123,26 @@ impl GC {
     /// ```
     pub fn mark_locations(start: &impl Object, end: &impl Object) {
         gc::mark_locations(start.value(), end.value())
+    }
+
+    /// Maybe mark an object for Ruby to avoid garbage collecting item.
+    ///
+    /// If the wrapped struct in Rust references Ruby objects, then
+    /// you'll have to mark those in the mark callback you are passing
+    /// to wrapped struct.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, GC, VM};
+    /// # VM::init();
+    ///
+    /// let object = RString::new_utf8("1");
+    ///
+    /// GC::mark_maybe(&object);
+    /// ```
+    pub fn mark_maybe(object: &impl Object) {
+        gc::mark_maybe(object.value());
     }
 
     /// Start the garbage collector

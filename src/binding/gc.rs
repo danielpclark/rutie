@@ -33,6 +33,10 @@ pub fn mark_locations(start: Value, end: Value) {
     unsafe { gc::rb_gc_mark_locations(start, end) }
 }
 
+pub fn mark_maybe(value: Value) {
+    unsafe { gc::rb_gc_mark_maybe(value) };
+}
+
 pub fn start() {
     unsafe { gc::rb_gc_start() };
 }
