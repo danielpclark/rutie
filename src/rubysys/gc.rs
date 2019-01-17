@@ -4,9 +4,6 @@ extern "C" {
     // void
     // rb_gc_adjust_memory_usage(ssize_t diff)
     pub fn rb_gc_adjust_memory_usage(diff: ssize_t);
-    // // void
-    // // rb_gc_call_finalizer_at_exit(void)
-    // pub fn rb_gc_call_finalizer_at_exit();
     // size_t
     // rb_gc_count(void)
     pub fn rb_gc_count() -> size_t;
@@ -43,10 +40,4 @@ extern "C" {
     // void
     // rb_gc_unregister_address(VALUE *addr)
     pub fn rb_gc_unregister_address(addr: CallbackPtr);
-    // // void
-    // // rb_gc_writebarrier(VALUE a, VALUE b)
-    // pub fn rb_gc_writebarrier(a: Value, b: Value);
-    // // void
-    // // rb_gc_writebarrier_unprotect(VALUE obj)
-    // pub fn rb_gc_writebarrier_unprotect(obj: Value);
 }
