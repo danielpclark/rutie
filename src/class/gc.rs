@@ -198,7 +198,7 @@ impl GC {
     /// Get the GC stats for a specific key
     ///
     /// Note: Will panic if provided an invalid key.
-    /// 
+    ///
     /// # Examples
     ///
     /// ```

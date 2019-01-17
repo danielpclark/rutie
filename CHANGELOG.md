@@ -11,6 +11,16 @@ API and may have breaking changes during a teeny version change.
 ### Added
 - `GC::adjust_memory_usage`, thanks to @Antti
 - `examples/rutie_ruby_gvl_example`, thanks to @dsander
+- `GC::count`
+- `GC::disable`
+- `GC::enable`
+- `GC::force_recycle`
+- `GC::mark_locations`
+- `GC::mark_maybe`
+- `GC::register`
+- `GC::start`
+- `GC::stat`
+- `GC::unregister`
 
 ### Fixed
 - `GC::mark` documentation notes.
