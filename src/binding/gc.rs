@@ -6,6 +6,10 @@ pub fn adjust_memory_usage(diff: isize) {
     unsafe { gc::rb_gc_adjust_memory_usage(diff) };
 }
 
+pub fn count() -> usize {
+    unsafe { gc::rb_gc_count() }
+}
+
 pub fn disable() -> Value {
     unsafe { gc::rb_gc_disable() }
 }

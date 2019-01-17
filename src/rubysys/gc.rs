@@ -7,9 +7,9 @@ extern "C" {
     // // void
     // // rb_gc_call_finalizer_at_exit(void)
     // pub fn rb_gc_call_finalizer_at_exit();
-    // // size_t
-    // // rb_gc_count(void)
-    // pub fn rb_gc_count() -> size_t;
+    // size_t
+    // rb_gc_count(void)
+    pub fn rb_gc_count() -> size_t;
     // VALUE
     // rb_gc_disable(void)
     pub fn rb_gc_disable() -> Value;

@@ -24,6 +24,22 @@ impl GC {
         gc::adjust_memory_usage(diff)
     }
 
+    /// The number of times GC occurred.
+    ///
+    /// It returns the number of times GC occurred since the process started.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, VM};
+    /// # VM::init();
+    ///
+    /// GC::count();
+    /// ```
+    pub fn count() -> usize {
+        gc::count()
+    }
+
     /// Disable the garbage collector
     ///
     /// # Examples
