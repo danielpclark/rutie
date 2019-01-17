@@ -161,6 +161,26 @@ impl GC {
         gc::register(object.value())
     }
 
+    /// Mark an object as in use for Ruby to avoid garbage collecting item.
+    ///
+    /// If the wrapped struct in Rust references Ruby objects, then
+    /// you'll have to mark those in the mark callback you are passing
+    /// to wrapped struct.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, GC, VM};
+    /// # VM::init();
+    ///
+    /// let object = RString::new_utf8("1");
+    ///
+    /// GC::register_mark(&object);
+    /// ```
+    pub fn register_mark(object: &impl Object) {
+        gc::register_mark(object.value());
+    }
+
     /// Start the garbage collector
     ///
     /// # Examples

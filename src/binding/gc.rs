@@ -43,6 +43,10 @@ pub fn register(obj: Value) {
     unsafe { gc::rb_gc_register_address(addr) }
 }
 
+pub fn register_mark(obj: Value) {
+    unsafe { gc::rb_gc_register_mark_object(obj) }
+}
+
 pub fn start() {
     unsafe { gc::rb_gc_start() };
 }

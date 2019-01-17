@@ -31,9 +31,9 @@ extern "C" {
     // void
     // rb_gc_register_address(VALUE *addr)
     pub fn rb_gc_register_address(addr: CallbackPtr);
-    // // void
-    // // rb_gc_register_mark_object(VALUE obj)
-    // pub fn rb_gc_register_mark_object(obj: Value);
+    // void
+    // rb_gc_register_mark_object(VALUE obj)
+    pub fn rb_gc_register_mark_object(obj: Value);
     // VALUE
     // rb_gc_start(void)
     pub fn rb_gc_start() -> Value;
