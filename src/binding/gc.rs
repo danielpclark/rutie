@@ -2,6 +2,14 @@ use rubysys::gc;
 
 use types::Value;
 
+pub fn disable() -> Value {
+    unsafe { gc::rb_gc_disable() }
+}
+
+pub fn enable() -> Value {
+    unsafe { gc::rb_gc_enable() }
+}
+
 pub fn mark(value: Value) {
     unsafe { gc::rb_gc_mark(value) };
 }

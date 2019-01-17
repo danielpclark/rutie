@@ -6,6 +6,34 @@ use Object;
 pub struct GC;
 
 impl GC {
+    /// Disable the garbage collector
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, VM};
+    /// # VM::init();
+    ///
+    /// let _ = GC::disable();
+    /// ```
+    pub fn disable() -> bool {
+        gc::disable().is_true()      
+    }
+
+    /// Enable the garbage collector
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, VM};
+    /// # VM::init();
+    ///
+    /// let _ = GC::enable();
+    /// ```
+    pub fn enable() -> bool {
+        gc::enable().is_true()      
+    }
+
     /// Mark an object for Ruby to avoid garbage collecting item.
     ///
     /// If the wrapped struct in Rust references Ruby objects, then
