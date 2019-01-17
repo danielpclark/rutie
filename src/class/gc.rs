@@ -1,6 +1,6 @@
 use binding::gc;
 
-use Object;
+use { Object, AnyObject };
 
 /// Garbage collection
 pub struct GC;
@@ -86,6 +86,26 @@ impl GC {
     /// ```
     pub fn mark<T: Object>(object: &T) {
         gc::mark(object.value());
+    }
+
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, GC, VM, AnyObject};
+    /// # VM::init();
+    ///
+    /// let arr: [AnyObject; 4] = [
+    ///     RString::new_utf8("1").into(),
+    ///     RString::new_utf8("2").into(),
+    ///     RString::new_utf8("3").into(),
+    ///     RString::new_utf8("4").into(),
+    /// ];
+    ///
+    /// GC::mark_locations(&arr[0], &arr[3]);
+    /// ```
+    pub fn mark_locations(start: &AnyObject, end: &AnyObject) {
+        gc::mark_locations(start.value(), end.value())
     }
 
     /// Start the garbage collector

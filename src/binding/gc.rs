@@ -1,6 +1,6 @@
 use rubysys::gc;
 
-use types::Value;
+use types::{ Value, CallbackPtr };
 
 pub fn adjust_memory_usage(diff: isize) {
     unsafe { gc::rb_gc_adjust_memory_usage(diff) };
@@ -20,6 +20,13 @@ pub fn enable() -> Value {
 
 pub fn mark(value: Value) {
     unsafe { gc::rb_gc_mark(value) };
+}
+
+pub fn mark_locations(start: Value, end: Value) {
+    let start = &start as *const _ as CallbackPtr;
+    let end = &end as *const _ as CallbackPtr;
+
+    unsafe { gc::rb_gc_mark_locations(start, end) }
 }
 
 pub fn start() {

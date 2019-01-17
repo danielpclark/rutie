@@ -25,6 +25,9 @@ extern "C" {
     // void
     // rb_gc_mark(VALUE ptr)
     pub fn rb_gc_mark(value: Value);
+    // void
+    // rb_gc_mark_locations(const VALUE *start, const VALUE *end)
+    pub fn rb_gc_mark_locations(start: CallbackPtr, end: CallbackPtr);
     // // void
     // // rb_gc_mark_maybe(VALUE obj)
     // pub fn rb_gc_mark_maybe(obj: Value);
