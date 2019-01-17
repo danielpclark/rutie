@@ -19,9 +19,6 @@ extern "C" {
     // void
     // rb_gc_force_recycle(VALUE obj)
     pub fn rb_gc_force_recycle(obj: Value);
-    // // VALUE
-    // // rb_gc_latest_gc_info(VALUE key)
-    // pub fn rb_gc_latest_gc_info(key: Value) -> Value;
     // void
     // rb_gc_mark(VALUE ptr)
     pub fn rb_gc_mark(value: Value);
