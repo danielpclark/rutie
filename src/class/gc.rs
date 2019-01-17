@@ -6,6 +6,24 @@ use Object;
 pub struct GC;
 
 impl GC {
+    /// Notify memory usage to the GC engine by extension libraries, to trigger GC
+    /// This is useful when you wrap large rust objects using wrap_data,
+    /// when you do so, ruby is unaware of the allocated memory and might not run GC
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, VM};
+    /// # VM::init();
+    ///
+    ///
+    /// GC::adjust_memory_usage(25_000); // Tell ruby that we somehow allocated 25_000 bytes of mem
+    /// GC::adjust_memory_usage(-15_000); // Tell ruby that freed 15_000 bytes of mem
+    /// ```
+    pub fn adjust_memory_usage(diff: isize) {
+        gc::adjust_memory_usage(diff)
+    }
+
     /// Disable the garbage collector
     ///
     /// # Examples
@@ -17,7 +35,7 @@ impl GC {
     /// let _ = GC::disable();
     /// ```
     pub fn disable() -> bool {
-        gc::disable().is_true()      
+        gc::disable().is_true()
     }
 
     /// Enable the garbage collector
@@ -31,7 +49,7 @@ impl GC {
     /// let _ = GC::enable();
     /// ```
     pub fn enable() -> bool {
-        gc::enable().is_true()      
+        gc::enable().is_true()
     }
 
     /// Mark an object for Ruby to avoid garbage collecting item.
@@ -54,9 +72,7 @@ impl GC {
         gc::mark(object.value());
     }
 
-    /// Notify memory usage to the GC engine by extension libraries, to trigger GC
-    /// This is useful when you wrap large rust objects using wrap_data,
-    /// when you do so, ruby is unaware of the allocated memory and might not run GC
+    /// Start the garbage collector
     ///
     /// # Examples
     ///
@@ -64,11 +80,9 @@ impl GC {
     /// use rutie::{GC, VM};
     /// # VM::init();
     ///
-    ///
-    /// GC::adjust_memory_usage(25_000); // Tell ruby that we somehow allocated 25_000 bytes of mem
-    /// GC::adjust_memory_usage(-15_000); // Tell ruby that freed 15_000 bytes of mem
+    /// GC::start();
     /// ```
-    pub fn adjust_memory_usage(diff: isize) {
-        gc::adjust_memory_usage(diff)
+    pub fn start() {
+        gc::start()
     }
 }

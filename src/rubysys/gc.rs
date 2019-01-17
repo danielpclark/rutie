@@ -34,9 +34,9 @@ extern "C" {
     // // void
     // // rb_gc_register_mark_object(VALUE obj)
     // pub fn rb_gc_register_mark_object(obj: Value);
-    // // VALUE
-    // // rb_gc_start(void)
-    // pub fn rb_gc_start() -> Value;
+    // VALUE
+    // rb_gc_start(void)
+    pub fn rb_gc_start() -> Value;
     // // size_t
     // // rb_gc_stat(VALUE key)
     // pub fn rb_gc_stat(key: Value) -> size_t;
