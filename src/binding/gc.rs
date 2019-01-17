@@ -18,6 +18,10 @@ pub fn enable() -> Value {
     unsafe { gc::rb_gc_enable() }
 }
 
+pub fn force_recycle(obj: Value) {
+    unsafe { gc::rb_gc_force_recycle(obj) }
+}
+
 pub fn mark(value: Value) {
     unsafe { gc::rb_gc_mark(value) };
 }

@@ -68,6 +68,22 @@ impl GC {
         gc::enable().is_true()
     }
 
+    /// Forcibly GC object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, GC, VM};
+    /// # VM::init();
+    ///
+    /// let obj = RString::new_utf8("asdf");
+    ///
+    /// GC::force_recycle(obj);
+    /// ```
+    pub fn force_recycle(obj: impl Object) {
+        gc::force_recycle(obj.value())
+    }
+
     /// Mark an object for Ruby to avoid garbage collecting item.
     ///
     /// If the wrapped struct in Rust references Ruby objects, then
@@ -77,10 +93,10 @@ impl GC {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Fixnum, GC, VM};
+    /// use rutie::{RString, GC, VM};
     /// # VM::init();
     ///
-    /// let object = Fixnum::new(1);
+    /// let object = RString::new_utf8("1");
     ///
     /// GC::mark(&object);
     /// ```
@@ -96,16 +112,16 @@ impl GC {
     /// use rutie::{RString, GC, VM, AnyObject};
     /// # VM::init();
     ///
-    /// let arr: [AnyObject; 4] = [
-    ///     RString::new_utf8("1").into(),
-    ///     RString::new_utf8("2").into(),
-    ///     RString::new_utf8("3").into(),
-    ///     RString::new_utf8("4").into(),
+    /// let arr = [
+    ///     RString::new_utf8("1"),
+    ///     RString::new_utf8("2"),
+    ///     RString::new_utf8("3"),
+    ///     RString::new_utf8("4"),
     /// ];
     ///
     /// GC::mark_locations(&arr[0], &arr[3]);
     /// ```
-    pub fn mark_locations(start: &AnyObject, end: &AnyObject) {
+    pub fn mark_locations(start: &impl Object, end: &impl Object) {
         gc::mark_locations(start.value(), end.value())
     }
 
