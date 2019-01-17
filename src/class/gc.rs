@@ -145,6 +145,22 @@ impl GC {
         gc::mark_maybe(object.value());
     }
 
+    /// Registers the objects address with the GC
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, GC, VM};
+    /// # VM::init();
+    ///
+    /// let object = RString::new_utf8("1");
+    ///
+    /// GC::register(&object);
+    /// ```
+    pub fn register(object: &impl Object) {
+        gc::register(object.value())
+    }
+
     /// Start the garbage collector
     ///
     /// # Examples
@@ -157,5 +173,21 @@ impl GC {
     /// ```
     pub fn start() {
         gc::start()
+    }
+
+    /// Unregisters the objects address with the GC
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, GC, VM};
+    /// # VM::init();
+    ///
+    /// let object = RString::new_utf8("1");
+    ///
+    /// GC::unregister(&object);
+    /// ```
+    pub fn unregister(object: &impl Object) {
+        gc::unregister(object.value())
     }
 }

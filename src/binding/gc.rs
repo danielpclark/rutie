@@ -37,6 +37,18 @@ pub fn mark_maybe(value: Value) {
     unsafe { gc::rb_gc_mark_maybe(value) };
 }
 
+pub fn register(obj: Value) {
+    let addr = &obj as *const _ as CallbackPtr;
+
+    unsafe { gc::rb_gc_register_address(addr) }
+}
+
 pub fn start() {
     unsafe { gc::rb_gc_start() };
+}
+
+pub fn unregister(obj: Value) {
+    let addr = &obj as *const _ as CallbackPtr;
+
+    unsafe { gc::rb_gc_unregister_address(addr) }
 }
