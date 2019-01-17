@@ -88,6 +88,7 @@ impl GC {
         gc::mark(object.value());
     }
 
+    /// Mark all of the object from `start` to `end` of the array for the GC.
     ///
     /// # Examples
     ///
