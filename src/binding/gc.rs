@@ -51,6 +51,10 @@ pub fn start() {
     unsafe { gc::rb_gc_start() };
 }
 
+pub fn stat(key: Value) -> usize {
+    unsafe { gc::rb_gc_stat(key) }
+}
+
 pub fn unregister(obj: Value) {
     let addr = &obj as *const _ as CallbackPtr;
 

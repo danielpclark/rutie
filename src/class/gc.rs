@@ -1,6 +1,6 @@
 use binding::gc;
 
-use { Object, AnyObject };
+use { Object, AnyObject, Symbol };
 
 /// Garbage collection
 pub struct GC;
@@ -193,6 +193,24 @@ impl GC {
     /// ```
     pub fn start() {
         gc::start()
+    }
+
+    /// Get the GC stats for a specific key
+    ///
+    /// Note: Will panic if provided an invalid key.
+    /// 
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, VM};
+    /// # VM::init();
+    ///
+    /// let result = GC::stat("heap_allocated_pages");
+    /// ```
+    pub fn stat(key: &str) -> usize {
+        let key = Symbol::new(key);
+
+        gc::stat(key.value())
     }
 
     /// Unregisters the objects address with the GC

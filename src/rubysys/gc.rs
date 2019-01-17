@@ -37,9 +37,9 @@ extern "C" {
     // VALUE
     // rb_gc_start(void)
     pub fn rb_gc_start() -> Value;
-    // // size_t
-    // // rb_gc_stat(VALUE key)
-    // pub fn rb_gc_stat(key: Value) -> size_t;
+    // size_t
+    // rb_gc_stat(VALUE key)
+    pub fn rb_gc_stat(key: Value) -> size_t;
     // void
     // rb_gc_unregister_address(VALUE *addr)
     pub fn rb_gc_unregister_address(addr: CallbackPtr);
