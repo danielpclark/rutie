@@ -54,8 +54,8 @@ pub fn unregister(obj: Value) {
     unsafe { gc::rb_gc_unregister_address(addr) }
 }
 
-pub fn is_marked(obj: Value) -> bool {
-    let int = unsafe { gc::rb_objspace_marked_object_p(obj) };
+pub unsafe fn is_marked(obj: Value) -> bool {
+    let int = gc::rb_objspace_marked_object_p(obj);
 
     util::c_int_to_bool(int)
 }
