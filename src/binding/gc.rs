@@ -26,13 +26,6 @@ pub fn mark(value: Value) {
     unsafe { gc::rb_gc_mark(value) };
 }
 
-pub fn mark_locations(start: Value, end: Value) {
-    let start = &start as *const _ as CallbackPtr;
-    let end = &end as *const _ as CallbackPtr;
-
-    unsafe { gc::rb_gc_mark_locations(start, end) }
-}
-
 pub fn mark_maybe(value: Value) {
     unsafe { gc::rb_gc_mark_maybe(value) };
 }

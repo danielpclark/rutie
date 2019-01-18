@@ -139,10 +139,12 @@ impl GC {
     ///     RString::new_utf8("4"),
     /// ];
     ///
-    /// GC::mark_locations(&arr[0], &arr[3]);
+    /// GC::mark_locations(&arr);
     /// ```
-    pub fn mark_locations(start: &impl Object, end: &impl Object) {
-        gc::mark_locations(start.value(), end.value())
+    pub fn mark_locations(range: &[impl Object]) {
+        for object in range {
+            GC::mark_maybe(object)
+        }
     }
 
     /// Maybe mark an object for Ruby to avoid garbage collecting item.
