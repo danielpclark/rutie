@@ -1,6 +1,6 @@
 use rubysys::gc;
-
 use types::{ Value, CallbackPtr };
+use util;
 
 pub fn adjust_memory_usage(diff: isize) {
     unsafe { gc::rb_gc_adjust_memory_usage(diff) };
@@ -24,13 +24,6 @@ pub fn force_recycle(obj: Value) {
 
 pub fn mark(value: Value) {
     unsafe { gc::rb_gc_mark(value) };
-}
-
-pub fn mark_locations(start: Value, end: Value) {
-    let start = &start as *const _ as CallbackPtr;
-    let end = &end as *const _ as CallbackPtr;
-
-    unsafe { gc::rb_gc_mark_locations(start, end) }
 }
 
 pub fn mark_maybe(value: Value) {
@@ -59,4 +52,10 @@ pub fn unregister(obj: Value) {
     let addr = &obj as *const _ as CallbackPtr;
 
     unsafe { gc::rb_gc_unregister_address(addr) }
+}
+
+pub unsafe fn is_marked(obj: Value) -> bool {
+    let int = gc::rb_objspace_marked_object_p(obj);
+
+    util::c_int_to_bool(int)
 }
