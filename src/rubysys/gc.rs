@@ -1,4 +1,4 @@
-use rubysys::types::{size_t, ssize_t, Value, CallbackPtr};
+use rubysys::types::{c_int, size_t, ssize_t, Value, CallbackPtr};
 
 extern "C" {
     // void
@@ -40,4 +40,7 @@ extern "C" {
     // void
     // rb_gc_unregister_address(VALUE *addr)
     pub fn rb_gc_unregister_address(addr: CallbackPtr);
+    // int
+    // rb_objspace_marked_object_p(VALUE obj)
+    pub fn rb_objspace_marked_object_p(obj: Value) -> c_int;
 }

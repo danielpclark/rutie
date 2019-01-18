@@ -1,6 +1,6 @@
 use rubysys::gc;
-
 use types::{ Value, CallbackPtr };
+use util;
 
 pub fn adjust_memory_usage(diff: isize) {
     unsafe { gc::rb_gc_adjust_memory_usage(diff) };
@@ -59,4 +59,10 @@ pub fn unregister(obj: Value) {
     let addr = &obj as *const _ as CallbackPtr;
 
     unsafe { gc::rb_gc_unregister_address(addr) }
+}
+
+pub fn is_marked(obj: Value) -> bool {
+    let int = unsafe { gc::rb_objspace_marked_object_p(obj) };
+
+    util::c_int_to_bool(int)
 }

@@ -80,8 +80,28 @@ impl GC {
     ///
     /// GC::force_recycle(obj);
     /// ```
-    pub fn force_recycle(obj: impl Object) {
-        gc::force_recycle(obj.value())
+    pub fn force_recycle(object: impl Object) {
+        gc::force_recycle(object.value())
+    }
+
+    /// Check if object is marked
+    ///
+    /// CAUTION: THIS FUNCTION IS ENABLED *ONLY BEFORE* SWEEPING.
+    /// This function is only for GC_END_MARK timing.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rutie::{RString, GC, VM};
+    /// # VM::init();
+    ///
+    /// let obj = RString::new_utf8("asdf");
+    ///
+    /// GC::mark(&obj);
+    /// assert!(unsafe {GC::is_marked(&obj) }, "Object was not marked");
+    /// ```
+    pub unsafe fn is_marked(object: &impl Object) -> bool {
+        gc::is_marked(object.value())
     }
 
     /// Mark an object for Ruby to avoid garbage collecting item.
