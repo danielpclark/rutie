@@ -38,7 +38,7 @@ impl Enumerator {
     /// // ... and then Err once it's over.
     /// assert!(iter.next().is_err(), "not error!");
     ///
-    /// // More calls will always retirn Err.
+    /// // More calls will always return Err.
     /// assert!(iter.next().is_err(), "not error!");
     /// assert!(iter.next().is_err(), "not error!");
     /// ```
