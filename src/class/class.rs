@@ -151,7 +151,7 @@ impl Class {
     /// Class::from_existing("Hello").new_instance(&[]);
     ///
     /// // With arguments passing arguments to constructor
-    /// let arguments = vec![
+    /// let arguments = [
     ///     Fixnum::new(1).to_any_object(),
     ///     Fixnum::new(2).to_any_object()
     /// ];
