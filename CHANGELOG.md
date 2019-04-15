@@ -9,7 +9,7 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
-## [0.5.4]
+## [0.5.4] - 2019-04-15
 ### Added
 - `GC::adjust_memory_usage`, thanks to @Antti
 - `examples/rutie_ruby_gvl_example`, thanks to @dsander
