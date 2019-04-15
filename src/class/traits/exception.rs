@@ -24,11 +24,27 @@ pub trait Exception: Object {
     ///   "StandardError"
     /// );
     /// ```
+    ///
+    /// A nested exception
+    ///
+    /// ```
+    /// use rutie::{AnyException, Exception, Object, VM, Class};
+    /// # VM::init();
+    ///
+    /// let mut klass = Class::new("MyGem", None);
+    /// let se = Class::from_existing("StandardError");
+    /// let _ = klass.define_nested_class("MyError", Some(&se));
+    ///
+    /// assert_eq!(
+    ///   AnyException::new("MyGem::MyError", None).to_s(),
+    ///   "MyGem::MyError"
+    /// );
+    /// ```
     fn new(class: &str, msg: Option<&str>) -> Self {
-        let class = Class::from_existing(class);
+        let class = util::inmost_rb_object(class);
         let msg = msg.map(|s| RString::new_utf8(s).value());
 
-        Self::from(vm::call_method(class.value(), "new", util::option_to_slice(&msg)))
+        Self::from(vm::call_method(class, "new", util::option_to_slice(&msg)))
     }
 
     /// With no argument, or if the argument is the same as the receiver,
