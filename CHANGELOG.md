@@ -8,6 +8,8 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+
+## [0.5.4]
 ### Added
 - `GC::adjust_memory_usage`, thanks to @Antti
 - `examples/rutie_ruby_gvl_example`, thanks to @dsander
@@ -21,6 +23,7 @@ API and may have breaking changes during a teeny version change.
 - `GC::start`
 - `GC::stat`
 - `GC::unregister`
+- `util::inmost_rb_object` which is a string recurse tool to get nested ruby objects
 
 ### Fixed
 - `GC::mark` documentation notes.
@@ -29,6 +32,7 @@ API and may have breaking changes during a teeny version change.
 - `Thread::call_without_gvl` from `'static + FnOnce` to `FnMut`, thanks to @dsander
 - `Thread::call_without_gvl2` from `'static + FnOnce` to `FnMut`, thanks to @dsander
 - `Thread::call_with_gvl` from `'static + FnOnce` to `FnMut`, thanks to @dsander
+- `AnyException::new` to work with nested exception classes
 
 ## [0.5.3] - 2019-01-10
 ### Added

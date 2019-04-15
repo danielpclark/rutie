@@ -2,7 +2,8 @@ use std::ffi::{CStr, CString};
 use std::ptr;
 use std::slice;
 
-use binding::global::RubySpecialConsts;
+use binding::global::{RubySpecialConsts, rb_cObject};
+use binding::class::const_get;
 use types::{c_char, c_int, c_void, Argc, InternalValue, Value};
 
 use {AnyObject, Object, Boolean};
@@ -110,4 +111,13 @@ pub fn is_proc(obj: Value) -> bool {
 
 pub fn is_method(obj: Value) -> bool {
     Boolean::from(unsafe { rb_obj_is_method(obj) }).to_bool()
+}
+
+// Recurses to the deepest ruby object.
+//
+// Given `"A::B::C"` it will return the constant instance of `C`.
+pub fn inmost_rb_object(klass: &str) -> Value {
+    let object = unsafe { rb_cObject };
+
+    klass.split("::").fold(object, |acc, x| const_get(acc, x))
 }
