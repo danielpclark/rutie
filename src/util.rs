@@ -115,7 +115,7 @@ pub fn is_method(obj: Value) -> bool {
 
 // Recurses to the deepest ruby object.
 //
-// Given `"A::B::C"` it will return the constant instance of `C`.
+// Given `"A::B::C"` it will return the object instance of `C`.
 pub fn inmost_rb_object(klass: &str) -> Value {
     let object = unsafe { rb_cObject };
 
