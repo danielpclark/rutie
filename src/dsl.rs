@@ -419,7 +419,7 @@ macro_rules! methods {
 ///
 ///  - `$struct_name` is name of the actual Rust struct. This structure has to be public (`pub`).
 ///
-///  - `$wrapper` is a name for the structcure which will be created to wrap the `$struct_name`.
+///  - `$wrapper` is a name for the structure which will be created to wrap the `$struct_name`.
 ///
 ///     The wrapper will be created automatically by the macro.
 ///
