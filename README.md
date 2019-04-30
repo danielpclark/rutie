@@ -27,6 +27,7 @@ This project is a continuation of:
 * [Custom Ruby Objects in Rust](https://github.com/danielpclark/rutie#custom-ruby-objects-in-rust)
 * [Variadic Functions / Splat Operator](https://github.com/danielpclark/rutie#variadic-functions--splat-operator)
 * [Migrating from Ruru to Rutie](https://github.com/danielpclark/rutie#migrating-from-ruru-to-rutie)
+* [Safety — The Rutie Philosophy vs The Rust Philosophy on Safety](https://github.com/danielpclark/rutie/blob/master/README.md#safety--the-rutie-philosophy-vs-the-rust-philosophy-on-safety)
 * [Troubleshooting](https://github.com/danielpclark/rutie#troubleshooting)
   * [It panics for some Rubies on CI server tests](https://github.com/danielpclark/rutie#it-panics-for-some-rubies-on-ci-server-tests)
   * [Rust signal: 11, SIGSEGV: invalid memory reference](https://github.com/danielpclark/rutie#rust-signal-11-sigsegv-invalid-memory-reference)
