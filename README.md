@@ -322,6 +322,21 @@ Migrated `parse_arguments` from `VM` to `util`.
 
 Internal changes `util` from `binding` and `rubysys` have been replaced to reduce confusion and reduce duplication.
 
+
+## Safety — The Rutie Philosophy vs The Rust Philosophy on Safety
+
+I'm writing this section to bring to light that, as of this writing, the safety that Rust likes to guarantee for its crates and the Rutie crate aren't currently aligned.  The typical Rust safety for libraries wrapping C code is to have one unsafe crate with a `-sys` extension in its name and then a crate that wraps that to make it safe.
+
+Rutie is an official for of the project Ruru and because of this a great deal of the decisions in design for the project remain unchanged.  Rutie also brought in the `ruby-sys` crate and treats it as an internal private module; and yet shares it openly for other developers to have full control to design their own API on top of it.
+
+One of the glaring things that Rutie has that goes against the Rust Philosophy on Safety is that any of the methods that call Ruby code, can potentially raise an exception, and don't return the type `Option<AnyObject, AnyException>` will panic when an exception is raised from Ruby… which kills the application process running.  The way to avoid panics is simple: either guarantee the Ruby code you're running will never raise an exception, or [Handling exceptions raised from Ruby in Rust code](https://github.com/danielpclark/rutie#handling-exceptions-raised-from-ruby-in-rust-code) with "protect" methods that return the type `Option<AnyObject, AnyException>`.  Anyone can implement this safety by reading and understanding how the protect methods are written in this library and working with them.
+
+The important thing to consider as to “why doesn't every method guarantee the safety as Rust would prescribe to?” is that exception handling in Ruby is **not a zero cost abstraction**.  So there is a cost in performance when you need to implement it.  One can easily argue that the guarantee of safety is far more important than leaving the risk in the hands of inexperienced developers.  But one could also argue that it is better to leave the choice of performance cost, and the fact that exception capturing is occasionally unnecessary, up to the developer.  Seeing how the legacy of design decisions is largely inherited this project leans towards the latter argument where the choice of being absolutely safe everywhere vs some extra speed in performance is up to the developer.
+
+I'm not opposed to this project being 100% safe, but that will be a major change and a totally different API with many decisions that need to come into play.  Also since this project doesn't strictly adhere to Rust safety principles as a crate library would be expected to be this project will not reach the stable 1.0 release as the idea of stability and safety are hand in hand.
+
+I do like safety guarantees and as much as possible new features and language APIs will be built toward this.  You can see what the design of a safe API would look like by examing the [Enumerator features](https://github.com/danielpclark/rutie/blob/master/src/class/enumerator.rs) that have been implemented in this way (largely wrapping method names with calls to `protect_send`).
+
 ## Troubleshooting
 
 #### It panics for some Rubies on CI server tests
