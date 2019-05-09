@@ -164,7 +164,8 @@ impl Object for Integer {
 
 impl VerifiedObject for Integer {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        object.value().ty() == ValueType::Fixnum
+        let ty = object.value().ty();
+        ty == ValueType::Fixnum || ty == ValueType::Bignum
     }
 
     fn error_message() -> &'static str {
