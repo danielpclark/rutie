@@ -131,9 +131,27 @@ impl Into<u64> for Integer {
     }
 }
 
+impl From<i32> for Integer {
+    fn from(num: i32) -> Self {
+        Integer { value: fixnum::i32_to_num(num) }
+    }
+}
+
 impl Into<i32> for Integer {
     fn into(self) -> i32 {
         fixnum::num_to_i32(self.value())
+    }
+}
+
+impl From<u32> for Integer {
+    fn from(num: u32) -> Self {
+        Integer { value: fixnum::u32_to_num(num) }
+    }
+}
+
+impl Into<u32> for Integer {
+    fn into(self) -> u32 {
+        fixnum::num_to_u32(self.value())
     }
 }
 
