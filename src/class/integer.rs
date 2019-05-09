@@ -178,3 +178,86 @@ impl PartialEq for Integer {
         self.equals(other)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::{LOCK_FOR_TEST, AnyException, Object, Integer, VM, NilClass};
+    use super::super::super::types::Value;
+
+    #[test]
+    fn test_i32() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
+        let nil = NilClass::new().value();
+
+        let num = str_to_num("1").unwrap();
+        assert_eq!(1, num.to_i32());
+
+        let num = str_to_num("-1").unwrap();
+        assert_eq!(-1, num.to_i32());
+
+        let num = str_to_num("2 ** 31 - 1").unwrap();
+        assert_eq!(::std::i32::MAX, num.to_i32());
+
+        let num = str_to_num("2 ** 31").unwrap();
+        let result = VM::protect(|| { num.to_i32(); nil });
+        assert!(result.is_err());
+
+        let num = str_to_num("-1 * 2 ** 31").unwrap();
+        assert_eq!(::std::i32::MIN, num.to_i32());
+
+        let num = str_to_num("-1 * 2 ** 31 - 1").unwrap();
+        let result = VM::protect(|| { num.to_i32(); nil });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_i64() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
+        let nil = NilClass::new().value();
+
+        let num = str_to_num("2 ** 63 - 1").unwrap();
+        assert_eq!(::std::i64::MAX, num.to_i64());
+
+        let num = str_to_num("2 ** 63").unwrap();
+        let result = VM::protect(|| { num.to_i64(); nil });
+        assert!(result.is_err());
+
+        let num = str_to_num("-1 * 2 ** 63").unwrap();
+        assert_eq!(::std::i64::MIN, num.to_i64());
+
+        let num = str_to_num("-1 * 2 ** 63 - 1").unwrap();
+        let result = VM::protect(|| { num.to_i64(); nil });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_u64() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
+        let nil = NilClass::new().value();
+
+        let num = str_to_num("2 ** 64 - 1").unwrap();
+        assert_eq!(::std::u64::MAX, num.to_u64());
+
+        let num = str_to_num("2 ** 64").unwrap();
+        let result = VM::protect(|| { num.to_u64(); nil });
+        assert!(result.is_err());
+
+        let num = str_to_num("0").unwrap();
+        assert_eq!(::std::u64::MIN, num.to_u64());
+
+        // // Current Ruby implementation does not raise an exception
+        // let num = str_to_num("-1").unwrap();
+        // let result = VM::protect(|| { num.to_u64(); nil });
+        // assert!(result.is_err());
+    }
+
+    fn str_to_num(code: &str) -> Result<Integer, AnyException> {
+        VM::eval(code).and_then(|x| x.try_convert_to::<Integer>())
+    }
+}
