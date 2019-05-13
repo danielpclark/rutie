@@ -31,7 +31,7 @@ impl Fixnum {
     /// 1 == 1
     /// ```
     pub fn new(num: i64) -> Self {
-        Self::from(fixnum::int_to_num(num))
+        Self::from(fixnum::i64_to_num(num))
     }
 
     /// Retrieves an `i64` value from `Fixnum`.
@@ -53,7 +53,29 @@ impl Fixnum {
     /// 1 == 1
     /// ```
     pub fn to_i64(&self) -> i64 {
-        fixnum::num_to_long(self.value())
+        fixnum::num_to_i64(self.value())
+    }
+
+    /// Retrieves an `u64` value from `Fixnum`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, VM};
+    /// # VM::init();
+    ///
+    /// let fixnum = Fixnum::new(1);
+    ///
+    /// assert_eq!(fixnum.to_u64(), 1);
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// 1 == 1
+    /// ```
+    pub fn to_u64(&self) -> u64 {
+        fixnum::num_to_u64(self.value())
     }
 
     /// Retrieves an `i32` value from `Fixnum`.
@@ -75,7 +97,7 @@ impl Fixnum {
     /// 1 == 1
     /// ```
     pub fn to_i32(&self) -> i32 {
-        fixnum::num_to_int(self.value())
+        fixnum::num_to_i32(self.value())
     }
 }
 

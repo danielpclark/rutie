@@ -43,13 +43,22 @@ pub use class::traits::try_convert::TryConvert;
 
 pub use helpers::codepoint_iterator::CodepointIterator;
 
+use std::sync::{Arc, RwLock};
+
+#[cfg(test)]
+lazy_static! {
+    pub static ref LOCK_FOR_TEST: RwLock<i32> = RwLock::new(0);
+}
+
 #[cfg(test)]
 mod current_ruby {
+    use super::*;
     use std::process::Command;
     use super::{Object, RString, VM};
 
     #[test]
     fn is_linked_ruby() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
         VM::init();
        
         let rv = RString::from(VM::eval("RUBY_VERSION").unwrap().value()).to_string();
