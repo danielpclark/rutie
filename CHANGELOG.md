@@ -9,6 +9,33 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
+## [0.5.5] - 2019-05-13
+### Added
+- Safety policy in README
+- `Fixnum.to_u64`, thanks to @irxground
+- `Integer.to_u64`, thanks to @irxground
+- `impl From<u64> for Integer`, thanks to @irxground
+- `impl Into<u64> for Integer`, thanks to @irxground
+- `impl From<i32> for Integer`, thanks to @irxground
+- `impl From<u32> for Integer`, thanks to @irxground
+- `impl Into<u32> for Integer`, thanks to @irxground
+- `rubysys::fixnum::rb_uint2inum`, thanks to @irxground
+- `rubysys::fixnum::rb_ll2inum`, thanks to @irxground
+- `rubysys::fixnum::rb_ull2inum`, thanks to @irxground
+- `rubysys::fixnum::rb_num2short`, thanks to @irxground
+- `rubysys::fixnum::rb_num2ushort`, thanks to @irxground
+- `rubysys::fixnum::rb_num2uint`, thanks to @irxground
+- `rubysys::fixnum::rb_num2ulong`, thanks to @irxground
+- `rubysys::fixnum::rb_num2ll`, thanks to @irxground
+- `rubysys::fixnum::rb_num2ull`, thanks to @irxground
+
+### Changed
+- Integer `is_correct_type` to permit Bignum, thanks to @irxground
+- `rubysys::fixnum::rb_num2int` returns `libc::c_long` rather than `c_int`, thanks to @irxground
+
+### Fixed
+- symlink check in `build.rs` which had rare systems in which `exists` didn't work on symlink, thanks to @ekump
+
 ## [0.5.4] - 2019-04-15
 ### Added
 - `GC::adjust_memory_usage`, thanks to @Antti
