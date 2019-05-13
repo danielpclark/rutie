@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::process::Command;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::env;
 
 #[cfg(not(target_os = "macos"))]
@@ -177,12 +177,7 @@ fn ruby_lib_link_name() -> String {
     let source = format!("{}/{}", rbconfig("libdir"), so_file);
     let target = format!("{}/{}", destination, so_file);
 
-    let sym_link_exists = match fs::read_link(&target) {
-        Ok(_) => true,
-        _ => false
-    };
-
-    if ! sym_link_exists {
+    if fs::read_link(&target).is_err() {
         let _ = symlink(source, target).expect("symlink fail");
     }
 
