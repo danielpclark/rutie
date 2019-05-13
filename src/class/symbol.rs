@@ -107,7 +107,7 @@ impl Symbol {
     /// sym.to_s == 'hello'
     /// ```
     pub fn to_proc(&self) -> Proc {
-        Proc::from(self.send("to_proc", None).value())
+        Proc::from(self.send("to_proc", &[]).value())
     }
 }
 

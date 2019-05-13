@@ -707,14 +707,14 @@ pub trait Object: From<Value> {
     /// let array = Array::new().push(Fixnum::new(1));
     /// let array_string =
     ///     array
-    ///         .send("to_s", None)
+    ///         .send("to_s", &[])
     ///         .try_convert_to::<RString>()
     ///         .unwrap();
     ///
     /// assert_eq!(array_string.to_str(), "[1]");
     /// ```
-    fn send(&self, method: &str, arguments: Option<&[AnyObject]>) -> AnyObject {
-        let arguments = util::arguments_to_values(arguments).unwrap_or_default();
+    fn send(&self, method: &str, arguments: &[AnyObject]) -> AnyObject {
+        let arguments = util::arguments_to_values(arguments);
         let result = vm::call_method(self.value(), method, &arguments);
 
         AnyObject::from(result)
@@ -885,7 +885,7 @@ pub trait Object: From<Value> {
     ///
     /// let kernel = Class::from_existing("Kernel");
     ///
-    /// let result = kernel.protect_send("nil?", None);
+    /// let result = kernel.protect_send("nil?", &[]);
     ///
     /// if let Ok(r) = result {
     ///     assert!(!r.value().is_true());
@@ -897,7 +897,7 @@ pub trait Object: From<Value> {
     ///
     /// let result = kernel.protect_send(
     ///     "raise",
-    ///     Some(&[RString::new_utf8("flowers").to_any_object()])
+    ///     &[RString::new_utf8("flowers").to_any_object()]
     /// );
     ///
     /// if let Err(error) = result {
@@ -909,8 +909,9 @@ pub trait Object: From<Value> {
     ///     unreachable!()
     /// }
     /// ```
-    fn protect_send(&self, method: &str, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
-        let closure = || { self.send(&method, arguments).value() };
+    fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException>
+    {
+        let closure = || self.send(&method, arguments.as_ref()).value();
 
         let result = VM::protect(closure);
 
@@ -937,7 +938,7 @@ pub trait Object: From<Value> {
     ///
     /// let kernel = Class::from_existing("Kernel");
     ///
-    /// let result = kernel.protect_public_send("nil?", None);
+    /// let result = kernel.protect_public_send("nil?", &[]);
     ///
     /// if let Ok(r) = result {
     ///     assert!(!r.value().is_true());
@@ -949,7 +950,7 @@ pub trait Object: From<Value> {
     ///
     /// let result = kernel.protect_public_send(
     ///     "raise",
-    ///     Some(&[RString::new_utf8("flowers").to_any_object()])
+    ///     &[RString::new_utf8("flowers").to_any_object()]
     /// );
     ///
     /// if let Err(error) = result {
@@ -961,9 +962,13 @@ pub trait Object: From<Value> {
     ///     unreachable!()
     /// }
     /// ```
-    fn protect_public_send(&self, method: &str, arguments: Option<&[AnyObject]>) -> Result<AnyObject, AnyException> {
+    fn protect_public_send(
+        &self,
+        method: &str,
+        arguments: &[AnyObject],
+    ) -> Result<AnyObject, AnyException> {
         let v = self.value();
-        let arguments = util::arguments_to_values(arguments).unwrap_or_default();
+        let arguments = util::arguments_to_values(arguments);
 
         let closure = || {
             vm::call_public_method(v, &method, &arguments)
@@ -1018,7 +1023,7 @@ pub trait Object: From<Value> {
     /// let args = [Fixnum::new(1).to_any_object()];
     /// let index =
     ///     array
-    ///         .send("find_index", Some(&args))
+    ///         .send("find_index", &args)
     ///         .try_convert_to::<Fixnum>();
     ///
     /// assert_eq!(index, Ok(Fixnum::new(0)));
@@ -1068,11 +1073,11 @@ pub trait Object: From<Value> {
     ///         itself.def("initialize", counter_initialize);
     ///         itself.def("increment!", counter_increment);
     ///         itself.def("state", counter_state);
-    ///     }).new_instance(None);
+    ///     }).new_instance(&[]);
     ///
-    ///     counter.send("increment!", None);
+    ///     counter.send("increment!", &[]);
     ///
-    ///     let new_state = counter.send("state", None).try_convert_to::<Fixnum>();
+    ///     let new_state = counter.send("state", &[]).try_convert_to::<Fixnum>();
     ///
     ///     assert_eq!(new_state, Ok(Fixnum::new(1)));
     /// }
@@ -1149,11 +1154,11 @@ pub trait Object: From<Value> {
     ///         itself.def("initialize", counter_initialize);
     ///         itself.def("increment!", counter_increment);
     ///         itself.def("state", counter_state);
-    ///     }).new_instance(None);
+    ///     }).new_instance(&[]);
     ///
-    ///     counter.send("increment!", None);
+    ///     counter.send("increment!", &[]);
     ///
-    ///     let new_state = counter.send("state", None).try_convert_to::<Fixnum>();
+    ///     let new_state = counter.send("state", &[]).try_convert_to::<Fixnum>();
     ///
     ///     assert_eq!(new_state, Ok(Fixnum::new(1)));
     /// }

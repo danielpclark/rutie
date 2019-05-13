@@ -43,7 +43,7 @@ impl Enumerator {
     /// assert!(iter.next().is_err(), "not error!");
     /// ```
     pub fn next(&mut self) -> Result<AnyObject, AnyException> {
-        self.protect_send("next", None)
+        self.protect_send("next", &[])
     }
 
     /// Advances the iterator and returns the next values.
@@ -79,8 +79,8 @@ impl Enumerator {
     /// assert!(iter.next_values().is_err(), "not error!");
     /// ```
     pub fn next_values(&mut self) -> Result<Array, AnyException> {
-        self.protect_send("next_values", None).
-            map(|v| Array::from(v.value()) )
+        self.protect_send("next_values", &[])
+            .map(|v| Array::from(v.value()))
     }
 
     /// Peeks into the iterator and returns the next value.
@@ -100,7 +100,7 @@ impl Enumerator {
     /// assert_eq!(Ok(Fixnum::new(2).to_any_object()), iter.peek());
     /// ```
     pub fn peek(&self) -> Result<AnyObject, AnyException> {
-        self.protect_send("peek", None)
+        self.protect_send("peek", &[])
     }
 
     /// Peeks into the iterator and returns the next values.
@@ -127,8 +127,8 @@ impl Enumerator {
     /// assert_eq!(Ok(result1), iter.peek_values());
     /// ```
     pub fn peek_values(&self) -> Result<Array, AnyException> {
-        self.protect_send("peek_values", None).
-            map(|v| Array::from(v.value()) )
+        self.protect_send("peek_values", &[])
+            .map(|v| Array::from(v.value()))
     }
 
     /// Rewind the iteration back to the beginning.
@@ -156,7 +156,7 @@ impl Enumerator {
     /// assert!(iter.next().is_err(), "not error!");
     /// ```
     pub fn rewind(&mut self) -> &mut Self {
-        self.send("rewind", None);
+        self.send("rewind", &[]);
         self
     }
 
@@ -187,7 +187,7 @@ impl Enumerator {
     ///         expected.push(Fixnum::new(777).to_any_object());
     ///
     ///         assert!(Class::from_existing("StopIteration").case_equals(&e));
-    ///         assert_eq!(expected.to_any_object(), e.send("result", None));
+    ///         assert_eq!(expected.to_any_object(), e.send("result", &[]));
     ///     },
     /// }
     /// ```
@@ -209,7 +209,7 @@ impl Enumerator {
     /// end
     /// ```
     pub fn feed(&mut self, object: AnyObject) -> Result<(), AnyException> {
-        self.protect_send("feed", Some(&[object])).map(|_|())
+        self.protect_send("feed", &[object]).map(|_| ())
     }
 }
 

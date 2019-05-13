@@ -117,7 +117,7 @@ impl Encoding {
     /// enc.name == "UTF-8"
     /// ```
     pub fn name(&self) -> String {
-        let name = self.send("name", None);
+        let name = self.send("name", &[]);
 
         RString::from(name.value()).to_string()
     }

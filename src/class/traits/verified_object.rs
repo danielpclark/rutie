@@ -103,10 +103,10 @@ use Object;
 ///
 ///     // Create new instances of classes and convert them to `AnyObject`s
 ///     // (make their type unknown)
-///     let server = Class::from_existing("Server").new_instance(None).to_any_object();
-///     let request = Class::from_existing("Request").new_instance(None).to_any_object();
-///     let response = Class::from_existing("Response").new_instance(None).to_any_object();
-///     let headers = Class::from_existing("Headers").new_instance(None).to_any_object();
+///     let server = Class::from_existing("Server").new_instance(&[]).to_any_object();
+///     let request = Class::from_existing("Request").new_instance(&[]).to_any_object();
+///     let response = Class::from_existing("Response").new_instance(&[]).to_any_object();
+///     let headers = Class::from_existing("Headers").new_instance(&[]).to_any_object();
 ///
 ///     assert!(server.try_convert_to::<Server>().is_ok());
 ///     assert!(request.try_convert_to::<Request>().is_ok());

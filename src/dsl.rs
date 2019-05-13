@@ -770,7 +770,7 @@ macro_rules! eval {
         let bndng: $crate::AnyObject = $binding_arg.into();
         let arguments = &[eval_str, bndng];
 
-        $crate::Class::from_existing("Kernel").protect_send("eval", Some(arguments))
+        $crate::Class::from_existing("Kernel").protect_send("eval", arguments)
     }};
     ($string_arg:expr, $binding_arg:expr, $filename:expr) => {{
         let eval_str: $crate::AnyObject = $crate::RString::from($string_arg).into();
@@ -778,7 +778,7 @@ macro_rules! eval {
         let filename: $crate::AnyObject = $crate::RString::from($filename).into();
         let arguments = &[eval_str, bndng, filename];
 
-        $crate::Class::from_existing("Kernel").protect_send("eval", Some(arguments))
+        $crate::Class::from_existing("Kernel").protect_send("eval", arguments)
     }};
     ($string_arg:expr, $binding_arg:expr, $filename:expr, $linenumber:expr) => {{
         let eval_str: $crate::AnyObject = $crate::RString::from($string_arg).into();
@@ -787,6 +787,6 @@ macro_rules! eval {
         let linenumber: $crate::AnyObject = $crate::Integer::from($linenumber as i64).into();
         let arguments = &[eval_str, bndng, filename, linenumber];
 
-        $crate::Class::from_existing("Kernel").protect_send("eval", Some(arguments))
+        $crate::Class::from_existing("Kernel").protect_send("eval", arguments)
     }};
 }

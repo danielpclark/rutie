@@ -44,8 +44,8 @@ pub fn bool_to_c_int(state: bool) -> c_int {
     state as c_int
 }
 
-pub fn arguments_to_values(arguments: Option<&[AnyObject]>) -> Option<Vec<Value>> {
-    arguments.map(|arguments| arguments.iter().map(Object::value).collect())
+pub fn arguments_to_values(arguments: &[AnyObject]) -> Vec<Value> {
+    arguments.as_ref().iter().map(Object::value).collect()
 }
 
 pub fn process_arguments(arguments: &[Value]) -> (Argc, *const Value) {

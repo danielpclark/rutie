@@ -31,7 +31,7 @@ impl Proc {
     ///
     ///     fn greet_rust_with(greeting_template: Proc) -> RString {
     ///         let name = RString::new_utf8("Rust").to_any_object();
-    ///         let rendered_template = greeting_template.unwrap().call(Some(&[name]));
+    ///         let rendered_template = greeting_template.unwrap().call(&[name]);
     ///
     ///         rendered_template.try_convert_to::<RString>().unwrap()
     ///     }
@@ -57,8 +57,8 @@ impl Proc {
     ///
     /// Greeter.greet_rust_with(greeting_template) # => "Hello, Rust!"
     /// ```
-    pub fn call(&self, arguments: Option<&[AnyObject]>) -> AnyObject {
-        let arguments = util::arguments_to_values(arguments).unwrap_or_default();
+    pub fn call(&self, arguments: &[AnyObject]) -> AnyObject {
+        let arguments = util::arguments_to_values(arguments);
         let result = rproc::call(self.value(), &arguments);
 
         AnyObject::from(result)
@@ -85,7 +85,7 @@ impl Proc {
     /// procish.lambda? # => true
     /// ```
     pub fn is_lambda(&self) -> bool {
-        Boolean::from(self.send("lambda?", None).value()).to_bool()
+        Boolean::from(self.send("lambda?", &[]).value()).to_bool()
     }
 }
 
