@@ -8,6 +8,8 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+
+## [0.6.0-rc.1] - 2019-05-16
 ### Changed
 - Methods that took type `Option<&[]>` now take only type `&[]`, thanks to @dsander
 
