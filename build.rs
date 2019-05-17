@@ -1,8 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::process::Command;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::env;
+
+#[cfg(target_os = "windows")]
+use std::path::Path;
 
 #[cfg(not(target_os = "macos"))]
 use std::fs;
