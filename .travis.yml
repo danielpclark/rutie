@@ -27,17 +27,17 @@ matrix:
   allow_failures:
     - rust: beta
     - rust: nightly
-    - env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
+    - env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.3
     - os: windows
       rust: stable
-      env: BUILD_RUBY_VERSION=2.6.0
+      env: BUILD_RUBY_VERSION=2.6.3
     - os: windows
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.3
   include:
     - os: linux
       rust: stable
-      env: RUBY_THREADING=true BUILD_RUBY_VERSION=2.6.0
+      env: RUBY_THREADING=true BUILD_RUBY_VERSION=2.6.3
       script:
         - |
           cd examples/rutie_ruby_gvl_example
@@ -47,16 +47,16 @@ matrix:
           bundle exec rake
     - os: linux
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.3
     - os: osx
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.3
     - os: windows
       rust: stable
-      env: BUILD_RUBY_VERSION=2.6.0
+      env: BUILD_RUBY_VERSION=2.6.3
     - os: windows
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.0
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.6.3
 
 before_script:
 - export PATH=$HOME/.cargo/bin:$HOME/.local/bin:$PATH
@@ -75,6 +75,6 @@ env:
     - RUST_BACKTRACE=full
     - CI_STDERR_LOG=true
   matrix:
-    - BUILD_RUBY_VERSION: 2.4.5
-    - BUILD_RUBY_VERSION: 2.5.3
-    - BUILD_RUBY_VERSION: 2.6.0
+    - BUILD_RUBY_VERSION: 2.4.6
+    - BUILD_RUBY_VERSION: 2.5.5
+    - BUILD_RUBY_VERSION: 2.6.3
