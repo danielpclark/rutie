@@ -292,7 +292,7 @@ class!(Example);
 // Code from above
 
 fn main() {
-    # VM::init();
+    VM::init();
     Class::new("Example", None).define(|itself| {
         itself.def("example_method", example_method);
     });
