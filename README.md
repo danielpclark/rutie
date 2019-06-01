@@ -88,8 +88,8 @@ Running `cargo test` should have this test pass.
 ## Using Rust in Ruby
 
 You can start a Ruby project with `bundle gem rutie_ruby_example` and then once
-you change into that directory run `cargo init`.  Remove the TODOs from the gemspec
-file and `src/main.rs if it exists`. Add Rutie to the `Cargo.toml` file and define the lib type.
+you change into that directory run `cargo init --lib`.  Remove the TODOs from the gemspec
+file. Add Rutie to the `Cargo.toml` file and define the lib type.
 
 ```toml
 [dependencies]
