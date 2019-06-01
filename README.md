@@ -89,7 +89,7 @@ Running `cargo test` should have this test pass.
 
 You can start a Ruby project with `bundle gem rutie_ruby_example` and then once
 you change into that directory run `cargo init`.  Remove the TODOs from the gemspec
-file.  Add Rutie to the `Cargo.toml` file and define the lib type.
+file and `src/main.rs if it exists`. Add Rutie to the `Cargo.toml` file and define the lib type.
 
 ```toml
 [dependencies]
@@ -424,6 +424,8 @@ If using RBENV then the following is recommended:
 You can check if your Ruby is compiled to be dynamically linked to by running the following and getting a `"yes"` response.
 
     ruby -e "pp RbConfig::CONFIG['ENABLE_SHARED']"
+
+If you still run into `ld: library not found for -lruby-static` issue, try running `cargo clean`. This'll clean any artifacts from previous attempts.
 
 If you'd like to make a pull request for adding static build support there are currently 3 methods not working with it and linking to the proper name of the ruby static lib file & path needs to be updated.
 
