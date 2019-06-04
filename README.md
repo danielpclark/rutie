@@ -83,6 +83,12 @@ fn it_works() {
 fn main() {}
 ```
 
+> NOTE: Currently in **Linux** you need to set `LD_LIBRARY_PATH` to point at the directory of your current Ruby library and in **Mac** you need to set `DYLD_LIBRARY_PATH` with that info.  You can get the path information with the following command:
+
+    ruby -e "puts RbConfig::CONFIG['libdir']"
+
+This should let you run `cargo test` and `cargo run`.
+
 Running `cargo test` should have this test pass.
 
 ## Using Rust in Ruby
