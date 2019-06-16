@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["Daniel P. Clark <6ftdan@gmail.com>"]
 
 [dependencies]
-rutie = "=0.6.0-rc.2"
+rutie = { path = "../../" }
