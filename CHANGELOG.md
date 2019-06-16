@@ -9,6 +9,10 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
+## [0.6.0] - 2019-06-16
+### Changed
+- Updated `libc` and `lazy_static` dependency versions.
+
 ## [0.6.0-rc.2] - 2019-05-16
 ### Fixed
 - Restored use of `Path` for Windows `build.rs` which had been removed in 0.5.5
