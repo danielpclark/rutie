@@ -40,20 +40,21 @@ matrix:
       env: RUBY_THREADING=true BUILD_RUBY_VERSION=2.6.3
       script:
         - |
+          export WORKING_DIR=`pwd`
           echo "Running Eval Example"
           cargo run --example eval "a=5;b=9;puts a+b"
           echo "Running Ruby Example"
-          cd "$HOME/examples/rutie_ruby_example"
+          cd "$WORKING_DIR/examples/rutie_ruby_example"
           gem install bundler
           bundle install
           bundle exec rake
           echo "Running Ruby GVL Example"
-          cd "$HOME/examples/rutie_ruby_gvl_example"
+          cd "$WORKING_DIR/examples/rutie_ruby_gvl_example"
           gem install bundler
           bundle install
           bundle exec rake
           echo "Running Rust Example"
-          cd "$HOME/examples/rutie_rust_example"
+          cd "$WORKING_DIR/examples/rutie_rust_example"
           cargo test
     - os: linux
       rust: stable
