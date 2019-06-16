@@ -55,6 +55,8 @@ matrix:
           bundle exec rake
           echo "Running Rust Example"
           cd "$WORKING_DIR/examples/rutie_rust_example"
+          export LD_LIBRARY_PATH=`ruby -e "puts RbConfig::CONFIG['libdir']"`
+          export DYLD_LIBRARY_PATH=$LD_LIBRARY_PATH
           cargo test
     - os: linux
       rust: stable
