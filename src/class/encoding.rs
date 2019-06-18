@@ -160,13 +160,43 @@ impl Encoding {
     /// }
     /// ```
     pub fn find(s: &str) -> Result<Encoding, AnyException> {
-         let idx = encoding::find_encoding_index(s);
+        let idx = encoding::find_encoding_index(s);
 
-         if idx < 0 {
-             Err(AnyException::new("ArgumentError", Some(&format!("unknown encoding name - {}", s))))
-         } else {
-             Ok(Encoding::from(encoding::from_encoding_index(idx)))
-         }
+        if idx < 0 {
+            Err(AnyException::new("ArgumentError", Some(&format!("unknown encoding name - {}", s))))
+        } else {
+            Ok(Encoding::from(encoding::from_encoding_index(idx)))
+        }
+    }
+
+    /// Returns an instance of `Ok(Encoding)` if the objects are
+    /// compatible encodings, otherwise it returns `Err(NilClass)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM, RString, NilClass};
+    /// # VM::init();
+    ///
+    /// let utf8 = RString::new_utf8("asdf");
+    /// let us_ascii= RString::new_usascii_unchecked("qwerty");
+    ///
+    /// let result = Encoding::is_compatible(&utf8, &us_ascii);
+    ///
+    /// assert!(result.is_ok());
+    ///
+    /// let result = Encoding::is_compatible(&utf8, &NilClass::new());
+    ///
+    /// assert!(result.is_err());
+    /// ```
+    pub fn is_compatible(obj1: &impl Object, obj2: &impl Object) -> Result<Self, NilClass> {
+        let result = encoding::compatible_encoding(obj1.value(), obj2.value());
+
+        if result.is_nil() {
+            Err(NilClass::from(result))
+        } else {
+            Ok(Self::from(result))
+        }
     }
 }
 

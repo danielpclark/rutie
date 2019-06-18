@@ -46,7 +46,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.5.6"
+rutie = "0.6.1"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
@@ -99,7 +99,7 @@ file. Add Rutie to the `Cargo.toml` file and define the lib type.
 
 ```toml
 [dependencies]
-rutie = "0.5.6"
+rutie = "0.6.1"
 
 [lib]
 name = "rutie_ruby_example"
@@ -425,7 +425,7 @@ Ruby needs to be compiled with the `--enable shared` option.  Dynamic linking to
 
 If using RBENV then the following is recommended:
 
-    CONFIGURE_OPTS=--enable-shared rbenv install 2.5.3
+    CONFIGURE_OPTS=--enable-shared rbenv install 2.6.3
 
 You can check if your Ruby is compiled to be dynamically linked to by running the following and getting a `"yes"` response.
 
