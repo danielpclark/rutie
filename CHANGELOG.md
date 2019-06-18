@@ -9,6 +9,10 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
+## [0.6.1] - 2019-06-18
+### Added
+- `Encoding::is_compatible` which is the same as Ruby's `Encoding.compatible?`
+
 ## [0.6.0] - 2019-06-16
 ### Changed
 - Updated `libc` and `lazy_static` dependency versions.
