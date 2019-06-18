@@ -393,7 +393,7 @@ One possible issue that may cause this is when you store an item in Rust in heap
 An example case that caused this issue is the following:
 
 ```rust
-Class::from_existing("Pathname").new_instance(Some(&vec![RString::new_utf8(path).to_any_object()]))
+Class::from_existing("Pathname").new_instance(&vec![RString::new_utf8(path).to_any_object()])
 ```
 
 > Ruby's GC traces objects from the stack. Rust's Vec, on the other hand, stores elements in the heap. So Ruby's GC may not be able to find the string you created and may release it. — @irxground
@@ -402,7 +402,7 @@ To rememdy the issue it required not using Vec but rather Rust's array type to s
 
 ```rust
 let arguments = [RString::new_utf8(path).to_any_object()];
-Class::from_existing("Pathname").new_instance(Some(&arguments))
+Class::from_existing("Pathname").new_instance(&arguments)
 ```
 
 ## Operating System Requirements
