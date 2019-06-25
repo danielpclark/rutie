@@ -8,6 +8,9 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+### Added
+- `VM::error_pop` to get the Ruby Exception and remove it from interfering
+  with the current thread
 
 ## [0.6.1] - 2019-06-18
 ### Added
