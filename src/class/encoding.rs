@@ -247,3 +247,37 @@ impl PartialEq for Encoding {
         self.equals(other)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use ::{LOCK_FOR_TEST, Object, Encoding, EncodingSupport, RString, VM};
+
+    #[test]
+    fn test_ascii_8bit() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+        VM::init_loadpath();
+        VM::require("enc/encdb");
+        VM::require("enc/trans/transdb");
+
+        let ascii_8bit = Encoding::find("ASCII-8BIT");
+        assert!(ascii_8bit.is_ok(), "ASCII-8BIT not found!");
+
+        let enc = ascii_8bit.unwrap();
+
+        let bytes = [1,85,197,198,199,243,244,254];
+        let byte_string = RString::from_bytes(&bytes, &enc);
+        assert!(byte_string.is_valid_encoding(), "Byte string is not valid encoding!");
+
+        let mut copyright = RString::from_bytes(&[194,169], &enc);
+        let utf8_copyright = RString::new_utf8("©");
+        assert!(
+          !&utf8_copyright.equals(&copyright),
+          "Strings with different encodings should not be equal!"
+        );
+        assert!(
+          copyright.force_encoding(Encoding::utf8()).unwrap().equals(&utf8_copyright),
+          "Strings should be equal!"
+        );
+    }
+}
