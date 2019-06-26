@@ -561,6 +561,26 @@ impl VM {
         AnyException::try_convert(AnyObject::from(vm::errinfo()))
     }
 
+    /// Get current VM error info and reset it.  If no error exists
+    /// then `Err(NilClass::new())` is returned.
+    ///
+    /// ```
+    /// use rutie::{VM, Exception, AnyException, Object};
+    /// # VM::init();
+    ///
+    /// let closure = || unsafe { VM::eval_str("raise 'hello world!'").value() };
+    /// let result = VM::protect(closure);
+    ///
+    /// let exception = VM::error_pop().expect("nil should not have occurred here!");
+    /// assert_eq!("hello world!", exception.message());
+    /// ```
+    pub fn error_pop() -> Result<AnyException, NilClass> {
+        VM::error_info().map(|exc| {
+            VM::clear_error_info();
+            exc
+        })
+    }
+
     /// Clear current VM error info.
     ///
     /// # Examples
