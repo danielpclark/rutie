@@ -16,6 +16,7 @@ API and may have breaking changes during a teeny version change.
 - `NilClass` has had `Copy` and `Clone` derived on it
 - Readme section for Ruby's Future and SemVer
 - `VM::abort` exit the Ruby VM via abort
+- `VM::trap` for signal handling
 
 ### Changed
 - `VM::protect` takes a function that now returns an `AnyObject` instead of a `Value`.
