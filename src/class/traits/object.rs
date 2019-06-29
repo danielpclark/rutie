@@ -968,9 +968,7 @@ pub trait Object: From<Value> {
         let v = self.value();
         let arguments = util::arguments_to_values(arguments);
 
-        let closure = || {
-            vm::call_public_method(v, &method, &arguments).into()
-        };
+        let closure = || vm::call_public_method(v, &method, &arguments).into();
 
         let result = VM::protect(closure);
 
