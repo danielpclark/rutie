@@ -516,7 +516,7 @@ impl VM {
     ///
     /// ```text
     /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
-    ///     let closure = || self.send(&method, arguments.as_ref()).value();
+    ///     let closure = || self.send(&method, arguments.as_ref());
     ///
     ///     let result = VM::protect(closure);
     ///
@@ -532,9 +532,9 @@ impl VM {
     /// ```
     pub fn protect<F>(func: F) -> Result<AnyObject, i32>
     where
-        F: FnMut() -> Value,
+        F: FnMut() -> AnyObject,
     {
-        vm::protect(func).map(|v| AnyObject::from(v) )
+        vm::protect(func)
     }
 
     /// Get current VM error info.
@@ -543,7 +543,7 @@ impl VM {
     ///
     /// ```text
     /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
-    ///     let closure = || self.send(&method, arguments.as_ref()).value();
+    ///     let closure = || self.send(&method, arguments.as_ref()).into();
     ///
     ///     let result = VM::protect(closure);
     ///
@@ -568,7 +568,7 @@ impl VM {
     /// use rutie::{VM, Exception, AnyException, Object};
     /// # VM::init();
     ///
-    /// let closure = || unsafe { VM::eval_str("raise 'hello world!'").value() };
+    /// let closure = || unsafe { VM::eval_str("raise 'hello world!'").into() };
     /// let result = VM::protect(closure);
     ///
     /// let exception = VM::error_pop().expect("nil should not have occurred here!");
@@ -587,7 +587,7 @@ impl VM {
     ///
     /// ```text
     /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
-    ///     let closure = || self.send(&method, arguments.as_ref()).value();
+    ///     let closure = || self.send(&method, arguments.as_ref()).into();
     ///
     ///     let result = VM::protect(closure);
     ///
@@ -655,7 +655,7 @@ impl VM {
     /// VM::protect(|| {
     ///     unsafe { VM::exit_bang(&[Symbol::new("asdf").into()]) };
     ///
-    ///     NilClass::new().value()
+    ///     NilClass::new().into()
     /// });
     ///
     /// let error = VM::error_pop();

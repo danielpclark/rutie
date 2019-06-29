@@ -1,5 +1,6 @@
 use std::ptr;
 
+use ::AnyObject;
 use rubysys::{thread, vm};
 
 use types::{c_int, c_void, CallbackPtr, Value};
@@ -176,9 +177,9 @@ extern "C" fn callbox(boxptr: *mut c_void) -> *const c_void {
     fnbox()
 }
 
-pub fn protect<F>(func: F) -> Result<Value, c_int>
+pub fn protect<F>(func: F) -> Result<AnyObject, c_int>
 where
-    F: FnMut() -> Value,
+    F: FnMut() -> AnyObject,
 {
     let mut state = 0;
     let value = unsafe {
@@ -186,13 +187,13 @@ where
         vm::rb_protect(callback_protect::<F> as CallbackPtr, closure, &mut state as *mut c_int)
     };
     if state == 0 {
-        Ok(value)
+        Ok(value.into())
     } else {
         Err(state)
     }
 }
 
-fn callback_protect<F: FnMut() -> Value>(ptr: *const c_void) -> Value {
+fn callback_protect<F: FnMut() -> AnyObject>(ptr: *const c_void) -> AnyObject {
     let f = ptr as *mut F;
     unsafe { (*f)() }
 }

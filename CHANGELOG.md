@@ -13,6 +13,15 @@ API and may have breaking changes during a teeny version change.
   with the current thread
 - `VM::exit` to exit the Ruby VM with status code given
 - `VM::exit_bang` to exit skipping exit handlers
+- `NilClass` has had `Copy` and `Clone` derived on it
+- Readme section for Ruby's Future and SemVer
+
+### Changed
+- `VM::protect` takes a function that now returns an `AnyObject` instead of a `Value`.
+  `VM::protect` will become more frequently used and encouraged which is why this change
+  is necessary as `Value` is meant to be internal.
+- Avoid showing `Value` or `.value()` in any documentation.  Prefer `.into()` when necessary.
+  `Value` should always be treated as a private API.
 
 ## [0.6.1] - 2019-06-18
 ### Added

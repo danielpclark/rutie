@@ -880,7 +880,7 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM};
+    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM, Boolean};
     /// # VM::init();
     ///
     /// let kernel = Class::from_existing("Kernel");
@@ -888,7 +888,7 @@ pub trait Object: From<Value> {
     /// let result = kernel.protect_send("nil?", &[]);
     ///
     /// if let Ok(r) = result {
-    ///     assert!(!r.value().is_true());
+    ///     assert!(!r.try_convert_to::<Boolean>().unwrap().to_bool());
     /// } else {
     ///     unreachable!()
     /// }
@@ -911,7 +911,7 @@ pub trait Object: From<Value> {
     /// ```
     fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException>
     {
-        let closure = || self.send(&method, arguments.as_ref()).value();
+        let closure = || self.send(&method, arguments.as_ref());
 
         let result = VM::protect(closure);
 
@@ -933,7 +933,7 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM};
+    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM, Boolean};
     /// # VM::init();
     ///
     /// let kernel = Class::from_existing("Kernel");
@@ -941,7 +941,7 @@ pub trait Object: From<Value> {
     /// let result = kernel.protect_public_send("nil?", &[]);
     ///
     /// if let Ok(r) = result {
-    ///     assert!(!r.value().is_true());
+    ///     assert!(!r.try_convert_to::<Boolean>().unwrap().to_bool());
     /// } else {
     ///     unreachable!()
     /// }
@@ -971,7 +971,7 @@ pub trait Object: From<Value> {
         let arguments = util::arguments_to_values(arguments);
 
         let closure = || {
-            vm::call_public_method(v, &method, &arguments)
+            vm::call_public_method(v, &method, &arguments).into()
         };
 
         let result = VM::protect(closure);
