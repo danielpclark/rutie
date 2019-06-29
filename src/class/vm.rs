@@ -179,7 +179,7 @@ impl VM {
         vm::raise_ex(exception.into().value());
     }
 
-    /// Evals string and returns an Result<AnyObject, c_int>
+    /// Evals string and returns an Result<AnyObject, AnyException>
     ///
     /// # Examples
     ///
