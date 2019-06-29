@@ -625,8 +625,10 @@ impl VM {
     /// run. `status` is returned to the underlying system as the
     /// exit status.
     ///
-    ///     call-seq:
-    ///       Process.exit!(status=false)
+    /// ```text
+    /// call-seq:
+    ///   Process.exit!(status=false)
+    /// ```
     ///
     /// # Examples
     ///
