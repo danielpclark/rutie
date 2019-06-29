@@ -85,7 +85,7 @@ impl Proc {
     /// procish.lambda? # => true
     /// ```
     pub fn is_lambda(&self) -> bool {
-        Boolean::from(self.send("lambda?", &[]).value()).to_bool()
+        Boolean::from(unsafe { self.send("lambda?", &[]) }.value()).to_bool()
     }
 }
 

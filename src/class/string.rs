@@ -557,7 +557,7 @@ impl EncodingSupport for RString {
     /// result.valid_encoding? == false
     /// ```
     fn is_valid_encoding(&self) -> bool {
-        let result = self.send("valid_encoding?", &[]);
+        let result = unsafe { self.send("valid_encoding?", &[]) };
         result.try_convert_to::<Boolean>().unwrap().to_bool()
     }
 
