@@ -620,4 +620,45 @@ impl VM {
     pub fn exit(status: i32) {
         vm::exit(status)
     }
+
+    /// Exits the process immediately. No exit handlers are
+    /// run. `status` is returned to the underlying system as the
+    /// exit status.
+    ///
+    ///     call-seq:
+    ///       Process.exit!(status=false)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate rutie;
+    /// use rutie::{VM,Boolean};
+    /// # VM::init();
+    ///
+    /// unsafe { VM::exit_bang(&[Boolean::new(true).into()]) }
+    /// ```
+    ///
+    /// ```ruby
+    /// Process.exit!(true)
+    /// ```
+    ///
+    /// Since invalid arguments can raise an exception this is marked as unsafe.  Simply use `VM::protect`
+    /// and `VM::error_pop` to handle potential exceptions.
+    ///
+    /// ```
+    /// extern crate rutie;
+    /// use rutie::{VM,Symbol,NilClass,Object};
+    /// # VM::init();
+    ///
+    /// VM::protect(|| {
+    ///     unsafe { VM::exit_bang(&[Symbol::new("asdf").into()]) };
+    ///
+    ///     NilClass::new().value()
+    /// });
+    ///
+    /// let error = VM::error_pop();
+    /// ```
+    pub unsafe fn exit_bang(arguments: &[AnyObject]) {
+        Class::from_existing("Process").send("exit!", arguments.as_ref());
+    }
 }
