@@ -1,7 +1,7 @@
 use binding::vm;
 use types::{Argc, Value};
 
-use {AnyObject, AnyException, Class, Object, Proc, NilClass, Array, TryConvert};
+use {AnyObject, AnyException, Class, Object, Proc, NilClass, Array, TryConvert, util};
 
 /// Virtual Machine and helpers
 pub struct VM;
@@ -649,7 +649,7 @@ impl VM {
     ///
     /// ```
     /// extern crate rutie;
-    /// use rutie::{VM,Symbol,NilClass,Object};
+    /// use rutie::{VM, Symbol, NilClass, Object, AnyException, Exception};
     /// # VM::init();
     ///
     /// VM::protect(|| {
@@ -659,8 +659,64 @@ impl VM {
     /// });
     ///
     /// let error = VM::error_pop();
+    /// assert_eq!(error.unwrap().inspect(), "#<TypeError: no implicit conversion of Symbol into Integer>");
     /// ```
     pub unsafe fn exit_bang(arguments: &[AnyObject]) {
         Class::from_existing("Process").send("exit!", arguments.as_ref());
+    }
+
+    /// Terminate execution immediately, effectively by calling
+    /// `Kernel.exit(false)`. If _msg_ is given, it is written
+    /// to STDERR prior to terminating.
+    ///
+    /// ```text
+    /// call-seq:
+    ///     abort
+    ///     Kernel::abort([msg])
+    ///     Process.abort([msg])
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate rutie;
+    /// use rutie::{VM, NilClass, AnyException, Exception, RString};
+    /// # VM::init();
+    ///
+    /// VM::protect(|| {
+    ///     unsafe { VM::abort(&[RString::new_utf8("Goodbye cruel world!").into()]) }
+    ///
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// let error = VM::error_pop();
+    /// assert_eq!(error.unwrap().inspect(), "#<SystemExit: Goodbye cruel world!>");
+    /// ```
+    ///
+    /// ```ruby
+    /// abort "Goodbye cruel world!"
+    /// ```
+    ///
+    /// Since invalid arguments can raise an exception this is marked as unsafe.  Simply use `VM::protect`
+    /// and `VM::error_pop` to handle potential exceptions.
+    ///
+    /// ```
+    /// extern crate rutie;
+    /// use rutie::{VM, Symbol, NilClass, Object, AnyException, Exception};
+    /// # VM::init();
+    ///
+    /// VM::protect(|| {
+    ///     unsafe { VM::abort(&[Symbol::new("asdf").into()]) };
+    ///
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// let error = VM::error_pop();
+    /// assert_eq!(error.unwrap().inspect(), "#<TypeError: no implicit conversion of Symbol into String>");
+    /// ```
+    pub unsafe fn abort(arguments: &[AnyObject]) {
+        let arguments = util::arguments_to_values(arguments);
+
+        vm::abort(&arguments)
     }
 }

@@ -22,6 +22,9 @@ extern "C" {
     // VALUE
     // rb_eval_string_protect(const char *str, int *pstate)
     pub fn rb_eval_string_protect(string: *const c_char, state: *mut c_int) -> Value;
+    // VALUE
+    // rb_f_abort(int argc, const VALUE *argv)
+    pub fn rb_f_abort(argc: Argc, argv: *const Value) -> Value;
     // //////////////// UNAVAILABLE METHOD ////////////////
     // // VALUE
     // // rb_f_eval(int argc, const VALUE *argv, VALUE self)

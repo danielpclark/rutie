@@ -201,3 +201,9 @@ fn callback_protect<F: FnMut() -> AnyObject>(ptr: *const c_void) -> AnyObject {
 pub fn exit(status: i32) {
     unsafe { vm::rb_exit(status as c_int) }
 }
+
+pub fn abort(arguments: &[Value]) {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { vm::rb_f_abort(argc, argv) };
+}
