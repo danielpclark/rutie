@@ -196,3 +196,7 @@ fn callback_protect<F: FnMut() -> Value>(ptr: *const c_void) -> Value {
     let f = ptr as *mut F;
     unsafe { (*f)() }
 }
+
+pub fn exit(status: i32) {
+    unsafe { vm::rb_exit(status as c_int) }
+}

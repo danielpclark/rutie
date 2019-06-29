@@ -604,4 +604,20 @@ impl VM {
     pub fn clear_error_info() {
         vm::set_errinfo(NilClass::new().value());
     }
+
+
+    /// Exit with Ruby VM with status code.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate rutie;
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// VM::exit(0)
+    /// ```
+    pub fn exit(status: i32) {
+        vm::exit(status)
+    }
 }
