@@ -630,6 +630,9 @@ impl VM {
     ///   Process.exit!(status=false)
     /// ```
     ///
+    /// > Note: Because the VM is exiting — having a return object is not a viable option and therefore you
+    /// >       must account for any exceptions that may arise yourself.
+    ///
     /// # Examples
     ///
     /// ```
@@ -675,6 +678,9 @@ impl VM {
     ///     Kernel::abort([msg])
     ///     Process.abort([msg])
     /// ```
+    ///
+    /// > Note: Because the VM is aborting — having a return object is not a viable option and therefore you
+    /// >       must account for any exceptions that may arise yourself.
     ///
     /// # Examples
     ///
