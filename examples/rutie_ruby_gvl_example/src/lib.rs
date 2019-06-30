@@ -61,7 +61,7 @@ methods! {
                 let class = class.clone();
                 Thread::call_with_gvl(move || {
                     let ruby_class = Class::from_existing(&class);
-                    ruby_class.send("name", &[])
+                    unsafe { ruby_class.send("name", &[]) }
                 })
             },
             Some(|| {}),
@@ -73,7 +73,7 @@ methods! {
         let (tx, rx) = mpsc::channel();
         Thread::new(move || {
             let ruby_class = Class::from_existing("Object");
-            let name = ruby_class.send("name", &[]);
+            let name = unsafe { ruby_class.send("name", &[]) };
             tx.send(name).unwrap();
             NilClass::new()
         });
