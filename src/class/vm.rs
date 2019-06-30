@@ -1,7 +1,7 @@
 use binding::vm;
-use types::{Argc, Value};
+use types::{Argc, Value, VmPointer};
 
-use {AnyObject, AnyException, Class, Object, Proc, NilClass, Array, TryConvert};
+use {AnyObject, AnyException, Class, Object, Proc, NilClass, Array, TryConvert, util};
 
 /// Virtual Machine and helpers
 pub struct VM;
@@ -179,7 +179,7 @@ impl VM {
         vm::raise_ex(exception.into().value());
     }
 
-    /// Evals string and returns an Result<AnyObject, c_int>
+    /// Evals string and returns an Result<AnyObject, AnyException>
     ///
     /// # Examples
     ///
@@ -516,7 +516,7 @@ impl VM {
     ///
     /// ```text
     /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
-    ///     let closure = || self.send(&method, arguments.as_ref()).value();
+    ///     let closure = || self.send(&method, arguments.as_ref());
     ///
     ///     let result = VM::protect(closure);
     ///
@@ -532,9 +532,9 @@ impl VM {
     /// ```
     pub fn protect<F>(func: F) -> Result<AnyObject, i32>
     where
-        F: FnMut() -> Value,
+        F: FnMut() -> AnyObject,
     {
-        vm::protect(func).map(|v| AnyObject::from(v) )
+        vm::protect(func)
     }
 
     /// Get current VM error info.
@@ -543,7 +543,7 @@ impl VM {
     ///
     /// ```text
     /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
-    ///     let closure = || self.send(&method, arguments.as_ref()).value();
+    ///     let closure = || self.send(&method, arguments.as_ref()).into();
     ///
     ///     let result = VM::protect(closure);
     ///
@@ -568,7 +568,7 @@ impl VM {
     /// use rutie::{VM, Exception, AnyException, Object};
     /// # VM::init();
     ///
-    /// let closure = || unsafe { VM::eval_str("raise 'hello world!'").value() };
+    /// let closure = || unsafe { VM::eval_str("raise 'hello world!'").into() };
     /// let result = VM::protect(closure);
     ///
     /// let exception = VM::error_pop().expect("nil should not have occurred here!");
@@ -587,7 +587,7 @@ impl VM {
     ///
     /// ```text
     /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
-    ///     let closure = || self.send(&method, arguments.as_ref()).value();
+    ///     let closure = || self.send(&method, arguments.as_ref()).into();
     ///
     ///     let result = VM::protect(closure);
     ///
@@ -603,5 +603,193 @@ impl VM {
     /// ```
     pub fn clear_error_info() {
         vm::set_errinfo(NilClass::new().value());
+    }
+
+
+    /// Exit with Ruby VM with status code.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate rutie;
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// VM::exit(0)
+    /// ```
+    pub fn exit(status: i32) {
+        vm::exit(status)
+    }
+
+    /// Exits the process immediately. No exit handlers are
+    /// run. `status` is returned to the underlying system as the
+    /// exit status.
+    ///
+    /// ```text
+    /// call-seq:
+    ///   Process.exit!(status=false)
+    /// ```
+    ///
+    /// > Note: Because the VM is exiting — having a return object is not a viable option and therefore you
+    /// >       must account for any exceptions that may arise yourself.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate rutie;
+    /// use rutie::{VM,Boolean};
+    /// # VM::init();
+    ///
+    /// unsafe { VM::exit_bang(&[Boolean::new(true).into()]) }
+    /// ```
+    ///
+    /// ```ruby
+    /// Process.exit!(true)
+    /// ```
+    ///
+    /// Since invalid arguments can raise an exception this is marked as unsafe.  Simply use `VM::protect`
+    /// and `VM::error_pop` to handle potential exceptions.
+    ///
+    /// ```
+    /// extern crate rutie;
+    /// use rutie::{VM, Symbol, NilClass, Object, AnyException, Exception};
+    /// # VM::init();
+    ///
+    /// VM::protect(|| {
+    ///     unsafe { VM::exit_bang(&[Symbol::new("asdf").into()]) };
+    ///
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// let error = VM::error_pop();
+    /// assert_eq!(error.unwrap().inspect(), "#<TypeError: no implicit conversion of Symbol into Integer>");
+    /// ```
+    pub unsafe fn exit_bang(arguments: &[AnyObject]) {
+        Class::from_existing("Process").send("exit!", arguments.as_ref());
+    }
+
+    /// Terminate execution immediately, effectively by calling
+    /// `Kernel.exit(false)`. If _msg_ is given, it is written
+    /// to STDERR prior to terminating.
+    ///
+    /// ```text
+    /// call-seq:
+    ///     abort
+    ///     Kernel::abort([msg])
+    ///     Process.abort([msg])
+    /// ```
+    ///
+    /// > Note: Because the VM is aborting — having a return object is not a viable option and therefore you
+    /// >       must account for any exceptions that may arise yourself.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate rutie;
+    /// use rutie::{VM, NilClass, AnyException, Exception, RString};
+    /// # VM::init();
+    ///
+    /// VM::protect(|| {
+    ///     unsafe { VM::abort(&[RString::new_utf8("Goodbye cruel world!").into()]) }
+    ///
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// let error = VM::error_pop();
+    /// assert_eq!(error.unwrap().inspect(), "#<SystemExit: Goodbye cruel world!>");
+    /// ```
+    ///
+    /// ```ruby
+    /// abort "Goodbye cruel world!"
+    /// ```
+    ///
+    /// Since invalid arguments can raise an exception this is marked as unsafe.  Simply use `VM::protect`
+    /// and `VM::error_pop` to handle potential exceptions.
+    ///
+    /// ```
+    /// extern crate rutie;
+    /// use rutie::{VM, Symbol, NilClass, Object, AnyException, Exception};
+    /// # VM::init();
+    ///
+    /// VM::protect(|| {
+    ///     unsafe { VM::abort(&[Symbol::new("asdf").into()]) };
+    ///
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// let error = VM::error_pop();
+    /// assert_eq!(error.unwrap().inspect(), "#<TypeError: no implicit conversion of Symbol into String>");
+    /// ```
+    pub unsafe fn abort(arguments: &[AnyObject]) {
+        let arguments = util::arguments_to_values(arguments);
+
+        vm::abort(&arguments)
+    }
+
+    /// Specifies the handling of signals. The first parameter is a signal name (a string such as “SIGALRM”,
+    /// “SIGUSR1”, and so on) or a signal number. The characters “SIG” may be omitted from the signal name.
+    /// The command or block specifies code to be run when the signal is raised. If the command is the
+    /// string “IGNORE” or “SIG_IGN”, the signal will be ignored. If the command is “DEFAULT” or “SIG_DFL”,
+    /// the Ruby’s default handler will be invoked. If the command is “EXIT”, the script will be terminated
+    /// by the signal. If the command is “SYSTEM_DEFAULT”, the operating system’s default handler will be
+    /// invoked. Otherwise, the given command or block will be run. The special signal name “EXIT” or signal
+    /// number zero will be invoked just prior to program termination. trap returns the previous handler for
+    /// the given signal.
+    ///
+    /// ```ruby
+    /// Signal.trap(0, proc { puts "Terminating: #{$$}" })
+    /// Signal.trap("CLD")  { puts "Child died" }
+    /// fork && Process.wait
+    /// ```
+    ///
+    /// produces:
+    ///
+    /// ```text
+    /// Terminating: 27461
+    /// Child died
+    /// Terminating: 27460
+    /// ```
+    pub fn trap(arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
+        Class::from_existing("Signal").protect_send("trap", arguments)
+    }
+
+
+
+    /// `at_exit` is run AFTER the VM is shut down
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    ///
+    /// # VM::init();
+    ///
+    /// let closure = |_vm| {
+    ///     println!("at_exit worked!");
+    /// };
+    ///
+    /// VM::at_exit(closure);
+    /// ```
+    pub fn at_exit<F>(func: F)
+    where F: FnMut(VmPointer) -> () {
+        vm::at_exit(func)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ::{LOCK_FOR_TEST, VM};
+
+    // cargo test at_exit -- --nocapture
+    #[test]
+    fn test_at_exit() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
+        let closure = |_vm| {
+            println!("test class::vm::tests::test_at_exit worked!");
+        };
+
+        VM::at_exit(closure);
     }
 }

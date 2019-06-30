@@ -15,6 +15,8 @@ pub type SignedValue = intptr_t;
 pub type EncodingIndex = c_int;
 pub type EncodingType = CallbackPtr;
 
+pub type VmPointer = CallbackPtr;
+
 pub type Argc = c_int;
 pub type CallbackPtr = *const c_void;
 pub type CallbackMutPtr = *mut c_void;

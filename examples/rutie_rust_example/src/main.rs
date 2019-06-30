@@ -6,7 +6,7 @@ fn try_it(s: &str) -> String {
     let a = RString::new_utf8(s);
 
     // Send returns an AnyObject type
-    let b = a.send("reverse", &[]);
+    let b = unsafe { a.send("reverse", &[]) };
 
     // We must try to convert the AnyObject
     // type back to our usable type.

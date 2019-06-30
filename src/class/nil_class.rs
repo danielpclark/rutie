@@ -7,7 +7,7 @@ use types::{InternalValue, Value, ValueType};
 use {Object, VerifiedObject, AnyObject};
 
 /// `NilClass`
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct NilClass {
     value: Value,
 }
@@ -21,7 +21,7 @@ impl NilClass {
     /// use rutie::{NilClass, Object, VM};
     /// # VM::init();
     ///
-    /// assert!(NilClass::new().value().is_nil());
+    /// assert!(NilClass::new().is_nil());
     /// ```
     ///
     /// Ruby:

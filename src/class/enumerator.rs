@@ -156,7 +156,7 @@ impl Enumerator {
     /// assert!(iter.next().is_err(), "not error!");
     /// ```
     pub fn rewind(&mut self) -> &mut Self {
-        self.send("rewind", &[]);
+        unsafe { self.send("rewind", &[]) };
         self
     }
 
@@ -187,7 +187,7 @@ impl Enumerator {
     ///         expected.push(Fixnum::new(777).to_any_object());
     ///
     ///         assert!(Class::from_existing("StopIteration").case_equals(&e));
-    ///         assert_eq!(expected.to_any_object(), e.send("result", &[]));
+    ///         assert_eq!(expected.to_any_object(), unsafe { e.send("result", &[]) });
     ///     },
     /// }
     /// ```

@@ -4,6 +4,7 @@ use std::slice;
 
 use binding::global::{RubySpecialConsts, rb_cObject};
 use binding::class::const_get;
+use binding::vm;
 use types::{c_char, c_int, c_void, Argc, InternalValue, Value};
 
 use {AnyObject, Object, Boolean};
@@ -120,4 +121,23 @@ pub fn inmost_rb_object(klass: &str) -> Value {
     let object = unsafe { rb_cObject };
 
     klass.split("::").fold(object, |acc, x| const_get(acc, x))
+}
+
+pub mod callback_call {
+    use ::types::{c_void, CallbackMutPtr};
+
+    pub fn no_parameters<F: FnMut() -> R, R>(ptr: CallbackMutPtr) -> R {
+        let f = ptr as *mut F;
+        unsafe { (*f)() }
+    }
+
+    pub fn one_parameter<F: FnMut(A) -> R, A, R>(a: A, ptr: CallbackMutPtr) -> R {
+        let f = ptr as *mut F;
+        unsafe { (*f)(a) }
+    }
+
+    pub fn two_parameters<F: FnMut(A, B) -> R, A, B, R>(a: A, b: B, ptr: CallbackMutPtr) -> R {
+        let f = ptr as *mut F;
+        unsafe { (*f)(a, b) }
+    }
 }

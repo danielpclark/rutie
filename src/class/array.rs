@@ -525,9 +525,9 @@ impl Array {
     /// Enumerator === enumerator
     /// ```
     pub fn to_enum(&self) -> Enumerator {
-        self.send("to_enum", &[])
-            .try_convert_to::<Enumerator>()
-            .unwrap()
+        unsafe { self.send("to_enum", &[]) }
+                     .try_convert_to::<Enumerator>()
+                     .unwrap()
     }
 }
 

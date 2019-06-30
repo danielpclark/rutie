@@ -37,6 +37,8 @@ This project is a continuation of:
   * [Segfault during GC when using a Ruby method written in C](https://github.com/danielpclark/rutie/blob/master/README.md#segfault-during-gc-when-using-a-ruby-method-written-in-c)
 * [Operating System Requirements](https://github.com/danielpclark/rutie#operating-system-requirements)
 * [Contributing](https://github.com/danielpclark/rutie#contributing)
+* [Rutie's Future](https://github.com/danielpclark/rutie#ruties-future)
+  * [SemVer](https://github.com/danielpclark/rutie#semver)
 * [Additional Project History](https://github.com/danielpclark/rutie#additional-project-history)
 * [LICENSE](https://github.com/danielpclark/rutie#license)
 
@@ -448,6 +450,21 @@ the documentation.  There is a subfolder under `class` for traits called `traits
 Macros for abstracting away complexity are in `src/dsl.rs`.
 
 Ruby's helper gem is in the submodule folder `gem`.
+
+## Rutie's Future
+
+Rutie will continue to be improved upon to be more and more compatible with every aspect of Ruby.  It
+will also gradually change toward Rust safety, semantics, and best practices.
+
+I imagine a future where Rutie is the stepping stone that helps Ruby switch from C to Rust.
+
+#### SemVer
+
+As this package has taken 1.0 to main both stable and safe and won't likely make a 1.0, then there can
+be breaking changes expected in each MINOR version update.  These MINOR version breaking changes will
+occur in the public API of `src/class/*` and `src/helpers/*`.  For private APIs there can be breaking
+changes in each PATCH version update which includes `src/rubysys/*`, `src/binding/*`, and
+`src/util.rs`.
 
 ## Additional Project History
 

@@ -705,15 +705,13 @@ pub trait Object: From<Value> {
     /// # VM::init();
     ///
     /// let array = Array::new().push(Fixnum::new(1));
-    /// let array_string =
-    ///     array
-    ///         .send("to_s", &[])
-    ///         .try_convert_to::<RString>()
-    ///         .unwrap();
+    /// let array_string = unsafe { array.send("to_s", &[]) }
+    ///                                  .try_convert_to::<RString>()
+    ///                                  .unwrap();
     ///
     /// assert_eq!(array_string.to_str(), "[1]");
     /// ```
-    fn send(&self, method: &str, arguments: &[AnyObject]) -> AnyObject {
+    unsafe fn send(&self, method: &str, arguments: &[AnyObject]) -> AnyObject {
         let arguments = util::arguments_to_values(arguments);
         let result = vm::call_method(self.value(), method, &arguments);
 
@@ -880,7 +878,7 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM};
+    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM, Boolean};
     /// # VM::init();
     ///
     /// let kernel = Class::from_existing("Kernel");
@@ -888,7 +886,7 @@ pub trait Object: From<Value> {
     /// let result = kernel.protect_send("nil?", &[]);
     ///
     /// if let Ok(r) = result {
-    ///     assert!(!r.value().is_true());
+    ///     assert!(!r.try_convert_to::<Boolean>().unwrap().to_bool());
     /// } else {
     ///     unreachable!()
     /// }
@@ -911,7 +909,7 @@ pub trait Object: From<Value> {
     /// ```
     fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException>
     {
-        let closure = || self.send(&method, arguments.as_ref()).value();
+        let closure = || unsafe { self.send(&method, arguments.as_ref()) };
 
         let result = VM::protect(closure);
 
@@ -933,7 +931,7 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM};
+    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM, Boolean};
     /// # VM::init();
     ///
     /// let kernel = Class::from_existing("Kernel");
@@ -941,7 +939,7 @@ pub trait Object: From<Value> {
     /// let result = kernel.protect_public_send("nil?", &[]);
     ///
     /// if let Ok(r) = result {
-    ///     assert!(!r.value().is_true());
+    ///     assert!(!r.try_convert_to::<Boolean>().unwrap().to_bool());
     /// } else {
     ///     unreachable!()
     /// }
@@ -970,9 +968,7 @@ pub trait Object: From<Value> {
         let v = self.value();
         let arguments = util::arguments_to_values(arguments);
 
-        let closure = || {
-            vm::call_public_method(v, &method, &arguments)
-        };
+        let closure = || vm::call_public_method(v, &method, &arguments).into();
 
         let result = VM::protect(closure);
 
@@ -1021,10 +1017,8 @@ pub trait Object: From<Value> {
     ///
     /// let array = Array::new().push(Fixnum::new(1));
     /// let args = [Fixnum::new(1).to_any_object()];
-    /// let index =
-    ///     array
-    ///         .send("find_index", &args)
-    ///         .try_convert_to::<Fixnum>();
+    /// let index = unsafe { array.send("find_index", &args) }
+    ///                           .try_convert_to::<Fixnum>();
     ///
     /// assert_eq!(index, Ok(Fixnum::new(0)));
     /// ```
@@ -1075,9 +1069,9 @@ pub trait Object: From<Value> {
     ///         itself.def("state", counter_state);
     ///     }).new_instance(&[]);
     ///
-    ///     counter.send("increment!", &[]);
+    ///     unsafe { counter.send("increment!", &[]) };
     ///
-    ///     let new_state = counter.send("state", &[]).try_convert_to::<Fixnum>();
+    ///     let new_state = unsafe { counter.send("state", &[]) }.try_convert_to::<Fixnum>();
     ///
     ///     assert_eq!(new_state, Ok(Fixnum::new(1)));
     /// }
@@ -1156,9 +1150,9 @@ pub trait Object: From<Value> {
     ///         itself.def("state", counter_state);
     ///     }).new_instance(&[]);
     ///
-    ///     counter.send("increment!", &[]);
+    ///     unsafe { counter.send("increment!", &[]) };
     ///
-    ///     let new_state = counter.send("state", &[]).try_convert_to::<Fixnum>();
+    ///     let new_state = unsafe { counter.send("state", &[]) }.try_convert_to::<Fixnum>();
     ///
     ///     assert_eq!(new_state, Ok(Fixnum::new(1)));
     /// }

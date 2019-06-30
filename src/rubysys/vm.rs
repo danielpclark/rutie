@@ -1,4 +1,4 @@
-use rubysys::types::{CallbackPtr, c_char, c_int, c_void, Value, Id, Argc};
+use rubysys::types::{CallbackPtr, c_char, c_int, c_void, Value, Id, Argc, VmPointer};
 
 extern "C" {
     // void
@@ -7,6 +7,9 @@ extern "C" {
     // void
     // ruby_init_loadpath(void)
     pub fn ruby_init_loadpath();
+    // void
+    // ruby_vm_at_exit(void(*func)(ruby_vm_t *))
+    pub fn ruby_vm_at_exit(func: VmPointer);
     // VALUE
     // rb_block_proc(void)
     pub fn rb_block_proc() -> Value;
@@ -22,6 +25,9 @@ extern "C" {
     // VALUE
     // rb_eval_string_protect(const char *str, int *pstate)
     pub fn rb_eval_string_protect(string: *const c_char, state: *mut c_int) -> Value;
+    // VALUE
+    // rb_f_abort(int argc, const VALUE *argv)
+    pub fn rb_f_abort(argc: Argc, argv: *const Value) -> Value;
     // //////////////// UNAVAILABLE METHOD ////////////////
     // // VALUE
     // // rb_f_eval(int argc, const VALUE *argv, VALUE self)
@@ -30,6 +36,9 @@ extern "C" {
     // void
     // rb_exc_raise(VALUE mesg)
     pub fn rb_exc_raise(exception: Value);
+    // void
+    // rb_exit(int status)
+    pub fn rb_exit(status: c_int);
     // void
     // rb_raise(VALUE exc, const char *fmt, ...)
     pub fn rb_raise(exception: Value, message: *const c_char);

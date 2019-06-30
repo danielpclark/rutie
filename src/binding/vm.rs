@@ -1,8 +1,9 @@
 use std::ptr;
 
+use ::AnyObject;
 use rubysys::{thread, vm};
 
-use types::{c_int, c_void, CallbackPtr, Value};
+use types::{c_int, c_void, CallbackPtr, Value, VmPointer};
 use binding::symbol::internal_id;
 use util;
 
@@ -176,23 +177,41 @@ extern "C" fn callbox(boxptr: *mut c_void) -> *const c_void {
     fnbox()
 }
 
-pub fn protect<F>(func: F) -> Result<Value, c_int>
+use util::callback_call::no_parameters as callback_protect;
+
+pub fn protect<F>(func: F) -> Result<AnyObject, c_int>
 where
-    F: FnMut() -> Value,
+    F: FnMut() -> AnyObject,
 {
     let mut state = 0;
     let value = unsafe {
         let closure = &func as *const F as *const c_void;
-        vm::rb_protect(callback_protect::<F> as CallbackPtr, closure, &mut state as *mut c_int)
+        vm::rb_protect(callback_protect::<F, AnyObject> as CallbackPtr, closure, &mut state as *mut c_int)
     };
     if state == 0 {
-        Ok(value)
+        Ok(value.into())
     } else {
         Err(state)
     }
 }
 
-fn callback_protect<F: FnMut() -> Value>(ptr: *const c_void) -> Value {
-    let f = ptr as *mut F;
-    unsafe { (*f)() }
+pub fn exit(status: i32) {
+    unsafe { vm::rb_exit(status as c_int) }
+}
+
+pub fn abort(arguments: &[Value]) {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { vm::rb_f_abort(argc, argv) };
+}
+
+use util::callback_call::one_parameter as at_exit_callback;
+
+pub fn at_exit<F>(func: F)
+where F: FnMut(VmPointer) -> () {
+    let mut state = 0;
+    unsafe {
+        let closure = &func as *const F as *const c_void;
+        vm::rb_protect(at_exit_callback::<F, VmPointer, ()> as CallbackPtr, closure, &mut state as *mut c_int)
+    };
 }

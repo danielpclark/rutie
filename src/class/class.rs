@@ -189,7 +189,7 @@ impl Class {
     /// String.allocate
     /// ```
     pub fn allocate(&self) -> Class {
-        Class::from(self.send("allocate", &[]).value())
+        Class::from(unsafe { self.send("allocate", &[]) }.value())
     }
 
     /// Returns a superclass of the current class
