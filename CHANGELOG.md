@@ -17,6 +17,7 @@ API and may have breaking changes during a teeny version change.
 - Readme section for Ruby's Future and SemVer
 - `VM::abort` exit the Ruby VM via abort
 - `VM::trap` for signal handling
+- `VM::at_exit` for executing Rust code after the Ruby VM stops
 
 ### Changed
 - `VM::protect` takes a function that now returns an `AnyObject` instead of a `Value`.

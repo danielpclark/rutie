@@ -4,6 +4,7 @@ use std::slice;
 
 use binding::global::{RubySpecialConsts, rb_cObject};
 use binding::class::const_get;
+use binding::vm;
 use types::{c_char, c_int, c_void, Argc, InternalValue, Value};
 
 use {AnyObject, Object, Boolean};

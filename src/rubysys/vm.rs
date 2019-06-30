@@ -1,4 +1,4 @@
-use rubysys::types::{CallbackPtr, c_char, c_int, c_void, Value, Id, Argc};
+use rubysys::types::{CallbackPtr, c_char, c_int, c_void, Value, Id, Argc, VmPointer};
 
 extern "C" {
     // void
@@ -7,6 +7,9 @@ extern "C" {
     // void
     // ruby_init_loadpath(void)
     pub fn ruby_init_loadpath();
+    // void
+    // ruby_vm_at_exit(void(*func)(ruby_vm_t *))
+    pub fn ruby_vm_at_exit(func: VmPointer);
     // VALUE
     // rb_block_proc(void)
     pub fn rb_block_proc() -> Value;

@@ -3,7 +3,7 @@ use std::ptr;
 use ::AnyObject;
 use rubysys::{thread, vm};
 
-use types::{c_int, c_void, CallbackPtr, Value};
+use types::{c_int, c_void, CallbackPtr, Value, VmPointer};
 use binding::symbol::internal_id;
 use util;
 
@@ -203,4 +203,15 @@ pub fn abort(arguments: &[Value]) {
     let (argc, argv) = util::process_arguments(arguments);
 
     unsafe { vm::rb_f_abort(argc, argv) };
+}
+
+use util::callback_call::one_parameter as at_exit_callback;
+
+pub fn at_exit<F>(func: F)
+where F: FnMut(VmPointer) -> () {
+    let mut state = 0;
+    unsafe {
+        let closure = &func as *const F as *const c_void;
+        vm::rb_protect(at_exit_callback::<F, VmPointer, ()> as CallbackPtr, closure, &mut state as *mut c_int)
+    };
 }

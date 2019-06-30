@@ -1,5 +1,5 @@
 use binding::vm;
-use types::{Argc, Value};
+use types::{Argc, Value, VmPointer};
 
 use {AnyObject, AnyException, Class, Object, Proc, NilClass, Array, TryConvert, util};
 
@@ -751,5 +751,45 @@ impl VM {
     /// ```
     pub fn trap(arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
         Class::from_existing("Signal").protect_send("trap", arguments)
+    }
+
+
+
+    /// `at_exit` is run AFTER the VM is shut down
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    ///
+    /// # VM::init();
+    ///
+    /// let closure = |_vm| {
+    ///     println!("at_exit worked!");
+    /// };
+    ///
+    /// VM::at_exit(closure);
+    /// ```
+    pub fn at_exit<F>(func: F)
+    where F: FnMut(VmPointer) -> () {
+        vm::at_exit(func)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ::{LOCK_FOR_TEST, VM};
+
+    // cargo test at_exit -- --nocapture
+    #[test]
+    fn test_at_exit() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
+        let closure = |_vm| {
+            println!("test class::vm::tests::test_at_exit worked!");
+        };
+
+        VM::at_exit(closure);
     }
 }
