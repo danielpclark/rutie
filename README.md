@@ -460,7 +460,7 @@ I imagine a future where Rutie is the stepping stone that helps Ruby switch from
 
 #### SemVer
 
-As this package has taken 1.0 to main both stable and safe and won't likely make a 1.0, then there can
+As this package has taken 1.0 to mean both stable and safe and won't likely make a 1.0, then there can
 be breaking changes expected in each MINOR version update.  These MINOR version breaking changes will
 occur in the public API of `src/class/*` and `src/helpers/*`.  For private APIs there can be breaking
 changes in each PATCH version update which includes `src/rubysys/*`, `src/binding/*`, and
