@@ -3,7 +3,7 @@ use std::convert::From;
 use binding::float;
 use types::{Value, ValueType};
 
-use {Object, VerifiedObject, AnyObject};
+use {Object, VerifiedObject, AnyObject, AnyException, VM};
 
 /// `Float`
 #[derive(Debug)]
@@ -54,6 +54,29 @@ impl Float {
     /// ```
     pub fn to_f64(&self) -> f64 {
         float::num_to_float(self.value())
+    }
+
+    /// Cast any object to a `Float` implicitly, otherwise
+    /// returns an `AnyException`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, Float, Object, VM};
+    /// # VM::init();
+    ///
+    /// let integer = Integer::new(3);
+    ///
+    /// assert_eq!(Float::implicit_to_f(integer), Ok(Float::new(3.0)));
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// Float(3) == 3.0
+    /// ```
+    pub fn implicit_to_f(object: impl Object) -> Result<Float, AnyException> {
+        float::implicit_to_f(object.value())
     }
 }
 

@@ -8,6 +8,8 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+
+## [0.7.0] - 2019-08-19
 ### Added
 - `VM::error_pop` to get the Ruby Exception and remove it from interfering
   with the current thread
@@ -18,6 +20,7 @@ API and may have breaking changes during a teeny version change.
 - `VM::abort` exit the Ruby VM via abort
 - `VM::trap` for signal handling
 - `VM::at_exit` for executing Rust code after the Ruby VM stops
+- `Float::implicit_to_f`
 
 ### Changed
 - `VM::protect` takes a function that now returns an `AnyObject` instead of a `Value`.
