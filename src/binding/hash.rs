@@ -36,7 +36,7 @@ pub fn length(hash: Value) -> i64 {
     }
 }
 
-use util::callback_call::two_parameters as each_callback;
+use util::callback_call::hash_foreach_callback as each_callback;
 
 pub fn each<F>(hash: Value, closure_callback: F)
 where
@@ -45,6 +45,6 @@ where
     let closure_ptr = &closure_callback as *const _ as CallbackMutPtr;
 
     unsafe {
-        hash::rb_hash_foreach(hash, each_callback::<F, AnyObject, AnyObject, ()> as CallbackPtr, closure_ptr);
+        hash::rb_hash_foreach(hash, each_callback::<F, AnyObject, AnyObject> as CallbackPtr, closure_ptr);
     }
 }
