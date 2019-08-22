@@ -15,7 +15,7 @@ where
     F: FnMut() -> R,
     R: Object,
 {
-    let fnbox = Box::new(func) as Box<FnMut() -> R>;
+    let fnbox = Box::new(func) as Box<dyn FnMut() -> R>;
 
     let closure_ptr = Box::into_raw(Box::new(fnbox)) as CallbackMutPtr;
 
@@ -97,15 +97,15 @@ extern "C" fn thread_create_callbox<R>(boxptr: CallbackMutPtr) -> Value
 where
     R: Object,
 {
-    let mut fnbox: Box<Box<FnMut() -> R>> =
-        unsafe { Box::from_raw(boxptr as *mut Box<FnMut() -> R>) };
+    let mut fnbox: Box<Box<dyn FnMut() -> R>> =
+        unsafe { Box::from_raw(boxptr as *mut Box<dyn FnMut() -> R>) };
 
     fnbox().value()
 }
 
 extern "C" fn thread_call_callbox(boxptr: CallbackMutPtr) -> CallbackPtr {
-    let mut fnbox: Box<Box<FnMut() -> CallbackPtr>> =
-        unsafe { Box::from_raw(boxptr as *mut Box<FnMut() -> CallbackPtr>) };
+    let mut fnbox: Box<Box<dyn FnMut() -> CallbackPtr>> =
+        unsafe { Box::from_raw(boxptr as *mut Box<dyn FnMut() -> CallbackPtr>) };
 
     fnbox()
 }

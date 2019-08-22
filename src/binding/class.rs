@@ -101,13 +101,13 @@ pub fn define_singleton_method<I: Object, O: Object>(
     }
 }
 
-pub fn wrap_data<T>(klass: Value, data: T, wrapper: &DataTypeWrapper<T>) -> Value {
+pub fn wrap_data<T>(klass: Value, data: T, wrapper: &dyn DataTypeWrapper<T>) -> Value {
     let data = Box::into_raw(Box::new(data)) as *mut c_void;
 
     unsafe { typed_data::rb_data_typed_object_wrap(klass, data, wrapper.data_type()) }
 }
 
-pub fn get_data<T>(object: Value, wrapper: &DataTypeWrapper<T>) -> &mut T {
+pub fn get_data<T>(object: Value, wrapper: &dyn DataTypeWrapper<T>) -> &mut T {
     unsafe {
         let data = typed_data::rb_check_typeddata(object, wrapper.data_type());
 

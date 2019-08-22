@@ -97,7 +97,7 @@ where
         Box::into_raw(Box::new(r)) as *const c_void
     };
 
-    let fnbox = Box::new(wrap_return) as Box<FnMut() -> *const c_void>;
+    let fnbox = Box::new(wrap_return) as Box<dyn FnMut() -> *const c_void>;
 
     Box::into_raw(Box::new(fnbox)) as *const c_void
 }
