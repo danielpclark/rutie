@@ -33,3 +33,12 @@ pub struct RBasic {
     pub flags: InternalValue,
     pub klass: InternalValue,
 }
+
+#[repr(C)]
+pub enum st_retval {
+    Continue,
+    Stop,
+    Delete,
+    Check,
+    Replace,
+}

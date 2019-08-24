@@ -306,3 +306,35 @@ impl PartialEq for Hash {
         self.equals(other)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::{LOCK_FOR_TEST, Fixnum, Hash, Object, Symbol, VM};
+
+    #[test]
+    fn test_hash_each() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
+        let mut hash = Hash::new();
+
+        let len: i64 = 200;
+
+        for i in 0..len {
+            hash.store(Symbol::new(&format!("key_{}", i)), Fixnum::new(i));
+        }
+
+        assert_eq!(hash.length(), len as usize);
+
+        let mut counter: i64 = 0;
+
+        hash.each(|k, v| {
+            assert_eq!(k.try_convert_to::<Symbol>().map(|s| s.to_string()), Ok(format!("key_{}", counter)));
+            assert_eq!(v.try_convert_to::<Fixnum>().map(|f| f.to_i64()), Ok(counter));
+
+            counter += 1;
+        });
+
+        assert_eq!(counter, len);
+    }
+}

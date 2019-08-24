@@ -124,7 +124,7 @@ pub fn inmost_rb_object(klass: &str) -> Value {
 }
 
 pub mod callback_call {
-    use ::types::{c_void, CallbackMutPtr};
+    use ::types::{c_void, CallbackMutPtr, st_retval};
 
     pub fn no_parameters<F: FnMut() -> R, R>(ptr: CallbackMutPtr) -> R {
         let f = ptr as *mut F;
@@ -136,8 +136,9 @@ pub mod callback_call {
         unsafe { (*f)(a) }
     }
 
-    pub fn two_parameters<F: FnMut(A, B) -> R, A, B, R>(a: A, b: B, ptr: CallbackMutPtr) -> R {
+    pub fn hash_foreach_callback<F: FnMut(A, B), A, B>(a: A, b: B, ptr: CallbackMutPtr) -> st_retval {
         let f = ptr as *mut F;
-        unsafe { (*f)(a, b) }
+        unsafe { (*f)(a, b); }
+        st_retval::Continue
     }
 }
