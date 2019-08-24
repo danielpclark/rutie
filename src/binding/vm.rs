@@ -171,8 +171,8 @@ where
 }
 
 extern "C" fn callbox(boxptr: *mut c_void) -> *const c_void {
-    let mut fnbox: Box<Box<FnMut() -> *const c_void>> =
-        unsafe { Box::from_raw(boxptr as *mut Box<FnMut() -> *const c_void>) };
+    let mut fnbox: Box<Box<dyn FnMut() -> *const c_void>> =
+        unsafe { Box::from_raw(boxptr as *mut Box<dyn FnMut() -> *const c_void>) };
 
     fnbox()
 }

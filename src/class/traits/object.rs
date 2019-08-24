@@ -205,12 +205,12 @@ pub trait Object: From<Value> {
     /// server.host == "127.0.0.1"
     /// server.port == 3000
     /// ```
-    fn get_data<'a, T>(&'a self, wrapper: &'a DataTypeWrapper<T>) -> &T {
+    fn get_data<'a, T>(&'a self, wrapper: &'a dyn DataTypeWrapper<T>) -> &T {
         class::get_data(self.value(), wrapper)
     }
 
     /// Gets a mutable reference to the Rust structure which is wrapped into a Ruby object.
-    fn get_data_mut<'a, T>(&'a mut self, wrapper: &'a DataTypeWrapper<T>) -> &mut T {
+    fn get_data_mut<'a, T>(&'a mut self, wrapper: &'a dyn DataTypeWrapper<T>) -> &mut T {
         class::get_data(self.value(), wrapper)
     }
 
