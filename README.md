@@ -101,11 +101,11 @@ file. Add Rutie to the `Cargo.toml` file and define the lib type.
 
 ```toml
 [dependencies]
-rutie = "0.6.1"
+rutie = {version="xxx", features=["no-link"]}
 
 [lib]
 name = "rutie_ruby_example"
-crate-type = ["dylib"]
+crate-type = ["cdylib"]
 ```
 
 Then edit your `src/lib.rs` file for your Rutie code.
@@ -361,9 +361,18 @@ before using Ruby code from Rust.
 
 #### Error while loading shared libraries: libruby.so.#.#: cannot open shared object file: No such file or directory
 
-This may happen when a Ruby program is trying to link with libruby via Rutie.  Simply disable linking
-by setting the environment variable `NO_LINK_RUTIE` before the Rust code is compiled.  This is needed
-to be done on the service TravisCI for example.
+This happens when the Rutie build is trying to link with `libruby`,
+but it's not found on your library search path. Either add it to
+`LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH` if you're building a standalone
+program that calls `VM::init()`, or if you're building a library to
+load into a running Ruby VM then you can disable linking by either
+setting the environment variable `NO_LINK_RUTIE`, or enabling the
+cargo feature `no-link` for Rutie in your `Cargo.toml` like this:
+
+```toml
+[dependencies]
+rutie = {version="xxx", features=["no-link"]}
+```
 
 #### Calling methods from other methods within the `methods!` macro doesn't work
 
