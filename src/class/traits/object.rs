@@ -745,11 +745,7 @@ pub trait Object: From<Value> {
     /// a == c # true
     /// ```
     fn equals<T: Object>(&self, other: &T) -> bool {
-        let v = self.value();
-        let m = "==";
-        let a = [other.value()];
-
-        vm::call_method(v, m, &a).is_true()
+        class::equals(self.value(), other.value()).is_true()
     }
 
     /// Alias for Ruby's `===`
@@ -811,11 +807,7 @@ pub trait Object: From<Value> {
     /// a.eql?(c)
     /// ```
     fn is_eql<T: Object>(&self, other: &T) -> bool {
-        let v = self.value();
-        let m = "eql?";
-        let a = [other.value()];
-
-        vm::call_method(v, m, &a).is_true()
+        class::is_eql(self.value(), other.value()).is_true()
     }
 
     /// Alias for Ruby's `equal?`
@@ -846,11 +838,7 @@ pub trait Object: From<Value> {
     /// a.eqlua?(c)
     /// ```
     fn is_equal<T: Object>(&self, other: &T) -> bool {
-        let v = self.value();
-        let m = "equal?";
-        let a = [other.value()];
-
-        vm::call_method(v, m, &a).is_true()
+        self.value() == other.value()
     }
 
     /// Checks whether the object responds to given method

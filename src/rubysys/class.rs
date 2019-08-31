@@ -43,6 +43,12 @@ extern "C" {
                                       name: *const c_char,
                                       callback: CallbackPtr,
                                       argc: Argc);
+    // VALUE
+    // rb_eql(VALUE obj1, VALUE obj2)
+    pub fn rb_eql(obj1: Value, obj2: Value) -> Value;
+    // VALUE
+    // rb_equal(VALUE obj1, VALUE obj2)
+    pub fn rb_equal(obj1: Value, obj2: Value) -> Value;
     // void
     // rb_extend_object(VALUE object, VALUE module)
     pub fn rb_extend_object(object: Value, module: Value);
