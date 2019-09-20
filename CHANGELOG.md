@@ -8,6 +8,8 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+### Added
+- cargo feature `no-link` disables linking to `libruby`, thanks to @danlarkin
 
 ## [0.7.0] - 2019-08-19
 ### Added
