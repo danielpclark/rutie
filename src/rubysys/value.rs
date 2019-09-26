@@ -6,7 +6,7 @@ use rubysys::types::{InternalValue, RBasic};
 
 const SPECIAL_SHIFT: usize = 8;
 
-#[cfg(not(target_arch = "x86_64"))]
+#[cfg(target_pointer_width = "32")]
 pub enum RubySpecialConsts {
     False = 0,
     True = 0x02,
@@ -14,7 +14,7 @@ pub enum RubySpecialConsts {
     Undef = 0x06,
 }
 
-#[cfg(not(target_arch = "x86_64"))]
+#[cfg(target_pointer_width = "32")]
 pub enum RubySpecialFlags {
     ImmediateMask = 0x03,
     FixnumFlag = 0x01,
@@ -23,7 +23,7 @@ pub enum RubySpecialFlags {
     SymbolFlag = 0x0e,
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(target_pointer_width = "64")]
 pub enum RubySpecialConsts {
     False = 0,
     True = 0x14,
@@ -31,7 +31,7 @@ pub enum RubySpecialConsts {
     Undef = 0x34,
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(target_pointer_width = "64")]
 pub enum RubySpecialFlags {
     ImmediateMask = 0x07,
     FixnumFlag = 0x01,
