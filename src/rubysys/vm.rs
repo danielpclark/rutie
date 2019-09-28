@@ -4,6 +4,14 @@ extern "C" {
     // void
     // ruby_init(void)
     pub fn ruby_init();
+    pub fn rb_encdb_declare(name: *const c_char);
+    pub fn rb_encdb_alias(alias: *const c_char, orig: *const c_char);
+    pub fn rb_encdb_replicate(name: *const c_char, orig: *const c_char) -> c_int;
+    pub fn rb_enc_set_base(name: *const c_char, orig: *const c_char);
+    pub fn rb_encdb_dummy(name: *const c_char) -> c_int;
+    pub fn rb_enc_set_dummy(index: c_int) -> c_int;
+    pub fn rb_encdb_set_unicode(index: c_int);
+    pub fn rb_declare_transcoder(enc1: *const c_char, enc2: *const c_char, lib: *const c_char);
     // void
     // ruby_init_loadpath(void)
     pub fn ruby_init_loadpath();

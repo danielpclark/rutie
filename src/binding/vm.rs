@@ -31,8 +31,27 @@ pub fn init() {
     }
 }
 
+fn force_loading() {
+    let utf8 = util::str_to_cstring("UTF-8");
+    let ascii_8bit = util::str_to_cstring("ASCII-8BIT");
+    let binary = util::str_to_cstring("BINARY");
+    let dummy = util::str_to_cstring("DUMMY");
+    let single_byte = util::str_to_cstring("single_byte");
+    unsafe {
+        vm::rb_encdb_declare(ascii_8bit.as_ptr());
+        vm::rb_encdb_alias(binary.as_ptr(), ascii_8bit.as_ptr());
+        vm::rb_encdb_replicate(ascii_8bit.as_ptr(), ascii_8bit.as_ptr());
+        vm::rb_enc_set_base(ascii_8bit.as_ptr(), ascii_8bit.as_ptr());
+        let i = vm::rb_encdb_dummy(dummy.as_ptr());
+        vm::rb_enc_set_dummy(i);
+        vm::rb_encdb_set_unicode(1); // see encindex.h RUBY_ENCINDEX_UTF_8
+        vm::rb_declare_transcoder(utf8.as_ptr(), ascii_8bit.as_ptr(), single_byte.as_ptr());
+    }
+}
+
 pub fn init_loadpath() {
     unsafe {
+        force_loading();
         vm::ruby_init_loadpath();
     }
 }
