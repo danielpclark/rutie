@@ -16,6 +16,9 @@ license = "MIT"
 build = "build.rs"
 links = "ruby"
 
+[features]
+no-link = [] # tells build.rs to not link to libruby
+
 [dependencies]
 libc = "0.2.58"
 lazy_static = "1.3.0"

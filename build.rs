@@ -343,9 +343,14 @@ fn is_static() -> bool {
     env::var_os("RUBY_STATIC").is_some()
 }
 
+fn should_link() -> bool {
+    std::env::var_os("NO_LINK_RUTIE").is_none()
+        && std::env::var_os("CARGO_FEATURE_NO_LINK").is_none()
+}
+
 fn main() {
     // Ruby programs calling Rust doesn't need cc linking
-    if let None = std::env::var_os("NO_LINK_RUTIE") {
+    if should_link() {
 
         // If windows OS do windows stuff
         windows_support();
