@@ -10,8 +10,11 @@ API and may have breaking changes during a teeny version change.
 ## [Unreleased]
 ### Fixed
 - `Hash::each` (via `binding::hash::each`) now calls `rubysys::rb_hash_foreach` with a
-  callback that properly returns an `st_retval` instead of `()`, thanks to @danlarkin
+  callback that properly returns a `st_retval` instead of `()`, thanks to @danlarkin
 - fixed build warnings due to trait objects, thanks to @danlarkin
+
+### Added
+- cargo feature `no-link` disables linking to `libruby`, thanks to @danlarkin
 
 ## [0.7.0] - 2019-08-19
 ### Added

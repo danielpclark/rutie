@@ -166,10 +166,10 @@ fn windows_support() {
 #[cfg(not(target_os = "windows"))]
 fn windows_support() {}
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use std::os::unix::fs::symlink;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 fn ruby_lib_link_name() -> String {
     // Rust with linker search paths doesn't seem to use those paths
     // but rather resorts to the systems Ruby.  So we symlink into
@@ -343,9 +343,14 @@ fn is_static() -> bool {
     env::var_os("RUBY_STATIC").is_some()
 }
 
+fn should_link() -> bool {
+    std::env::var_os("NO_LINK_RUTIE").is_none()
+        && std::env::var_os("CARGO_FEATURE_NO_LINK").is_none()
+}
+
 fn main() {
     // Ruby programs calling Rust doesn't need cc linking
-    if let None = std::env::var_os("NO_LINK_RUTIE") {
+    if should_link() {
 
         // If windows OS do windows stuff
         windows_support();
