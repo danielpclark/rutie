@@ -1,4 +1,4 @@
-use rubysys::types::{c_char, c_void, c_int, size_t, Value};
+use rubysys::types::{c_char, c_int, c_void, size_t, Value};
 
 extern "C" {
     // void *
@@ -12,10 +12,11 @@ extern "C" {
     pub fn rb_typeddata_is_kind_of(object: Value, data_type: *const RbDataType) -> c_int;
     // VALUE
     // rb_data_typed_object_wrap(VALUE klass, void *datap, const rb_data_type_t *type)
-    pub fn rb_data_typed_object_wrap(klass: Value,
-                                     data: *mut c_void,
-                                     data_type: *const RbDataType)
-                                     -> Value;
+    pub fn rb_data_typed_object_wrap(
+        klass: Value,
+        data: *mut c_void,
+        data_type: *const RbDataType,
+    ) -> Value;
 }
 
 #[repr(C)]
@@ -26,6 +27,9 @@ pub struct RbDataTypeFunction {
     pub reserved: [*mut c_void; 2],
 }
 
+unsafe impl Send for RbDataTypeFunction {}
+unsafe impl Sync for RbDataTypeFunction {}
+
 #[repr(C)]
 pub struct RbDataType {
     pub wrap_struct_name: *const c_char,
@@ -34,3 +38,6 @@ pub struct RbDataType {
     pub data: *mut c_void,
     pub flags: Value,
 }
+
+unsafe impl Send for RbDataType {}
+unsafe impl Sync for RbDataType {}
