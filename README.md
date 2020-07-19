@@ -423,7 +423,7 @@ Everything is tested against 64 bit operating systems with 64 bit Ruby & Rust bu
 #### Linux & Mac
 
 - Rust 1.26 or later
-- Ruby (64 bit) 2.4 or later
+- Ruby (64 bit) 2.5 or later
 
 #### Windows
 - Rust 1.26 or later
@@ -436,7 +436,7 @@ Ruby needs to be compiled with the `--enable shared` option.  Dynamic linking to
 
 If using RBENV then the following is recommended:
 
-    CONFIGURE_OPTS=--enable-shared rbenv install 2.6.3
+    CONFIGURE_OPTS=--enable-shared rbenv install 2.7.1
 
 You can check if your Ruby is compiled to be dynamically linked to by running the following and getting a `"yes"` response.
 
