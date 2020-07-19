@@ -42,7 +42,6 @@ pub trait Object: From<Value> {
     ///     }
     /// }
     /// ```
-    #[inline]
     fn value(&self) -> Value;
 
     /// Returns a class of current object.
