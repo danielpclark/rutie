@@ -815,27 +815,28 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Fixnum, Object, VM};
+    /// use rutie::{Object, Array, VM};
     /// # VM::init();
     ///
-    /// let a = Fixnum::new(4);
-    /// let b = Fixnum::new(7);
-    /// let c = Fixnum::new(4);
+    /// let values: Array = VM::eval("a='a';b=a;c=a.dup;[a,b,c]").unwrap().try_convert_to::<Array>().unwrap();
+    /// let a = values.at(0);
+    /// let b = values.at(1);
+    /// let c = values.at(2);
     ///
-    /// assert!(!a.is_equal(&b));
-    /// assert!(a.is_equal(&c));
+    /// assert!(a.is_equal(&b));
+    /// assert!(!a.is_equal(&c));
     /// ```
     ///
     /// Ruby:
     ///
     /// ```ruby
-    /// a = 4
-    /// b = 7
-    /// c = 4
+    /// a = "a"
+    /// b = a
+    /// c = a.dup
     ///
     ///
-    /// a.equal?(b)
-    /// a.eqlua?(c)
+    /// a.equal?(b) # true
+    /// a.equal?(c) # false
     /// ```
     fn is_equal<T: Object>(&self, other: &T) -> bool {
         self.value() == other.value()

@@ -203,6 +203,27 @@ mod tests {
     use super::super::super::types::Value;
 
     #[test]
+    fn test_github_issue_113_darwin_os() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
+        let num: Integer = Integer::new(std::i64::MIN);
+        assert_eq!(num.to_i64(), ::std::i64::MIN);
+
+        let num: Integer = Integer::new(std::i64::MAX);
+        assert_eq!(num.to_i64(), ::std::i64::MAX);
+
+        let num: i64 = std::i64::MIN + std::u32::MAX as i64;
+        assert_eq!(Integer::new(num).to_i64(), -9223372032559808513);
+
+        let num: Integer = Integer::new((std::i32::MIN as i64).pow(2));
+        assert_eq!(num.to_i64(), 4611686018427387904);
+
+        let num: Integer = Integer::new((std::i32::MIN as i64).pow(2) * -1 - 1);
+        assert_eq!(num.to_i64(), -4611686018427387905)
+    }
+
+    #[test]
     fn test_i32() {
         let _guard = LOCK_FOR_TEST.write().unwrap();
         VM::init();

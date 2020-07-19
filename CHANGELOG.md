@@ -12,6 +12,9 @@ API and may have breaking changes during a teeny version change.
 - cargo feature `no-link` disables linking to `libruby`, thanks to @danlarkin
 - initial changes for Android support, thanks to @Riey
 
+### Changed
+- Optimized equality methods, thanks to @asppsa
+
 ### Fixed
 - `Hash::each` (via `binding::hash::each`) now calls `rubysys::rb_hash_foreach` with a
   callback that properly returns a `st_retval` instead of `()`, thanks to @danlarkin
