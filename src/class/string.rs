@@ -443,35 +443,28 @@ impl EncodingSupport for RString {
     /// string.encoding.name == "US-ASCII"
     /// ```
     ///
-    // TODO: See comment in method definition below.
-    // ```
-    // use rutie::{RString, VM, EncodingSupport, Encoding, Object, Exception};
-    // # VM::init();
-    //
-    // let mut string = RString::new_utf8("Hello");
-    // string.force_encoding(Encoding::utf8());
-    // string.freeze();
-    // let result = string.force_encoding(Encoding::us_ascii());
-    //
-    // match result {
-    //     Ok(_) => assert_eq!("This is a bad path.", "You shouldn't get this message."),
-    //     Err(happy_path) => assert_eq!(happy_path.message(), "can\'t modify frozen String"),
-    // }
-    // ```
+    /// ```
+    /// use rutie::{RString, VM, EncodingSupport, Encoding, Object, Exception};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("Hello");
+    /// string.force_encoding(Encoding::utf8());
+    /// string.freeze();
+    /// let result = string.force_encoding(Encoding::us_ascii());
+    ///
+    /// match result {
+    ///     Ok(_) => assert_eq!("This is a bad path.", "You shouldn't get this message."),
+    ///     Err(happy_path) => assert_eq!(happy_path.message(), "can\'t modify frozen String"),
+    /// }
+    /// ```
     fn force_encoding(&mut self, enc: Encoding) -> Result<Self, AnyException> {
         if string::is_lockedtmp(self.value()) {
             return Err(AnyException::new("RuntimeError", Some("can't modify string; temporarily locked")));
         }
 
-        // TODO: Ruby 2.3.7 & 2.4.4 fail on CI servers for all OSes because of the `is_frozen` check
-        // here.  Works with Ruby 2.5.1 everywhere though and on my machine or Docker with all
-        // versions.  May be CI binaries related but that doesn't explain why `is_frozen` works
-        // elsewhere on the CI same systems.  Either get this to work on the CI servers or wait
-        // till EOL for Ruby 2.3 and 2.4.
-        //
-        // if self.is_frozen() {
-        //     return Err(AnyException::new("FrozenError", Some("can't modify frozen String")));
-        // }
+        if self.is_frozen() {
+            return Err(AnyException::new("FrozenError", Some("can't modify frozen String")));
+        }
 
         self.value = encoding::force_encoding(self.value(), enc.value());
         encoding::coderange_clear(self.value);

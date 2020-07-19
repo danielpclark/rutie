@@ -19,6 +19,8 @@ API and may have breaking changes during a teeny version change.
 - `Hash::each` (via `binding::hash::each`) now calls `rubysys::rb_hash_foreach` with a
   callback that properly returns a `st_retval` instead of `()`, thanks to @danlarkin
 - fixed build warnings due to trait objects, thanks to @danlarkin
+- With dropping support for Ruby 2.4 we can now perfectly model the `force_encoding` method
+  which checks if the object is frozen and raises the appropriate error.
 
 ## [0.7.0] - 2019-08-19
 ### Added
