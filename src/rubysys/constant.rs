@@ -1,14 +1,14 @@
 use rubysys::value::ValueType;
 
-pub const FL_WB_PROTECTED: isize  = (1<<5);
-pub const FL_PROMOTED0   : isize  = (1<<5);
-pub const FL_PROMOTED1   : isize  = (1<<6);
+pub const FL_WB_PROTECTED: isize  = 1<<5;
+pub const FL_PROMOTED0   : isize  = 1<<5;
+pub const FL_PROMOTED1   : isize  = 1<<6;
 pub const FL_PROMOTED    : isize  = FL_PROMOTED0|FL_PROMOTED1;
-pub const FL_FINALIZE    : isize  = (1<<7);
-pub const FL_TAINT       : isize  = (1<<8);
+pub const FL_FINALIZE    : isize  = 1<<7;
+pub const FL_TAINT       : isize  = 1<<8;
 pub const FL_UNTRUSTED   : isize  = FL_TAINT;
-pub const FL_EXIVAR      : isize  = (1<<10);
-pub const FL_FREEZE      : isize  = (1<<11);
+pub const FL_EXIVAR      : isize  = 1<<10;
+pub const FL_FREEZE      : isize  = 1<<11;
 
 pub const FL_USHIFT      : isize = 12;
 
@@ -34,7 +34,7 @@ pub const FL_USER_18     : isize = 1 << (FL_USHIFT + 18);
 
 
 pub const ELTS_SHARED : isize = FL_USER_2;
-pub const FL_DUPPED   : isize = (ValueType::Mask as isize|FL_EXIVAR|FL_TAINT);
+pub const FL_DUPPED   : isize = ValueType::Mask as isize|FL_EXIVAR|FL_TAINT;
 pub const FL_SINGLETON: isize = FL_USER_0;
 
 pub const UNLIMITED_ARGUMENTS: isize = -1;

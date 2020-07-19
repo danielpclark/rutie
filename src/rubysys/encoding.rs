@@ -12,8 +12,8 @@ use rubysys::types::{
 use rubysys::constant::{FL_USER_8, FL_USER_9};
 use std::mem;
 
-pub const ENC_DUMMY_FLAG: isize        = (1<<24);
-pub const ENC_INDEX_MASK: isize        = (!(!0<<24));
+pub const ENC_DUMMY_FLAG: isize        = 1<<24;
+pub const ENC_INDEX_MASK: isize        = !(!0<<24);
 pub const ENC_CODERANGE_UNKNOWN: isize = 0;
 pub const ENC_CODERANGE_7BIT: isize    = FL_USER_8;
 pub const ENC_CODERANGE_VALID: isize   = FL_USER_9;

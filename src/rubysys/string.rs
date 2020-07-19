@@ -78,7 +78,7 @@ enum RStringEmbed {
     NoEmbed = FL_USER_1,
     LenMask = FL_USER_2 | FL_USER_3 | FL_USER_4 | FL_USER_5 | FL_USER_6,
     LenShift = FL_USHIFT + 2,
-    LenMax = ((mem::size_of::<Value>() as isize * 3)/mem::size_of::<c_char>() as isize - 1),
+    LenMax = (mem::size_of::<Value>() as isize * 3)/mem::size_of::<c_char>() as isize - 1,
     Fstr = FL_USER_17,
 }
 
