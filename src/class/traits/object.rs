@@ -93,8 +93,8 @@ pub trait Object: From<Value> {
     /// let array = Array::new();
     /// let another_array = Array::new();
     ///
-    /// array.singleton_class().define(|itself| {
-    ///     itself.attr_reader("modified");
+    /// array.singleton_class().define(|klass| {
+    ///     klass.attr_reader("modified");
     /// });
     ///
     /// assert!(array.respond_to("modified"));
@@ -161,7 +161,7 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     RubyServer,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn ruby_server_new(host: RString, port: Fixnum) -> AnyObject {
     ///         let server = Server::new(host.unwrap().to_string(),
@@ -171,13 +171,13 @@ pub trait Object: From<Value> {
     ///     }
     ///
     ///     fn ruby_server_host() -> RString {
-    ///         let host = itself.get_data(&*SERVER_WRAPPER).host();
+    ///         let host = rtself.get_data(&*SERVER_WRAPPER).host();
     ///
     ///         RString::new_utf8(host)
     ///     }
     ///
     ///     fn ruby_server_port() -> Fixnum {
-    ///         let port = itself.get_data(&*SERVER_WRAPPER).port();
+    ///         let port = rtself.get_data(&*SERVER_WRAPPER).port();
     ///
     ///         Fixnum::new(port as i64)
     ///     }
@@ -187,11 +187,11 @@ pub trait Object: From<Value> {
     ///     # VM::init();
     ///     let data_class = Class::from_existing("Object");
     ///
-    ///     Class::new("RubyServer", Some(&data_class)).define(|itself| {
-    ///         itself.def_self("new", ruby_server_new);
+    ///     Class::new("RubyServer", Some(&data_class)).define(|klass| {
+    ///         klass.def_self("new", ruby_server_new);
     ///
-    ///         itself.def("host", ruby_server_host);
-    ///         itself.def("port", ruby_server_port);
+    ///         klass.def("host", ruby_server_host);
+    ///         klass.def("port", ruby_server_port);
     ///     });
     /// }
     /// ```
@@ -231,7 +231,7 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     Hello,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn greeting() -> RString {
     ///         RString::new_utf8("Greeting from class")
@@ -244,7 +244,7 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     Nested,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn nested_greeting() -> RString {
     ///         RString::new_utf8("Greeting from nested class")
@@ -252,14 +252,14 @@ pub trait Object: From<Value> {
     /// );
     ///
     /// fn main() {
-    ///     Class::new("Hello", None).define(|itself| {
-    ///         itself.attr_reader("reader");
+    ///     Class::new("Hello", None).define(|klass| {
+    ///         klass.attr_reader("reader");
     ///
-    ///         itself.def_self("greeting", greeting);
-    ///         itself.def("many_greetings", many_greetings);
+    ///         klass.def_self("greeting", greeting);
+    ///         klass.def("many_greetings", many_greetings);
     ///
-    ///         itself.define_nested_class("Nested", None).define(|itself| {
-    ///             itself.def_self("nested_greeting", nested_greeting);
+    ///         klass.define_nested_class("Nested", None).define(|klass| {
+    ///             klass.def_self("nested_greeting", nested_greeting);
     ///         });
     ///     });
     /// }
@@ -296,7 +296,7 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     RString,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn greeting() -> RString {
     ///         RString::new_utf8("Greeting!")
@@ -309,8 +309,8 @@ pub trait Object: From<Value> {
     ///
     ///     // The same can be done by modifying `string.singleton_class()`
     ///     // or using `string.define_singleton_method("greeting", greeting)`
-    ///     string.define(|itself| {
-    ///         itself.define_singleton_method("greeting", greeting);
+    ///     string.define(|klass| {
+    ///         klass.define_singleton_method("greeting", greeting);
     ///     });
     ///
     ///     assert!(string.respond_to("greeting"));
@@ -361,17 +361,17 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///    RString,
-    ///    itself,
+    ///    rtself,
     ///
     ///    fn is_blank() -> Boolean {
-    ///        Boolean::new(itself.to_str().chars().all(|c| c.is_whitespace()))
+    ///        Boolean::new(rtself.to_str().chars().all(|c| c.is_whitespace()))
     ///    }
     /// );
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Class::from_existing("String").define(|itself| {
-    ///         itself.def("blank?", is_blank);
+    ///     Class::from_existing("String").define(|klass| {
+    ///         klass.def("blank?", is_blank);
     ///     });
     /// }
     /// ```
@@ -400,7 +400,7 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     Fixnum,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn pow(exp: Fixnum) -> Fixnum {
     ///         // `exp` is not a valid `Fixnum`, raise an exception
@@ -411,14 +411,14 @@ pub trait Object: From<Value> {
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
     ///         let exp = exp.unwrap().to_i64() as u32;
     ///
-    ///         Fixnum::new(itself.to_i64().pow(exp))
+    ///         Fixnum::new(rtself.to_i64().pow(exp))
     ///     }
     ///
     ///     fn pow_with_default_argument(exp: Fixnum) -> Fixnum {
     ///         let default_exp = 0;
     ///         let exp = exp.map(|exp| exp.to_i64()).unwrap_or(default_exp);
     ///
-    ///         let result = itself.to_i64().pow(exp as u32);
+    ///         let result = rtself.to_i64().pow(exp as u32);
     ///
     ///         Fixnum::new(result)
     ///     }
@@ -426,9 +426,9 @@ pub trait Object: From<Value> {
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Class::from_existing("Fixnum").define(|itself| {
-    ///         itself.def("pow", pow);
-    ///         itself.def("pow_with_default_argument", pow_with_default_argument);
+    ///     Class::from_existing("Fixnum").define(|klass| {
+    ///         klass.def("pow", pow);
+    ///         klass.def("pow_with_default_argument", pow_with_default_argument);
     ///     });
     /// }
     /// ```
@@ -480,17 +480,17 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///    RString,
-    ///    itself,
+    ///    rtself,
     ///
     ///    fn is_blank() -> Boolean {
-    ///        Boolean::new(itself.to_str().chars().all(|c| c.is_whitespace()))
+    ///        Boolean::new(rtself.to_str().chars().all(|c| c.is_whitespace()))
     ///    }
     /// );
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Class::from_existing("String").define(|itself| {
-    ///         itself.def_private("blank?", is_blank);
+    ///     Class::from_existing("String").define(|klass| {
+    ///         klass.def_private("blank?", is_blank);
     ///     });
     /// }
     /// ```
@@ -519,7 +519,7 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     Fixnum,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn pow(exp: Fixnum) -> Fixnum {
     ///         // `exp` is not a valid `Fixnum`, raise an exception
@@ -530,14 +530,14 @@ pub trait Object: From<Value> {
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
     ///         let exp = exp.unwrap().to_i64() as u32;
     ///
-    ///         Fixnum::new(itself.to_i64().pow(exp))
+    ///         Fixnum::new(rtself.to_i64().pow(exp))
     ///     }
     ///
     ///     fn pow_with_default_argument(exp: Fixnum) -> Fixnum {
     ///         let default_exp = 0;
     ///         let exp = exp.map(|exp| exp.to_i64()).unwrap_or(default_exp);
     ///
-    ///         let result = itself.to_i64().pow(exp as u32);
+    ///         let result = rtself.to_i64().pow(exp as u32);
     ///
     ///         Fixnum::new(result)
     ///     }
@@ -545,9 +545,9 @@ pub trait Object: From<Value> {
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Class::from_existing("Fixnum").define(|itself| {
-    ///         itself.def_private("pow", pow);
-    ///         itself.def_private("pow_with_default_argument", pow_with_default_argument);
+    ///     Class::from_existing("Fixnum").define(|klass| {
+    ///         klass.def_private("pow", pow);
+    ///         klass.def_private("pow_with_default_argument", pow_with_default_argument);
     ///     });
     /// }
     /// ```
@@ -595,7 +595,7 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     Symbol,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn from_string(string: RString) -> Symbol {
     ///         // `string` is not a valid `String`, raise an exception
@@ -609,8 +609,8 @@ pub trait Object: From<Value> {
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Class::from_existing("Symbol").define(|itself| {
-    ///         itself.def_self("from_string", from_string);
+    ///     Class::from_existing("Symbol").define(|klass| {
+    ///         klass.def_self("from_string", from_string);
     ///     });
     /// }
     /// ```
@@ -637,7 +637,7 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     RString,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn greeting() -> RString {
     ///         RString::new_utf8("Greeting!")
@@ -650,8 +650,8 @@ pub trait Object: From<Value> {
     ///
     ///     // The same can be done by modifying `string.singleton_class()`
     ///     // or using `string.define_singleton_method("greeting", greeting)`
-    ///     string.define(|itself| {
-    ///         itself.define_singleton_method("greeting", greeting);
+    ///     string.define(|klass| {
+    ///         klass.define_singleton_method("greeting", greeting);
     ///     });
     ///
     ///     assert!(string.respond_to("greeting"));
@@ -1028,33 +1028,33 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     Counter,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn counter_initialize() -> AnyObject {
-    ///         itself.instance_variable_set("@state", Fixnum::new(0))
+    ///         rtself.instance_variable_set("@state", Fixnum::new(0))
     ///     }
     ///
     ///     fn counter_increment() -> AnyObject {
     ///         // Using unsafe conversion, because we are sure that `@state` is always a `Fixnum`
     ///         // and we don't provide an interface to set the value externally
     ///         let state = unsafe {
-    ///             itself.instance_variable_get("@state").to::<Fixnum>().to_i64()
+    ///             rtself.instance_variable_get("@state").to::<Fixnum>().to_i64()
     ///         };
     ///
-    ///         itself.instance_variable_set("@state", Fixnum::new(state + 1))
+    ///         rtself.instance_variable_set("@state", Fixnum::new(state + 1))
     ///     }
     ///
     ///     fn counter_state() -> Fixnum {
-    ///         unsafe { itself.instance_variable_get("@state").to::<Fixnum>() }
+    ///         unsafe { rtself.instance_variable_get("@state").to::<Fixnum>() }
     ///     }
     /// );
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     let counter = Class::new("Counter", None).define(|itself| {
-    ///         itself.def("initialize", counter_initialize);
-    ///         itself.def("increment!", counter_increment);
-    ///         itself.def("state", counter_state);
+    ///     let counter = Class::new("Counter", None).define(|klass| {
+    ///         klass.def("initialize", counter_initialize);
+    ///         klass.def("increment!", counter_increment);
+    ///         klass.def("state", counter_state);
     ///     }).new_instance(&[]);
     ///
     ///     unsafe { counter.send("increment!", &[]) };
@@ -1109,33 +1109,33 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     Counter,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn counter_initialize() -> AnyObject {
-    ///         itself.instance_variable_set("@state", Fixnum::new(0))
+    ///         rtself.instance_variable_set("@state", Fixnum::new(0))
     ///     }
     ///
     ///     fn counter_increment() -> AnyObject {
     ///         // Using unsafe conversion, because we are sure that `@state` is always a `Fixnum`
     ///         // and we don't provide an interface to set the value externally
     ///         let state = unsafe {
-    ///             itself.instance_variable_get("@state").to::<Fixnum>().to_i64()
+    ///             rtself.instance_variable_get("@state").to::<Fixnum>().to_i64()
     ///         };
     ///
-    ///         itself.instance_variable_set("@state", Fixnum::new(state + 1))
+    ///         rtself.instance_variable_set("@state", Fixnum::new(state + 1))
     ///     }
     ///
     ///     fn counter_state() -> Fixnum {
-    ///         unsafe { itself.instance_variable_get("@state").to::<Fixnum>() }
+    ///         unsafe { rtself.instance_variable_get("@state").to::<Fixnum>() }
     ///     }
     /// );
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     let counter = Class::new("Counter", None).define(|itself| {
-    ///         itself.def("initialize", counter_initialize);
-    ///         itself.def("increment!", counter_increment);
-    ///         itself.def("state", counter_state);
+    ///     let counter = Class::new("Counter", None).define(|klass| {
+    ///         klass.def("initialize", counter_initialize);
+    ///         klass.def("increment!", counter_increment);
+    ///         klass.def("state", counter_state);
     ///     }).new_instance(&[]);
     ///
     ///     unsafe { counter.send("increment!", &[]) };
@@ -1327,7 +1327,7 @@ pub trait Object: From<Value> {
     ///
     /// methods!(
     ///     Server,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn start(address: Hash) -> NilClass {
     ///         let default_port = 8080;
@@ -1346,8 +1346,8 @@ pub trait Object: From<Value> {
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Class::new("Server", None).define(|itself| {
-    ///         itself.def("start", start);
+    ///     Class::new("Server", None).define(|klass| {
+    ///         klass.def("start", start);
     ///     });
     /// }
     /// ```

@@ -27,7 +27,7 @@ impl Proc {
     ///
     /// methods!(
     ///     Greeter,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn greet_rust_with(greeting_template: Proc) -> RString {
     ///         let name = RString::new_utf8("Rust").to_any_object();
@@ -38,8 +38,8 @@ impl Proc {
     /// );
     ///
     /// fn main() {
-    ///     Class::new("Greeter", None).define(|itself| {
-    ///         itself.def_self("greet_rust_with", greet_rust_with);
+    ///     Class::new("Greeter", None).define(|klass| {
+    ///         klass.def_self("greet_rust_with", greet_rust_with);
     ///     });
     /// }
     /// ```

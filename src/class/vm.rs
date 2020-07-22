@@ -292,7 +292,7 @@ impl VM {
     ///
     /// methods!(
     ///     Greeter,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn greet_rust_with() -> RString {
     ///         let greeting_template = VM::block_proc();
@@ -303,8 +303,8 @@ impl VM {
     /// );
     ///
     /// fn main() {
-    ///     Class::new("Greeter", None).define(|itself| {
-    ///         itself.def_self("greet_rust_with", greet_rust_with);
+    ///     Class::new("Greeter", None).define(|klass| {
+    ///         klass.def_self("greet_rust_with", greet_rust_with);
     ///     });
     /// }
     /// ```
@@ -340,7 +340,7 @@ impl VM {
     ///
     /// methods!(
     ///     Calculator,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn calculate(a: Fixnum, b: Fixnum) -> Fixnum {
     ///         let a = a.unwrap();
@@ -360,8 +360,8 @@ impl VM {
     /// fn main() {
     ///     # VM::init();
     ///
-    ///     Class::new("Calculator", None).define(|itself| {
-    ///         itself.def("calculate", calculate);
+    ///     Class::new("Calculator", None).define(|klass| {
+    ///         klass.def("calculate", calculate);
     ///     });
     /// }
     /// ```
@@ -396,7 +396,7 @@ impl VM {
     ///
     /// methods!(
     ///     Calculator,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn calculate(a: Fixnum) -> Fixnum {
     ///         let a = a.map_err(|e| VM::raise_ex(e) ).unwrap();
@@ -416,8 +416,8 @@ impl VM {
     /// fn main() {
     ///     # VM::init();
     ///
-    ///     Class::new("Calculator", None).define(|itself| {
-    ///         itself.def("calculate", calculate);
+    ///     Class::new("Calculator", None).define(|klass| {
+    ///         klass.def("calculate", calculate);
     ///     });
     ///
     ///     let result = VM::eval(" Calculator.new().calculate(4) { |n| n * n } ").unwrap();
@@ -459,7 +459,7 @@ impl VM {
     ///
     /// methods!(
     ///     Calculator,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn calculate(a: Array) -> Fixnum {
     ///         let a = a.map_err(|e| VM::raise_ex(e) ).unwrap();
@@ -479,8 +479,8 @@ impl VM {
     /// fn main() {
     ///     # VM::init();
     ///
-    ///     Class::new("Calculator", None).define(|itself| {
-    ///         itself.def("calculate", calculate);
+    ///     Class::new("Calculator", None).define(|klass| {
+    ///         klass.def("calculate", calculate);
     ///     });
     ///
     ///     let result = VM::eval(" Calculator.new().calculate([4,6,8]) { |a,b,c| a*b-c } ").unwrap();

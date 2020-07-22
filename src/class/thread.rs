@@ -92,7 +92,7 @@ impl Thread {
     ///
     /// methods!(
     ///     Calculator,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn heavy_computation() -> Fixnum {
     ///         let computation = || { 2 * 2 };
@@ -110,8 +110,8 @@ impl Thread {
     /// );
     ///
     /// fn main() {
-    ///     Class::new("Calculator", None).define(|itself| {
-    ///         itself.def("heavy_computation", heavy_computation);
+    ///     Class::new("Calculator", None).define(|klass| {
+    ///         klass.def("heavy_computation", heavy_computation);
     ///     });
     /// }
     /// ```

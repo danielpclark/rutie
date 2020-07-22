@@ -10,7 +10,7 @@ class!(RutieExample);
 
 methods! {
     RutieExample,
-    _itself,
+    _rtself,
     fn heap_allocated_returning_input() -> RString {
         let input = "Object".to_string();
         let handler = move || {
@@ -99,12 +99,12 @@ fn fibonacci(n: u32) -> u32 {
 #[allow(non_snake_case)]
 #[no_mangle]
 pub extern "C" fn Init_rutie_ruby_gvl_example() {
-    Class::new("RutieExample", None).define(|itself| {
-        itself.def_self("stack_allocated_returning_input", stack_allocated_returning_input);
-        itself.def_self("stack_allocated_returning_from_closure", stack_allocated_returning_from_closure);
-        itself.def_self("heap_allocated_returning_input", heap_allocated_returning_input);
-        itself.def_self("heap_allocated_returning_from_closure", heap_allocated_returning_from_closure);
-        itself.def_self("call_ruby_in_call_with_gvl", call_ruby_in_call_with_gvl);
-        itself.def_self("create_thread", create_thread);
+    Class::new("RutieExample", None).define(|klass| {
+        klass.def_self("stack_allocated_returning_input", stack_allocated_returning_input);
+        klass.def_self("stack_allocated_returning_from_closure", stack_allocated_returning_from_closure);
+        klass.def_self("heap_allocated_returning_input", heap_allocated_returning_input);
+        klass.def_self("heap_allocated_returning_from_closure", heap_allocated_returning_from_closure);
+        klass.def_self("call_ruby_in_call_with_gvl", call_ruby_in_call_with_gvl);
+        klass.def_self("create_thread", create_thread);
     });
 }

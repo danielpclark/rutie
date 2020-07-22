@@ -22,7 +22,7 @@ use {AnyObject, Array, Object, Class, VerifiedObject};
 ///
 /// methods!(
 ///    Example,
-///    itself,
+///    rtself,
 ///
 ///     fn square(exp: Fixnum) -> Fixnum {
 ///         // `exp` is not a valid `Fixnum`, raise an exception
@@ -39,8 +39,8 @@ use {AnyObject, Array, Object, Class, VerifiedObject};
 ///
 /// fn main() {
 ///     # VM::init();
-///     Module::new("Example").define(|itself| {
-///         itself.def("square", square);
+///     Module::new("Example").define(|klass| {
+///         klass.def("square", square);
 ///     });
 /// }
 /// ```
@@ -167,8 +167,8 @@ impl Module {
     /// use rutie::{Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Outer").define(|itself| {
-    ///     itself.define_nested_module("Inner");
+    /// Module::new("Outer").define(|klass| {
+    ///     klass.define_nested_module("Inner");
     /// });
     ///
     /// Module::from_existing("Outer").get_nested_module("Inner");
@@ -200,8 +200,8 @@ impl Module {
     /// use rutie::{Class, Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Outer").define(|itself| {
-    ///     itself.define_nested_class("Inner", None);
+    /// Module::new("Outer").define(|klass| {
+    ///     klass.define_nested_class("Inner", None);
     /// });
     ///
     /// Module::from_existing("Outer").get_nested_class("Inner");
@@ -233,8 +233,8 @@ impl Module {
     /// use rutie::{Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Outer").define(|itself| {
-    ///     itself.define_nested_module("Inner");
+    /// Module::new("Outer").define(|klass| {
+    ///     klass.define_nested_module("Inner");
     /// });
     ///
     /// Module::from_existing("Outer").get_nested_module("Inner");
@@ -266,8 +266,8 @@ impl Module {
     /// use rutie::{Class, Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Outer").define(|itself| {
-    ///     itself.define_nested_class("Inner", None);
+    /// Module::new("Outer").define(|klass| {
+    ///     klass.define_nested_class("Inner", None);
     /// });
     ///
     /// Module::from_existing("Outer").get_nested_class("Inner");
@@ -318,17 +318,17 @@ impl Module {
     ///
     /// methods!(
     ///    RString,
-    ///    itself,
+    ///    rtself,
     ///
     ///    fn is_blank() -> Boolean {
-    ///        Boolean::new(itself.to_str().chars().all(|c| c.is_whitespace()))
+    ///        Boolean::new(rtself.to_str().chars().all(|c| c.is_whitespace()))
     ///    }
     /// );
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Module::new("Blank").define(|itself| {
-    ///         itself.mod_func("blank?", is_blank);
+    ///     Module::new("Blank").define(|klass| {
+    ///         klass.mod_func("blank?", is_blank);
     ///     });
     ///
     ///     Class::from_existing("String").include("Blank");
@@ -362,7 +362,7 @@ impl Module {
     ///
     /// methods!(
     ///     Fixnum,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn pow(exp: Fixnum) -> Fixnum {
     ///         // `exp` is not a valid `Fixnum`, raise an exception
@@ -373,14 +373,14 @@ impl Module {
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
     ///         let exp = exp.unwrap().to_i64() as u32;
     ///
-    ///         Fixnum::new(itself.to_i64().pow(exp))
+    ///         Fixnum::new(rtself.to_i64().pow(exp))
     ///     }
     ///
     ///     fn pow_with_default_argument(exp: Fixnum) -> Fixnum {
     ///         let default_exp = 0;
     ///         let exp = exp.map(|exp| exp.to_i64()).unwrap_or(default_exp);
     ///
-    ///         let result = itself.to_i64().pow(exp as u32);
+    ///         let result = rtself.to_i64().pow(exp as u32);
     ///
     ///         Fixnum::new(result)
     ///     }
@@ -388,9 +388,9 @@ impl Module {
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Module::from_existing("Fixnum").define(|itself| {
-    ///         itself.mod_func("pow", pow);
-    ///         itself.mod_func("pow_with_default_argument", pow_with_default_argument);
+    ///     Module::from_existing("Fixnum").define(|klass| {
+    ///         klass.mod_func("pow", pow);
+    ///         klass.mod_func("pow_with_default_argument", pow_with_default_argument);
     ///     });
     /// }
     /// ```
@@ -432,8 +432,8 @@ impl Module {
     /// use rutie::{Module, Object, RString, VM};
     /// # VM::init();
     ///
-    /// Module::new("Greeter").define(|itself| {
-    ///     itself.const_set("GREETING", &RString::new_utf8("Hello, World!"));
+    /// Module::new("Greeter").define(|klass| {
+    ///     klass.const_set("GREETING", &RString::new_utf8("Hello, World!"));
     /// });
     ///
     /// let greeting = Module::from_existing("Greeter")
@@ -478,8 +478,8 @@ impl Module {
     /// use rutie::{Module, Object, RString, VM};
     /// # VM::init();
     ///
-    /// Module::new("Greeter").define(|itself| {
-    ///     itself.const_set("GREETING", &RString::new_utf8("Hello, World!"));
+    /// Module::new("Greeter").define(|klass| {
+    ///     klass.const_set("GREETING", &RString::new_utf8("Hello, World!"));
     /// });
     ///
     /// let greeting = Module::from_existing("Greeter")
@@ -570,8 +570,8 @@ impl Module {
     /// use rutie::{Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Test").define(|itself| {
-    ///     itself.attr_reader("reader");
+    /// Module::new("Test").define(|klass| {
+    ///     klass.attr_reader("reader");
     /// });
     /// ```
     ///
@@ -594,8 +594,8 @@ impl Module {
     /// use rutie::{Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Test").define(|itself| {
-    ///     itself.attr_writer("writer");
+    /// Module::new("Test").define(|klass| {
+    ///     klass.attr_writer("writer");
     /// });
     /// ```
     ///
@@ -618,8 +618,8 @@ impl Module {
     /// use rutie::{Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Test").define(|itself| {
-    ///     itself.attr_accessor("accessor");
+    /// Module::new("Test").define(|klass| {
+    ///     klass.attr_accessor("accessor");
     /// });
     /// ```
     ///
@@ -678,7 +678,7 @@ impl Module {
     ///
     /// methods!(
     ///     RubyServer,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn ruby_server_new(host: RString, port: Fixnum) -> AnyObject {
     ///         let server = Server::new(host.unwrap().to_string(),
@@ -688,13 +688,13 @@ impl Module {
     ///     }
     ///
     ///     fn ruby_server_host() -> RString {
-    ///         let host = itself.get_data(&*SERVER_WRAPPER).host();
+    ///         let host = rtself.get_data(&*SERVER_WRAPPER).host();
     ///
     ///         RString::new_utf8(host)
     ///     }
     ///
     ///     fn ruby_server_port() -> Fixnum {
-    ///         let port = itself.get_data(&*SERVER_WRAPPER).port();
+    ///         let port = rtself.get_data(&*SERVER_WRAPPER).port();
     ///
     ///         Fixnum::new(port as i64)
     ///     }
@@ -704,11 +704,11 @@ impl Module {
     ///     # VM::init();
     ///     let data_class = Class::from_existing("Object");
     ///
-    ///     Class::new("RubyServer", None).define(|itself| {
-    ///         itself.def_self("new", ruby_server_new);
+    ///     Class::new("RubyServer", None).define(|klass| {
+    ///         klass.def_self("new", ruby_server_new);
     ///
-    ///         itself.def("host", ruby_server_host);
-    ///         itself.def("port", ruby_server_port);
+    ///         klass.def("host", ruby_server_host);
+    ///         klass.def("port", ruby_server_port);
     ///     });
     /// }
     /// ```

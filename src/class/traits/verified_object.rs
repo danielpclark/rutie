@@ -48,7 +48,7 @@ use Object;
 ///
 /// methods!(
 ///     Request,
-///     itself,
+///     rtself,
 ///
 ///     fn protocol() -> RString { RString::new_utf8("HTTP") }
 ///     fn body() -> RString { RString::new_utf8("request body") }
@@ -96,9 +96,9 @@ use Object;
 ///     Class::new("Server", None);
 ///     Class::new("Response", Some(&Class::new("BasicResponse", None)));
 ///     Class::new("Headers", Some(&Class::from_existing("Hash")));
-///     Class::new("Request", None).define(|itself| {
-///         itself.def("protocol", protocol);
-///         itself.def("body", body);
+///     Class::new("Request", None).define(|klass| {
+///         klass.def("protocol", protocol);
+///         klass.def("body", body);
 ///     });
 ///
 ///     // Create new instances of classes and convert them to `AnyObject`s

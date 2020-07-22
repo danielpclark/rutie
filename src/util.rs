@@ -73,11 +73,11 @@ pub fn option_to_slice<'a, T>(option: &'a Option<T>) -> &'a [T] {
 // use rutie::{AnyObject, Boolean, Class, Object, RString, util};
 //
 // #[no_mangle]
-// pub extern fn string_eq(argc: Argc, argv: *const AnyObject, itself: RString) -> Boolean {
+// pub extern fn string_eq(argc: Argc, argv: *const AnyObject, rtself: RString) -> Boolean {
 //     let argv = util::parse_arguments(argc, argv);
 //     let other_string = argv[0].try_convert_to::<RString>().unwrap();
 //
-//     Boolean::new(itself.to_str() == other_string.to_str())
+//     Boolean::new(rtself.to_str() == other_string.to_str())
 // }
 //
 // fn main() {

@@ -15,7 +15,7 @@
 ///
 /// methods!(
 ///     Greeter,
-///     itself,
+///     rtself,
 ///
 ///     fn anonymous_greeting() -> RString {
 ///         RString::new_utf8("Hello stranger!")
@@ -34,9 +34,9 @@
 ///
 /// fn main() {
 ///     # VM::init();
-///     Class::new("Greeter", None).define(|itself| {
-///         itself.def("anonymous_greeting", anonymous_greeting);
-///         itself.def("friendly_greeting", friendly_greeting);
+///     Class::new("Greeter", None).define(|klass| {
+///         klass.def("anonymous_greeting", anonymous_greeting);
+///         klass.def("friendly_greeting", friendly_greeting);
 ///     });
 /// }
 /// ```
@@ -98,7 +98,7 @@ macro_rules! class {
 ///
 /// methods!(
 ///     Greeter,
-///     itself,
+///     rtself,
 ///
 ///     fn anonymous_greeting() -> RString {
 ///         RString::new_utf8("Hello stranger!")
@@ -117,9 +117,9 @@ macro_rules! class {
 ///
 /// fn main() {
 ///     # VM::init();
-///     Module::new("Greeter").define(|itself| {
-///         itself.def("anonymous_greeting", anonymous_greeting);
-///         itself.def("friendly_greeting", friendly_greeting);
+///     Module::new("Greeter").define(|klass| {
+///         klass.def("anonymous_greeting", anonymous_greeting);
+///         klass.def("friendly_greeting", friendly_greeting);
 ///     });
 /// }
 /// ```
@@ -195,10 +195,10 @@ macro_rules! module {
 /// // Creates `string_length_equals` functions
 /// unsafe_methods!(
 ///     RString, // type of `self` object
-///     itself, // name of `self` object which will be used in methods
+///     rtself, // name of `self` object which will be used in methods
 ///
 ///     fn string_length_equals(expected_length: Fixnum) -> Boolean {
-///         let real_length = itself.to_str().len() as i64;
+///         let real_length = rtself.to_str().len() as i64;
 ///
 ///         Boolean::new(expected_length.to_i64() == real_length)
 ///     }
@@ -206,8 +206,8 @@ macro_rules! module {
 ///
 /// fn main() {
 ///     # VM::init();
-///     Class::from_existing("String").define(|itself| {
-///         itself.def("length_equals?", string_length_equals);
+///     Class::from_existing("String").define(|klass| {
+///         klass.def("length_equals?", string_length_equals);
 ///     });
 /// }
 /// ```
@@ -228,8 +228,8 @@ macro_rules! module {
 #[macro_export]
 macro_rules! unsafe_methods {
     (
-        $itself_class: ty,
-        $itself_name: ident,
+        $rtself_class: ty,
+        $rtself_name: ident,
         $(
             fn $method_name: ident
             ($($arg_name: ident: $arg_type: ty),*) -> $return_type: ty $body: block
@@ -239,7 +239,7 @@ macro_rules! unsafe_methods {
             #[allow(unused_mut)]
             pub extern fn $method_name(argc: $crate::types::Argc,
                                        argv: *const $crate::AnyObject,
-                                       mut $itself_name: $itself_class) -> $return_type {
+                                       mut $rtself_name: $rtself_class) -> $return_type {
                 let _arguments = $crate::util::parse_arguments(argc, argv);
                 let mut _i = 0;
 
@@ -309,7 +309,7 @@ macro_rules! unsafe_methods {
 ///
 /// methods!(
 ///     Server,
-///     itself,
+///     rtself,
 ///
 ///     fn start(address: Hash) -> NilClass {
 ///         let default_port = 8080;
@@ -328,8 +328,8 @@ macro_rules! unsafe_methods {
 ///
 /// fn main() {
 ///     # VM::init();
-///     Class::new("Server", None).define(|itself| {
-///         itself.def("start", start);
+///     Class::new("Server", None).define(|klass| {
+///         klass.def("start", start);
 ///     });
 /// }
 /// ```
@@ -355,8 +355,8 @@ macro_rules! unsafe_methods {
 #[macro_export]
 macro_rules! methods {
     (
-        $itself_class: ty,
-        $itself_name: ident,
+        $rtself_class: ty,
+        $rtself_name: ident,
         $(
             fn $method_name: ident
             ($($arg_name: ident: $arg_type: ty),*) -> $return_type: ident $body: block
@@ -366,7 +366,7 @@ macro_rules! methods {
             #[allow(unused_mut)]
             pub extern fn $method_name(argc: $crate::types::Argc,
                                        argv: *const $crate::AnyObject,
-                                       mut $itself_name: $itself_class) -> $return_type {
+                                       mut $rtself_name: $rtself_class) -> $return_type {
                 let _arguments = $crate::util::parse_arguments(argc, argv);
                 let mut _i = 0;
 
@@ -522,7 +522,7 @@ macro_rules! methods {
 ///
 /// methods!(
 ///     RubyServer,
-///     itself,
+///     rtself,
 ///
 ///     fn ruby_server_new(host: RString, port: Fixnum) -> AnyObject {
 ///         let server = Server::new(host.unwrap().to_string(),
@@ -532,13 +532,13 @@ macro_rules! methods {
 ///     }
 ///
 ///     fn ruby_server_host() -> RString {
-///         let host = itself.get_data(&*SERVER_WRAPPER).host();
+///         let host = rtself.get_data(&*SERVER_WRAPPER).host();
 ///
 ///         RString::new_utf8(host)
 ///     }
 ///
 ///     fn ruby_server_port() -> Fixnum {
-///         let port = itself.get_data(&*SERVER_WRAPPER).port();
+///         let port = rtself.get_data(&*SERVER_WRAPPER).port();
 ///
 ///         Fixnum::new(port as i64)
 ///     }
@@ -548,11 +548,11 @@ macro_rules! methods {
 ///     # VM::init();
 ///     let data_class = Class::from_existing("Object");
 ///
-///     Class::new("RubyServer", Some(&data_class)).define(|itself| {
-///         itself.def_self("new", ruby_server_new);
+///     Class::new("RubyServer", Some(&data_class)).define(|klass| {
+///         klass.def_self("new", ruby_server_new);
 ///
-///         itself.def("host", ruby_server_host);
-///         itself.def("port", ruby_server_port);
+///         klass.def("host", ruby_server_host);
+///         klass.def("port", ruby_server_port);
 ///     });
 /// }
 /// ```
@@ -622,7 +622,7 @@ macro_rules! methods {
 ///
 /// methods! {
 ///     RustyArray,
-///     itself,
+///     rtself,
 ///
 ///     fn new() -> AnyObject {
 ///         let vec = VectorOfObjects::new();
@@ -631,13 +631,13 @@ macro_rules! methods {
 ///     }
 ///
 ///     fn push(object: AnyObject) -> NilClass {
-///         itself.get_data_mut(&*VECTOR_OF_OBJECTS_WRAPPER).push(object.unwrap());
+///         rtself.get_data_mut(&*VECTOR_OF_OBJECTS_WRAPPER).push(object.unwrap());
 ///
 ///         NilClass::new()
 ///     }
 ///
 ///     fn length() -> Fixnum {
-///         let length = itself.get_data(&*VECTOR_OF_OBJECTS_WRAPPER).len() as i64;
+///         let length = rtself.get_data(&*VECTOR_OF_OBJECTS_WRAPPER).len() as i64;
 ///
 ///         Fixnum::new(length)
 ///     }
@@ -647,11 +647,11 @@ macro_rules! methods {
 ///     # VM::init();
 ///     let data_class = Class::from_existing("Object");
 ///
-///     Class::new("RustyArray", Some(&data_class)).define(|itself| {
-///         itself.def_self("new", new);
+///     Class::new("RustyArray", Some(&data_class)).define(|klass| {
+///         klass.def_self("new", new);
 ///
-///         itself.def("push", push);
-///         itself.def("length", length);
+///         klass.def("push", push);
+///         klass.def("length", length);
 ///     });
 /// }
 /// ```

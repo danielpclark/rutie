@@ -21,7 +21,7 @@ use {AnyObject, Array, Object, Module, VerifiedObject};
 ///
 /// methods!(
 ///    Fixnum,
-///    itself,
+///    rtself,
 ///
 ///     fn pow(exp: Fixnum) -> Fixnum {
 ///         // `exp` is not a valid `Fixnum`, raise an exception
@@ -32,14 +32,14 @@ use {AnyObject, Array, Object, Module, VerifiedObject};
 ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
 ///         let exp = exp.unwrap().to_i64() as u32;
 ///
-///         Fixnum::new(itself.to_i64().pow(exp))
+///         Fixnum::new(rtself.to_i64().pow(exp))
 ///     }
 /// );
 ///
 /// fn main() {
 ///     # VM::init();
-///     Class::from_existing("Fixnum").define(|itself| {
-///         itself.def("pow", pow);
+///     Class::from_existing("Fixnum").define(|klass| {
+///         klass.def("pow", pow);
 ///     });
 /// }
 /// ```
@@ -270,8 +270,8 @@ impl Class {
     /// use rutie::{Class, Object, VM};
     /// # VM::init();
     ///
-    /// Class::new("Outer", None).define(|itself| {
-    ///     itself.define_nested_class("Inner", None);
+    /// Class::new("Outer", None).define(|klass| {
+    ///     klass.define_nested_class("Inner", None);
     /// });
     ///
     /// Class::from_existing("Outer").get_nested_class("Inner");
@@ -303,8 +303,8 @@ impl Class {
     /// use rutie::{Class, Module, Object, VM};
     /// # VM::init();
     ///
-    /// Class::new("Outer", None).define(|itself| {
-    ///     itself.define_nested_module("Inner");
+    /// Class::new("Outer", None).define(|klass| {
+    ///     klass.define_nested_module("Inner");
     /// });
     ///
     /// Class::from_existing("Outer").get_nested_module("Inner");
@@ -342,8 +342,8 @@ impl Class {
     /// use rutie::{Class, Object, VM};
     /// # VM::init();
     ///
-    /// Class::new("Outer", None).define(|itself| {
-    ///     itself.define_nested_class("Inner", None);
+    /// Class::new("Outer", None).define(|klass| {
+    ///     klass.define_nested_class("Inner", None);
     /// });
     ///
     /// Class::from_existing("Outer").get_nested_class("Inner");
@@ -377,8 +377,8 @@ impl Class {
     /// use rutie::{Class, Module, Object, VM};
     /// # VM::init();
     ///
-    /// Class::new("Outer", None).define(|itself| {
-    ///     itself.define_nested_module("Inner");
+    /// Class::new("Outer", None).define(|klass| {
+    ///     klass.define_nested_module("Inner");
     /// });
     ///
     /// Module::from_existing("Outer").get_nested_module("Inner");
@@ -410,8 +410,8 @@ impl Class {
     /// use rutie::{Class, Object, RString, VM};
     /// # VM::init();
     ///
-    /// Class::new("Greeter", None).define(|itself| {
-    ///     itself.const_set("GREETING", &RString::new_utf8("Hello, World!"));
+    /// Class::new("Greeter", None).define(|klass| {
+    ///     klass.const_set("GREETING", &RString::new_utf8("Hello, World!"));
     /// });
     ///
     /// let greeting = Class::from_existing("Greeter")
@@ -456,8 +456,8 @@ impl Class {
     /// use rutie::{Class, Object, RString, VM};
     /// # VM::init();
     ///
-    /// Class::new("Greeter", None).define(|itself| {
-    ///     itself.const_set("GREETING", &RString::new_utf8("Hello, World!"));
+    /// Class::new("Greeter", None).define(|klass| {
+    ///     klass.const_set("GREETING", &RString::new_utf8("Hello, World!"));
     /// });
     ///
     /// let greeting = Class::from_existing("Greeter")
@@ -540,8 +540,8 @@ impl Class {
     /// use rutie::{Class, Object, VM};
     /// # VM::init();
     ///
-    /// Class::new("Test", None).define(|itself| {
-    ///     itself.attr_reader("reader");
+    /// Class::new("Test", None).define(|klass| {
+    ///     klass.attr_reader("reader");
     /// });
     /// ```
     ///
@@ -564,8 +564,8 @@ impl Class {
     /// use rutie::{Class, Object, VM};
     /// # VM::init();
     ///
-    /// Class::new("Test", None).define(|itself| {
-    ///     itself.attr_writer("writer");
+    /// Class::new("Test", None).define(|klass| {
+    ///     klass.attr_writer("writer");
     /// });
     /// ```
     ///
@@ -588,8 +588,8 @@ impl Class {
     /// use rutie::{Class, Object, VM};
     /// # VM::init();
     ///
-    /// Class::new("Test", None).define(|itself| {
-    ///     itself.attr_accessor("accessor");
+    /// Class::new("Test", None).define(|klass| {
+    ///     klass.attr_accessor("accessor");
     /// });
     /// ```
     ///
@@ -647,7 +647,7 @@ impl Class {
     ///
     /// methods!(
     ///     RubyServer,
-    ///     itself,
+    ///     rtself,
     ///
     ///     fn ruby_server_new(host: RString, port: Fixnum) -> AnyObject {
     ///         let server = Server::new(host.unwrap().to_string(),
@@ -657,13 +657,13 @@ impl Class {
     ///     }
     ///
     ///     fn ruby_server_host() -> RString {
-    ///         let host = itself.get_data(&*SERVER_WRAPPER).host();
+    ///         let host = rtself.get_data(&*SERVER_WRAPPER).host();
     ///
     ///         RString::new_utf8(host)
     ///     }
     ///
     ///     fn ruby_server_port() -> Fixnum {
-    ///         let port = itself.get_data(&*SERVER_WRAPPER).port();
+    ///         let port = rtself.get_data(&*SERVER_WRAPPER).port();
     ///
     ///         Fixnum::new(port as i64)
     ///     }
@@ -673,11 +673,11 @@ impl Class {
     ///     # VM::init();
     ///     let data_class = Class::from_existing("Object");
     ///
-    ///     Class::new("RubyServer", Some(&data_class)).define(|itself| {
-    ///         itself.def_self("new", ruby_server_new);
+    ///     Class::new("RubyServer", Some(&data_class)).define(|klass| {
+    ///         klass.def_self("new", ruby_server_new);
     ///
-    ///         itself.def("host", ruby_server_host);
-    ///         itself.def("port", ruby_server_port);
+    ///         klass.def("host", ruby_server_host);
+    ///         klass.def("port", ruby_server_port);
     ///     });
     /// }
     /// ```

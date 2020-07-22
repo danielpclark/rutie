@@ -7,7 +7,7 @@ class!(RutieExample);
 
 methods!(
     RutieExample,
-    _itself,
+    _rtself,
 
     fn pub_reverse(input: RString) -> RString {
         let ruby_string = input.
@@ -27,7 +27,7 @@ methods!(
 #[allow(non_snake_case)]
 #[no_mangle]
 pub extern "C" fn Init_rutie_ruby_example() {
-    Class::new("RutieExample", None).define(|itself| {
-        itself.def_self("reverse", pub_reverse);
+    Class::new("RutieExample", None).define(|klass| {
+        klass.def_self("reverse", pub_reverse);
     });
 }
