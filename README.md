@@ -264,7 +264,7 @@ use rutie::util::str_to_cstring;
 use rutie::rubysys::class;
 use std::mem;
 
-pub extern fn example_method(argc: Argc, argv: *const AnyObject, _: AnyObject) -> AnyObject {
+pub extern fn example_method(argc: Argc, argv: *const AnyObject, _rtself: AnyObject) -> AnyObject {
     let args = Value::from(0);
 
     unsafe {
