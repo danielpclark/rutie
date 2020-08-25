@@ -1397,3 +1397,22 @@ pub trait Object: From<Value> {
         self.value().ty()
     }
 }
+
+impl<Obj: Object> From<Value> for Option<Obj> {
+    fn from(value: Value) -> Option<Obj> {
+        if value.is_nil() {
+            None
+        } else {
+            Some(value.into())
+        }
+    }
+}
+
+impl<Obj: Object> Object for Option<Obj> {
+    fn value(&self) -> Value {
+        match self {
+            Some(val) => val.value(),
+            None => NilClass::new().into(),
+        }
+    }
+}
