@@ -61,6 +61,7 @@
 #[macro_export]
 macro_rules! class {
     ($class: ident) => {
+        #[repr(C)]
         #[derive(Debug, PartialEq)]
         pub struct $class {
             value: $crate::types::Value,
@@ -144,6 +145,7 @@ macro_rules! class {
 #[macro_export]
 macro_rules! module {
     ($module: ident) => {
+        #[repr(C)]
         #[derive(Debug, PartialEq)]
         pub struct $module {
             value: $crate::types::Value,
