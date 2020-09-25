@@ -1,4 +1,5 @@
 use {NilClass, Object};
+use types::Value;
 
 /// Interface for safe conversions between types
 ///
@@ -126,7 +127,9 @@ pub trait VerifiedObject: Object {
     fn error_message() -> &'static str;
 }
 
-impl<Obj: VerifiedObject> VerifiedObject for Option<Obj> {
+impl<Obj: VerifiedObject> VerifiedObject for Option<Obj>
+where Option<Obj>: From<Value>
+{
     fn is_correct_type<T: Object>(object: &T) -> bool {
         <Obj as VerifiedObject>::is_correct_type(object) ||
             <NilClass as VerifiedObject>::is_correct_type(object)

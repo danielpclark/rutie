@@ -1398,17 +1398,9 @@ pub trait Object: From<Value> {
     }
 }
 
-impl<Obj: Object> From<Value> for Option<Obj> {
-    fn from(value: Value) -> Option<Obj> {
-        if value.is_nil() {
-            None
-        } else {
-            Some(value.into())
-        }
-    }
-}
-
-impl<Obj: Object> Object for Option<Obj> {
+impl<Obj: Object> Object for Option<Obj>
+where Option<Obj>: From<Value>
+{
     fn value(&self) -> Value {
         match self {
             Some(val) => val.value(),
