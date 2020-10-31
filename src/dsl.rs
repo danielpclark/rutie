@@ -235,6 +235,7 @@ macro_rules! unsafe_methods {
         $(
             fn $method_name: ident
             ($($arg_name: ident: $arg_type: ty),*) -> $return_type: ty $body: block
+            $(,)?
         )*
     ) => {
         $(
@@ -362,6 +363,7 @@ macro_rules! methods {
         $(
             fn $method_name: ident
             ($($arg_name: ident: $arg_type: ty),*) -> $return_type: ident $body: block
+            $(,)?
         )*
     ) => {
         $(
