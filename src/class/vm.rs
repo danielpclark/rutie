@@ -774,6 +774,14 @@ impl VM {
     where F: FnMut(VmPointer) -> () {
         vm::at_exit(func)
     }
+
+    pub unsafe fn call_super(arguments: &[AnyObject]) -> AnyObject {
+        let arguments = util::arguments_to_values(arguments);
+
+        let result = vm::call_super(&arguments);
+
+        AnyObject::from(result)
+    }
 }
 
 #[cfg(test)]

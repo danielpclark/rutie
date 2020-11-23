@@ -6,6 +6,7 @@ use typed_data::DataTypeWrapper;
 use types::{Value, ValueType, Callback};
 
 use {AnyObject, Array, Object, Class, VerifiedObject};
+use AnyException;
 
 /// `Module`
 ///

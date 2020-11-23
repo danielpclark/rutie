@@ -25,6 +25,14 @@ pub fn yield_splat(values: Value) -> Value {
     unsafe { vm::rb_yield_splat(values) }
 }
 
+pub fn call_super(arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    let result = unsafe { vm::rb_call_super(argc, argv) };
+
+    Value::from(result)
+}
+
 pub fn init() {
     unsafe {
         vm::ruby_init();
@@ -206,6 +214,7 @@ pub fn abort(arguments: &[Value]) {
 }
 
 use util::callback_call::one_parameter as at_exit_callback;
+use rubysys::types::Argc;
 
 pub fn at_exit<F>(func: F)
 where F: FnMut(VmPointer) -> () {
