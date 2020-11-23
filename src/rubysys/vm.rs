@@ -69,4 +69,7 @@ extern "C" {
     // VALUE
     // rb_yield(VALUE val)
     pub fn rb_yield(value: Value) -> Value;
+    // VALUE
+    // rb_call_super(int argc, const VALUE *argv)
+    pub fn rb_call_super(argc: Argc, argv: *const Value) -> Value;
 }
