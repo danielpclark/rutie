@@ -101,7 +101,7 @@ file. Add Rutie to the `Cargo.toml` file and define the lib type.
 
 ```toml
 [dependencies]
-rutie = {version="xxx", features=["no-link"]}
+rutie = {version="xxx"}
 
 [lib]
 name = "rutie_ruby_example"
