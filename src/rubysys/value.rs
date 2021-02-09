@@ -40,8 +40,8 @@ pub enum RubySpecialFlags {
     SymbolFlag = 0x0c,
 }
 
+// #[link_name = "ruby_value_type"]
 #[derive(Debug, PartialEq)]
-#[link_name = "ruby_value_type"]
 #[repr(C)]
 pub enum ValueType {
     None = 0x00,

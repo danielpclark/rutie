@@ -775,6 +775,96 @@ impl VM {
         vm::at_exit(func)
     }
 
+    /// Call super
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, VM, Exception};
+    ///
+    /// class!(Adder);
+    ///
+    /// methods!(
+    ///     Adder,
+    ///     rtself,
+    ///
+    ///     fn adder_add(a: Fixnum, b: Fixnum) -> Fixnum {
+    ///         if let Err(ref error) = a {
+    ///             VM::raise(error.class(), &error.message());
+    ///         }
+    ///         if let Err(ref error) = b {
+    ///             VM::raise(error.class(), &error.message());
+    ///         }
+    ///
+    ///         // We can safely unwrap here
+    ///         let a = a.unwrap().to_i64();
+    ///         // We can safely unwrap here
+    ///         let b = b.unwrap().to_i64();
+    ///
+    ///         Fixnum::new(a + b)
+    ///     }
+    /// );
+    ///
+    /// class!(DoAdder);
+    ///
+    /// methods!(
+    ///     DoAdder,
+    ///     rtself,
+    ///
+    ///     fn do_adder_add(a: Fixnum, b: Fixnum) -> Fixnum {
+    ///         if let Err(ref error) = a {
+    ///             VM::raise(error.class(), &error.message());
+    ///         }
+    ///         if let Err(ref error) = b {
+    ///             VM::raise(error.class(), &error.message());
+    ///         }
+    ///
+    ///         unsafe {
+    ///             VM::call_super(&[
+    ///                 a.unwrap().into(),
+    ///                 b.unwrap().into()
+    ///             ]).to::<Fixnum>()
+    ///         }
+    ///     }
+    /// );
+    ///
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///
+    ///     Class::new("Adder", None).define(|klass| {
+    ///         klass.def("add", adder_add);
+    ///     });
+    ///     Class::new("DoAdder", Some(&Class::from_existing("Adder"))).define(|klass| {
+    ///         klass.def("add", do_adder_add);
+    ///     });
+    ///
+    ///     let result = VM::eval(" DoAdder.new().add(4, 4) ").unwrap();
+    ///     let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///     assert_eq!(num, 8);
+    /// }
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// class Adder
+    ///   def add(a, b)
+    ///     a + b
+    ///   end
+    /// end
+    ///
+    /// class DoAdder < Adder
+    ///   def add(a, b)
+    ///     super(a, b)
+    ///   end
+    /// end
+    ///
+    /// result = DoAdder.new.add(4, 4)
+    /// result == 8
+    /// ```
     pub unsafe fn call_super(arguments: &[AnyObject]) -> AnyObject {
         let arguments = util::arguments_to_values(arguments);
 

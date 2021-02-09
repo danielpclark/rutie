@@ -71,8 +71,8 @@ extern "C" {
     pub fn rb_str_new_frozen(orig: Value) -> Value;
 }
 
+// #[link_name = "ruby_rstring_flags"]
 #[derive(Debug, PartialEq)]
-#[link_name = "ruby_rstring_flags"]
 #[repr(C)]
 enum RStringEmbed {
     NoEmbed = FL_USER_1,

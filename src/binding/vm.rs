@@ -25,14 +25,6 @@ pub fn yield_splat(values: Value) -> Value {
     unsafe { vm::rb_yield_splat(values) }
 }
 
-pub fn call_super(arguments: &[Value]) -> Value {
-    let (argc, argv) = util::process_arguments(arguments);
-
-    let result = unsafe { vm::rb_call_super(argc, argv) };
-
-    Value::from(result)
-}
-
 pub fn init() {
     unsafe {
         vm::ruby_init();
@@ -67,6 +59,14 @@ pub fn call_public_method(receiver: Value, method: &str, arguments: &[Value]) ->
 
     // TODO: Update the signature of `rb_funcallv_public` in ruby-sys to receive an `Option`
     unsafe { vm::rb_funcallv_public(receiver, method_id, argc, argv) }
+}
+
+pub fn call_super(arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe {
+        vm::rb_call_super(argc, argv)
+    }
 }
 
 // "evaluation can raise an exception."

@@ -425,6 +425,8 @@ Everything is tested against 64 bit operating systems with 64 bit Ruby & Rust bu
 - Rust 1.26 or later
 - Ruby (64 bit) 2.5 or later
 
+NOTE: Known issues with Ruby 3.0 compatiility with the GC. `GC#mark`, `GC#is_marked`, `GC#marked_locations` do not work with Ruby 3.
+
 #### Windows
 - Rust 1.26 or later
 - Ruby 2.5+ built with MingW (64 bit)

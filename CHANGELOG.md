@@ -8,6 +8,18 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+
+## [0.8.2] - 2021-02-09
+### Added
+ - Implement `VM::call_super` -> `rb_call_super`, thanks to @askreet
+
+### Changed
+ - Allow commas after methods macros, thanks to @gemmaro
+
+### Fixed
+ - Build for FreeBSD, thanks to @Stazer
+
+## [0.8.1] - 2020-09-28
 ### Added
 - cargo feature `no-link` disables linking to `libruby`, thanks to @danlarkin
 - initial changes for Android support, thanks to @Riey

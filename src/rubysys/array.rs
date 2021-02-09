@@ -55,8 +55,8 @@ extern "C" {
     pub fn rb_ary_unshift(array: Value, item: Value) -> Value;
 }
 
+// #[link_name = "ruby_rarray_flags"]
 #[derive(Debug, PartialEq)]
-#[link_name = "ruby_rarray_flags"]
 #[repr(C)]
 enum RArrayEmbed {
     LenMax = 3,
