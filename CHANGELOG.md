@@ -18,6 +18,7 @@ API and may have breaking changes during a teeny version change.
 
 ### Fixed
  - Build for FreeBSD, thanks to @Stazer
+ - Issue when Rutie dependency included with relative path
 
 ## [0.8.1] - 2020-09-28
 ### Added

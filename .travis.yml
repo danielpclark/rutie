@@ -27,17 +27,17 @@ matrix:
   allow_failures:
     - rust: beta
     - rust: nightly
-    - env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.7.1
+    - env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.7.2
     - os: windows
       rust: stable
-      env: BUILD_RUBY_VERSION=2.7.1
+      env: BUILD_RUBY_VERSION=2.7.2
     - os: windows
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.7.1
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.7.2
   include:
     - os: linux
       rust: stable
-      env: RUBY_THREADING=true BUILD_RUBY_VERSION=2.7.1
+      env: RUBY_THREADING=true BUILD_RUBY_VERSION=2.7.2
       script:
         - |
           export WORKING_DIR=`pwd`
@@ -59,7 +59,7 @@ matrix:
           cargo test
     - os: osx
       rust: stable
-      env: RUBY_THREADING=true BUILD_RUBY_VERSION=2.7.1
+      env: RUBY_THREADING=true BUILD_RUBY_VERSION=2.7.2
       script:
         - |
           export WORKING_DIR=`pwd`
@@ -81,16 +81,16 @@ matrix:
           cargo test
     - os: linux
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.7.1
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.7.2
     - os: osx
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.7.1
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.7.2
     - os: windows
       rust: stable
-      env: BUILD_RUBY_VERSION=2.7.1
+      env: BUILD_RUBY_VERSION=2.7.2
     - os: windows
       rust: stable
-      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.7.1
+      env: RUBY_STATIC=true BUILD_RUBY_VERSION=2.7.2
 
 before_script:
 - export PATH=$HOME/.cargo/bin:$HOME/.local/bin:$PATH
@@ -111,4 +111,4 @@ env:
   matrix:
     - BUILD_RUBY_VERSION: 2.5.8
     - BUILD_RUBY_VERSION: 2.6.6
-    - BUILD_RUBY_VERSION: 2.7.1
+    - BUILD_RUBY_VERSION: 2.7.2

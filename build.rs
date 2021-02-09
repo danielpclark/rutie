@@ -175,7 +175,9 @@ fn ruby_lib_link_name() -> String {
     // but rather resorts to the systems Ruby.  So we symlink into
     // our own deps directory for it to work.
     let so_file = format!("libruby.so.{}.{}", rbconfig("MAJOR"), rbconfig("MINOR"));
-    let destination = format!("target/{}/deps", env::var("PROFILE").unwrap());
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let working_dir = out_dir.splitn(2, "/target").next().unwrap();
+    let destination = format!("{}/target/{}/deps", working_dir, env::var("PROFILE").unwrap());
     let _ = fs::create_dir_all(&destination).expect("create_dir_all fail");
     let source = format!("{}/{}", rbconfig("libdir"), so_file);
     let target = format!("{}/{}", destination, so_file);
