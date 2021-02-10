@@ -1,7 +1,7 @@
 ## Rutie
 
 [![Build Status](https://travis-ci.org/danielpclark/rutie.svg?branch=master)](https://travis-ci.org/danielpclark/rutie)
-[![Maintenance](https://img.shields.io/maintenance/yes/2020.svg)](https://github.com/danielpclark/rutie/commits/master)
+[![Maintenance](https://img.shields.io/maintenance/yes/2021.svg)](https://github.com/danielpclark/rutie/commits/master)
 [![GitHub contributors](https://img.shields.io/github/contributors/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/graphs/contributors)
 [![license](https://img.shields.io/github/license/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/blob/master/LICENSE)
 [![crates.io version](https://img.shields.io/crates/v/rutie.svg)](https://crates.io/crates/rutie)
@@ -48,7 +48,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.8.0"
+rutie = "0.8.2"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
