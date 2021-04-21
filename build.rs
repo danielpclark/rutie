@@ -370,7 +370,7 @@ fn main() {
                     This may mean that your ruby's build config is corrupted. \
                     Possible solution: build a new Ruby with the `--enable-shared` configure opt.";
                     ci_stderr_log!("{}", &msg);
-                    panic!(msg)
+                    panic!("{}", msg)
                 }
             }
         }
