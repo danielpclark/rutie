@@ -698,7 +698,7 @@ macro_rules! wrappable_struct {
             _marker: ::std::marker::PhantomData<T>,
         }
 
-        lazy_static! {
+        ::lazy_static::lazy_static! {
             pub static ref $static_name: $wrapper<$struct_name> = $wrapper::new();
         }
 
