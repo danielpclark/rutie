@@ -9,6 +9,9 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
+### Fixed
+ - Docstring description for `to_enum` on `Array`, thanks to @jhwiig
+
 ## [0.8.2] - 2021-02-09
 ### Added
  - Implement `VM::call_super` -> `rb_call_super`, thanks to @askreet

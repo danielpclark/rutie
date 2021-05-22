@@ -504,7 +504,7 @@ impl Array {
         Array::from(result)
     }
 
-    /// Sorts the array in place.
+    /// Returns an `Enumerator` instance
     ///
     /// # Examples
     ///
