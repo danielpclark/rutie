@@ -362,7 +362,7 @@ macro_rules! methods {
         $rtself_name: ident,
         $(
             fn $method_name: ident
-            ($($arg_name: ident: $arg_type: ty),*) -> $return_type: ident $body: block
+            ($($arg_name: ident: $arg_type: ty),*) -> $return_type: ty $body: block
             $(,)?
         )*
     ) => {
