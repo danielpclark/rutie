@@ -3,7 +3,7 @@ use std::convert::From;
 use binding::fixnum;
 use types::{Value, ValueType};
 
-use {Object, VerifiedObject, AnyObject};
+use {AnyObject, Object, VerifiedObject};
 
 /// `Fixnum`
 #[derive(Debug)]
@@ -98,6 +98,28 @@ impl Fixnum {
     /// ```
     pub fn to_i32(&self) -> i32 {
         fixnum::num_to_i32(self.value())
+    }
+
+    /// Retrieves a `u32` value from `Fixnum`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, VM};
+    /// # VM::init();
+    ///
+    /// let fixnum = Fixnum::new(1);
+    ///
+    /// assert_eq!(fixnum.to_u32(), 1);
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// 1 == 1
+    /// ```
+    pub fn to_u32(&self) -> u32 {
+        fixnum::num_to_u32(self.value())
     }
 }
 
