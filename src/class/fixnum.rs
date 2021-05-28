@@ -105,7 +105,7 @@ impl Fixnum {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Integer, VM};
+    /// use rutie::{Fixnum, VM};
     /// # VM::init();
     ///
     /// let fixnum = Fixnum::new(1);
