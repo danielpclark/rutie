@@ -11,6 +11,7 @@ API and may have breaking changes during a teeny version change.
 
 ### Fixed
  - Docstring description for `to_enum` on `Array`, thanks to @jhwiig
+ - `methods!` macro now uses `:ty` for return type instead of `:ident`, thanks to @n8ta
 
 ## [0.8.2] - 2021-02-09
 ### Added
