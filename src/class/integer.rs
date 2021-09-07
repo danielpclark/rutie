@@ -99,6 +99,28 @@ impl Integer {
     pub fn to_i32(&self) -> i32 {
         fixnum::num_to_i32(self.value())
     }
+
+    /// Retrieves a `u32` value from `Integer`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, VM};
+    /// # VM::init();
+    ///
+    /// let integer = Integer::new(1);
+    ///
+    /// assert_eq!(integer.to_u32(), 1);
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// 1 == 1
+    /// ```
+    pub fn to_u32(&self) -> u32 {
+        fixnum::num_to_u32(self.value())
+    }
 }
 
 impl From<Value> for Integer {
@@ -249,6 +271,33 @@ mod tests {
         let num = str_to_num("-1 * 2 ** 31 - 1").unwrap();
         let result = VM::protect(|| { num.to_i32(); nil.into() });
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_u32() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
+        let nil = NilClass::new();
+
+        let num = str_to_num("1").unwrap();
+        assert_eq!(1, num.to_u32());
+
+        let num = str_to_num("-1").unwrap();
+        assert_eq!(::std::u32::MAX, num.to_u32());
+
+        let num = str_to_num("2 ** 32 - 1").unwrap();
+        assert_eq!(::std::u32::MAX, num.to_u32());
+
+        let num = str_to_num("2 ** 32").unwrap();
+        let result = VM::protect(|| {
+            num.to_u32();
+            nil.into()
+        });
+        assert!(result.is_err());
+
+        let num = str_to_num("0").unwrap();
+        assert_eq!(::std::u32::MIN, num.to_u32());
     }
 
     #[test]
