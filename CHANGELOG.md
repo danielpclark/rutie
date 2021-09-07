@@ -9,6 +9,9 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
+### Added
+ - Implement `Integer::to_u32` and `Fixnum::to_u32`, thanks to @Hywan
+
 ### Fixed
  - Docstring description for `to_enum` on `Array`, thanks to @jhwiig
  - `methods!` macro now uses `:ty` for return type instead of `:ident`, thanks to @n8ta
