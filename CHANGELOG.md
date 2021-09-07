@@ -9,6 +9,7 @@ API and may have breaking changes during a teeny version change.
 
 ## [Unreleased]
 
+## [0.8.3] - 2021-09-06
 ### Added
  - Implement `Integer::to_u32` and `Fixnum::to_u32`, thanks to @Hywan
 
