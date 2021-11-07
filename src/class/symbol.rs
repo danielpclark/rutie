@@ -1,4 +1,4 @@
-use std::convert::From;
+use std::{convert::From, hash::Hash, hash::Hasher};
 
 use binding::symbol;
 use types::{Value, ValueType};
@@ -149,5 +149,16 @@ impl VerifiedObject for Symbol {
 impl PartialEq for Symbol {
     fn eq(&self, other: &Self) -> bool {
         self.equals(other)
+    }
+}
+
+impl Eq for Symbol {}
+
+impl Hash for Symbol {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.value().value.hash(state);
     }
 }
