@@ -7,6 +7,7 @@ use {Object, VerifiedObject, AnyObject};
 
 /// `Fixnum`
 #[derive(Debug)]
+#[repr(C)]
 pub struct Fixnum {
     value: Value,
 }

@@ -8,6 +8,7 @@ use {Object, VerifiedObject, AnyObject};
 
 /// `NilClass`
 #[derive(Debug, Copy, Clone)]
+#[repr(C)]
 pub struct NilClass {
     value: Value,
 }

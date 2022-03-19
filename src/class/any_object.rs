@@ -54,6 +54,7 @@ use std::{
 ///
 /// You can find more examples in `Class`, `Object` and `VerifiedObject` documentation.
 #[derive(Clone, Debug)]
+#[repr(C)]
 pub struct AnyObject {
     value: Value,
 }

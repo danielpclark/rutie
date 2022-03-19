@@ -14,6 +14,7 @@ use {
 
 /// `Enumerator`
 #[derive(Debug)]
+#[repr(C)]
 pub struct Enumerator {
     value: Value,
 }

@@ -9,6 +9,7 @@ use {AnyObject, Object, RString, VerifiedObject, Enumerator};
 
 /// `Array`
 #[derive(Debug)]
+#[repr(C)]
 pub struct Array {
     value: Value,
 }

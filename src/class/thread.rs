@@ -10,6 +10,7 @@ use {Class, Object, VerifiedObject, AnyObject};
 
 /// `Thread`
 #[derive(Debug)]
+#[repr(C)]
 pub struct Thread {
     value: Value,
 }

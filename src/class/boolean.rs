@@ -7,6 +7,7 @@ use {Object, VerifiedObject, AnyObject};
 
 /// `TrueClass` and `FalseClass`
 #[derive(Debug)]
+#[repr(C)]
 pub struct Boolean {
     value: Value,
 }

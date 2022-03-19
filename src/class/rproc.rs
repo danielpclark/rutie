@@ -8,6 +8,7 @@ use {AnyObject, Class, Object, VerifiedObject, Boolean};
 
 /// `Proc` (works with `Lambda` as well)
 #[derive(Debug)]
+#[repr(C)]
 pub struct Proc {
     value: Value,
 }
