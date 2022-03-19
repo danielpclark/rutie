@@ -56,6 +56,7 @@ use {AnyObject, Array, Object, Module, VerifiedObject};
 /// end
 /// ```
 #[derive(Debug)]
+#[repr(C)]
 pub struct Class {
     value: Value,
 }

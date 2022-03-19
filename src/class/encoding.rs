@@ -4,6 +4,7 @@ use {NilClass, Object, RString, VerifiedObject, Class, AnyException, Exception, 
 use types::{Value, ValueType, EncodingIndex};
 
 #[derive(Debug)]
+#[repr(C)]
 pub struct Encoding {
     value: Value
 }

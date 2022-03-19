@@ -7,6 +7,7 @@ use {Object, VerifiedObject, AnyObject, AnyException, VM};
 
 /// `Float`
 #[derive(Debug)]
+#[repr(C)]
 pub struct Float {
     value: Value,
 }

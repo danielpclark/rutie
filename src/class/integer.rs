@@ -7,6 +7,7 @@ use {Object, VerifiedObject, Fixnum, AnyObject};
 
 /// `Integer`
 #[derive(Debug)]
+#[repr(C)]
 pub struct Integer {
     value: Value,
 }

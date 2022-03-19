@@ -8,6 +8,7 @@ use {AnyObject, Object, VerifiedObject};
 
 /// `Hash`
 #[derive(Debug)]
+#[repr(C)]
 pub struct Hash {
     value: Value,
 }

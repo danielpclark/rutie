@@ -7,6 +7,7 @@ use {Object, VerifiedObject, AnyObject, Proc};
 
 /// `Symbol`
 #[derive(Debug)]
+#[repr(C)]
 pub struct Symbol {
     value: Value,
 }

@@ -23,6 +23,7 @@ use {
 
 /// `String`
 #[derive(Debug)]
+#[repr(C)]
 pub struct RString {
     value: Value,
 }

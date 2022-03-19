@@ -11,6 +11,9 @@ API and may have breaking changes during a teeny version change.
 ### Added
  - Implement `Eq` and `Hash` for `Symbol`, thanks to @ahogappa0613
 
+### Fixed
+ - not FFI-safe warnings when Rutie structs are used as return types, thanks to @ankane
+
 ## [0.8.3] - 2021-09-06
 ### Added
  - Implement `Integer::to_u32` and `Fixnum::to_u32`, thanks to @Hywan
