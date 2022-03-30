@@ -8,6 +8,7 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+## [0.8.4] - 2022-03-29
 ### Added
  - Implement `Eq` and `Hash` for `Symbol`, thanks to @ahogappa0613
 

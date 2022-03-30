@@ -1,6 +1,6 @@
 [package]
 name = "rutie"
-version = "0.8.3"
+version = "0.8.4"
 authors = [
   "Steve Klabnik <steve@steveklabnik.com>",
   "Dmitry Gritsay <unseductable@gmail.com>",
@@ -20,7 +20,7 @@ links = "ruby"
 no-link = [] # tells build.rs to not link to libruby
 
 [dependencies]
-libc = "0.2.86"
+libc = "0.2.121"
 lazy_static = "1.4.0"
 
 [badges]
