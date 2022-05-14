@@ -35,13 +35,13 @@ extern "C" {
     // ///////////////// ///////////////// ///////////////
     // void
     // rb_exc_raise(VALUE mesg)
-    pub fn rb_exc_raise(exception: Value);
+    pub fn rb_exc_raise(exception: Value) -> !;
     // void
     // rb_exit(int status)
     pub fn rb_exit(status: c_int);
     // void
     // rb_raise(VALUE exc, const char *fmt, ...)
-    pub fn rb_raise(exception: Value, message: *const c_char);
+    pub fn rb_raise(exception: Value, message: *const c_char) -> !;
     // VALUE
     // rb_require(const char *fname)
     pub fn rb_require(name: *const c_char) -> Value;

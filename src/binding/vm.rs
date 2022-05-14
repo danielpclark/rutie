@@ -94,7 +94,7 @@ pub fn eval_string_protect(string: &str) -> Result<Value, c_int> {
     }
 }
 
-pub fn raise(exception: Value, message: &str) {
+pub fn raise(exception: Value, message: &str) -> ! {
     let message = util::str_to_cstring(message);
 
     unsafe {
@@ -102,7 +102,7 @@ pub fn raise(exception: Value, message: &str) {
     }
 }
 
-pub fn raise_ex(exception: Value) {
+pub fn raise_ex(exception: Value) -> ! {
     unsafe { vm::rb_exc_raise(exception); }
 }
 

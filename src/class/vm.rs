@@ -129,7 +129,7 @@ impl VM {
     ///
     /// raise CustomException, 'Something went wrong'
     /// ```
-    pub fn raise(exception: Class, message: &str) {
+    pub fn raise(exception: Class, message: &str) -> ! {
         vm::raise(exception.value(), message);
     }
 
@@ -174,7 +174,7 @@ impl VM {
     ///
     /// raise CustomException, 'Something went wrong'
     /// ```
-    pub fn raise_ex<E>(exception: E) 
+    pub fn raise_ex<E>(exception: E) -> !
     where E: Into<AnyException> {
         vm::raise_ex(exception.into().value());
     }
