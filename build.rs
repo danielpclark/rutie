@@ -166,10 +166,10 @@ fn windows_support() {
 #[cfg(not(target_os = "windows"))]
 fn windows_support() {}
 
-#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd", target_os = "openbsd"))]
 use std::os::unix::fs::symlink;
 
-#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd", target_os = "openbsd"))]
 fn ruby_lib_link_name() -> String {
     // Rust with linker search paths doesn't seem to use those paths
     // but rather resorts to the systems Ruby.  So we symlink into
