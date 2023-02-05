@@ -4,14 +4,14 @@ use std::process::Command;
 use std::path::PathBuf;
 use std::env;
 
-#[cfg(target_os = "windows")]
+#[cfg(target_env = "msvc")]
 use {
     std::path::Path,
     std::fs::File,
     std::process::Stdio,
 };
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", all(target_os = "windows", target_env = "gnu"))))]
 use std::fs;
 
 macro_rules! ci_stderr_log {
@@ -41,11 +41,11 @@ fn macos_static_ruby_dep() {
     println!("cargo:rustc-link-lib=framework=Foundation");
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(target_env = "msvc"))]
 fn windows_static_ruby_dep() {}
 
 // Windows needs ligmp-10.dll as gmp.lib
-#[cfg(target_os = "windows")]
+#[cfg(target_env = "msvc")]
 fn windows_static_ruby_dep() {
     Command::new("build/windows/vcbuild.cmd")
         .arg("-arch=x64")
@@ -102,7 +102,7 @@ fn use_dylib() {
     ci_stderr_log!("Using dynamic linker flags");
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(target_env = "msvc")]
 fn delete<'a>(s: &'a str, from: &'a str) -> String {
     let mut result = String::new();
     let mut last_end = 0;
@@ -114,7 +114,7 @@ fn delete<'a>(s: &'a str, from: &'a str) -> String {
     result
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(target_env = "msvc")]
 fn purge_refptr_text() {
     let buffer = fs::read_to_string("exports.def")
         .expect("Failed to read 'exports.def'");
@@ -122,7 +122,7 @@ fn purge_refptr_text() {
         .expect("Failed to write update to 'exports.def'");
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(target_env = "msvc")]
 fn windows_support() {
     println!("cargo:rustc-link-search={}", rbconfig("bindir"));
     let mingw_libs: OsString = env::var_os("MINGW_LIBS").unwrap_or(
@@ -182,7 +182,7 @@ fn windows_support() {
     fs::remove_file("exports.txt").expect("couldn't remove exports.txt");
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(target_env = "msvc"))]
 fn windows_support() {}
 
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
