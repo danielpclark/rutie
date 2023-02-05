@@ -4,10 +4,14 @@ use std::process::Command;
 use std::path::PathBuf;
 use std::env;
 
-#[cfg(target_os = "windows")]
-use std::path::Path;
+#[cfg(target_env = "msvc")]
+use {
+    std::path::Path,
+    std::fs::File,
+    std::process::Stdio,
+};
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", all(target_os = "windows", target_env = "gnu"))))]
 use std::fs;
 
 macro_rules! ci_stderr_log {
@@ -37,11 +41,11 @@ fn macos_static_ruby_dep() {
     println!("cargo:rustc-link-lib=framework=Foundation");
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(target_env = "msvc"))]
 fn windows_static_ruby_dep() {}
 
 // Windows needs ligmp-10.dll as gmp.lib
-#[cfg(target_os = "windows")]
+#[cfg(target_env = "msvc")]
 fn windows_static_ruby_dep() {
     Command::new("build/windows/vcbuild.cmd")
         .arg("-arch=x64")
@@ -98,7 +102,7 @@ fn use_dylib() {
     ci_stderr_log!("Using dynamic linker flags");
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(target_env = "msvc")]
 fn delete<'a>(s: &'a str, from: &'a str) -> String {
     let mut result = String::new();
     let mut last_end = 0;
@@ -110,15 +114,15 @@ fn delete<'a>(s: &'a str, from: &'a str) -> String {
     result
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(target_env = "msvc")]
 fn purge_refptr_text() {
     let buffer = fs::read_to_string("exports.def")
         .expect("Failed to read 'exports.def'");
-    fs::write("exports.def", delete(&buffer, ".refptr."))
+    fs::write("exports.def", delete( &delete(&buffer, ".refptr."), ".weak."))
         .expect("Failed to write update to 'exports.def'");
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(target_env = "msvc")]
 fn windows_support() {
     println!("cargo:rustc-link-search={}", rbconfig("bindir"));
     let mingw_libs: OsString = env::var_os("MINGW_LIBS").unwrap_or(
@@ -132,6 +136,8 @@ fn windows_support() {
     let name = ruby_dll.file_stem().unwrap();
     let target = deps_dir.join(format!("{}.lib", name.to_string_lossy()));
 
+    let outputs = File::create("dumpbin_exe.log").unwrap();
+    let errors = File::try_clone(&outputs).unwrap();
     Command::new("build/windows/vcbuild.cmd")
         .arg("-arch=x64")
         .arg("-host_arch=x64")
@@ -140,12 +146,23 @@ fn windows_support() {
         .arg("/exports")
         .arg("/out:exports.txt")
         .arg(Path::new(&rbconfig("bindir")).join(&libruby_so))
+        .stdout(Stdio::from(outputs))
+        .stderr(Stdio::from(errors))
         .output()
         .unwrap();
 
-    Command::new("build/windows/exports.bat").output().unwrap();
+    let outputs = File::create("exports_bat.log").unwrap();
+    let errors = File::try_clone(&outputs).unwrap();
+    Command::new("build/windows/exports.bat")
+        .stdout(Stdio::from(outputs))
+        .stderr(Stdio::from(errors))
+        .output()
+        .unwrap();
 
     purge_refptr_text();
+
+    let outputs = File::create("lib_exe.log").unwrap();
+    let errors = File::try_clone(&outputs).unwrap();
     Command::new("build/windows/vcbuild.cmd")
         .arg("-arch=x64")
         .arg("-host_arch=x64")
@@ -156,6 +173,8 @@ fn windows_support() {
         .arg(format!("/libpath:{}", rbconfig("bindir")))
         .arg("/machine:x64")
         .arg(format!("/out:{}", target.to_string_lossy()))
+        .stdout(Stdio::from(outputs))
+        .stderr(Stdio::from(errors))
         .output()
         .unwrap();
 
@@ -163,7 +182,7 @@ fn windows_support() {
     fs::remove_file("exports.txt").expect("couldn't remove exports.txt");
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(target_env = "msvc"))]
 fn windows_support() {}
 
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
@@ -207,7 +226,7 @@ fn ruby_lib_link_name() -> String {
 fn dynamic_linker_args() {
     let mut library = Library::new();
     library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), false);
-    println!("cargo:rustc-link-lib=dylib={}", ruby_lib_link_name());
+    println!("cargo:rustc-link-lib=dylib=dylib:{}", ruby_lib_link_name());
     library.parse_libs_cflags(rbconfig("LIBS").as_bytes(), false);
 }
 
