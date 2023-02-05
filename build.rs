@@ -226,7 +226,7 @@ fn ruby_lib_link_name() -> String {
 fn dynamic_linker_args() {
     let mut library = Library::new();
     library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), false);
-    println!("cargo:rustc-link-lib=dylib={}", ruby_lib_link_name());
+    println!("cargo:rustc-link-lib=dylib=dylib:{}", ruby_lib_link_name());
     library.parse_libs_cflags(rbconfig("LIBS").as_bytes(), false);
 }
 

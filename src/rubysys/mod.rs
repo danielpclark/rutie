@@ -19,6 +19,7 @@ pub mod vm;
 
 use rubysys::types::Value;
 
+#[link(name="dylib")]
 extern "C" {
     pub static rb_cObject: Value;
 }
