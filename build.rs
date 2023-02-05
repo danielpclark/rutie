@@ -5,7 +5,11 @@ use std::path::PathBuf;
 use std::env;
 
 #[cfg(target_os = "windows")]
-use std::path::Path;
+use {
+    std::path::Path,
+    std::fs::File,
+    std::process::Stdio,
+};
 
 #[cfg(not(target_os = "macos"))]
 use std::fs;
@@ -132,6 +136,8 @@ fn windows_support() {
     let name = ruby_dll.file_stem().unwrap();
     let target = deps_dir.join(format!("{}.lib", name.to_string_lossy()));
 
+    let outputs = File::create("dumpbin_exe.log").unwrap();
+    let errors = File::try_clone(&outputs).unwrap();
     Command::new("build/windows/vcbuild.cmd")
         .arg("-arch=x64")
         .arg("-host_arch=x64")
@@ -140,12 +146,23 @@ fn windows_support() {
         .arg("/exports")
         .arg("/out:exports.txt")
         .arg(Path::new(&rbconfig("bindir")).join(&libruby_so))
+        .stdout(Stdio::from(outputs))
+        .stderr(Stdio::from(errors))
         .output()
         .unwrap();
 
-    Command::new("build/windows/exports.bat").output().unwrap();
+    let outputs = File::create("exports_bat.log").unwrap();
+    let errors = File::try_clone(&outputs).unwrap();
+    Command::new("build/windows/exports.bat")
+        .stdout(Stdio::from(outputs))
+        .stderr(Stdio::from(errors))
+        .output()
+        .unwrap();
 
     purge_refptr_text();
+
+    let outputs = File::create("lib_exe.log").unwrap();
+    let errors = File::try_clone(&outputs).unwrap();
     Command::new("build/windows/vcbuild.cmd")
         .arg("-arch=x64")
         .arg("-host_arch=x64")
@@ -156,6 +173,8 @@ fn windows_support() {
         .arg(format!("/libpath:{}", rbconfig("bindir")))
         .arg("/machine:x64")
         .arg(format!("/out:{}", target.to_string_lossy()))
+        .stdout(Stdio::from(outputs))
+        .stderr(Stdio::from(errors))
         .output()
         .unwrap();
 
