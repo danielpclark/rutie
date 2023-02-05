@@ -118,7 +118,7 @@ fn delete<'a>(s: &'a str, from: &'a str) -> String {
 fn purge_refptr_text() {
     let buffer = fs::read_to_string("exports.def")
         .expect("Failed to read 'exports.def'");
-    fs::write("exports.def", delete(&buffer, ".refptr."))
+    fs::write("exports.def", delete( &delete(&buffer, ".refptr."), ".weak."))
         .expect("Failed to write update to 'exports.def'");
 }
 
