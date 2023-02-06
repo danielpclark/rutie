@@ -1,12 +1,12 @@
 use binding::encoding;
 
-use {NilClass, Object, RString, VerifiedObject, Class, AnyException, Exception, AnyObject};
-use types::{Value, ValueType, EncodingIndex};
+use types::{EncodingIndex, Value, ValueType};
+use {AnyException, AnyObject, Class, Exception, NilClass, Object, RString, VerifiedObject};
 
 #[derive(Debug)]
 #[repr(C)]
 pub struct Encoding {
-    value: Value
+    value: Value,
 }
 
 impl Encoding {
@@ -164,7 +164,10 @@ impl Encoding {
         let idx = encoding::find_encoding_index(s);
 
         if idx < 0 {
-            Err(AnyException::new("ArgumentError", Some(&format!("unknown encoding name - {}", s))))
+            Err(AnyException::new(
+                "ArgumentError",
+                Some(&format!("unknown encoding name - {}", s)),
+            ))
         } else {
             Ok(Encoding::from(encoding::from_encoding_index(idx)))
         }
@@ -234,8 +237,8 @@ impl Object for Encoding {
 
 impl VerifiedObject for Encoding {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        object.value().ty() == ValueType::Class &&
-          Class::from_existing("Encoding").case_equals(object)
+        object.value().ty() == ValueType::Class
+            && Class::from_existing("Encoding").case_equals(object)
     }
 
     fn error_message() -> &'static str {

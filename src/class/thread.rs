@@ -6,7 +6,7 @@ use types::Value;
 #[cfg(unix)]
 use types::RawFd;
 
-use {Class, Object, VerifiedObject, AnyObject};
+use {AnyObject, Class, Object, VerifiedObject};
 
 /// `Thread`
 #[derive(Debug)]

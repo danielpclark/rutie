@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
-use std::ffi::OsString;
-use std::process::Command;
-use std::path::PathBuf;
 use std::env;
+use std::ffi::OsString;
+use std::path::PathBuf;
+use std::process::Command;
 
 #[cfg(target_os = "windows")]
 use std::path::Path;
@@ -50,13 +50,18 @@ fn windows_static_ruby_dep() {
         .arg("dumpbin")
         .arg("/exports")
         .arg("/out:exports.txt")
-        .arg(format!("{}/ruby_builtin_dlls/libgmp-10.dll", rbconfig("bindir")))
+        .arg(format!(
+            "{}/ruby_builtin_dlls/libgmp-10.dll",
+            rbconfig("bindir")
+        ))
         .output()
         .unwrap();
 
     Command::new("build/windows/exports.bat").output().unwrap();
 
-    let deps_dir = Path::new("target").join(env::var_os("PROFILE").unwrap()).join("deps");
+    let deps_dir = Path::new("target")
+        .join(env::var_os("PROFILE").unwrap())
+        .join("deps");
 
     Command::new("build/windows/vcbuild.cmd")
         .arg("-arch=x64")
@@ -76,7 +81,8 @@ fn windows_static_ruby_dep() {
 }
 
 fn use_static() {
-    if let Some(location) = env::var_os("RUBY_STATIC_PATH").map(|s|s.to_string_lossy().to_string()) {
+    if let Some(location) = env::var_os("RUBY_STATIC_PATH").map(|s| s.to_string_lossy().to_string())
+    {
         println!("cargo:rustc-link-search={}", location);
     }
 
@@ -112,8 +118,7 @@ fn delete<'a>(s: &'a str, from: &'a str) -> String {
 
 #[cfg(target_os = "windows")]
 fn purge_refptr_text() {
-    let buffer = fs::read_to_string("exports.def")
-        .expect("Failed to read 'exports.def'");
+    let buffer = fs::read_to_string("exports.def").expect("Failed to read 'exports.def'");
     fs::write("exports.def", delete(&buffer, ".refptr."))
         .expect("Failed to write update to 'exports.def'");
 }
@@ -121,12 +126,15 @@ fn purge_refptr_text() {
 #[cfg(target_os = "windows")]
 fn windows_support() {
     println!("cargo:rustc-link-search={}", rbconfig("bindir"));
-    let mingw_libs: OsString = env::var_os("MINGW_LIBS").unwrap_or(
-        OsString::from(format!("{}/ruby_builtin_dlls", rbconfig("bindir")))
-    );
+    let mingw_libs: OsString = env::var_os("MINGW_LIBS").unwrap_or(OsString::from(format!(
+        "{}/ruby_builtin_dlls",
+        rbconfig("bindir")
+    )));
     println!("cargo:rustc-link-search={}", mingw_libs.to_string_lossy());
 
-    let deps_dir = Path::new("target").join(env::var_os("PROFILE").unwrap()).join("deps");
+    let deps_dir = Path::new("target")
+        .join(env::var_os("PROFILE").unwrap())
+        .join("deps");
     let libruby_so = rbconfig("LIBRUBY_SO");
     let ruby_dll = Path::new(&libruby_so);
     let name = ruby_dll.file_stem().unwrap();
@@ -166,10 +174,20 @@ fn windows_support() {
 #[cfg(not(target_os = "windows"))]
 fn windows_support() {}
 
-#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd", target_os = "openbsd"))]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "freebsd",
+    target_os = "openbsd"
+))]
 use std::os::unix::fs::symlink;
 
-#[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd", target_os = "openbsd"))]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "freebsd",
+    target_os = "openbsd"
+))]
 fn ruby_lib_link_name() -> String {
     // Rust with linker search paths doesn't seem to use those paths
     // but rather resorts to the systems Ruby.  So we symlink into
@@ -177,7 +195,11 @@ fn ruby_lib_link_name() -> String {
     let so_file = format!("libruby.so.{}.{}", rbconfig("MAJOR"), rbconfig("MINOR"));
     let out_dir = env::var("OUT_DIR").unwrap();
     let working_dir = out_dir.splitn(2, "/target").next().unwrap();
-    let destination = format!("{}/target/{}/deps", working_dir, env::var("PROFILE").unwrap());
+    let destination = format!(
+        "{}/target/{}/deps",
+        working_dir,
+        env::var("PROFILE").unwrap()
+    );
     let _ = fs::create_dir_all(&destination).expect("create_dir_all fail");
     let source = format!("{}/{}", rbconfig("libdir"), so_file);
     let target = format!("{}/{}", destination, so_file);
@@ -192,10 +214,10 @@ fn ruby_lib_link_name() -> String {
 #[cfg(target_os = "macos")]
 fn ruby_lib_link_name() -> String {
     format!(
-      "{}.{}.{}",
-      rbconfig("RUBY_BASE_NAME"),
-      rbconfig("MAJOR"),
-      rbconfig("MINOR")
+        "{}.{}.{}",
+        rbconfig("RUBY_BASE_NAME"),
+        rbconfig("MAJOR"),
+        rbconfig("MINOR")
     )
 }
 
@@ -214,7 +236,10 @@ fn dynamic_linker_args() {
 fn static_linker_args() {
     let mut library = Library::new();
     library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), true);
-    library.parse_libs_cflags(format!("-l{}-static", rbconfig("RUBY_SO_NAME")).as_bytes(), true);
+    library.parse_libs_cflags(
+        format!("-l{}-static", rbconfig("RUBY_SO_NAME")).as_bytes(),
+        true,
+    );
     library.parse_libs_cflags(rbconfig("MAINLIBS").as_bytes(), false);
 }
 
@@ -253,10 +278,11 @@ impl Library {
         }
 
         let words = split_flags(output);
-        let parts = words.iter()
-                          .filter(|l| l.len() > 2)
-                          .map(|arg| (&arg[0..2], &arg[2..]))
-                          .collect::<HashSet<_>>();
+        let parts = words
+            .iter()
+            .filter(|l| l.len() > 2)
+            .map(|arg| (&arg[0..2], &arg[2..]))
+            .collect::<HashSet<_>>();
 
         let mut dirs = Vec::new();
         for &(flag, val) in &parts {
@@ -293,21 +319,25 @@ impl Library {
                 }
                 "-D" => {
                     let mut iter = val.split("=");
-                    self.defines.insert(iter.next().unwrap().to_owned(), iter.next().map(|s| s.to_owned()));
+                    self.defines.insert(
+                        iter.next().unwrap().to_owned(),
+                        iter.next().map(|s| s.to_owned()),
+                    );
                 }
                 _ => {}
             }
         }
 
-        let mut iter = words.iter()
-                            .flat_map(|arg| if arg.starts_with("-Wl,") {
-                                 arg[4..].split(',').collect()
-                             } else {
-                                 vec![arg.as_ref()]
-                             });
+        let mut iter = words.iter().flat_map(|arg| {
+            if arg.starts_with("-Wl,") {
+                arg[4..].split(',').collect()
+            } else {
+                vec![arg.as_ref()]
+            }
+        });
         while let Some(part) = iter.next() {
             if part != "-framework" {
-                continue
+                continue;
             }
             if let Some(lib) = iter.next() {
                 let meta = format!("rustc-link-lib=framework={}", lib);
@@ -353,7 +383,6 @@ fn should_link() -> bool {
 fn main() {
     // Ruby programs calling Rust doesn't need cc linking
     if should_link() {
-
         // If windows OS do windows stuff
         windows_support();
 
@@ -374,6 +403,5 @@ fn main() {
                 }
             }
         }
-
     }
 }

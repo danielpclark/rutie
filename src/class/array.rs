@@ -5,7 +5,7 @@ use std::iter::{FromIterator, IntoIterator, Iterator};
 use binding::array;
 use types::{Value, ValueType};
 
-use {AnyObject, Object, RString, VerifiedObject, Enumerator};
+use {AnyObject, Enumerator, Object, RString, VerifiedObject};
 
 /// `Array`
 #[derive(Debug)]
@@ -527,8 +527,8 @@ impl Array {
     /// ```
     pub fn to_enum(&self) -> Enumerator {
         unsafe { self.send("to_enum", &[]) }
-                     .try_convert_to::<Enumerator>()
-                     .unwrap()
+            .try_convert_to::<Enumerator>()
+            .unwrap()
     }
 }
 

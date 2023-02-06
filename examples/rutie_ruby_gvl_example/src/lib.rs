@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate rutie;
 
-use rutie::{Class, Object, RString, Thread, Fixnum, AnyObject, NilClass};
-use std::sync::mpsc;
+use rutie::{AnyObject, Class, Fixnum, NilClass, Object, RString, Thread};
 use std::os::unix::io::AsRawFd;
 use std::os::unix::net::UnixStream;
+use std::sync::mpsc;
 
 class!(RutieExample);
 
@@ -100,10 +100,22 @@ fn fibonacci(n: u32) -> u32 {
 #[no_mangle]
 pub extern "C" fn Init_rutie_ruby_gvl_example() {
     Class::new("RutieExample", None).define(|klass| {
-        klass.def_self("stack_allocated_returning_input", stack_allocated_returning_input);
-        klass.def_self("stack_allocated_returning_from_closure", stack_allocated_returning_from_closure);
-        klass.def_self("heap_allocated_returning_input", heap_allocated_returning_input);
-        klass.def_self("heap_allocated_returning_from_closure", heap_allocated_returning_from_closure);
+        klass.def_self(
+            "stack_allocated_returning_input",
+            stack_allocated_returning_input,
+        );
+        klass.def_self(
+            "stack_allocated_returning_from_closure",
+            stack_allocated_returning_from_closure,
+        );
+        klass.def_self(
+            "heap_allocated_returning_input",
+            heap_allocated_returning_input,
+        );
+        klass.def_self(
+            "heap_allocated_returning_from_closure",
+            heap_allocated_returning_from_closure,
+        );
         klass.def_self("call_ruby_in_call_with_gvl", call_ruby_in_call_with_gvl);
         klass.def_self("create_thread", create_thread);
     });

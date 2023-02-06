@@ -1,11 +1,11 @@
 use std::convert::From;
 
-use binding::{module, class};
 use binding::global::rb_cObject;
+use binding::{class, module};
 use typed_data::DataTypeWrapper;
-use types::{Value, ValueType, Callback};
+use types::{Callback, Value, ValueType};
 
-use {AnyObject, Array, Object, Class, VerifiedObject};
+use {AnyObject, Array, Class, Object, VerifiedObject};
 
 /// `Module`
 ///
@@ -416,7 +416,11 @@ impl Module {
     ///   module_function :pow_with_default_argument
     /// end
     /// ```
-    pub fn define_module_function<I: Object, O: Object>(&mut self, name: &str, callback: Callback<I, O>) {
+    pub fn define_module_function<I: Object, O: Object>(
+        &mut self,
+        name: &str,
+        callback: Callback<I, O>,
+    ) {
         module::define_module_function(self.value(), name, callback);
     }
 

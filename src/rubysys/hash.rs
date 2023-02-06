@@ -1,4 +1,4 @@
-use rubysys::types::{CallbackPtr, CallbackMutPtr, Value};
+use rubysys::types::{CallbackMutPtr, CallbackPtr, Value};
 
 extern "C" {
     // VALUE

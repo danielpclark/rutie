@@ -1,4 +1,4 @@
-use rubysys::types::{Argc, c_char, c_int, CallbackPtr, Id, Value};
+use rubysys::types::{c_char, c_int, Argc, CallbackPtr, Id, Value};
 
 extern "C" {
     // VALUE
@@ -30,19 +30,31 @@ extern "C" {
     pub fn rb_define_module(name: *const c_char) -> Value;
     // void
     // rb_define_module_function(VALUE module, const char *name, VALUE (*func)(ANYARGS), int argc)
-    pub fn rb_define_module_function(klass: Value, name: *const c_char, callback: CallbackPtr, argc: Argc);
+    pub fn rb_define_module_function(
+        klass: Value,
+        name: *const c_char,
+        callback: CallbackPtr,
+        argc: Argc,
+    );
     // VALUE
     // rb_define_module_under(VALUE outer, const char *name)
     pub fn rb_define_module_under(outer: Value, name: *const c_char) -> Value;
     // void
     // rb_define_private_method(VALUE klass, const char *name, VALUE (*func)(ANYARGS), int argc)
-    pub fn rb_define_private_method(klass: Value, name: *const c_char, callback: CallbackPtr, argc: Argc);
+    pub fn rb_define_private_method(
+        klass: Value,
+        name: *const c_char,
+        callback: CallbackPtr,
+        argc: Argc,
+    );
     // void
     // rb_define_singleton_method(VALUE obj, const char *name, VALUE (*func)(ANYARGS), int argc)
-    pub fn rb_define_singleton_method(klass: Value,
-                                      name: *const c_char,
-                                      callback: CallbackPtr,
-                                      argc: Argc);
+    pub fn rb_define_singleton_method(
+        klass: Value,
+        name: *const c_char,
+        callback: CallbackPtr,
+        argc: Argc,
+    );
     // VALUE
     // rb_eql(VALUE obj1, VALUE obj2)
     pub fn rb_eql(obj1: Value, obj2: Value) -> Value;

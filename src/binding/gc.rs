@@ -1,5 +1,5 @@
 use rubysys::gc;
-use types::{ Value, CallbackPtr };
+use types::{CallbackPtr, Value};
 use util;
 
 pub fn adjust_memory_usage(diff: isize) {

@@ -3,7 +3,7 @@ use std::convert::From;
 use binding::fixnum;
 use types::{Value, ValueType};
 
-use {Object, VerifiedObject, Fixnum, AnyObject};
+use {AnyObject, Fixnum, Object, VerifiedObject};
 
 /// `Integer`
 #[derive(Debug)]
@@ -132,7 +132,9 @@ impl From<Value> for Integer {
 
 impl From<i64> for Integer {
     fn from(num: i64) -> Self {
-        Integer { value: fixnum::i64_to_num(num) }
+        Integer {
+            value: fixnum::i64_to_num(num),
+        }
     }
 }
 
@@ -144,7 +146,9 @@ impl Into<i64> for Integer {
 
 impl From<u64> for Integer {
     fn from(num: u64) -> Self {
-        Integer { value: fixnum::u64_to_num(num) }
+        Integer {
+            value: fixnum::u64_to_num(num),
+        }
     }
 }
 
@@ -156,7 +160,9 @@ impl Into<u64> for Integer {
 
 impl From<i32> for Integer {
     fn from(num: i32) -> Self {
-        Integer { value: fixnum::i32_to_num(num) }
+        Integer {
+            value: fixnum::i32_to_num(num),
+        }
     }
 }
 
@@ -168,7 +174,9 @@ impl Into<i32> for Integer {
 
 impl From<u32> for Integer {
     fn from(num: u32) -> Self {
-        Integer { value: fixnum::u32_to_num(num) }
+        Integer {
+            value: fixnum::u32_to_num(num),
+        }
     }
 }
 
@@ -222,8 +230,8 @@ impl PartialEq for Integer {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::{LOCK_FOR_TEST, AnyException, Object, Integer, VM, NilClass};
     use super::super::super::types::Value;
+    use super::super::super::{AnyException, Integer, NilClass, Object, LOCK_FOR_TEST, VM};
 
     #[test]
     fn test_github_issue_113_darwin_os() {
@@ -263,14 +271,20 @@ mod tests {
         assert_eq!(::std::i32::MAX, num.to_i32());
 
         let num = str_to_num("2 ** 31").unwrap();
-        let result = VM::protect(|| { num.to_i32(); nil.into() });
+        let result = VM::protect(|| {
+            num.to_i32();
+            nil.into()
+        });
         assert!(result.is_err());
 
         let num = str_to_num("-1 * 2 ** 31").unwrap();
         assert_eq!(::std::i32::MIN, num.to_i32());
 
         let num = str_to_num("-1 * 2 ** 31 - 1").unwrap();
-        let result = VM::protect(|| { num.to_i32(); nil.into() });
+        let result = VM::protect(|| {
+            num.to_i32();
+            nil.into()
+        });
         assert!(result.is_err());
     }
 
@@ -312,14 +326,20 @@ mod tests {
         assert_eq!(::std::i64::MAX, num.to_i64());
 
         let num = str_to_num("2 ** 63").unwrap();
-        let result = VM::protect(|| { num.to_i64(); nil.into() });
+        let result = VM::protect(|| {
+            num.to_i64();
+            nil.into()
+        });
         assert!(result.is_err());
 
         let num = str_to_num("-1 * 2 ** 63").unwrap();
         assert_eq!(::std::i64::MIN, num.to_i64());
 
         let num = str_to_num("-1 * 2 ** 63 - 1").unwrap();
-        let result = VM::protect(|| { num.to_i64(); nil.into() });
+        let result = VM::protect(|| {
+            num.to_i64();
+            nil.into()
+        });
         assert!(result.is_err());
     }
 
@@ -334,7 +354,10 @@ mod tests {
         assert_eq!(::std::u64::MAX, num.to_u64());
 
         let num = str_to_num("2 ** 64").unwrap();
-        let result = VM::protect(|| { num.to_u64(); nil.into() });
+        let result = VM::protect(|| {
+            num.to_u64();
+            nil.into()
+        });
         assert!(result.is_err());
 
         let num = str_to_num("0").unwrap();

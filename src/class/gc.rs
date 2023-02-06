@@ -1,6 +1,6 @@
 use binding::gc;
 
-use { Object, AnyObject, Symbol };
+use {AnyObject, Object, Symbol};
 
 /// Garbage collection
 pub struct GC;

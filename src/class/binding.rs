@@ -3,7 +3,7 @@ use std::convert::From;
 use binding::rproc;
 use types::{Value, ValueType};
 
-use {Class, Object, VerifiedObject, AnyObject};
+use {AnyObject, Class, Object, VerifiedObject};
 
 /// `Integer`
 #[derive(Debug)]
@@ -29,7 +29,9 @@ impl Binding {
     /// binding
     /// ```
     pub fn new() -> Self {
-        Binding { value: rproc::binding_new() }
+        Binding {
+            value: rproc::binding_new(),
+        }
     }
 }
 

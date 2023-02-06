@@ -2,7 +2,7 @@ use std::ptr;
 
 use rubysys::thread;
 
-use types::{c_void, CallbackPtr, CallbackMutPtr, Value};
+use types::{c_void, CallbackMutPtr, CallbackPtr, Value};
 use util;
 
 #[cfg(unix)]

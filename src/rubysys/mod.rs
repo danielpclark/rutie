@@ -1,12 +1,12 @@
 extern crate libc;
 
 pub mod array;
-pub mod constant;
 pub mod class;
+pub mod constant;
 pub mod encoding;
 pub mod fixnum;
-pub mod gc;
 pub mod float;
+pub mod gc;
 pub mod hash;
 pub mod rproc;
 pub mod string;

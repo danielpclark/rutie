@@ -1,10 +1,10 @@
 use std::ptr;
 
-use ::AnyObject;
 use rubysys::{thread, vm};
+use AnyObject;
 
-use types::{c_int, c_void, CallbackPtr, Value, VmPointer};
 use binding::symbol::internal_id;
+use types::{c_int, c_void, CallbackPtr, Value, VmPointer};
 use util;
 
 pub fn block_proc() -> Value {
@@ -64,29 +64,20 @@ pub fn call_public_method(receiver: Value, method: &str, arguments: &[Value]) ->
 pub fn call_super(arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);
 
-    unsafe {
-        vm::rb_call_super(argc, argv)
-    }
+    unsafe { vm::rb_call_super(argc, argv) }
 }
 
 // "evaluation can raise an exception."
 pub fn eval_string(string: &str) -> Value {
     let s = util::str_to_cstring(string);
 
-    unsafe {
-        vm::rb_eval_string(s.as_ptr())
-    }
+    unsafe { vm::rb_eval_string(s.as_ptr()) }
 }
 
 pub fn eval_string_protect(string: &str) -> Result<Value, c_int> {
     let s = util::str_to_cstring(string);
     let mut state = 0;
-    let value = unsafe {
-        vm::rb_eval_string_protect(
-            s.as_ptr(),
-            &mut state as *mut c_int
-        )
-    };
+    let value = unsafe { vm::rb_eval_string_protect(s.as_ptr(), &mut state as *mut c_int) };
     if state == 0 {
         Ok(value)
     } else {
@@ -103,7 +94,9 @@ pub fn raise(exception: Value, message: &str) {
 }
 
 pub fn raise_ex(exception: Value) {
-    unsafe { vm::rb_exc_raise(exception); }
+    unsafe {
+        vm::rb_exc_raise(exception);
+    }
 }
 
 pub fn errinfo() -> Value {
@@ -194,7 +187,11 @@ where
     let mut state = 0;
     let value = unsafe {
         let closure = &func as *const F as *const c_void;
-        vm::rb_protect(callback_protect::<F, AnyObject> as CallbackPtr, closure, &mut state as *mut c_int)
+        vm::rb_protect(
+            callback_protect::<F, AnyObject> as CallbackPtr,
+            closure,
+            &mut state as *mut c_int,
+        )
     };
     if state == 0 {
         Ok(value.into())
@@ -213,14 +210,20 @@ pub fn abort(arguments: &[Value]) {
     unsafe { vm::rb_f_abort(argc, argv) };
 }
 
-use util::callback_call::one_parameter as at_exit_callback;
 use rubysys::types::Argc;
+use util::callback_call::one_parameter as at_exit_callback;
 
 pub fn at_exit<F>(func: F)
-where F: FnMut(VmPointer) -> () {
+where
+    F: FnMut(VmPointer) -> (),
+{
     let mut state = 0;
     unsafe {
         let closure = &func as *const F as *const c_void;
-        vm::rb_protect(at_exit_callback::<F, VmPointer, ()> as CallbackPtr, closure, &mut state as *mut c_int)
+        vm::rb_protect(
+            at_exit_callback::<F, VmPointer, ()> as CallbackPtr,
+            closure,
+            &mut state as *mut c_int,
+        )
     };
 }

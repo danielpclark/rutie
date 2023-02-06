@@ -2,16 +2,13 @@ use std::ffi::{CStr, CString};
 use std::ptr;
 use std::slice;
 
-use binding::global::{RubySpecialConsts, rb_cObject};
 use binding::class::const_get;
+use binding::global::{rb_cObject, RubySpecialConsts};
 use binding::vm;
 use types::{c_char, c_int, c_void, Argc, InternalValue, Value};
 
-use {AnyObject, Object, Boolean};
-use crate::rubysys::rproc::{
-    rb_obj_is_proc,
-    rb_obj_is_method,
-};
+use crate::rubysys::rproc::{rb_obj_is_method, rb_obj_is_proc};
+use {AnyObject, Boolean, Object};
 
 pub unsafe fn cstr_to_string(str: *const c_char) -> String {
     CStr::from_ptr(str).to_string_lossy().into_owned()
@@ -124,7 +121,7 @@ pub fn inmost_rb_object(klass: &str) -> Value {
 }
 
 pub mod callback_call {
-    use ::types::{c_void, CallbackMutPtr, st_retval};
+    use types::{c_void, st_retval, CallbackMutPtr};
 
     pub fn no_parameters<F: FnMut() -> R, R>(ptr: CallbackMutPtr) -> R {
         let f = ptr as *mut F;
@@ -136,9 +133,15 @@ pub mod callback_call {
         unsafe { (*f)(a) }
     }
 
-    pub fn hash_foreach_callback<F: FnMut(A, B), A, B>(a: A, b: B, ptr: CallbackMutPtr) -> st_retval {
+    pub fn hash_foreach_callback<F: FnMut(A, B), A, B>(
+        a: A,
+        b: B,
+        ptr: CallbackMutPtr,
+    ) -> st_retval {
         let f = ptr as *mut F;
-        unsafe { (*f)(a, b); }
+        unsafe {
+            (*f)(a, b);
+        }
         st_retval::Continue
     }
 }

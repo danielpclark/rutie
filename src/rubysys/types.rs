@@ -20,7 +20,7 @@ pub type VmPointer = CallbackPtr;
 pub type Argc = c_int;
 pub type CallbackPtr = *const c_void;
 pub type CallbackMutPtr = *mut c_void;
-pub type BlockCallFunction = extern fn(
+pub type BlockCallFunction = extern "C" fn(
     yielded_arg: Value,
     callback_arg: Value,
     argc: c_int,

@@ -1,7 +1,7 @@
 use binding::vm;
 use types::{Argc, Value, VmPointer};
 
-use {AnyObject, AnyException, Class, Object, Proc, NilClass, Array, TryConvert, util};
+use {util, AnyException, AnyObject, Array, Class, NilClass, Object, Proc, TryConvert};
 
 /// Virtual Machine and helpers
 pub struct VM;
@@ -174,8 +174,10 @@ impl VM {
     ///
     /// raise CustomException, 'Something went wrong'
     /// ```
-    pub fn raise_ex<E>(exception: E) 
-    where E: Into<AnyException> {
+    pub fn raise_ex<E>(exception: E)
+    where
+        E: Into<AnyException>,
+    {
         vm::raise_ex(exception.into().value());
     }
 
@@ -234,16 +236,16 @@ impl VM {
     /// with the same content in Ruby, they will evaluate to different values in
     /// C/Rust.
     pub fn eval(string: &str) -> Result<AnyObject, AnyException> {
-        vm::eval_string_protect(string).map(|v|
-            AnyObject::from(v)
-        ).map_err(|_| {
-            let output = AnyException::from(vm::errinfo());
+        vm::eval_string_protect(string)
+            .map(|v| AnyObject::from(v))
+            .map_err(|_| {
+                let output = AnyException::from(vm::errinfo());
 
-            // error cleanup
-            vm::set_errinfo(NilClass::new().value());
+                // error cleanup
+                vm::set_errinfo(NilClass::new().value());
 
-            output
-        })
+                output
+            })
     }
 
     /// Evals string and returns an AnyObject
@@ -271,9 +273,7 @@ impl VM {
     ///
     /// Marked unsafe because "evaluation can raise an exception."
     pub unsafe fn eval_str(string: &str) -> AnyObject {
-        AnyObject::from(
-            vm::eval_string(string)
-        )
+        AnyObject::from(vm::eval_string(string))
     }
 
     /// Converts a block given to current method to a `Proc`
@@ -605,7 +605,6 @@ impl VM {
         vm::set_errinfo(NilClass::new().value());
     }
 
-
     /// Exit with Ruby VM with status code.
     ///
     /// # Examples
@@ -753,8 +752,6 @@ impl VM {
         Class::from_existing("Signal").protect_send("trap", arguments)
     }
 
-
-
     /// `at_exit` is run AFTER the VM is shut down
     ///
     /// # Examples
@@ -771,7 +768,9 @@ impl VM {
     /// VM::at_exit(closure);
     /// ```
     pub fn at_exit<F>(func: F)
-    where F: FnMut(VmPointer) -> () {
+    where
+        F: FnMut(VmPointer) -> (),
+    {
         vm::at_exit(func)
     }
 
@@ -876,7 +875,7 @@ impl VM {
 
 #[cfg(test)]
 mod tests {
-    use ::{LOCK_FOR_TEST, VM};
+    use {LOCK_FOR_TEST, VM};
 
     // cargo test at_exit -- --nocapture
     #[test]

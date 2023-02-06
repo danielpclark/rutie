@@ -4,7 +4,7 @@ use std::default::Default;
 use binding::global::RubySpecialConsts;
 use types::{InternalValue, Value, ValueType};
 
-use {Object, VerifiedObject, AnyObject};
+use {AnyObject, Object, VerifiedObject};
 
 /// `NilClass`
 #[derive(Debug, Copy, Clone)]

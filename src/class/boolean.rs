@@ -3,7 +3,7 @@ use std::convert::From;
 use types::Value;
 use util;
 
-use {Object, VerifiedObject, AnyObject};
+use {AnyObject, Object, VerifiedObject};
 
 /// `TrueClass` and `FalseClass`
 #[derive(Debug)]

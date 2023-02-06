@@ -1,12 +1,12 @@
 use std::convert::From;
 
-use binding::{class, module};
 use binding::global::rb_cObject;
+use binding::{class, module};
 use typed_data::DataTypeWrapper;
 use types::{Value, ValueType};
 use util;
 
-use {AnyObject, Array, Object, Module, VerifiedObject};
+use {AnyObject, Array, Module, Object, VerifiedObject};
 
 /// `Class`
 ///

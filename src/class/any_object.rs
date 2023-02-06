@@ -1,11 +1,7 @@
 use types::Value;
 
+use std::{borrow::Borrow, convert::AsRef, ops::Deref};
 use {Object, VerifiedObject};
-use std::{
-  ops::Deref,
-  borrow::Borrow,
-  convert::AsRef,
-};
 
 /// Representation of any Ruby object while its type is unknown
 ///

@@ -1,14 +1,11 @@
-use ::{Object, VerifiedObject, Exception, NilClass, AnyObject, Class, TryConvert};
-use ::types::{Value, ValueType};
-use std::fmt::{Display, Formatter};
 use std::fmt;
-use std::{
-  ops::Deref,
-  borrow::Borrow,
-};
+use std::fmt::{Display, Formatter};
+use std::{borrow::Borrow, ops::Deref};
+use types::{Value, ValueType};
+use {AnyObject, Class, Exception, NilClass, Object, TryConvert, VerifiedObject};
 
 pub struct AnyException {
-    value: Value
+    value: Value,
 }
 
 impl From<Value> for AnyException {
@@ -69,7 +66,8 @@ impl TryConvert<AnyObject> for AnyException {
     type Nil = NilClass;
 
     fn try_convert(obj: AnyObject) -> Result<Self, NilClass> {
-        obj.try_convert_to::<AnyException>().map_err(|_| NilClass::new() )
+        obj.try_convert_to::<AnyException>()
+            .map_err(|_| NilClass::new())
     }
 }
 

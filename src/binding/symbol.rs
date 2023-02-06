@@ -39,4 +39,3 @@ pub fn internal_id(string: &str) -> Id {
 
     unsafe { symbol::rb_intern2(str, len) }
 }
-

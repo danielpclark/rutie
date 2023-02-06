@@ -1,6 +1,6 @@
 use rubysys::{encoding, string, vm};
-use types::{c_char, size_t, c_int, Value, EncodingIndex, ValueType, EncodingType};
 use std::ffi::CString;
+use types::{c_char, c_int, size_t, EncodingIndex, EncodingType, Value, ValueType};
 use util;
 
 pub fn default_external() -> Value {
@@ -65,13 +65,11 @@ pub fn econv_prepare_opts(opthash: Value, opts: *const Value) -> c_int {
 // end - pointer for the end of the string
 // len_p - a mutable integer pointer for Ruby to give us how much we need to add on to `ptr`
 // enc - the encoding the codepoints will be based on
-pub fn next_codepoint(ptr: *const c_char, end: *const c_char, len_p: *mut c_int, enc: Value) -> usize {
-    unsafe {
-        encoding::rb_enc_codepoint_len(
-            ptr,
-            end,
-            len_p,
-            encoding::rb_to_encoding(enc)
-        )
-    }
+pub fn next_codepoint(
+    ptr: *const c_char,
+    end: *const c_char,
+    len_p: *mut c_int,
+    enc: Value,
+) -> usize {
+    unsafe { encoding::rb_enc_codepoint_len(ptr, end, len_p, encoding::rb_to_encoding(enc)) }
 }

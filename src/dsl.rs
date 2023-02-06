@@ -79,7 +79,7 @@ macro_rules! class {
                 self.value
             }
         }
-    }
+    };
 }
 
 /// Creates Rust structure for new Ruby module
@@ -163,7 +163,7 @@ macro_rules! module {
                 self.value
             }
         }
-    }
+    };
 }
 
 /// Creates unsafe callbacks for Ruby methods
@@ -768,7 +768,9 @@ macro_rules! wrappable_struct {
 /// ```
 #[macro_export]
 macro_rules! eval {
-    ($string_arg:expr) => {{ $crate::VM::eval($string_arg) }};
+    ($string_arg:expr) => {{
+        $crate::VM::eval($string_arg)
+    }};
     ($string_arg:expr, $binding_arg:expr) => {{
         let eval_str: $crate::AnyObject = $crate::RString::from($string_arg).into();
         let bndng: $crate::AnyObject = $binding_arg.into();

@@ -2,9 +2,10 @@ use rubysys::libc::size_t;
 use std::mem;
 
 use rubysys::constant::{
-    FL_USHIFT, FL_USER_1, FL_USER_2, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6, FL_USER_7, FL_USER_17
+    FL_USER_1, FL_USER_17, FL_USER_2, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6, FL_USER_7,
+    FL_USHIFT,
 };
-use rubysys::types::{c_char, c_long, InternalValue, RBasic, Value, CallbackPtr, EncodingType};
+use rubysys::types::{c_char, c_long, CallbackPtr, EncodingType, InternalValue, RBasic, Value};
 
 pub const STR_TMPLOCK: isize = FL_USER_7;
 
@@ -78,7 +79,7 @@ enum RStringEmbed {
     NoEmbed = FL_USER_1,
     LenMask = FL_USER_2 | FL_USER_3 | FL_USER_4 | FL_USER_5 | FL_USER_6,
     LenShift = FL_USHIFT + 2,
-    LenMax = (mem::size_of::<Value>() as isize * 3)/mem::size_of::<c_char>() as isize - 1,
+    LenMax = (mem::size_of::<Value>() as isize * 3) / mem::size_of::<c_char>() as isize - 1,
     Fstr = FL_USER_17,
 }
 
@@ -124,8 +125,8 @@ unsafe fn embed_check(flags: InternalValue) -> bool {
 pub unsafe fn rstring_embed_len(value: Value) -> c_long {
     let (_rstring, flags) = rstring_and_flags(value);
 
-    ((flags as i64 >> RStringEmbed::LenShift as i64) &
-      (RStringEmbed::LenMask as i64 >> RStringEmbed::LenShift as i64)) as c_long
+    ((flags as i64 >> RStringEmbed::LenShift as i64)
+        & (RStringEmbed::LenMask as i64 >> RStringEmbed::LenShift as i64)) as c_long
 }
 
 pub unsafe fn rstring_len(value: Value) -> c_long {
@@ -152,9 +153,17 @@ pub unsafe fn rstring_end(value: Value) -> *const c_char {
     let (rstring, flags) = rstring_and_flags(value);
 
     if embed_check(flags) {
-        (*rstring).as_.ary.as_ptr().add(rstring_embed_len(value) as usize)
+        (*rstring)
+            .as_
+            .ary
+            .as_ptr()
+            .add(rstring_embed_len(value) as usize)
     } else {
-        (*rstring).as_.heap.ptr.add((*rstring).as_.heap.len as usize)
+        (*rstring)
+            .as_
+            .heap
+            .ptr
+            .add((*rstring).as_.heap.len as usize)
     }
 }
 

@@ -1,6 +1,6 @@
 use rubysys::float;
 use types::Value;
-use ::{Float, AnyException, AnyObject, Object, VM};
+use {AnyException, AnyObject, Float, Object, VM};
 
 pub fn float_to_num(num: f64) -> Value {
     unsafe { float::rb_float_new(num) }
@@ -15,14 +15,12 @@ pub fn implicit_to_f(num: Value) -> Result<Float, AnyException> {
 
     let result = VM::protect(closure);
 
-    result.map(|f| {
-      Float::from(f.value())
-    }).map_err(|_| {
-         let output = VM::error_info().unwrap();
+    result.map(|f| Float::from(f.value())).map_err(|_| {
+        let output = VM::error_info().unwrap();
 
-         // error cleanup
-         VM::clear_error_info();
+        // error cleanup
+        VM::clear_error_info();
 
-         output
-     })
+        output
+    })
 }

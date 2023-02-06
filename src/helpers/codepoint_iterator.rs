@@ -1,7 +1,7 @@
-use {RString, Object, EncodingSupport};
+use binding::{encoding, string};
+use rubysys::string::{rstring_end, rstring_ptr};
 use types::{c_char, c_int, InternalValue};
-use rubysys::string::{rstring_ptr, rstring_end};
-use binding::{string, encoding};
+use {EncodingSupport, Object, RString};
 
 /// `CodepointIterator`
 #[derive(Debug)]

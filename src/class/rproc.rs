@@ -4,7 +4,7 @@ use binding::rproc;
 use types::Value;
 use util;
 
-use {AnyObject, Class, Object, VerifiedObject, Boolean};
+use {AnyObject, Boolean, Class, Object, VerifiedObject};
 
 /// `Proc` (works with `Lambda` as well)
 #[derive(Debug)]

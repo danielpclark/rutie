@@ -2,15 +2,7 @@ use std::convert::From;
 
 use types::{Value, ValueType};
 
-use {
-    AnyObject,
-    AnyException,
-    Array,
-    Class,
-    Fixnum,
-    Object,
-    VerifiedObject,
-};
+use {AnyException, AnyObject, Array, Class, Fixnum, Object, VerifiedObject};
 
 /// `Enumerator`
 #[derive(Debug)]

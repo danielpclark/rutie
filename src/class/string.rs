@@ -1,24 +1,12 @@
 use std::convert::From;
 
-use binding::{encoding, string, vm};
 use binding::class::is_frozen;
+use binding::{encoding, string, vm};
 use types::{Value, ValueType};
 
 use {
-  Object,
-  VerifiedObject,
-  NilClass,
-  AnyObject,
-  EncodingSupport,
-  Encoding,
-  AnyException,
-  Exception,
-  Boolean,
-  TryConvert,
-  Hash,
-  Array,
-  CodepointIterator,
-  Integer,
+    AnyException, AnyObject, Array, Boolean, CodepointIterator, Encoding, EncodingSupport,
+    Exception, Hash, Integer, NilClass, Object, TryConvert, VerifiedObject,
 };
 
 /// `String`
@@ -49,7 +37,10 @@ impl RString {
     ///
     /// str == 'Hello, World!'
     /// ```
-    #[deprecated(since="0.3.2", note="please use `new_usascii_unchecked` or `new_utf8` instead")]
+    #[deprecated(
+        since = "0.3.2",
+        note = "please use `new_usascii_unchecked` or `new_utf8` instead"
+    )]
     pub fn new(string: &str) -> Self {
         Self::new_usascii_unchecked(string)
     }
@@ -309,10 +300,10 @@ impl RString {
     /// str.codepoints == [102, 111, 111, 37727, 97]
     /// ```
     pub fn codepoints(&self) -> Array {
-        CodepointIterator::new(self).
-            into_iter().
-            map(|n| Integer::new(n as i64).to_any_object()).
-            collect()
+        CodepointIterator::new(self)
+            .into_iter()
+            .map(|n| Integer::new(n as i64).to_any_object())
+            .collect()
     }
 
     /// Returns the length of the string in bytes
@@ -418,7 +409,9 @@ impl EncodingSupport for RString {
     /// string.encoding()
     /// ```
     fn encoding(&self) -> Encoding {
-        Encoding::from(encoding::from_encoding_index(encoding::enc_get_index(self.value())))
+        Encoding::from(encoding::from_encoding_index(encoding::enc_get_index(
+            self.value(),
+        )))
     }
 
     /// Changes the encoding to encoding and returns `Result<Self, AnyException>`.
@@ -460,11 +453,17 @@ impl EncodingSupport for RString {
     /// ```
     fn force_encoding(&mut self, enc: Encoding) -> Result<Self, AnyException> {
         if string::is_lockedtmp(self.value()) {
-            return Err(AnyException::new("RuntimeError", Some("can't modify string; temporarily locked")));
+            return Err(AnyException::new(
+                "RuntimeError",
+                Some("can't modify string; temporarily locked"),
+            ));
         }
 
         if self.is_frozen() {
-            return Err(AnyException::new("FrozenError", Some("can't modify frozen String")));
+            return Err(AnyException::new(
+                "FrozenError",
+                Some("can't modify frozen String"),
+            ));
         }
 
         self.value = encoding::force_encoding(self.value(), enc.value());
@@ -498,20 +497,13 @@ impl EncodingSupport for RString {
     fn encode(&self, enc: Encoding, opts: Option<Hash>) -> Self {
         let nil = NilClass::new().value();
 
-         let value = match opts {
+        let value = match opts {
             Some(options) => {
                 let ecflags = encoding::econv_prepare_opts(options.value(), &nil);
 
-                encoding::encode(
-                    self.value(),
-                    enc.value(),
-                    ecflags,
-                    options.value()
-                )
-            },
-            None => {
-                encoding::encode(self.value(), enc.value(), 0, nil)
-            },
+                encoding::encode(self.value(), enc.value(), ecflags, options.value())
+            }
+            None => encoding::encode(self.value(), enc.value(), 0, nil),
         };
 
         Self::from(value)
@@ -687,9 +679,9 @@ impl TryConvert<AnyObject> for RString {
         let result = string::method_to_str(obj.value());
 
         if result.is_nil() {
-            Err( NilClass::from(result) )
+            Err(NilClass::from(result))
         } else {
-            Ok( Self::from(result) )
+            Ok(Self::from(result))
         }
     }
 }

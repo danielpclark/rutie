@@ -1,4 +1,4 @@
-use rubysys::types::{CallbackPtr, c_void, Value, c_int};
+use rubysys::types::{c_int, c_void, CallbackPtr, Value};
 
 #[cfg(unix)]
 use rubysys::types::RawFd;
@@ -91,20 +91,22 @@ extern "C" {
     // void *
     // rb_thread_call_without_gvl(void *(*func)(void *data), void *data1,
     //                            rb_unblock_function_t *ubf, void *data2)
-    pub fn rb_thread_call_without_gvl(func: CallbackPtr,
-                                      args: *const c_void,
-                                      unblock_func: CallbackPtr,
-                                      unblock_args: *const c_void)
-                                      -> *mut c_void;
+    pub fn rb_thread_call_without_gvl(
+        func: CallbackPtr,
+        args: *const c_void,
+        unblock_func: CallbackPtr,
+        unblock_args: *const c_void,
+    ) -> *mut c_void;
 
     // void *
     // rb_thread_call_without_gvl2(void *(*func)(void *), void *data1,
     //                             rb_unblock_function_t *ubf, void *data2)
-    pub fn rb_thread_call_without_gvl2(func: CallbackPtr,
-                                       args: *const c_void,
-                                       unblock_func: CallbackPtr,
-                                       unblock_args: *const c_void)
-                                       -> *mut c_void;
+    pub fn rb_thread_call_without_gvl2(
+        func: CallbackPtr,
+        args: *const c_void,
+        unblock_func: CallbackPtr,
+        unblock_args: *const c_void,
+    ) -> *mut c_void;
 
     // rb_thread_call_with_gvl - re-enter the Ruby world after GVL release.
     //
@@ -139,9 +141,10 @@ extern "C" {
 
     // VALUE
     // rb_thread_create(VALUE (*fn)(ANYARGS), void *arg)
-    pub fn rb_thread_create(function: extern "C" fn(*mut c_void) -> Value,
-                            data: *mut c_void)
-                            -> Value;
+    pub fn rb_thread_create(
+        function: extern "C" fn(*mut c_void) -> Value,
+        data: *mut c_void,
+    ) -> Value;
 
     // void
     // rb_thread_wait_fd(int fd)

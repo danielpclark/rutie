@@ -3,7 +3,7 @@ use std::convert::From;
 use binding::float;
 use types::{Value, ValueType};
 
-use {Object, VerifiedObject, AnyObject, AnyException, VM};
+use {AnyException, AnyObject, Object, VerifiedObject, VM};
 
 /// `Float`
 #[derive(Debug)]

@@ -1,13 +1,13 @@
 use std::convert::From;
 
 use binding::class;
-use binding::vm;
 use binding::global::ValueType;
+use binding::vm;
 use typed_data::DataTypeWrapper;
 use types::{Callback, Value};
 use util;
 
-use {AnyObject, AnyException, Exception, Boolean, Class, NilClass, VerifiedObject, VM};
+use {AnyException, AnyObject, Boolean, Class, Exception, NilClass, VerifiedObject, VM};
 
 /// `Object`
 ///
@@ -571,7 +571,11 @@ pub trait Object: From<Value> {
     ///   end
     /// end
     /// ```
-    fn define_private_method<I: Object, O: Object>(&mut self, name: &str, callback: Callback<I, O>) {
+    fn define_private_method<I: Object, O: Object>(
+        &mut self,
+        name: &str,
+        callback: Callback<I, O>,
+    ) {
         class::define_private_method(self.value(), name, callback);
     }
 
@@ -895,8 +899,11 @@ pub trait Object: From<Value> {
     ///     unreachable!()
     /// }
     /// ```
-    fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException>
-    {
+    fn protect_send(
+        &self,
+        method: &str,
+        arguments: &[AnyObject],
+    ) -> Result<AnyObject, AnyException> {
         let closure = || unsafe { self.send(&method, arguments.as_ref()) };
 
         let result = VM::protect(closure);
@@ -959,7 +966,6 @@ pub trait Object: From<Value> {
         let closure = || vm::call_public_method(v, &method, &arguments).into();
 
         let result = VM::protect(closure);
-
 
         result.map_err(|_| {
             let output = VM::error_info().unwrap();
@@ -1399,7 +1405,8 @@ pub trait Object: From<Value> {
 }
 
 impl<Obj: Object> Object for Option<Obj>
-where Option<Obj>: From<Value>
+where
+    Option<Obj>: From<Value>,
 {
     fn value(&self) -> Value {
         match self {

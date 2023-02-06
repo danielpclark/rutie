@@ -1,24 +1,17 @@
-use rubysys::types::{
-  size_t,
-  c_int,
-  c_char,
-  Value,
-  CallbackPtr,
-  RBasic,
-  InternalValue,
-  EncodingIndex,
-  EncodingType
-};
 use rubysys::constant::{FL_USER_8, FL_USER_9};
+use rubysys::types::{
+    c_char, c_int, size_t, CallbackPtr, EncodingIndex, EncodingType, InternalValue, RBasic, Value,
+};
 use std::mem;
 
-pub const ENC_DUMMY_FLAG: isize        = 1<<24;
-pub const ENC_INDEX_MASK: isize        = !(!0<<24);
+pub const ENC_DUMMY_FLAG: isize = 1 << 24;
+pub const ENC_INDEX_MASK: isize = !(!0 << 24);
 pub const ENC_CODERANGE_UNKNOWN: isize = 0;
-pub const ENC_CODERANGE_7BIT: isize    = FL_USER_8;
-pub const ENC_CODERANGE_VALID: isize   = FL_USER_9;
-pub const ENC_CODERANGE_BROKEN: isize  = FL_USER_8 | FL_USER_9;
-pub const ENC_CODERANGE_MASK: isize    = ENC_CODERANGE_7BIT | ENC_CODERANGE_VALID | ENC_CODERANGE_BROKEN;
+pub const ENC_CODERANGE_7BIT: isize = FL_USER_8;
+pub const ENC_CODERANGE_VALID: isize = FL_USER_9;
+pub const ENC_CODERANGE_BROKEN: isize = FL_USER_8 | FL_USER_9;
+pub const ENC_CODERANGE_MASK: isize =
+    ENC_CODERANGE_7BIT | ENC_CODERANGE_VALID | ENC_CODERANGE_BROKEN;
 
 extern "C" {
     // VALUE
@@ -95,7 +88,12 @@ extern "C" {
     pub fn rb_econv_prepare_opts(opthash: Value, opts: *const Value) -> c_int;
     // unsigned int
     // rb_enc_codepoint_len(const char *p, const char *e, int *len_p, rb_encoding *enc)
-    pub fn rb_enc_codepoint_len(ptr: *const c_char, end: *const c_char, len_p: *mut c_int, enc: EncodingType) -> size_t;
+    pub fn rb_enc_codepoint_len(
+        ptr: *const c_char,
+        end: *const c_char,
+        len_p: *mut c_int,
+        enc: EncodingType,
+    ) -> size_t;
 }
 
 pub unsafe fn coderange_set(obj: Value, code_range: InternalValue) {

@@ -3,7 +3,7 @@ use std::{convert::From, hash::Hash, hash::Hasher};
 use binding::symbol;
 use types::{Value, ValueType};
 
-use {Object, VerifiedObject, AnyObject, Proc};
+use {AnyObject, Object, Proc, VerifiedObject};
 
 /// `Symbol`
 #[derive(Debug)]

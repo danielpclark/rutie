@@ -45,6 +45,10 @@ where
     let closure_ptr = &closure_callback as *const _ as CallbackMutPtr;
 
     unsafe {
-        hash::rb_hash_foreach(hash, each_callback::<F, AnyObject, AnyObject> as CallbackPtr, closure_ptr);
+        hash::rb_hash_foreach(
+            hash,
+            each_callback::<F, AnyObject, AnyObject> as CallbackPtr,
+            closure_ptr,
+        );
     }
 }

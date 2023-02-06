@@ -1,4 +1,4 @@
-use rubysys::{string, encoding};
+use rubysys::{encoding, string};
 
 use types::{c_char, c_long, Value};
 use util;

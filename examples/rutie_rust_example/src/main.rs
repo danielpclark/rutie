@@ -18,7 +18,6 @@ fn try_it(s: &str) -> String {
 
 #[test]
 fn it_works() {
-
     // Rust projects must start the Ruby VM
     VM::init();
 

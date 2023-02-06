@@ -1,8 +1,8 @@
 use rubysys::class;
 
-use binding::global::rb_cObject;
 use binding::class as binding_class;
-use types::{Value, Callback, CallbackPtr};
+use binding::global::rb_cObject;
+use types::{Callback, CallbackPtr, Value};
 use util;
 
 use Object;
@@ -19,7 +19,11 @@ pub fn define_nested_module(outer: Value, name: &str) -> Value {
     unsafe { class::rb_define_module_under(outer, name.as_ptr()) }
 }
 
-pub fn define_module_function<I: Object, O: Object>(klass: Value, name: &str, callback: Callback<I, O>) {
+pub fn define_module_function<I: Object, O: Object>(
+    klass: Value,
+    name: &str,
+    callback: Callback<I, O>,
+) {
     let name = util::str_to_cstring(name);
 
     unsafe {

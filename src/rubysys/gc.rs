@@ -1,4 +1,4 @@
-use rubysys::types::{c_int, size_t, ssize_t, Value, CallbackPtr};
+use rubysys::types::{c_int, size_t, ssize_t, CallbackPtr, Value};
 
 extern "C" {
     // void

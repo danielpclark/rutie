@@ -1,6 +1,6 @@
-use std::mem;
-use std::convert::From;
 use rubysys::constant;
+use std::convert::From;
+use std::mem;
 
 use rubysys::types::{InternalValue, RBasic};
 
@@ -113,8 +113,8 @@ impl Value {
     }
 
     pub fn is_flonum(&self) -> bool {
-        (self.value & (RubySpecialFlags::FlonumMask as InternalValue)) ==
-        (RubySpecialFlags::FlonumFlag as InternalValue)
+        (self.value & (RubySpecialFlags::FlonumMask as InternalValue))
+            == (RubySpecialFlags::FlonumFlag as InternalValue)
     }
 
     pub fn is_frozen(&self) -> bool {
@@ -183,6 +183,8 @@ impl Value {
 
 impl From<InternalValue> for Value {
     fn from(internal_value: InternalValue) -> Self {
-        Value { value: internal_value }
+        Value {
+            value: internal_value,
+        }
     }
 }
