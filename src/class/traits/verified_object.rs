@@ -1,5 +1,4 @@
-use types::Value;
-use {NilClass, Object};
+use crate::{types::Value, NilClass, Object};
 
 /// Interface for safe conversions between types
 ///

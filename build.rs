@@ -1,8 +1,10 @@
-use std::collections::{HashMap, HashSet};
-use std::env;
-use std::ffi::OsString;
-use std::path::PathBuf;
-use std::process::Command;
+use std::{
+    collections::{HashMap, HashSet},
+    env,
+    ffi::OsString,
+    path::PathBuf,
+    process::Command,
+};
 
 #[cfg(target_os = "windows")]
 use std::path::Path;

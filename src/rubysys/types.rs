@@ -1,12 +1,13 @@
-use rubysys::libc::{intptr_t, uintptr_t};
+use crate::rubysys::libc::{intptr_t, uintptr_t};
 
-pub use rubysys::libc::{c_char, c_double, c_int, c_long, c_void, size_t, ssize_t};
+pub use crate::rubysys::{
+    libc::{c_char, c_double, c_int, c_long, c_void, size_t, ssize_t},
+    typed_data::{RbDataType, RbDataTypeFunction},
+    value::{Value, ValueType},
+};
 
 #[cfg(unix)]
 pub use std::os::unix::io::RawFd;
-
-pub use rubysys::typed_data::{RbDataType, RbDataTypeFunction};
-pub use rubysys::value::{Value, ValueType};
 
 pub type Id = uintptr_t;
 pub type InternalValue = uintptr_t;

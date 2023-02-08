@@ -1,12 +1,11 @@
 use std::convert::From;
 
-use binding::thread;
-use types::Value;
+use crate::{binding::thread, types::Value};
 
 #[cfg(unix)]
-use types::RawFd;
+use crate::types::RawFd;
 
-use {AnyObject, Class, Object, VerifiedObject};
+use crate::{AnyObject, Class, Object, VerifiedObject};
 
 /// `Thread`
 #[derive(Debug)]

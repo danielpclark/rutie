@@ -1,13 +1,13 @@
 use std::convert::From;
 
-use binding::class;
-use binding::global::ValueType;
-use binding::vm;
-use typed_data::DataTypeWrapper;
-use types::{Callback, Value};
-use util;
+use crate::{
+    binding::{class, global::ValueType, vm},
+    typed_data::DataTypeWrapper,
+    types::{Callback, Value},
+    util,
+};
 
-use {AnyException, AnyObject, Boolean, Class, Exception, NilClass, VerifiedObject, VM};
+use crate::{AnyException, AnyObject, Boolean, Class, Exception, NilClass, VerifiedObject, VM};
 
 /// `Object`
 ///

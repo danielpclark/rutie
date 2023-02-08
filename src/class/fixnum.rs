@@ -1,9 +1,10 @@
 use std::convert::From;
 
-use binding::fixnum;
-use types::{Value, ValueType};
-
-use {AnyObject, Object, VerifiedObject};
+use crate::{
+    binding::fixnum,
+    types::{Value, ValueType},
+    AnyObject, Object, VerifiedObject,
+};
 
 /// `Fixnum`
 #[derive(Debug)]

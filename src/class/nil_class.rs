@@ -1,10 +1,10 @@
-use std::convert::From;
-use std::default::Default;
+use std::{convert::From, default::Default};
 
-use binding::global::RubySpecialConsts;
-use types::{InternalValue, Value, ValueType};
-
-use {AnyObject, Object, VerifiedObject};
+use crate::{
+    binding::global::RubySpecialConsts,
+    types::{InternalValue, Value, ValueType},
+    AnyObject, Object, VerifiedObject,
+};
 
 /// `NilClass`
 #[derive(Debug, Copy, Clone)]

@@ -1,5 +1,4 @@
-use rubysys::libc;
-use rubysys::types::Value;
+use crate::rubysys::{libc, types::Value};
 
 extern "C" {
     // VALUE

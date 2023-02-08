@@ -1,11 +1,11 @@
-use rubysys::class;
+use crate::{
+    binding::{class as binding_class, global::rb_cObject},
+    rubysys::class,
+    types::{Callback, CallbackPtr, Value},
+    util,
+};
 
-use binding::class as binding_class;
-use binding::global::rb_cObject;
-use types::{Callback, CallbackPtr, Value};
-use util;
-
-use Object;
+use crate::Object;
 
 pub fn define_module(name: &str) -> Value {
     let name = util::str_to_cstring(name);

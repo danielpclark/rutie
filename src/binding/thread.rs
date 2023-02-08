@@ -1,14 +1,13 @@
 use std::ptr;
 
-use rubysys::thread;
-
-use types::{c_void, CallbackMutPtr, CallbackPtr, Value};
-use util;
+use crate::{
+    rubysys::thread,
+    types::{c_void, CallbackMutPtr, CallbackPtr, Value},
+    util, Object,
+};
 
 #[cfg(unix)]
-use types::RawFd;
-
-use Object;
+use crate::types::RawFd;
 
 pub fn create<F, R>(func: F) -> Value
 where

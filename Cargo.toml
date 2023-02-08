@@ -6,6 +6,7 @@ authors = [
   "Dmitry Gritsay <unseductable@gmail.com>",
   "Daniel P. Clark <6ftdan@gmail.com>"
 ]
+edition = "2021"
 
 description = "The tie between Ruby and Rust."
 repository = "https://github.com/danielpclark/rutie"

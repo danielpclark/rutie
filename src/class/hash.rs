@@ -1,10 +1,10 @@
-use std::convert::From;
-use std::default::Default;
+use std::{convert::From, default::Default};
 
-use binding::hash;
-use types::{Value, ValueType};
-
-use {AnyObject, Object, VerifiedObject};
+use crate::{
+    binding::hash,
+    types::{Value, ValueType},
+    AnyObject, Object, VerifiedObject,
+};
 
 /// `Hash`
 #[derive(Debug)]

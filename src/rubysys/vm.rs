@@ -1,4 +1,4 @@
-use rubysys::types::{c_char, c_int, c_void, Argc, CallbackPtr, Id, Value, VmPointer};
+use crate::rubysys::types::{c_char, c_int, c_void, Argc, CallbackPtr, Id, Value, VmPointer};
 
 extern "C" {
     // void

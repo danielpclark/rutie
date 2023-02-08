@@ -1,9 +1,13 @@
-use std::{convert::From, hash::Hash, hash::Hasher};
+use std::{
+    convert::From,
+    hash::{Hash, Hasher},
+};
 
-use binding::symbol;
-use types::{Value, ValueType};
-
-use {AnyObject, Object, Proc, VerifiedObject};
+use crate::{
+    binding::symbol,
+    types::{Value, ValueType},
+    AnyObject, Object, Proc, VerifiedObject,
+};
 
 /// `Symbol`
 #[derive(Debug)]

@@ -1,8 +1,9 @@
-use rubysys::rproc;
-
-use binding::global::RubySpecialConsts;
-use types::{InternalValue, Value};
-use util;
+use crate::{
+    binding::global::RubySpecialConsts,
+    rubysys::rproc,
+    types::{InternalValue, Value},
+    util,
+};
 
 pub fn call(rproc: Value, arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);

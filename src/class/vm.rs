@@ -1,7 +1,9 @@
-use binding::vm;
-use types::{Argc, Value, VmPointer};
+use crate::{
+    binding::vm,
+    types::{Argc, Value, VmPointer},
+};
 
-use {util, AnyException, AnyObject, Array, Class, NilClass, Object, Proc, TryConvert};
+use crate::{util, AnyException, AnyObject, Array, Class, NilClass, Object, Proc, TryConvert};
 
 /// Virtual Machine and helpers
 pub struct VM;
@@ -875,7 +877,7 @@ impl VM {
 
 #[cfg(test)]
 mod tests {
-    use {LOCK_FOR_TEST, VM};
+    use crate::{LOCK_FOR_TEST, VM};
 
     // cargo test at_exit -- --nocapture
     #[test]

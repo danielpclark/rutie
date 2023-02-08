@@ -1,6 +1,6 @@
 mod data_type_wrapper;
 
-use types::c_void;
+use crate::types::c_void;
 
 pub use self::data_type_wrapper::DataTypeWrapper;
 

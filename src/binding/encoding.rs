@@ -1,7 +1,9 @@
-use rubysys::{encoding, string, vm};
+use crate::{
+    rubysys::{encoding, string, vm},
+    types::{c_char, c_int, size_t, EncodingIndex, EncodingType, Value, ValueType},
+    util,
+};
 use std::ffi::CString;
-use types::{c_char, c_int, size_t, EncodingIndex, EncodingType, Value, ValueType};
-use util;
 
 pub fn default_external() -> Value {
     unsafe { encoding::rb_enc_default_external() }

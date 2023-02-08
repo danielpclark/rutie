@@ -1,11 +1,14 @@
-use std::convert::From;
-use std::default::Default;
-use std::iter::{FromIterator, IntoIterator, Iterator};
+use std::{
+    convert::From,
+    default::Default,
+    iter::{FromIterator, IntoIterator, Iterator},
+};
 
-use binding::array;
-use types::{Value, ValueType};
-
-use {AnyObject, Enumerator, Object, RString, VerifiedObject};
+use crate::{
+    binding::array,
+    types::{Value, ValueType},
+    AnyObject, Enumerator, Object, RString, VerifiedObject,
+};
 
 /// `Array`
 #[derive(Debug)]

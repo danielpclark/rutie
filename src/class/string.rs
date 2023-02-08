@@ -1,10 +1,8 @@
 use std::convert::From;
 
-use binding::class::is_frozen;
-use binding::{encoding, string, vm};
-use types::{Value, ValueType};
-
-use {
+use crate::{
+    binding::{class::is_frozen, encoding, string, vm},
+    types::{Value, ValueType},
     AnyException, AnyObject, Array, Boolean, CodepointIterator, Encoding, EncodingSupport,
     Exception, Hash, Integer, NilClass, Object, TryConvert, VerifiedObject,
 };

@@ -1,6 +1,7 @@
-use rubysys::array;
-
-use types::{c_long, Value};
+use crate::{
+    rubysys::array,
+    types::{c_long, Value},
+};
 
 pub fn new() -> Value {
     unsafe { array::rb_ary_new() }

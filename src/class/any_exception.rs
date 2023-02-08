@@ -1,8 +1,13 @@
-use std::fmt;
-use std::fmt::{Display, Formatter};
-use std::{borrow::Borrow, ops::Deref};
-use types::{Value, ValueType};
-use {AnyObject, Class, Exception, NilClass, Object, TryConvert, VerifiedObject};
+use crate::{
+    types::{Value, ValueType},
+    AnyObject, Class, Exception, NilClass, Object, TryConvert, VerifiedObject,
+};
+use std::{
+    borrow::Borrow,
+    fmt,
+    fmt::{Display, Formatter},
+    ops::Deref,
+};
 
 pub struct AnyException {
     value: Value,

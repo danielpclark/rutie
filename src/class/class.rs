@@ -1,12 +1,11 @@
 use std::convert::From;
 
-use binding::global::rb_cObject;
-use binding::{class, module};
-use typed_data::DataTypeWrapper;
-use types::{Value, ValueType};
-use util;
-
-use {AnyObject, Array, Module, Object, VerifiedObject};
+use crate::{
+    binding::{class, global::rb_cObject, module},
+    typed_data::DataTypeWrapper,
+    types::{Value, ValueType},
+    util, AnyObject, Array, Module, Object, VerifiedObject,
+};
 
 /// `Class`
 ///

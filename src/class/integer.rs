@@ -1,9 +1,10 @@
 use std::convert::From;
 
-use binding::fixnum;
-use types::{Value, ValueType};
-
-use {AnyObject, Fixnum, Object, VerifiedObject};
+use crate::{
+    binding::fixnum,
+    types::{Value, ValueType},
+    AnyObject, Fixnum, Object, VerifiedObject,
+};
 
 /// `Integer`
 #[derive(Debug)]
@@ -230,8 +231,9 @@ impl PartialEq for Integer {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::types::Value;
-    use super::super::super::{AnyException, Integer, NilClass, Object, LOCK_FOR_TEST, VM};
+    use super::super::super::{
+        types::Value, AnyException, Integer, NilClass, Object, LOCK_FOR_TEST, VM,
+    };
 
     #[test]
     fn test_github_issue_113_darwin_os() {

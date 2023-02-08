@@ -1,5 +1,4 @@
-use rubysys::fixnum;
-use types::Value;
+use crate::{rubysys::fixnum, types::Value};
 
 pub fn i32_to_num(num: i32) -> Value {
     unsafe { fixnum::rb_int2inum(num as isize) }

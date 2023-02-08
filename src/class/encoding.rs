@@ -1,7 +1,8 @@
-use binding::encoding;
-
-use types::{EncodingIndex, Value, ValueType};
-use {AnyException, AnyObject, Class, Exception, NilClass, Object, RString, VerifiedObject};
+use crate::{
+    binding::encoding,
+    types::{EncodingIndex, Value, ValueType},
+    AnyException, AnyObject, Class, Exception, NilClass, Object, RString, VerifiedObject,
+};
 
 #[derive(Debug)]
 #[repr(C)]

@@ -1,4 +1,4 @@
-use {AnyException, AnyObject, Encoding, Hash, Object};
+use crate::{AnyException, AnyObject, Encoding, Hash, Object};
 
 pub trait EncodingSupport {
     fn encode(&self, enc: Encoding, opts: Option<Hash>) -> Self

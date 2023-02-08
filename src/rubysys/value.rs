@@ -1,8 +1,9 @@
-use rubysys::constant;
-use std::convert::From;
-use std::mem;
+use std::{convert::From, mem};
 
-use rubysys::types::{InternalValue, RBasic};
+use crate::rubysys::{
+    constant,
+    types::{InternalValue, RBasic},
+};
 
 const SPECIAL_SHIFT: usize = 8;
 

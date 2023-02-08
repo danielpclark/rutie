@@ -1,6 +1,9 @@
-use rubysys::constant::{FL_USER_8, FL_USER_9};
-use rubysys::types::{
-    c_char, c_int, size_t, CallbackPtr, EncodingIndex, EncodingType, InternalValue, RBasic, Value,
+use crate::rubysys::{
+    constant::{FL_USER_8, FL_USER_9},
+    types::{
+        c_char, c_int, size_t, CallbackPtr, EncodingIndex, EncodingType, InternalValue, RBasic,
+        Value,
+    },
 };
 use std::mem;
 

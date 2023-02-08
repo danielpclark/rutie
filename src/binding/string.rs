@@ -1,7 +1,8 @@
-use rubysys::{encoding, string};
-
-use types::{c_char, c_long, Value};
-use util;
+use crate::{
+    rubysys::{encoding, string},
+    types::{c_char, c_long, Value},
+    util,
+};
 
 pub fn new(string: &str) -> Value {
     let str = string.as_ptr() as *const c_char;

@@ -1,11 +1,10 @@
-use rubysys::{class, typed_data};
-
-use binding::symbol;
-use typed_data::DataTypeWrapper;
-use types::{c_void, Callback, CallbackPtr, Value};
-use util;
-
-use Object;
+use crate::{
+    binding::symbol,
+    rubysys::{class, typed_data},
+    typed_data::DataTypeWrapper,
+    types::{c_void, Callback, CallbackPtr, Value},
+    util, Object,
+};
 
 pub fn define_class(name: &str, superclass: Value) -> Value {
     let name = util::str_to_cstring(name);

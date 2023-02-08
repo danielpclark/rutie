@@ -1,11 +1,11 @@
 use std::convert::From;
 
-use binding::global::rb_cObject;
-use binding::{class, module};
-use typed_data::DataTypeWrapper;
-use types::{Callback, Value, ValueType};
-
-use {AnyObject, Array, Class, Object, VerifiedObject};
+use crate::{
+    binding::{class, global::rb_cObject, module},
+    typed_data::DataTypeWrapper,
+    types::{Callback, Value, ValueType},
+    AnyObject, Array, Class, Object, VerifiedObject,
+};
 
 /// `Module`
 ///

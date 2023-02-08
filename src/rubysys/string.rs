@@ -1,11 +1,13 @@
-use rubysys::libc::size_t;
 use std::mem;
 
-use rubysys::constant::{
-    FL_USER_1, FL_USER_17, FL_USER_2, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6, FL_USER_7,
-    FL_USHIFT,
+use crate::rubysys::{
+    constant::{
+        FL_USER_1, FL_USER_17, FL_USER_2, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6, FL_USER_7,
+        FL_USHIFT,
+    },
+    libc::size_t,
+    types::{c_char, c_long, CallbackPtr, EncodingType, InternalValue, RBasic, Value},
 };
-use rubysys::types::{c_char, c_long, CallbackPtr, EncodingType, InternalValue, RBasic, Value};
 
 pub const STR_TMPLOCK: isize = FL_USER_7;
 

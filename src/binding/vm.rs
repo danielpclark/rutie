@@ -1,11 +1,11 @@
 use std::ptr;
 
-use rubysys::{thread, vm};
-use AnyObject;
-
-use binding::symbol::internal_id;
-use types::{c_int, c_void, CallbackPtr, Value, VmPointer};
-use util;
+use crate::{
+    binding::symbol::internal_id,
+    rubysys::{thread, vm},
+    types::{c_int, c_void, CallbackPtr, Value, VmPointer},
+    util, AnyObject,
+};
 
 pub fn block_proc() -> Value {
     unsafe { vm::rb_block_proc() }
@@ -178,7 +178,7 @@ extern "C" fn callbox(boxptr: *mut c_void) -> *const c_void {
     fnbox()
 }
 
-use util::callback_call::no_parameters as callback_protect;
+use crate::util::callback_call::no_parameters as callback_protect;
 
 pub fn protect<F>(func: F) -> Result<AnyObject, c_int>
 where
@@ -210,8 +210,7 @@ pub fn abort(arguments: &[Value]) {
     unsafe { vm::rb_f_abort(argc, argv) };
 }
 
-use rubysys::types::Argc;
-use util::callback_call::one_parameter as at_exit_callback;
+use crate::{rubysys::types::Argc, util::callback_call::one_parameter as at_exit_callback};
 
 pub fn at_exit<F>(func: F)
 where

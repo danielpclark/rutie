@@ -1,7 +1,8 @@
-use rubysys::symbol;
-
-use types::{c_char, c_long, Id, Value};
-use util;
+use crate::{
+    rubysys::symbol,
+    types::{c_char, c_long, Id, Value},
+    util,
+};
 
 pub fn value_to_str<'a>(value: Value) -> &'a str {
     let ptr = sym_to_ptr(value);

@@ -1,9 +1,6 @@
 use std::convert::From;
 
-use types::Value;
-use util;
-
-use {AnyObject, Object, VerifiedObject};
+use crate::{types::Value, util, AnyObject, Object, VerifiedObject};
 
 /// `TrueClass` and `FalseClass`
 #[derive(Debug)]

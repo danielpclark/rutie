@@ -1,7 +1,5 @@
-use types::Value;
-
+use crate::{types::Value, Object, VerifiedObject};
 use std::{borrow::Borrow, convert::AsRef, ops::Deref};
-use {Object, VerifiedObject};
 
 /// Representation of any Ruby object while its type is unknown
 ///

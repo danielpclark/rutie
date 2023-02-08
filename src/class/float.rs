@@ -1,9 +1,10 @@
 use std::convert::From;
 
-use binding::float;
-use types::{Value, ValueType};
-
-use {AnyException, AnyObject, Object, VerifiedObject, VM};
+use crate::{
+    binding::float,
+    types::{Value, ValueType},
+    AnyException, AnyObject, Object, VerifiedObject, VM,
+};
 
 /// `Float`
 #[derive(Debug)]

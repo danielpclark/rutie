@@ -17,7 +17,7 @@ pub mod types;
 pub mod value;
 pub mod vm;
 
-use rubysys::types::Value;
+use crate::rubysys::types::Value;
 
 extern "C" {
     pub static rb_cObject: Value;

@@ -1,10 +1,8 @@
 use std::convert::From;
 
-use binding::rproc;
-use types::Value;
-use util;
-
-use {AnyObject, Boolean, Class, Object, VerifiedObject};
+use crate::{
+    binding::rproc, types::Value, util, AnyObject, Boolean, Class, Object, VerifiedObject,
+};
 
 /// `Proc` (works with `Lambda` as well)
 #[derive(Debug)]

@@ -1,8 +1,9 @@
-use rubysys::hash;
-
-use binding::fixnum;
-use types::{CallbackMutPtr, CallbackPtr, Value};
-use AnyObject;
+use crate::{
+    binding::fixnum,
+    rubysys::hash,
+    types::{CallbackMutPtr, CallbackPtr, Value},
+    AnyObject,
+};
 
 pub fn new() -> Value {
     unsafe { hash::rb_hash_new() }
@@ -36,7 +37,7 @@ pub fn length(hash: Value) -> i64 {
     }
 }
 
-use util::callback_call::hash_foreach_callback as each_callback;
+use crate::util::callback_call::hash_foreach_callback as each_callback;
 
 pub fn each<F>(hash: Value, closure_callback: F)
 where

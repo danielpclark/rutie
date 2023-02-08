@@ -1,4 +1,4 @@
-use rubysys::types::{c_char, c_int, c_void, size_t, Value};
+use crate::rubysys::types::{c_char, c_int, c_void, size_t, Value};
 
 extern "C" {
     // void *

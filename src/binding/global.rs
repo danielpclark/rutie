@@ -1,2 +1,4 @@
-pub use rubysys::rb_cObject;
-pub use rubysys::value::{RubySpecialConsts, ValueType};
+pub use crate::rubysys::{
+    rb_cObject,
+    value::{RubySpecialConsts, ValueType},
+};

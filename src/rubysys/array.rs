@@ -1,8 +1,10 @@
-use rubysys::libc::size_t;
-use std::mem;
+use crate::rubysys::{
+    constant::{FL_USER_1, FL_USER_3, FL_USER_4, FL_USHIFT},
+    libc::size_t,
+    types::{c_long, InternalValue, RBasic, Value},
+};
 
-use rubysys::constant::{FL_USHIFT, FL_USER_1, FL_USER_3, FL_USER_4};
-use rubysys::types::{c_long, InternalValue, RBasic, Value};
+use std::mem;
 
 extern "C" {
     // VALUE
@@ -91,7 +93,7 @@ pub unsafe fn rb_ary_len(value: Value) -> c_long {
     if flags & (RArrayEmbed::Flag as size_t) == 0 {
         (*rarray).as_.heap.len
     } else {
-        ((flags as i64 >> RArrayEmbed::LenShift as i64) &
-         (RArrayEmbed::LenMask as i64 >> RArrayEmbed::LenShift as i64)) as c_long
+        ((flags as i64 >> RArrayEmbed::LenShift as i64)
+            & (RArrayEmbed::LenMask as i64 >> RArrayEmbed::LenShift as i64)) as c_long
     }
 }

@@ -1,14 +1,18 @@
-use std::ffi::{CStr, CString};
-use std::ptr;
-use std::slice;
+use crate::{
+    binding::{
+        class::const_get,
+        global::{rb_cObject, RubySpecialConsts},
+        vm,
+    },
+    rubysys::rproc::{rb_obj_is_method, rb_obj_is_proc},
+    types::{c_char, c_int, c_void, Argc, InternalValue, Value},
+    AnyObject, Boolean, Object,
+};
 
-use binding::class::const_get;
-use binding::global::{rb_cObject, RubySpecialConsts};
-use binding::vm;
-use types::{c_char, c_int, c_void, Argc, InternalValue, Value};
-
-use crate::rubysys::rproc::{rb_obj_is_method, rb_obj_is_proc};
-use {AnyObject, Boolean, Object};
+use std::{
+    ffi::{CStr, CString},
+    ptr, slice,
+};
 
 pub unsafe fn cstr_to_string(str: *const c_char) -> String {
     CStr::from_ptr(str).to_string_lossy().into_owned()
@@ -121,7 +125,7 @@ pub fn inmost_rb_object(klass: &str) -> Value {
 }
 
 pub mod callback_call {
-    use types::{c_void, st_retval, CallbackMutPtr};
+    use crate::types::{c_void, st_retval, CallbackMutPtr};
 
     pub fn no_parameters<F: FnMut() -> R, R>(ptr: CallbackMutPtr) -> R {
         let f = ptr as *mut F;

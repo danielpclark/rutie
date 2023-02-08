@@ -1,6 +1,4 @@
-use rubysys::float;
-use types::Value;
-use {AnyException, AnyObject, Float, Object, VM};
+use crate::{rubysys::float, types::Value, AnyException, AnyObject, Float, Object, VM};
 
 pub fn float_to_num(num: f64) -> Value {
     unsafe { float::rb_float_new(num) }
