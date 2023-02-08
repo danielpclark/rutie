@@ -1,7 +1,7 @@
-use crate::rubysys::libc::{intptr_t, uintptr_t};
+pub use libc::{c_char, c_double, c_int, c_long, c_void, size_t, ssize_t};
+use libc::{intptr_t, uintptr_t};
 
-pub use crate::rubysys::{
-    libc::{c_char, c_double, c_int, c_long, c_void, size_t, ssize_t},
+pub use super::{
     typed_data::{RbDataType, RbDataTypeFunction},
     value::{Value, ValueType},
 };
@@ -9,8 +9,8 @@ pub use crate::rubysys::{
 #[cfg(unix)]
 pub use std::os::unix::io::RawFd;
 
-pub type Id = uintptr_t;
-pub type InternalValue = uintptr_t;
+pub type Id = rb_sys::ID;
+pub type InternalValue = rb_sys::VALUE;
 pub type SignedValue = intptr_t;
 
 pub type EncodingIndex = c_int;
@@ -29,17 +29,13 @@ pub type BlockCallFunction = extern "C" fn(
     block_arg: Value,
 ) -> Value;
 
-#[repr(C)]
-pub struct RBasic {
-    pub flags: InternalValue,
-    pub klass: InternalValue,
-}
+pub use rb_sys::RBasic;
 
 #[repr(C)]
 pub enum st_retval {
-    Continue,
-    Stop,
-    Delete,
-    Check,
-    Replace,
+    Continue = rb_sys::st_retval::ST_CONTINUE as isize,
+    Stop = rb_sys::st_retval::ST_STOP as isize,
+    Delete = rb_sys::st_retval::ST_DELETE as isize,
+    Check = rb_sys::st_retval::ST_CHECK as isize,
+    Replace = rb_sys::st_retval::ST_REPLACE as isize,
 }

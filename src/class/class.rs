@@ -135,7 +135,7 @@ impl Class {
     pub fn from_existing(name: &str) -> Self {
         let object_class = unsafe { rb_cObject };
 
-        Self::from(class::const_get(object_class, name))
+        Self::from(class::const_get(object_class.into(), name))
     }
 
     /// Creates a new instance of `Class`
@@ -699,7 +699,7 @@ impl Class {
     fn superclass_to_value(superclass: Option<&Class>) -> Value {
         match superclass {
             Some(class) => class.value(),
-            None => unsafe { rb_cObject },
+            None => unsafe { rb_cObject }.into(),
         }
     }
 }

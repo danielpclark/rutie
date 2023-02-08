@@ -114,7 +114,7 @@ impl Module {
     /// Object.const_get('Record')
     /// ```
     pub fn from_existing(name: &str) -> Self {
-        let object_module = unsafe { rb_cObject };
+        let object_module = unsafe { rb_cObject }.into();
 
         Self::from(class::const_get(object_module, name))
     }
@@ -735,7 +735,7 @@ impl Module {
     fn superclass_to_value(superclass: Option<&Class>) -> Value {
         match superclass {
             Some(class) => class.value(),
-            None => unsafe { rb_cObject },
+            None => unsafe { rb_cObject }.into(),
         }
     }
 }

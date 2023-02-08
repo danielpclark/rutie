@@ -1,4 +1,4 @@
-use crate::rubysys::types::{c_int, size_t, ssize_t, CallbackPtr, Value};
+use super::types::{c_int, size_t, ssize_t, CallbackPtr, Value};
 
 extern "C" {
     // void

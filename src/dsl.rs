@@ -6,10 +6,7 @@
 /// # Examples
 ///
 /// ```
-/// #[macro_use]
-/// extern crate rutie;
-///
-/// use rutie::{Class, RString, Object, VM};
+/// use rutie::{Class, RString, Object, VM, class, methods};
 ///
 /// class!(Greeter);
 ///
@@ -90,10 +87,7 @@ macro_rules! class {
 /// # Examples
 ///
 /// ```
-/// #[macro_use]
-/// extern crate rutie;
-///
-/// use rutie::{Module, RString, Object, VM};
+/// use rutie::{Module, RString, Object, VM, methods, module};
 ///
 /// module!(Greeter);
 ///
@@ -189,10 +183,7 @@ macro_rules! module {
 /// # Examples
 ///
 /// ```
-/// #[macro_use]
-/// extern crate rutie;
-///
-/// use rutie::{Boolean, Class, Fixnum, Object, RString, VM};
+/// use rutie::{Boolean, Class, Fixnum, Object, RString, VM, unsafe_methods};
 ///
 /// // Creates `string_length_equals` functions
 /// unsafe_methods!(
@@ -304,10 +295,7 @@ macro_rules! unsafe_methods {
 ///  - `address[:port]` is not a `Fixnum`
 ///
 /// ```
-/// #[macro_use]
-/// extern crate rutie;
-///
-/// use rutie::{Class, Fixnum, Hash, NilClass, Object, Symbol, VM};
+/// use rutie::{Class, Fixnum, Hash, NilClass, Object, Symbol, VM, class, methods};
 ///
 /// class!(Server);
 ///
@@ -413,14 +401,6 @@ macro_rules! methods {
 /// ```toml
 /// lazy_static = "0.2.1" # the version is not a strict requirement
 /// ```
-///
-/// Crate root `lib.rs` or `main.rs`
-///
-/// ```ignore
-/// #[macro_use]
-/// extern crate lazy_static;
-/// ```
-///
 /// # Arguments
 ///
 ///  - `$struct_name` is name of the actual Rust struct. This structure has to be public (`pub`).
@@ -494,10 +474,7 @@ macro_rules! methods {
 /// ## Wrap `Server` structs to `RubyServer` objects
 ///
 /// ```
-/// #[macro_use] extern crate rutie;
-/// #[macro_use] extern crate lazy_static;
-///
-/// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM};
+/// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM, methods, wrappable_struct, class};
 ///
 /// // The structure which we want to wrap
 /// pub struct Server {
@@ -577,12 +554,9 @@ macro_rules! methods {
 /// Custom array implementation using a vector which contains `AnyObject`s.
 ///
 /// ```
-/// #[macro_use] extern crate rutie;
-/// #[macro_use] extern crate lazy_static;
-///
 /// use std::ops::{Deref, DerefMut};
 ///
-/// use rutie::{AnyObject, Class, Fixnum, GC, NilClass, Object, VM};
+/// use rutie::{AnyObject, Class, Fixnum, GC, NilClass, Object, VM, wrappable_struct, class, methods};
 ///
 /// pub struct VectorOfObjects {
 ///     inner: Vec<AnyObject>,
@@ -676,17 +650,17 @@ macro_rules! methods {
 #[macro_export]
 macro_rules! wrappable_struct {
     (@mark_function_pointer) => {
-        None as Option<extern "C" fn(*mut $crate::types::c_void)>
+        None as Option<unsafe extern "C" fn(*mut $crate::types::c_void)>
     };
     // Leading comma is the comma between `$static_name: ident` and `mark` in the main macro rule.
     // Optional comma `$(,)*` is not allowed in the main rule, because it is
     // followed by `$($tail: tt)*`
     (@mark_function_pointer , mark($object: ident) $body: block) => {
-        Some(Self::mark as extern "C" fn(*mut $crate::types::c_void))
+        Some(Self::mark as unsafe extern "C" fn(*mut $crate::types::c_void))
     };
     (@mark_function_definition $struct_name: ty) => {};
     (@mark_function_definition $struct_name: ty, mark($object: ident) $body: expr) => {
-        pub extern "C" fn mark(data: *mut $crate::types::c_void) {
+        pub unsafe extern "C" fn mark(data: *mut $crate::types::c_void) {
             let mut data = unsafe { (data as *mut $struct_name).as_mut() };
 
             if let Some(ref mut $object) = data {
@@ -708,7 +682,7 @@ macro_rules! wrappable_struct {
             fn new() -> $wrapper<T> {
                 let name = concat!("Rutie/", stringify!($struct_name));
                 let name = $crate::util::str_to_cstring(name);
-                let reserved_bytes: [*mut $crate::types::c_void; 2] = [::std::ptr::null_mut(); 2];
+                let reserved_bytes: [*mut $crate::types::c_void; 1] = [::std::ptr::null_mut(); 1];
 
                 let dmark = wrappable_struct!(@mark_function_pointer $($tail)*);
 
@@ -716,13 +690,14 @@ macro_rules! wrappable_struct {
                     wrap_struct_name: name.into_raw(),
                     parent: ::std::ptr::null(),
                     data: ::std::ptr::null_mut(),
-                    flags: $crate::types::Value::from(0),
+                    flags: $crate::types::Value::from(0).into(),
 
                     function: $crate::types::DataTypeFunction {
                         dmark: dmark,
                         dfree: Some($crate::typed_data::free::<T>),
                         dsize: None,
                         reserved: reserved_bytes,
+                        compact: None,
                     },
                 };
 

@@ -1,13 +1,13 @@
 use std::mem;
 
-use crate::rubysys::{
+use super::{
     constant::{
         FL_USER_1, FL_USER_17, FL_USER_2, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6, FL_USER_7,
         FL_USHIFT,
     },
-    libc::size_t,
     types::{c_char, c_long, CallbackPtr, EncodingType, InternalValue, RBasic, Value},
 };
+use libc::size_t;
 
 pub const STR_TMPLOCK: isize = FL_USER_7;
 
@@ -121,7 +121,7 @@ unsafe fn rstring_and_flags(value: Value) -> (*const RString, InternalValue) {
 }
 
 unsafe fn embed_check(flags: InternalValue) -> bool {
-    flags & (RStringEmbed::NoEmbed as size_t) == 0
+    flags & (RStringEmbed::NoEmbed as u64) == 0
 }
 
 pub unsafe fn rstring_embed_len(value: Value) -> c_long {
@@ -187,5 +187,5 @@ pub unsafe fn rstring_end(value: Value) -> *const c_char {
 pub unsafe fn is_lockedtmp(value: Value) -> bool {
     let (_rstring, flags) = rstring_and_flags(value);
 
-    flags & STR_TMPLOCK as size_t != 0
+    flags & STR_TMPLOCK as u64 != 0
 }

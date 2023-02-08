@@ -1,81 +1,65 @@
 use std::{convert::From, mem};
 
-use crate::rubysys::{
+use super::{
     constant,
     types::{InternalValue, RBasic},
 };
 
 const SPECIAL_SHIFT: usize = 8;
 
-#[cfg(target_pointer_width = "32")]
+use rb_sys::{ruby_special_consts, ruby_value_type};
+
+// I assume pointer width is handled by rb_sys;
 pub enum RubySpecialConsts {
-    False = 0,
-    True = 0x02,
-    Nil = 0x04,
-    Undef = 0x06,
+    False = ruby_special_consts::RUBY_Qfalse as isize,
+    True = ruby_special_consts::RUBY_Qtrue as isize,
+    Nil = ruby_special_consts::RUBY_Qnil as isize,
+    Undef = ruby_special_consts::RUBY_Qundef as isize,
 }
 
-#[cfg(target_pointer_width = "32")]
 pub enum RubySpecialFlags {
-    ImmediateMask = 0x03,
-    FixnumFlag = 0x01,
-    FlonumMask = 0x00,
-    FlonumFlag = 0x02,
-    SymbolFlag = 0x0e,
-}
-
-#[cfg(target_pointer_width = "64")]
-pub enum RubySpecialConsts {
-    False = 0,
-    True = 0x14,
-    Nil = 0x08,
-    Undef = 0x34,
-}
-
-#[cfg(target_pointer_width = "64")]
-pub enum RubySpecialFlags {
-    ImmediateMask = 0x07,
-    FixnumFlag = 0x01,
-    FlonumMask = 0x03,
-    FlonumFlag = 0x02,
-    SymbolFlag = 0x0c,
+    ImmediateMask = ruby_special_consts::RUBY_IMMEDIATE_MASK as isize,
+    FixnumFlag = ruby_special_consts::RUBY_FIXNUM_FLAG as isize,
+    FlonumMask = ruby_special_consts::RUBY_FLONUM_MASK as isize,
+    FlonumFlag = ruby_special_consts::RUBY_FLONUM_FLAG as isize,
+    SymbolFlag = ruby_special_consts::RUBY_SYMBOL_FLAG as isize,
 }
 
 // #[link_name = "ruby_value_type"]
 #[derive(Debug, PartialEq)]
 #[repr(C)]
 pub enum ValueType {
-    None = 0x00,
+    None = ruby_value_type::RUBY_T_NONE as isize,
 
-    Object = 0x01,
-    Class = 0x02,
-    Module = 0x03,
-    Float = 0x04,
-    RString = 0x05,
-    Regexp = 0x06,
-    Array = 0x07,
-    Hash = 0x08,
-    Struct = 0x09,
-    Bignum = 0x0a,
-    File = 0x0b,
-    Data = 0x0c,
-    Match = 0x0d,
-    Complex = 0x0e,
-    Rational = 0x0f,
+    Object = ruby_value_type::RUBY_T_OBJECT as isize,
+    Class = ruby_value_type::RUBY_T_CLASS as isize,
+    Module = ruby_value_type::RUBY_T_MODULE as isize,
+    Float = ruby_value_type::RUBY_T_FLOAT as isize,
+    RString = ruby_value_type::RUBY_T_STRING as isize,
+    Regexp = ruby_value_type::RUBY_T_REGEXP as isize,
+    Array = ruby_value_type::RUBY_T_ARRAY as isize,
+    Hash = ruby_value_type::RUBY_T_HASH as isize,
+    Struct = ruby_value_type::RUBY_T_STRUCT as isize,
+    Bignum = ruby_value_type::RUBY_T_BIGNUM as isize,
+    File = ruby_value_type::RUBY_T_FILE as isize,
+    Data = ruby_value_type::RUBY_T_DATA as isize,
+    Match = ruby_value_type::RUBY_T_MATCH as isize,
+    Complex = ruby_value_type::RUBY_T_COMPLEX as isize,
+    Rational = ruby_value_type::RUBY_T_RATIONAL as isize,
 
-    Nil = 0x11,
-    True = 0x12,
-    False = 0x13,
-    Symbol = 0x14,
-    Fixnum = 0x15,
-    Undef = 0x16,
+    Nil = ruby_value_type::RUBY_T_NIL as isize,
+    True = ruby_value_type::RUBY_T_TRUE as isize,
+    False = ruby_value_type::RUBY_T_FALSE as isize,
+    Symbol = ruby_value_type::RUBY_T_SYMBOL as isize,
+    Fixnum = ruby_value_type::RUBY_T_FIXNUM as isize,
+    Undef = ruby_value_type::RUBY_T_UNDEF as isize,
 
-    IMemo = 0x1a,
-    Node = 0x1b,
-    IClass = 0x1c,
-    Zombie = 0x1d,
+    IMemo = ruby_value_type::RUBY_T_IMEMO as isize,
+    Node = ruby_value_type::RUBY_T_NODE as isize,
+    IClass = ruby_value_type::RUBY_T_ICLASS as isize,
+    Zombie = ruby_value_type::RUBY_T_ZOMBIE as isize,
 
-    Mask = 0x1f,
+    Mask = ruby_value_type::RUBY_T_MASK as isize,
 }
 
 #[repr(C)]
@@ -187,5 +171,19 @@ impl From<InternalValue> for Value {
         Value {
             value: internal_value,
         }
+    }
+}
+
+impl From<i32> for Value {
+    fn from(value: i32) -> Self {
+        Value {
+            value: value as InternalValue,
+        }
+    }
+}
+
+impl From<Value> for u64 {
+    fn from(value: Value) -> Self {
+        value.value
     }
 }
