@@ -605,7 +605,7 @@ impl EncodingSupport for RString {
 
 impl From<Value> for RString {
     fn from(value: Value) -> Self {
-        RString { value: value }
+        RString { value }
     }
 }
 

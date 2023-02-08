@@ -15,7 +15,7 @@ pub struct AnyException {
 
 impl From<Value> for AnyException {
     fn from(value: Value) -> Self {
-        AnyException { value: value }
+        AnyException { value }
     }
 }
 

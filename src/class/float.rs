@@ -84,7 +84,7 @@ impl Float {
 
 impl From<Value> for Float {
     fn from(value: Value) -> Self {
-        Float { value: value }
+        Float { value }
     }
 }
 

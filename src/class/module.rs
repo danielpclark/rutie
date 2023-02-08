@@ -742,7 +742,7 @@ impl Module {
 
 impl From<Value> for Module {
     fn from(value: Value) -> Self {
-        Module { value: value }
+        Module { value }
     }
 }
 

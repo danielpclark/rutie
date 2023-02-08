@@ -543,7 +543,7 @@ impl Default for Array {
 
 impl From<Value> for Array {
     fn from(value: Value) -> Self {
-        Array { value: value }
+        Array { value }
     }
 }
 
@@ -590,7 +590,7 @@ pub struct ArrayIterator {
 impl ArrayIterator {
     fn new(array: Array) -> ArrayIterator {
         ArrayIterator {
-            array: array,
+            array,
             current_index: 0,
         }
     }

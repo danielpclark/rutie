@@ -141,7 +141,7 @@ impl Thread {
 
 impl From<Value> for Thread {
     fn from(value: Value) -> Self {
-        Thread { value: value }
+        Thread { value }
     }
 }
 

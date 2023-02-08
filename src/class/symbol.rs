@@ -118,7 +118,7 @@ impl Symbol {
 
 impl From<Value> for Symbol {
     fn from(value: Value) -> Self {
-        Symbol { value: value }
+        Symbol { value }
     }
 }
 

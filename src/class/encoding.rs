@@ -213,7 +213,7 @@ impl Default for Encoding {
 
 impl From<Value> for Encoding {
     fn from(value: Value) -> Self {
-        Encoding { value: value }
+        Encoding { value }
     }
 }
 

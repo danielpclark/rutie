@@ -127,7 +127,7 @@ impl Integer {
 
 impl From<Value> for Integer {
     fn from(value: Value) -> Self {
-        Integer { value: value }
+        Integer { value }
     }
 }
 

@@ -43,7 +43,7 @@ impl Default for NilClass {
 
 impl From<Value> for NilClass {
     fn from(value: Value) -> Self {
-        NilClass { value: value }
+        NilClass { value }
     }
 }
 

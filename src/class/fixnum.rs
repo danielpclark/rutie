@@ -127,7 +127,7 @@ impl Fixnum {
 
 impl From<Value> for Fixnum {
     fn from(value: Value) -> Self {
-        Fixnum { value: value }
+        Fixnum { value }
     }
 }
 

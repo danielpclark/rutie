@@ -706,7 +706,7 @@ impl Class {
 
 impl From<Value> for Class {
     fn from(value: Value) -> Self {
-        Class { value: value }
+        Class { value }
     }
 }
 

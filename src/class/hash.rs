@@ -269,7 +269,7 @@ impl Default for Hash {
 
 impl From<Value> for Hash {
     fn from(value: Value) -> Self {
-        Hash { value: value }
+        Hash { value }
     }
 }
 

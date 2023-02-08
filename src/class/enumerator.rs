@@ -209,7 +209,7 @@ impl Enumerator {
 
 impl From<Value> for Enumerator {
     fn from(value: Value) -> Self {
-        Enumerator { value: value }
+        Enumerator { value }
     }
 }
 

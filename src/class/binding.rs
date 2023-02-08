@@ -38,7 +38,7 @@ impl Binding {
 
 impl From<Value> for Binding {
     fn from(value: Value) -> Self {
-        Binding { value: value }
+        Binding { value }
     }
 }
 

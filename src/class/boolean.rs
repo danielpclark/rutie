@@ -53,7 +53,7 @@ impl Boolean {
 
 impl From<Value> for Boolean {
     fn from(value: Value) -> Self {
-        Boolean { value: value }
+        Boolean { value }
     }
 }
 
