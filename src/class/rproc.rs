@@ -90,7 +90,7 @@ impl Proc {
 
 impl From<Value> for Proc {
     fn from(value: Value) -> Self {
-        Proc { value }
+        Proc { value: value }
     }
 }
 

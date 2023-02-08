@@ -7,13 +7,11 @@ authors = [
   "Daniel P. Clark <6ftdan@gmail.com>"
 ]
 edition = "2021"
-
 description = "The tie between Ruby and Rust."
 repository = "https://github.com/danielpclark/rutie"
 readme = "README.md"
 keywords = ["cruby", "ruby", "rutie"]
 license = "MIT"
-
 build = "build.rs"
 links = "ruby"
 
@@ -23,6 +21,7 @@ no-link = [] # tells build.rs to not link to libruby
 [dependencies]
 libc = "0.2.151"
 lazy_static = "1.4.0"
+rb-sys = { version = "0.9.64" }
 
 [badges]
 travis-ci = { repository = "danielpclark/rutie", branch = "master" }

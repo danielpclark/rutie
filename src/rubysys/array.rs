@@ -1,9 +1,9 @@
-use crate::rubysys::{
+use super::{
     constant::{FL_USER_1, FL_USER_3, FL_USER_4, FL_USHIFT},
-    libc::size_t,
     types::{c_long, InternalValue, RBasic, Value},
 };
 
+use libc::size_t;
 use std::mem;
 
 extern "C" {
@@ -62,9 +62,9 @@ extern "C" {
 #[repr(C)]
 enum RArrayEmbed {
     LenMax = 3,
-    Flag = FL_USER_1,
-    LenMask = FL_USER_4 | FL_USER_3,
-    LenShift = FL_USHIFT + 3,
+    Flag = rb_sys::ruby_rarray_flags::RARRAY_EMBED_FLAG as isize,
+    LenMask = rb_sys::ruby_rarray_flags::RARRAY_EMBED_LEN_MASK as isize,
+    LenShift = rb_sys::ruby_rarray_consts::RARRAY_EMBED_LEN_SHIFT as isize,
 }
 
 #[repr(C)]
@@ -80,17 +80,13 @@ struct RArrayHeap {
     ptr: InternalValue,
 }
 
-#[repr(C)]
-struct RArray {
-    basic: RBasic,
-    as_: RArrayAs,
-}
+use rb_sys::RArray;
 
 pub unsafe fn rb_ary_len(value: Value) -> c_long {
     let rarray: *const RArray = mem::transmute(value.value);
     let flags = (*rarray).basic.flags;
 
-    if flags & (RArrayEmbed::Flag as size_t) == 0 {
+    if flags & (RArrayEmbed::Flag as u64) == 0 {
         (*rarray).as_.heap.len
     } else {
         ((flags as i64 >> RArrayEmbed::LenShift as i64)

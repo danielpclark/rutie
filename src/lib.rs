@@ -1,6 +1,5 @@
 #![allow(unused_imports, dead_code)]
-#[macro_use]
-extern crate lazy_static;
+use lazy_static::lazy_static;
 
 mod binding;
 mod class;

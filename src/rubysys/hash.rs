@@ -1,4 +1,4 @@
-use crate::rubysys::types::{CallbackMutPtr, CallbackPtr, Value};
+use super::types::{CallbackMutPtr, CallbackPtr, Value};
 
 extern "C" {
     // VALUE

@@ -69,7 +69,7 @@ pub fn option_to_slice<'a, T>(option: &'a Option<T>) -> &'a [T] {
 //
 // # Examples
 //
-// ```no_run
+// ```
 // use rutie::types::Argc;
 // use rutie::{AnyObject, Boolean, Class, Object, RString, util};
 //
@@ -89,7 +89,7 @@ pub fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject
     unsafe { slice::from_raw_parts(arguments, argc as usize).to_vec() }
 }
 
-pub fn closure_to_ptr<F, R>(mut func: F) -> *const c_void
+pub fn closure_to_ptr<F, R>(mut func: F) -> *mut c_void
 where
     F: FnMut() -> R,
 {
@@ -100,7 +100,7 @@ where
 
     let fnbox = Box::new(wrap_return) as Box<dyn FnMut() -> *const c_void>;
 
-    Box::into_raw(Box::new(fnbox)) as *const c_void
+    Box::into_raw(Box::new(fnbox)) as *mut c_void
 }
 
 pub unsafe fn ptr_to_data<R>(ptr: *mut c_void) -> R {
@@ -108,11 +108,11 @@ pub unsafe fn ptr_to_data<R>(ptr: *mut c_void) -> R {
 }
 
 pub fn is_proc(obj: Value) -> bool {
-    Boolean::from(unsafe { rb_obj_is_proc(obj) }).to_bool()
+    Boolean::from(unsafe { rb_obj_is_proc(obj.into()) }).to_bool()
 }
 
 pub fn is_method(obj: Value) -> bool {
-    Boolean::from(unsafe { rb_obj_is_method(obj) }).to_bool()
+    Boolean::from(unsafe { rb_obj_is_method(obj.into()) }).to_bool()
 }
 
 // Recurses to the deepest ruby object.
@@ -121,7 +121,9 @@ pub fn is_method(obj: Value) -> bool {
 pub fn inmost_rb_object(klass: &str) -> Value {
     let object = unsafe { rb_cObject };
 
-    klass.split("::").fold(object, |acc, x| const_get(acc, x))
+    klass
+        .split("::")
+        .fold(object.into(), |acc, x| const_get(acc, x))
 }
 
 pub mod callback_call {

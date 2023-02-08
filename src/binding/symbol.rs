@@ -17,7 +17,7 @@ pub fn value_to_string(value: Value) -> String {
 }
 
 pub fn id_to_sym(id: Id) -> Value {
-    unsafe { symbol::rb_id2sym(id) }
+    unsafe { symbol::rb_id2sym(id).into() }
 }
 
 fn sym_to_ptr(value: Value) -> *const c_char {
@@ -27,7 +27,7 @@ fn sym_to_ptr(value: Value) -> *const c_char {
 }
 
 fn sym_to_id(sym: Value) -> Id {
-    unsafe { symbol::rb_sym2id(sym) }
+    unsafe { symbol::rb_sym2id(sym.into()) }
 }
 
 fn id_to_name(id: Id) -> *const c_char {

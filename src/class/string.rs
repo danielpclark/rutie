@@ -152,7 +152,7 @@ impl RString {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
@@ -180,7 +180,7 @@ impl RString {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
@@ -226,7 +226,7 @@ impl RString {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
@@ -256,7 +256,7 @@ impl RString {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
@@ -275,7 +275,7 @@ impl RString {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{Object, RString, Array, Fixnum, Encoding, EncodingSupport, VM};
     /// # VM::init();
     /// # VM::init_loadpath(); // Needed for alternate encodings
@@ -287,7 +287,10 @@ impl RString {
     /// let codepoints: Array = [102, 111, 111, 37727, 97].
     ///   into_iter().map(|cp| Fixnum::new(cp as i64).to_any_object()).collect();
     ///
-    /// assert!(string.codepoints().equals(&codepoints), "not equal!");
+    /// let codepoints2: Array = [0, 0, 0, 0, 0].
+    ///   into_iter().map(|cp| Fixnum::new(cp as i64).to_any_object()).collect();
+    ///
+    /// assert_eq!(string.codepoints(), codepoints);
     /// ```
     ///
     /// Ruby:
@@ -497,7 +500,8 @@ impl EncodingSupport for RString {
 
         let value = match opts {
             Some(options) => {
-                let ecflags = encoding::econv_prepare_opts(options.value(), &nil);
+                let ecflags =
+                    encoding::econv_prepare_opts(options.value(), &nil as *const _ as *mut _);
 
                 encoding::encode(self.value(), enc.value(), ecflags, options.value())
             }

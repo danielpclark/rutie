@@ -1,4 +1,4 @@
-use crate::rubysys::value::ValueType;
+use super::value::ValueType;
 
 pub const FL_WB_PROTECTED: isize = 1 << 5;
 pub const FL_PROMOTED0: isize = 1 << 5;
