@@ -39,17 +39,17 @@ pub fn length(hash: Value) -> i64 {
 
 use crate::util::callback_call::hash_foreach_callback as each_callback;
 
-// pub fn each<F>(hash: Value, closure_callback: F)
-// where
-//     F: FnMut(AnyObject, AnyObject),
-// {
-//     let closure_ptr = &closure_callback as *const _ as CallbackMutPtr;
-//
-//     unsafe {
-//         hash::rb_hash_foreach(
-//             hash.into(),
-//             each_callback::<F, AnyObject, AnyObject> as CallbackPtr,
-//             closure_ptr,
-//         );
-//     }
-// }
+pub fn each<F>(hash: Value, closure_callback: F)
+where
+    F: FnMut(AnyObject, AnyObject),
+{
+    let closure_ptr = &closure_callback as *const _ as CallbackMutPtr;
+
+    unsafe {
+        hash::rb_hash_foreach(
+            hash.into(),
+            each_callback::<F, AnyObject, AnyObject> as CallbackPtr,
+            closure_ptr,
+        );
+    }
+}

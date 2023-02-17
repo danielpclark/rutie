@@ -203,54 +203,54 @@ impl Hash {
         AnyObject::from(result)
     }
 
-    // /// Runs a closure for each `key` and `value` pair.
-    // ///
-    // /// Key and value have `AnyObject` type.
-    // ///
-    // /// # Examples
-    // ///
-    // /// ```
-    // /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
-    // /// # VM::init();
-    // ///
-    // /// let mut hash = Hash::new();
-    // ///
-    // /// hash.store(Symbol::new("first_key"), Fixnum::new(1));
-    // /// hash.store(Symbol::new("second_key"), Fixnum::new(2));
-    // ///
-    // /// let mut doubled_values: Vec<i64> = Vec::new();
-    // ///
-    // /// hash.each(|_key, value| {
-    // ///     if let Ok(value) = value.try_convert_to::<Fixnum>() {
-    // ///         doubled_values.push(value.to_i64() * 2);
-    // ///     }
-    // /// });
-    // ///
-    // /// assert_eq!(doubled_values, vec![2, 4]);
-    // /// ```
-    // ///
-    // /// Ruby:
-    // ///
-    // /// ```ruby
-    // /// hash = {
-    // ///   first_key: 1,
-    // ///   second_key: 2
-    // /// }
-    // ///
-    // /// doubled_values = []
-    // ///
-    // /// hash.each do |_key, value|
-    // ///   doubled_values << [value * 2]
-    // /// end
-    // ///
-    // /// doubled_values == [2, 4]
-    // /// ```
-    // pub fn each<F>(&self, closure: F)
-    // where
-    //     F: FnMut(AnyObject, AnyObject),
-    // {
-    //     hash::each(self.value(), closure);
-    // }
+    /// Runs a closure for each `key` and `value` pair.
+    ///
+    /// Key and value have `AnyObject` type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = Hash::new();
+    ///
+    /// hash.store(Symbol::new("first_key"), Fixnum::new(1));
+    /// hash.store(Symbol::new("second_key"), Fixnum::new(2));
+    ///
+    /// let mut doubled_values: Vec<i64> = Vec::new();
+    ///
+    /// hash.each(|_key, value| {
+    ///     if let Ok(value) = value.try_convert_to::<Fixnum>() {
+    ///         doubled_values.push(value.to_i64() * 2);
+    ///     }
+    /// });
+    ///
+    /// assert_eq!(doubled_values, vec![2, 4]);
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// hash = {
+    ///   first_key: 1,
+    ///   second_key: 2
+    /// }
+    ///
+    /// doubled_values = []
+    ///
+    /// hash.each do |_key, value|
+    ///   doubled_values << [value * 2]
+    /// end
+    ///
+    /// doubled_values == [2, 4]
+    /// ```
+    pub fn each<F>(&self, closure: F)
+    where
+        F: FnMut(AnyObject, AnyObject),
+    {
+        hash::each(self.value(), closure);
+    }
 }
 
 impl Clone for Hash {
@@ -312,36 +312,36 @@ impl PartialEq for Hash {
 mod tests {
     use super::super::super::{Fixnum, Hash, Object, Symbol, LOCK_FOR_TEST, VM};
 
-    // #[test]
-    // fn test_hash_each() {
-    //     let _guard = LOCK_FOR_TEST.write().unwrap();
-    //     VM::init();
-    //
-    //     let mut hash = Hash::new();
-    //
-    //     let len: i64 = 200;
-    //
-    //     for i in 0..len {
-    //         hash.store(Symbol::new(&format!("key_{}", i)), Fixnum::new(i));
-    //     }
-    //
-    //     assert_eq!(hash.length(), len as usize);
-    //
-    //     let mut counter: i64 = 0;
-    //
-    //     hash.each(|k, v| {
-    //         assert_eq!(
-    //             k.try_convert_to::<Symbol>().map(|s| s.to_string()),
-    //             Ok(format!("key_{}", counter))
-    //         );
-    //         assert_eq!(
-    //             v.try_convert_to::<Fixnum>().map(|f| f.to_i64()),
-    //             Ok(counter)
-    //         );
-    //
-    //         counter += 1;
-    //     });
-    //
-    //     assert_eq!(counter, len);
-    // }
+    #[test]
+    fn test_hash_each() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
+        let mut hash = Hash::new();
+
+        let len: i64 = 200;
+
+        for i in 0..len {
+            hash.store(Symbol::new(&format!("key_{}", i)), Fixnum::new(i));
+        }
+
+        assert_eq!(hash.length(), len as usize);
+
+        let mut counter: i64 = 0;
+
+        hash.each(|k, v| {
+            assert_eq!(
+                k.try_convert_to::<Symbol>().map(|s| s.to_string()),
+                Ok(format!("key_{}", counter))
+            );
+            assert_eq!(
+                v.try_convert_to::<Fixnum>().map(|f| f.to_i64()),
+                Ok(counter)
+            );
+
+            counter += 1;
+        });
+
+        assert_eq!(counter, len);
+    }
 }
