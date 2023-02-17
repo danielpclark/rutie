@@ -13,7 +13,6 @@ readme = "README.md"
 keywords = ["cruby", "ruby", "rutie"]
 license = "MIT"
 build = "build.rs"
-links = "ruby"
 
 [features]
 no-link = [] # tells build.rs to not link to libruby
@@ -21,7 +20,10 @@ no-link = [] # tells build.rs to not link to libruby
 [dependencies]
 libc = "0.2.151"
 lazy_static = "1.4.0"
-rb-sys = { version = "0.9.64" }
+rb-sys = { version = "0.9.64", features = ["link-ruby"] }
+
+[build-dependencies]
+rb-sys-env = "0.1.2"
 
 [badges]
 travis-ci = { repository = "danielpclark/rutie", branch = "master" }
