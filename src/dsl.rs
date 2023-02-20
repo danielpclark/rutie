@@ -683,9 +683,9 @@ macro_rules! wrappable_struct {
                 let name = concat!("Rutie/", stringify!($struct_name));
                 let name = $crate::util::str_to_cstring(name);
                 #[cfg(ruby_gte_2_7)]
-                let reserved_bytes: [ptr::null_mut(); 1] = [::std::ptr::null_mut(); 1];
+                let reserved_bytes: [*mut $crate::types::c_void; 1] = [::std::ptr::null_mut(); 1];
                 #[cfg(ruby_lt_2_7)]
-                let reserved_bytes: [ptr::null_mut(); 2] = [::std::ptr::null_mut(); 2];
+                let reserved_bytes: [*mut $crate::types::c_void; 2] = [::std::ptr::null_mut(); 2];
 
                 let dmark = wrappable_struct!(@mark_function_pointer $($tail)*);
 
