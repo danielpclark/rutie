@@ -17,10 +17,7 @@ impl Proc {
     /// # Examples
     ///
     /// ```no_run
-    /// #[macro_use]
-    /// extern crate rutie;
-    ///
-    /// use rutie::{Class, Object, Proc, RString};
+    /// use rutie::{Class, Object, Proc, RString, class, methods};
     ///
     /// class!(Greeter);
     ///
