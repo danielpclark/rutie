@@ -27,39 +27,39 @@ pub enum RubySpecialFlags {
 
 // #[link_name = "ruby_value_type"]
 #[derive(Debug, PartialEq)]
-#[repr(C)]
+#[repr(u32)]
 pub enum ValueType {
-    None = ruby_value_type::RUBY_T_NONE as isize,
+    None = ruby_value_type::RUBY_T_NONE as u32,
 
-    Object = ruby_value_type::RUBY_T_OBJECT as isize,
-    Class = ruby_value_type::RUBY_T_CLASS as isize,
-    Module = ruby_value_type::RUBY_T_MODULE as isize,
-    Float = ruby_value_type::RUBY_T_FLOAT as isize,
-    RString = ruby_value_type::RUBY_T_STRING as isize,
-    Regexp = ruby_value_type::RUBY_T_REGEXP as isize,
-    Array = ruby_value_type::RUBY_T_ARRAY as isize,
-    Hash = ruby_value_type::RUBY_T_HASH as isize,
-    Struct = ruby_value_type::RUBY_T_STRUCT as isize,
-    Bignum = ruby_value_type::RUBY_T_BIGNUM as isize,
-    File = ruby_value_type::RUBY_T_FILE as isize,
-    Data = ruby_value_type::RUBY_T_DATA as isize,
-    Match = ruby_value_type::RUBY_T_MATCH as isize,
-    Complex = ruby_value_type::RUBY_T_COMPLEX as isize,
-    Rational = ruby_value_type::RUBY_T_RATIONAL as isize,
+    Object = ruby_value_type::RUBY_T_OBJECT as u32,
+    Class = ruby_value_type::RUBY_T_CLASS as u32,
+    Module = ruby_value_type::RUBY_T_MODULE as u32,
+    Float = ruby_value_type::RUBY_T_FLOAT as u32,
+    RString = ruby_value_type::RUBY_T_STRING as u32,
+    Regexp = ruby_value_type::RUBY_T_REGEXP as u32,
+    Array = ruby_value_type::RUBY_T_ARRAY as u32,
+    Hash = ruby_value_type::RUBY_T_HASH as u32,
+    Struct = ruby_value_type::RUBY_T_STRUCT as u32,
+    Bignum = ruby_value_type::RUBY_T_BIGNUM as u32,
+    File = ruby_value_type::RUBY_T_FILE as u32,
+    Data = ruby_value_type::RUBY_T_DATA as u32,
+    Match = ruby_value_type::RUBY_T_MATCH as u32,
+    Complex = ruby_value_type::RUBY_T_COMPLEX as u32,
+    Rational = ruby_value_type::RUBY_T_RATIONAL as u32,
 
-    Nil = ruby_value_type::RUBY_T_NIL as isize,
-    True = ruby_value_type::RUBY_T_TRUE as isize,
-    False = ruby_value_type::RUBY_T_FALSE as isize,
-    Symbol = ruby_value_type::RUBY_T_SYMBOL as isize,
-    Fixnum = ruby_value_type::RUBY_T_FIXNUM as isize,
-    Undef = ruby_value_type::RUBY_T_UNDEF as isize,
+    Nil = ruby_value_type::RUBY_T_NIL as u32,
+    True = ruby_value_type::RUBY_T_TRUE as u32,
+    False = ruby_value_type::RUBY_T_FALSE as u32,
+    Symbol = ruby_value_type::RUBY_T_SYMBOL as u32,
+    Fixnum = ruby_value_type::RUBY_T_FIXNUM as u32,
+    Undef = ruby_value_type::RUBY_T_UNDEF as u32,
 
-    IMemo = ruby_value_type::RUBY_T_IMEMO as isize,
-    Node = ruby_value_type::RUBY_T_NODE as isize,
-    IClass = ruby_value_type::RUBY_T_ICLASS as isize,
-    Zombie = ruby_value_type::RUBY_T_ZOMBIE as isize,
+    IMemo = ruby_value_type::RUBY_T_IMEMO as u32,
+    Node = ruby_value_type::RUBY_T_NODE as u32,
+    IClass = ruby_value_type::RUBY_T_ICLASS as u32,
+    Zombie = ruby_value_type::RUBY_T_ZOMBIE as u32,
 
-    Mask = ruby_value_type::RUBY_T_MASK as isize,
+    Mask = ruby_value_type::RUBY_T_MASK as u32,
 }
 
 #[repr(C)]
