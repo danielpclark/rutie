@@ -12,11 +12,9 @@ use crate::{
 /// Also see `def`, `def_self`, `define` and some more functions from `Object` trait.
 ///
 /// ```rust
-/// #[macro_use] extern crate rutie;
-///
 /// use std::error::Error;
 ///
-/// use rutie::{Class, Fixnum, Object, Exception, VM};
+/// use rutie::{Class, Fixnum, Object, Exception, VM, methods};
 ///
 /// methods!(
 ///    Fixnum,
@@ -613,10 +611,8 @@ impl Class {
     /// Wrap `Server` structs to `RubyServer` objects
     ///
     /// ```
-    /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
-    ///
-    /// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM};
+    /// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM, class, methods, wrappable_struct};
+    /// use lazy_static::lazy_static;
     ///
     /// // The structure which we want to wrap
     /// pub struct Server {

@@ -728,9 +728,7 @@ macro_rules! wrappable_struct {
 ///
 /// # Examples
 /// ```
-/// #[macro_use]
-/// extern crate rutie;
-/// use rutie::{Object, Integer, Binding, VM};
+/// use rutie::{Object, Integer, Binding, VM, eval};
 ///
 /// fn main() {
 ///     # VM::init();

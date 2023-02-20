@@ -188,10 +188,7 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// #[macro_use]
-    /// extern crate rutie;
-    ///
-    /// use rutie::{Class, Fixnum, Object, VM};
+    /// use rutie::{Class, Fixnum, Object, VM, eval};
     ///
     /// fn main() {
     ///     # VM::init();
@@ -214,10 +211,7 @@ impl VM {
     ///
     ///
     /// ```
-    /// #[macro_use]
-    /// extern crate rutie;
-    ///
-    /// use rutie::{Class, Fixnum, Object, Exception, RString, VM};
+    /// use rutie::{Class, Fixnum, Object, Exception, RString, VM, eval};
     ///
     /// fn main() {
     ///     # VM::init();
@@ -255,9 +249,6 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// #[macro_use]
-    /// extern crate rutie;
-    ///
     /// use rutie::{Class, Fixnum, Object, VM};
     ///
     /// fn main() {
@@ -285,10 +276,7 @@ impl VM {
     /// # Examples
     ///
     /// ```no_run
-    /// #[macro_use]
-    /// extern crate rutie;
-    ///
-    /// use rutie::{Class, Object, Proc, RString, VM};
+    /// use rutie::{Class, Object, Proc, RString, VM, class, methods};
     ///
     /// class!(Greeter);
     ///
@@ -334,9 +322,7 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// #[macro_use] extern crate rutie;
-    ///
-    /// use rutie::{Class, Fixnum, Object, VM};
+    /// use rutie::{Class, Fixnum, Object, VM, class, methods};
     ///
     /// class!(Calculator);
     ///
@@ -390,9 +376,7 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// #[macro_use] extern crate rutie;
-    ///
-    /// use rutie::{Class, Fixnum, Object, VM};
+    /// use rutie::{Class, Fixnum, Object, VM, class, methods};
     ///
     /// class!(Calculator);
     ///
@@ -453,9 +437,7 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// #[macro_use] extern crate rutie;
-    ///
-    /// use rutie::{Array, Class, Fixnum, Object, VM};
+    /// use rutie::{Array, Class, Fixnum, Object, VM, class, methods};
     ///
     /// class!(Calculator);
     ///
@@ -637,7 +619,6 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// extern crate rutie;
     /// use rutie::{VM,Boolean};
     /// # VM::init();
     ///
@@ -652,7 +633,6 @@ impl VM {
     /// and `VM::error_pop` to handle potential exceptions.
     ///
     /// ```
-    /// extern crate rutie;
     /// use rutie::{VM, Symbol, NilClass, Object, AnyException, Exception};
     /// # VM::init();
     ///
@@ -686,7 +666,6 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// extern crate rutie;
     /// use rutie::{VM, NilClass, AnyException, Exception, RString};
     /// # VM::init();
     ///
@@ -708,7 +687,6 @@ impl VM {
     /// and `VM::error_pop` to handle potential exceptions.
     ///
     /// ```
-    /// extern crate rutie;
     /// use rutie::{VM, Symbol, NilClass, Object, AnyException, Exception};
     /// # VM::init();
     ///
@@ -781,9 +759,7 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// #[macro_use] extern crate rutie;
-    ///
-    /// use rutie::{Class, Fixnum, Object, VM, Exception};
+    /// use rutie::{Class, Fixnum, Object, VM, Exception, class, methods};
     ///
     /// class!(Adder);
     ///
