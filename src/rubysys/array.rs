@@ -90,6 +90,7 @@ pub unsafe fn rb_ary_len(value: Value) -> c_long {
         (*rarray).as_.heap.len
     } else {
         ((flags as i64 >> RArrayEmbed::LenShift as i64)
-            & (RArrayEmbed::LenMask as i64 >> RArrayEmbed::LenShift as i64)) as c_long
+            & (RArrayEmbed::LenMask as i64 >> RArrayEmbed::LenShift as InternalValue))
+            as c_long
     }
 }
