@@ -1,12 +1,14 @@
 ---
 name: CI
 
-on:
-  push:
-    branches:
-      - master
+# on:
+#   push:
+#     branches:
+#       - master
+#
+#   pull_request:
 
-  pull_request:
+on: [push]
 
 jobs:
   ci:
