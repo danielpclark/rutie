@@ -2,8 +2,9 @@
 extern crate rutie;
 
 use rutie::{AnyObject, Class, Fixnum, NilClass, Object, RString, Thread};
-use std::os::unix::io::AsRawFd;
-use std::os::unix::net::UnixStream;
+
+#[cfg(unix)]
+use std::os::unix::{io::AsRawFd, net::UnixStream};
 use std::sync::mpsc;
 
 class!(RutieExample);
