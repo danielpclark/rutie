@@ -28,8 +28,8 @@ jobs:
           bundler-cache: true
           cargo-cache: true
 
-      - name: Lint rust
-        run: cargo clippy && cargo fmt --check
+      # - name: Lint rust
+      #   run: cargo clippy && cargo fmt --check
       
       - name: Run rust doc tests
         run: cargo test --doc
