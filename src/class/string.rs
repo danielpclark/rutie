@@ -285,7 +285,7 @@ impl RString {
     /// let string = RString::from_bytes(b"foo\x93_a", &Encoding::find("cp932").unwrap());
     ///
     /// let codepoints: Array = [102, 111, 111, 37727, 97].
-    ///   into_iter().map(|cp| Fixnum::new(*cp as i64).to_any_object()).collect();
+    ///   into_iter().map(|cp| Fixnum::new(cp as i64).to_any_object()).collect();
     ///
     /// assert!(string.codepoints().equals(&codepoints), "not equal!");
     /// ```
