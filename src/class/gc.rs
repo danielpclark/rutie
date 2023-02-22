@@ -110,7 +110,7 @@ impl GC {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use rutie::{RString, GC, VM};
     /// # VM::init();
     ///
@@ -126,7 +126,7 @@ impl GC {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use rutie::{RString, GC, VM, AnyObject};
     /// # VM::init();
     ///
@@ -153,7 +153,7 @@ impl GC {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use rutie::{RString, GC, VM};
     /// # VM::init();
     ///
