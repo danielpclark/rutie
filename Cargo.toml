@@ -21,7 +21,7 @@ ruby-static = ["rb-sys/ruby-static"]
 [dependencies]
 libc = "0.2.151"
 lazy_static = "1.4.0"
-rb-sys = { version = "0.9.64", default-features = false, features = ["bindgen-rbimpls", "bindgen-deprecated-types"] }
+rb-sys = { version = "0.9.65" }
 
 [dev-dependencies]
 rutie = { path = ".", features = ["embed"] }
