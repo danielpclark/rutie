@@ -15,12 +15,17 @@ license = "MIT"
 build = "build.rs"
 
 [features]
-no-link = [] # tells build.rs to not link to libruby
+embed = ["rb-sys/link-ruby"]
+rb-sys-interop = []
+ruby-static = ["rb-sys/ruby-static"]
 
 [dependencies]
 libc = "0.2.151"
 lazy_static = "1.4.0"
-rb-sys = { version = "0.9.64", features = ["link-ruby"] }
+rb-sys = { version = "0.9.64", default-features = false, features = ["bindgen-rbimpls", "bindgen-deprecated-types"] }
+
+[dev-dependencies]
+rutie = { path = ".", features = ["embed"] }
 
 [build-dependencies]
 rb-sys-env = "0.1.2"
