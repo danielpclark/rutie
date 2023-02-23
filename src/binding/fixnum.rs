@@ -29,7 +29,7 @@ pub fn num_to_i32(num: Value) -> i32 {
 }
 
 pub fn num_to_u32(num: Value) -> u32 {
-    unsafe { fixnum::rb_num2uint(num.into()) as u32 }
+    unsafe { fixnum::rb_num2long(num.into()) as u32 }
 }
 
 pub fn num_to_isize(num: Value) -> isize {
