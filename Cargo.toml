@@ -17,6 +17,7 @@ build = "build.rs"
 [features]
 embed = ["rb-sys/link-ruby"]
 ruby-static = ["rb-sys/ruby-static"]
+no-link = [] # noop, for backwards compatibility.
 
 [dependencies]
 libc = "0.2.151"
