@@ -1,27 +1,29 @@
-extern crate rutie;
+fn main() {}
 
-use rutie::{Object, RString, VM};
+#[cfg(test)]
+mod tests {
 
-fn try_it(s: &str) -> String {
-    let a = RString::new_utf8(s);
+    use rutie::{Object, RString, VM};
 
-    // Send returns an AnyObject type
-    let b = unsafe { a.send("reverse", &[]) };
+    fn try_it(s: &str) -> String {
+        let a = RString::new_utf8(s);
 
-    // We must try to convert the AnyObject
-    // type back to our usable type.
-    match b.try_convert_to::<RString>() {
-        Ok(ruby_string) => ruby_string.to_string(),
-        Err(_) => "Fail!".to_string(),
+        // Send returns an AnyObject type
+        let b = unsafe { a.send("reverse", &[]) };
+
+        // We must try to convert the AnyObject
+        // type back to our usable type.
+        match b.try_convert_to::<RString>() {
+            Ok(ruby_string) => ruby_string.to_string(),
+            Err(_) => "Fail!".to_string(),
+        }
+    }
+
+    #[test]
+    fn it_works() {
+        // Rust projects must start the Ruby VM
+        VM::init();
+
+        assert_eq!("selppa", try_it("apples"));
     }
 }
-
-#[test]
-fn it_works() {
-    // Rust projects must start the Ruby VM
-    VM::init();
-
-    assert_eq!("selppa", try_it("apples"));
-}
-
-fn main() {}

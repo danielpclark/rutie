@@ -16,7 +16,6 @@ build = "build.rs"
 
 [features]
 embed = ["rb-sys/link-ruby"]
-rb-sys-interop = []
 ruby-static = ["rb-sys/ruby-static"]
 
 [dependencies]

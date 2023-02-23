@@ -1,5 +1,3 @@
-extern crate rutie;
-
 use rutie::VM;
 use std::{env, process};
 
