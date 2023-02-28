@@ -64,7 +64,7 @@ enum RArrayEmbed {
     LenMax = 3,
     Flag = rb_sys::ruby_rarray_flags::RARRAY_EMBED_FLAG as isize,
     LenMask = rb_sys::ruby_rarray_flags::RARRAY_EMBED_LEN_MASK as isize,
-    #[cfg(ruby_gte_3_0)]
+    #[cfg(ruby_gt_2_7)]
     LenShift = rb_sys::ruby_rarray_consts::RARRAY_EMBED_LEN_SHIFT as isize,
     #[cfg(ruby_lte_2_7)]
     LenShift = rb_sys::ruby_rarray_flags::RARRAY_EMBED_LEN_SHIFT as isize,
