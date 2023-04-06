@@ -6,11 +6,13 @@ on:
       - master
     paths-ignore:
       - '**.md'
+      - '**.yml'
   pull_request:
     branches:
       - master
     paths-ignore:
       - '**.md'
+      - '**.yml'
 
 env:
   TEST_ALL: false # Set this to true for testing the entire matrix
