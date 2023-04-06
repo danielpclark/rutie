@@ -51,7 +51,12 @@ jobs:
       if: env.RUNNER_OS == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential make libssl-dev libreadline-dev zlib1g-dev
+        sudo apt-get install -y gawk libgmp-dev dirmngr build-essential \
+        gnupg2 man curl direnv software-properties-common libpq-dev\
+        libncurses5-dev libgnome2-dev libgnomeui-dev wget pkg-config \
+        libgtk2.0-dev libatk1.0-dev libbonoboui2-dev libssl-dev \
+        libcairo2-dev libx11-dev libxpm-dev libxt-dev \
+        ruby-dev tzdata locales cmake
 
     - name: Install RVM and Ruby
       if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false))
