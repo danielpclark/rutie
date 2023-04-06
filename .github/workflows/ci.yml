@@ -54,10 +54,17 @@ jobs:
         sudo apt-get install -y gawk libgmp-dev dirmngr build-essential \
         gnupg2 man curl direnv software-properties-common libpq-dev \
         libncurses5-dev wget pkg-config ruby-dev tzdata locales cmake \
-        libgtk2.0-dev libatk1.0-dev libssl-dev libcairo2-dev libx11-dev \
-        libxpm-dev libxt-dev libssl1.1 libssl-dev zlib1g-dev \
-        libreadline-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev \
-        libxslt1-dev libcurl4-openssl-dev libffi-dev
+        libgtk2.0-dev libatk1.0-dev libcairo2-dev libx11-dev \
+        libxpm-dev libxt-dev zlib1g-dev libxslt1-dev libcurl4-openssl-dev libffi-dev \
+        libreadline-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev
+
+        wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
+        tar xf openssl-1.1.1l.tar.gz
+        cd openssl-1.1.1l
+        ./config --prefix=/usr/local/openssl-1.1.1l --openssldir=/usr/local/openssl-1.1.1l
+        make
+        sudo make install
+        cd ..
 
     - name: Install RVM and Ruby
       if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false))
@@ -75,6 +82,8 @@ jobs:
         if [ ! -z "$RUBY_STATIC" ]; then
           RVM_OPTS+=("--disable-shared")
         fi
+
+        RVM_OPTS+=("--with-openssl-dir=/usr/local/openssl-1.1.1l")
 
         if [ ${#RVM_OPTS[@]} -eq 0 ]; then
           RVM_CMD="rvm install $BUILD_RUBY_VERSION"
