@@ -235,7 +235,7 @@ impl Array {
         AnyObject::from(result)
     }
 
-    /// Inserts `item` at the beggining of the array.
+    /// Inserts `item` at the beginning of the array.
     ///
     /// # Examples
     ///

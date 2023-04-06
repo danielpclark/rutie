@@ -511,7 +511,7 @@ impl VM {
         AnyObject::from(vm::yield_splat(objects.value()))
     }
 
-    /// Run a `closure` and protect from panic during raised excpetions
+    /// Run a `closure` and protect from panic during raised exceptions
     /// by returning `Err<i32>`.
     ///
     /// # Examples

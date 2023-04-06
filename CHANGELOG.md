@@ -144,7 +144,7 @@ API and may have breaking changes during a teeny version change.
 ## [0.5.3] - 2019-01-10
 ### Added
 - `util::is_proc` & `util::is_method`
-- `rb_enc_compatible` useful for internal string encoding compatibilty checks from
+- `rb_enc_compatible` useful for internal string encoding compatibility checks from
   which we now have `binding::is_compatible_encoding` and `binding::compatible_encoding`
 - `RString.compatible_with` as the public API for `rb_enc_compatible` with trait `EncodingSupport`
 - `RString::compatible_encoding` as the public API for `rb_enc_compatible` with trait `EncodingSupport`
@@ -233,7 +233,7 @@ API and may have breaking changes during a teeny version change.
   them one at a time
 - `binding::new_frozen` for internal use with `CodepointIterator`
 - `rubysys::string::{rstring_embed_len, rstring_ptr, rstring_end}` to
-  match equivelant Ruby C macros for use in `CodepointIterator`
+  match equivalent Ruby C macros for use in `CodepointIterator`
 
 ### Changed
 - `rubysys::rb_str_len` renamed to `rubysys::rstring_len` to match the name
