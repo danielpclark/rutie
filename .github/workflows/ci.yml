@@ -53,9 +53,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gawk libgmp-dev dirmngr build-essential \
         gnupg2 man curl direnv software-properties-common libpq-dev \
-        libncurses5-dev libgnome2-dev libgnomeui-dev wget pkg-config \
+        libncurses5-dev wget pkg-config ruby-dev tzdata locales cmake \
         libgtk2.0-dev libatk1.0-dev libssl-dev libcairo2-dev libx11-dev \
-        libxpm-dev libxt-dev ruby-dev tzdata locales cmake
+        libxpm-dev libxt-dev
 
     - name: Install RVM and Ruby
       if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false))
