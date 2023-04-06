@@ -57,7 +57,7 @@ jobs:
       if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false))
       run: |
         curl -sSL https://get.rvm.io | bash -s stable
-        source "$HOME/.RVm/scripts/rvm"
+        source "$HOME/.rvm/scripts/rvm"
         rvm --version
 
         RVM_OPTS=()
