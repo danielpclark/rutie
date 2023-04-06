@@ -235,6 +235,7 @@ mod tests {
         types::Value, AnyException, Integer, NilClass, Object, LOCK_FOR_TEST, VM,
     };
 
+    #[cfg(target_os = "darwin")]
     #[test]
     fn test_github_issue_113_darwin_os() {
         let _guard = LOCK_FOR_TEST.write().unwrap();
