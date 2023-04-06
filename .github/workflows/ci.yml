@@ -37,7 +37,6 @@ jobs:
     - name: Set environment variables
       run: |
         echo "BUILD_RUBY_VERSION=${{ matrix.ruby_version }}" >> $GITHUB_ENV
-        echo "RUBY_STATIC=${{ matrix.ruby_static }}" >> $GITHUB_ENV
         echo "RUNNER_OS=$(echo ${{ runner.os }})" >> $GITHUB_ENV
 
     - name: Import RVM public keys
