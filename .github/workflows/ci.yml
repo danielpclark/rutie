@@ -110,6 +110,9 @@ jobs:
     - name: Build and Test
       if: env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false)
       run: |
+        rvm reload
+        source "$HOME/.rvm/scripts/rvm"
+        rvm use $BUILD_RUBY_VERSION
         cargo build -vv &&
         cargo test -vv
 
