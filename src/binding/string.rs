@@ -62,7 +62,7 @@ pub fn value_to_str<'a>(value: Value) -> &'a str {
 pub fn value_to_bytes_unchecked<'a>(value: Value) -> &'a [u8] {
     unsafe {
         let str = string::rb_string_value_ptr(&value) as *const u8;
-        let len = string::rb_str_strlen(value) as usize;
+        let len = string::rstring_len(value) as usize;
 
         ::std::slice::from_raw_parts(str, len)
     }
