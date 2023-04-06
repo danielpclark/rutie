@@ -31,6 +31,14 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
+    - name: Install RVM
+      run: |
+        if [[ "$RUNNER_OS" != "Windows" ]]; then
+          curl -sSL https://get.rvm.io | bash -s stable --ruby
+          source ~/.rvm/scripts/rvm
+          rvm --version
+        fi
+
     - name: Setup Ruby
       uses: ruby/setup-ruby@v1
       with:
