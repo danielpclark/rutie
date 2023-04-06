@@ -51,7 +51,7 @@ jobs:
       if: env.RUNNER_OS == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libssl-dev libreadline-dev zlib1g-dev
+        sudo apt-get install -y build-essential make libssl-dev libreadline-dev zlib1g-dev
 
     - name: Install RVM and Ruby
       if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false))
