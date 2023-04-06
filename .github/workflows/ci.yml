@@ -31,13 +31,18 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Install RVM
+    - name: Import RVM public keys
+      if: runner.os != 'Windows'
       run: |
-        if [[ "$RUNNER_OS" != "Windows" ]]; then
-          curl -sSL https://get.rvm.io | bash -s stable --ruby
-          source ~/.rvm/scripts/rvm
-          rvm --version
-        fi
+        curl -sSL https://rvm.io/mpapis.asc | gpg --import -
+        curl -sSL https://rvm.io/pkuczynski.asc | gpg --import -
+
+    - name: Install RVM
+      if: runner.os != 'Windows'
+      run: |
+        curl -sSL https://get.rvm.io | bash -s stable --ruby
+        source ~/.rvm/scripts/rvm
+        rvm --version
 
     - name: Setup Ruby
       uses: ruby/setup-ruby@v1
