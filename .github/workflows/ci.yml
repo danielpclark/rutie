@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust: [stable, beta]
+        ruby_version: ["2.5.9", "2.6.8", "2.7.4"]
+        ruby_static: [false, true]
+        exclude:
+          - os: windows-latest
+            ruby_static: true
+    runs-on: ${{ matrix.os }}
+    env:
+      RUST_BACKTRACE: full
+      CI_STDERR_LOG: true
+      BUILD_RUBY_VERSION: ${{ matrix.ruby_version }}
+      RUBY_STATIC: ${{ matrix.ruby_static }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby_version }}
+        bundler-cache: true
+
+    - name: Install dependencies
+      run: |
+        if [[ "$BUILD_RUBY_VERSION" == "2.4"* ]] && [[ "$RUNNER_OS" == "Linux" ]]; then
+          RVM_OPTS+=("--disable-binary")
+        fi
+
+        if [ ! -z "$RUBY_STATIC" ]; then
+          RVM_OPTS+=("--disable-shared")
+        fi
+
+        if [ ${#RVM_OPTS[@]} -eq 0 ]; then
+          RVM_CMD="rvm install $BUILD_RUBY_VERSION"
+        else
+          RVM_CMD="rvm install ${RVM_OPTS[@]} $BUILD_RUBY_VERSION"
+        fi
+
+        echo "Running: $RVM_CMD"
+        eval $RVM_CMD
+
+        source "$HOME/.rvm/scripts/rvm"
+        rvm use "$BUILD_RUBY_VERSION"
+
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ matrix.rust }}
+        override: true
+
+    - name: Build and Test
+      run: |
+        cargo build -vv &&
+        cargo test -vv
+
+    - name: After script
+      run: |
+        cat target/debug/build/rutie-*/output
+        cat target/debug/build/rutie-*/stderr
+
