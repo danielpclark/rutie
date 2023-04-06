@@ -99,6 +99,10 @@ jobs:
         cargo build -vv &&
         cargo test -vv
 
+    - name: Print RVM make log
+      if: failure() && runner.os != 'Windows'
+      run: cat /home/runner/.rvm/log/*_ruby-${{ matrix.ruby_version }}/make.log
+
     # - name: After script
     #   run: |
     #     cat target/debug/build/rutie-*/output
