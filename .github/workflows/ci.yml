@@ -28,7 +28,6 @@ jobs:
       RUST_BACKTRACE: full
       CI_STDERR_LOG: true
       BUILD_RUBY_VERSION: ${{ matrix.ruby_version }}
-      RUBY_STATIC: ${{ matrix.ruby_static }}
 
     continue-on-error: ${{ matrix.ruby_static }}
 
@@ -69,6 +68,10 @@ jobs:
     - name: Install RVM and Ruby
       if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false))
       run: |
+        if [ "${{ matrix.ruby_static }}" == "true" ]; then
+          echo "RUBY_STATIC=true" >> $GITHUB_ENV
+        fi
+
         curl -sSL https://get.rvm.io | bash -s stable
         source "$HOME/.rvm/scripts/rvm"
         rvm --version
