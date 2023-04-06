@@ -13,6 +13,7 @@ env:
 
 jobs:
   build:
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -23,7 +24,6 @@ jobs:
         exclude:
           - os: windows-latest
             ruby_static: true
-    runs-on: ${{ matrix.os }}
     env:
       RUST_BACKTRACE: full
       CI_STDERR_LOG: true
@@ -33,9 +33,13 @@ jobs:
     continue-on-error: ${{ matrix.ruby_static }}
 
     steps:
-    - name: Checkout
-      if: env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false)
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v2
+
+    - name: Set environment variables
+      run: |
+        echo "BUILD_RUBY_VERSION=${{ matrix.ruby_version }}" >> $GITHUB_ENV
+        echo "RUBY_STATIC=${{ matrix.ruby_static }}" >> $GITHUB_ENV
+        echo "RUNNER_OS=$(echo ${{ runner.os }})" >> $GITHUB_ENV
 
     - name: Import RVM public keys
       if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false))
@@ -43,23 +47,22 @@ jobs:
         curl -sSL https://rvm.io/mpapis.asc | gpg --import -
         curl -sSL https://rvm.io/pkuczynski.asc | gpg --import -
 
-    - name: Install RVM
+    - name: Install RVM dependencies (Ubuntu)
+      if: env.RUNNER_OS == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev libreadline-dev zlib1g-dev
+
+    - name: Install RVM and Ruby
       if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false))
       run: |
-        curl -sSL https://get.rvm.io | bash -s stable --ruby
-        source ~/.rvm/scripts/rvm
+				gpg --keyserver hkp://pool.sks-keyservers.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB
+        curl -sSL https://get.rvm.io | bash -s stable
+        source "$HOME/.RVm/scripts/rvm"
         rvm --version
 
-    - name: Setup Ruby
-      if: env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false)
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: ${{ matrix.ruby_version }}
-        bundler-cache: true
+        RVM_OPTS=()
 
-    - name: Install dependencies
-      if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.4' && matrix.rust == 'stable' && matrix.ruby_static == false))
-      run: |
         if [[ "$BUILD_RUBY_VERSION" == "2.4"* ]] && [[ "$RUNNER_OS" == "Linux" ]]; then
           RVM_OPTS+=("--disable-binary")
         fi
