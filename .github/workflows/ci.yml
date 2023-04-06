@@ -74,6 +74,7 @@ jobs:
         curl -sSL https://get.rvm.io | bash -s stable
         source "$HOME/.rvm/scripts/rvm"
         rvm --version
+        echo "$HOME/.rvm/bin" >> $GITHUB_PATH
 
         RVM_OPTS=()
 
