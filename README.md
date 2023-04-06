@@ -421,7 +421,7 @@ Class::from_existing("Pathname").new_instance(&arguments)
 
 Everything is tested against 64 bit operating systems with 64 bit Ruby & Rust builds.  32 bit isn't currently supported.  
 
-## Ruby 2 Notes
+### Ruby 2 Notes
 
 Ruby 2 is supported up through 0.8 of Rutie.  For usage with Ruby 2 you need to install libssl1.1 and point to it when you install.  For example:
 
