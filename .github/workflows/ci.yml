@@ -89,8 +89,10 @@ jobs:
         if [ ! -z "$RUBY_STATIC" ]; then
           RVM_OPTS+=("--disable-shared")
         fi
-
-        RVM_OPTS+=("--with-openssl-dir=/usr/local/openssl-1.1.1l")
+  
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          RVM_OPTS+=("--with-openssl-dir=/usr/local/openssl-1.1.1l")
+        fi
 
         if [ ${#RVM_OPTS[@]} -eq 0 ]; then
           RVM_CMD="rvm install $BUILD_RUBY_VERSION"
