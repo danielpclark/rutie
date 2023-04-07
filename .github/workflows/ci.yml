@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest] # os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest] # os: [ubuntu-latest, macos-latest, windows-latest]
         rust: [stable] #  rust: [stable, beta]
         ruby_version: ["2.7.4"] # ruby_version: ["2.5.9", "2.6.8", "2.7.4"]
         ruby_static: [false, true]
