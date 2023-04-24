@@ -23,6 +23,9 @@ extern "C" {
     // rb_hash_new(void)
     pub fn rb_hash_new() -> Value;
     // VALUE
+    // rb_hash_new_capa(long capa)
+    pub fn rb_hash_new_capa(capacity: c_long) -> Value;
+    // VALUE
     // rb_hash_size(VALUE hash)
     pub fn rb_hash_size(hash: Value) -> Value;
 }
