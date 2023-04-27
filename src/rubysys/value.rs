@@ -123,7 +123,7 @@ impl Value {
     }
 
     pub fn ty(&self) -> ValueType {
-        if self.is_immediate() {
+        if !self.is_nil() && self.is_immediate() {
             if self.is_fixnum() {
                 ValueType::Fixnum
             } else if self.is_flonum() {
