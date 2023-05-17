@@ -5,127 +5,68 @@ on:
     branches:
       - master
     paths-ignore:
-      - '**.md'
+      - "**.md"
   pull_request:
     branches:
       - master
     paths-ignore:
-      - '**.md'
+      - "**.md"
 
 env:
   TEST_ALL: false # Set this to true for testing the entire matrix
 
 jobs:
-  build:
+  ci:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        rust: [stable, beta]
-        ruby_version: ["2.5.9", "2.6.10", "2.7.8"]
-        ruby_static: [false, true]
-        exclude:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        ruby: ["2.7", "3.0", "3.1", "3.2"]
+        rust: ["stable"]
+        include:
           - os: windows-latest
-            ruby_static: true
+            ruby-version: mingw
+            rustup-toolchain: stable
     env:
       RUST_BACKTRACE: full
       CI_STDERR_LOG: true
       BUILD_RUBY_VERSION: ${{ matrix.ruby_version }}
-
-    continue-on-error: ${{ matrix.ruby_static }}
-
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set environment variables
-      run: |
-        echo "BUILD_RUBY_VERSION=${{ matrix.ruby_version }}" >> $GITHUB_ENV
-        echo "RUNNER_OS=$(echo ${{ runner.os }})" >> $GITHUB_ENV
+      - uses: oxidize-rb/actions/setup-ruby-and-rust@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          rustup-toolchain: ${{ matrix.rust }}
+          cache-version: v2
+          bundler-cache: true
+          cargo-cache: true
+          cargo-cache-extra-path: |
+            examples/rutie_ruby_example/tmp/
+            examples/rutie_ruby_gvl_example/tmp/
+            examples/rutie_rust_example/tmp/
 
-    - name: Import RVM public keys
-      if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
-      run: |
-        curl -sSL https://rvm.io/mpapis.asc | gpg --import -
-        curl -sSL https://rvm.io/pkuczynski.asc | gpg --import -
+      - name: Example tests (rutie_ruby_example)
+        working-directory: examples/rutie_ruby_example
+        run: bundle && bundle exec rake test
 
-    - name: Install RVM dependencies (Ubuntu)
-      if: env.RUNNER_OS == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gawk libgmp-dev dirmngr build-essential \
-        gnupg2 man curl direnv software-properties-common libpq-dev \
-        libncurses5-dev wget pkg-config ruby-dev tzdata locales cmake \
-        libgtk2.0-dev libatk1.0-dev libcairo2-dev libx11-dev \
-        libxpm-dev libxt-dev zlib1g-dev libxslt1-dev libcurl4-openssl-dev libffi-dev \
-        libreadline-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev
+      - name: Example tests (rutie_ruby_gvl_example)
+        if: matrix.os != 'windows-latest'
+        working-directory: examples/rutie_ruby_gvl_example
+        run: bundle && bundle exec rake test
 
-        wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-        tar xf openssl-1.1.1l.tar.gz
-        cd openssl-1.1.1l
-        ./config --prefix=/usr/local/openssl-1.1.1l --openssldir=/usr/local/openssl-1.1.1l
-        make
-        sudo make install
-        cd ..
+      - name: Example tests (rutie_rust_example)
+        working-directory: examples/rutie_rust_example
+        run: cargo test
 
-    - name: Install RVM and Ruby
-      if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
-      run: |
-        if [ "${{ matrix.ruby_static }}" == "true" ]; then
-          echo "RUBY_STATIC=true" >> $GITHUB_ENV
-        fi
+      - name: Run Rust (doc) tests
+        run: cargo test --doc
 
-        curl -sSL https://get.rvm.io | bash -s stable
-        source "$HOME/.rvm/scripts/rvm"
-        rvm --version
-        echo "$HOME/.rvm/bin" >> $GITHUB_PATH
+      # - name: Lint rust
+      #   run: cargo clippy && cargo fmt --check
 
-        RVM_OPTS=()
-
-        if [[ "$BUILD_RUBY_VERSION" == "2.4"* ]] && [[ "$RUNNER_OS" == "Linux" ]]; then
-          RVM_OPTS+=("--disable-binary")
-        fi
-
-        if [ ! -z "$RUBY_STATIC" ]; then
-          RVM_OPTS+=("--disable-shared")
-        fi
-  
-        if [[ "$RUNNER_OS" == "Linux" ]]; then
-          RVM_OPTS+=("--with-openssl-dir=/usr/local/openssl-1.1.1l")
-        fi
-
-        if [ ${#RVM_OPTS[@]} -eq 0 ]; then
-          RVM_CMD="rvm install $BUILD_RUBY_VERSION"
-        else
-          RVM_CMD="rvm install ${RVM_OPTS[@]} $BUILD_RUBY_VERSION"
-        fi
-
-        echo "Running: $RVM_CMD"
-        eval $RVM_CMD
-
-        source "$HOME/.rvm/scripts/rvm"
-        rvm use "$BUILD_RUBY_VERSION"
-
-    - name: Setup Rust
-      if: env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false)
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ matrix.rust }}
-
-    - name: Build and Test
-      if: env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false)
-      run: |
-        rvm reload
-        source "$HOME/.rvm/scripts/rvm"
-        rvm use $BUILD_RUBY_VERSION
-        cargo build -vv &&
-        cargo test -vv
-
-    - name: Print RVM make log
-      if: failure() && runner.os != 'Windows'
-      run: cat /home/runner/.rvm/log/*_ruby-${{ matrix.ruby_version }}/make.log
-
-    # - name: After script
-    #   run: |
-    #     cat target/debug/build/rutie-*/output
-    #     cat target/debug/build/rutie-*/stderr
+      - name: Run Ruby gem tests
+        run: |
+          git submodule update --init
+          cd gem && rake test
