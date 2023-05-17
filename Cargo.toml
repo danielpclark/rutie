@@ -22,13 +22,13 @@ no-link = [] # noop, for backwards compatibility.
 [dependencies]
 libc = "0.2.151"
 lazy_static = "1.4.0"
-rb-sys = { version = "0.9.65" }
+rb-sys = { version = "0.9.77" }
 
 [dev-dependencies]
 rutie = { path = ".", features = ["embed"] }
 
 [build-dependencies]
-rb-sys-env = "0.1.2"
+rb-sys-env = "0.1"
 
 [badges]
 travis-ci = { repository = "danielpclark/rutie", branch = "master" }
