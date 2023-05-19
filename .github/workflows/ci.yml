@@ -60,8 +60,8 @@ jobs:
         working-directory: examples/rutie_rust_example
         run: cargo test
 
-      - name: Run Rust (doc) tests
-        run: cargo test --doc
+      - name: Run Rust tests
+        run: cargo test
 
       # - name: Lint rust
       #   run: cargo clippy && cargo fmt --check
