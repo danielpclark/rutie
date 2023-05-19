@@ -311,12 +311,10 @@ impl PartialEq for Hash {
 #[cfg(test)]
 mod tests {
     use super::super::super::{Fixnum, Hash, Object, Symbol, LOCK_FOR_TEST, VM};
+    use rb_sys_test_helpers::ruby_test;
 
-    #[test]
+    #[ruby_test]
     fn test_hash_each() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
-
         let mut hash = Hash::new();
 
         let len: i64 = 200;

@@ -26,6 +26,8 @@ rb-sys = { version = "0.9.77" }
 
 [dev-dependencies]
 rutie = { path = ".", features = ["embed"] }
+rb-sys-env = { version = "0.1" }
+rb-sys-test-helpers = { version = "0.1" }
 
 [build-dependencies]
 rb-sys-env = "0.1"
