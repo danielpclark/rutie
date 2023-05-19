@@ -14,6 +14,9 @@ keywords = ["cruby", "ruby", "rutie"]
 license = "MIT"
 build = "build.rs"
 
+[lib]
+doctest = false
+
 [features]
 embed = ["rb-sys/link-ruby"]
 ruby-static = ["rb-sys/ruby-static"]
