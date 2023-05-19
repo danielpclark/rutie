@@ -3,7 +3,7 @@ use std::ptr;
 use crate::{
     binding::symbol::internal_id,
     rubysys::{thread, vm},
-    types::{c_int, c_void, CallbackPtr, Value, VmPointer},
+    types::{c_int, c_void, CallbackMutPtr, CallbackPtr, Value, VmPointer},
     util, AnyObject,
 };
 

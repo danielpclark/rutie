@@ -37,13 +37,11 @@ lazy_static! {
 #[cfg(test)]
 mod current_ruby {
     use super::{Object, RString, VM, *};
+    use rb_sys_test_helpers::ruby_test;
     use std::process::Command;
 
-    #[test]
+    #[ruby_test]
     fn is_linked_ruby() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
-
         let rv = RString::from(VM::eval("RUBY_VERSION").unwrap().value()).to_string();
         let output = Command::new("ruby")
             .arg("-e")

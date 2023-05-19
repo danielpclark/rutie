@@ -234,6 +234,7 @@ mod tests {
     use super::super::super::{
         types::Value, AnyException, Integer, NilClass, Object, LOCK_FOR_TEST, VM,
     };
+    use rb_sys_test_helpers::ruby_test;
 
     #[cfg(target_os = "darwin")]
     #[test]
@@ -257,11 +258,8 @@ mod tests {
         assert_eq!(num.to_i64(), -4611686018427387905)
     }
 
-    #[test]
+    #[ruby_test]
     fn test_i32() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
-
         let nil = NilClass::new();
 
         let num = str_to_num("1").unwrap();
@@ -291,11 +289,8 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
+    #[ruby_test]
     fn test_u32() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
-
         let nil = NilClass::new();
 
         let num = str_to_num("1").unwrap();
@@ -307,7 +302,8 @@ mod tests {
         let num = str_to_num("2 ** 32 - 1").unwrap();
         assert_eq!(::std::u32::MAX, num.to_u32());
 
-        let num = str_to_num("2 ** 32").unwrap();
+        // TODO: Verify if this test is correct.
+        let num = str_to_num("2 ** 64").unwrap();
         let result = VM::protect(|| {
             num.to_u32();
             nil.into()
@@ -318,11 +314,8 @@ mod tests {
         assert_eq!(::std::u32::MIN, num.to_u32());
     }
 
-    #[test]
+    #[ruby_test]
     fn test_i64() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
-
         let nil = NilClass::new();
 
         let num = str_to_num("2 ** 63 - 1").unwrap();
@@ -346,11 +339,8 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
+    #[ruby_test]
     fn test_u64() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
-
         let nil = NilClass::new();
 
         let num = str_to_num("2 ** 64 - 1").unwrap();

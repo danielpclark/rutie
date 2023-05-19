@@ -854,13 +854,11 @@ impl VM {
 #[cfg(test)]
 mod tests {
     use crate::{LOCK_FOR_TEST, VM};
+    use rb_sys_test_helpers::ruby_test;
 
     // cargo test at_exit -- --nocapture
-    #[test]
+    #[ruby_test]
     fn test_at_exit() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
-
         let closure = |_vm| {
             println!("test class::vm::tests::test_at_exit worked!");
         };
