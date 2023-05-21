@@ -55,9 +55,10 @@ extern "C" {
         callback: CallbackPtr,
         argc: Argc,
     );
-    // VALUE
+
+    // int
     // rb_eql(VALUE obj1, VALUE obj2)
-    pub fn rb_eql(obj1: Value, obj2: Value) -> Value;
+    pub fn rb_eql(obj1: Value, obj2: Value) -> c_int;
     // VALUE
     // rb_equal(VALUE obj1, VALUE obj2)
     pub fn rb_equal(obj1: Value, obj2: Value) -> Value;

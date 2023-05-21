@@ -2,6 +2,9 @@ use libc::c_int;
 use libc::c_void;
 use typed_data::RbDataType;
 
+use crate::util::bool_to_value;
+use crate::util::c_int_to_bool;
+use crate::Boolean;
 use crate::{
     binding::symbol,
     rubysys::{class, typed_data},
@@ -73,7 +76,7 @@ pub fn define_attribute(object: Value, name: &str, reader: bool, writer: bool) {
 pub fn respond_to(object: Value, method: &str) -> bool {
     let result = unsafe { class::rb_respond_to(object.into(), symbol::internal_id(method)) };
 
-    util::c_int_to_bool(result)
+    c_int_to_bool(result)
 }
 
 pub fn define_method<I: Object, O: Object>(klass: Value, name: &str, callback: Callback<I, O>) {
@@ -134,7 +137,14 @@ pub fn freeze(object: Value) -> Value {
 }
 
 pub fn is_eql(object1: Value, object2: Value) -> Value {
-    unsafe { class::rb_eql(object1.into(), object2.into()).into() }
+    let result = unsafe { class::rb_eql(object1.into(), object2.into()) };
+    // In 3.1 and earlier we get Qtrue/ Qfalse
+    if cfg!(ruby_lte_3_1) {
+        result.into()
+    } else {
+        // After 3.1 we get TRUE/true
+        bool_to_value(c_int_to_bool(result))
+    }
 }
 
 pub fn equals(object1: Value, object2: Value) -> Value {
