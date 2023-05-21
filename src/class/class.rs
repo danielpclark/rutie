@@ -13,15 +13,14 @@ use crate::{
 ///
 /// ```rust
 /// use std::error::Error;
-///
-/// use rutie::{Class, Fixnum, Object, Exception, VM, methods};
+/// use rutie::{Class, Integer, Object, Exception, VM, methods};
 ///
 /// methods!(
-///    Fixnum,
+///    Integer,
 ///    rtself,
 ///
-///     fn pow(exp: Fixnum) -> Fixnum {
-///         // `exp` is not a valid `Fixnum`, raise an exception
+///     fn pow(exp: Integer) -> Integer {
+///         // `exp` is not a valid `Integer`, raise an exception
 ///         if let Err(ref error) = exp {
 ///             VM::raise(error.class(), &error.message());
 ///         }
@@ -29,13 +28,13 @@ use crate::{
 ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
 ///         let exp = exp.unwrap().to_i64() as u32;
 ///
-///         Fixnum::new(rtself.to_i64().pow(exp))
+///         Integer::new(rtself.to_i64().pow(exp))
 ///     }
 /// );
 ///
 /// fn main() {
 ///     # VM::init();
-///     Class::from_existing("Fixnum").define(|klass| {
+///     Class::from_existing("Integer").define(|klass| {
 ///         klass.def("pow", pow);
 ///     });
 /// }
@@ -44,9 +43,9 @@ use crate::{
 /// Ruby:
 ///
 /// ```ruby
-/// class Fixnum
+/// class Integer
 ///   def pow(exp)
-///     raise TypeError unless exp.is_a?(Fixnum)
+///     raise TypeError unless exp.is_a?(Integer)
 ///
 ///     self ** exp
 ///   end
