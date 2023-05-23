@@ -58,7 +58,7 @@ pub fn find_encoding_index(name: &str) -> EncodingIndex {
 }
 
 pub fn encode(str: Value, to: Value, ecflags: c_int, ecopts: Value) -> Value {
-    unsafe { encoding::rb_str_encode(str.into(), to.into(), ecflags, ecopts.into()).into() }
+    unsafe { encoding::rb_str_encode(str, to, ecflags, ecopts).into() }
 }
 
 pub fn econv_prepare_opts(opthash: Value, opts: *mut Value) -> c_int {
