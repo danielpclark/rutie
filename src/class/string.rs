@@ -514,35 +514,68 @@ impl EncodingSupport for RString {
     /// Transcodes to encoding and returns `Self`.
     ///
     /// # Examples
-    ///
     /// ```
-    /// use rutie::{RString, VM, EncodingSupport, Encoding, Object};
-    /// # VM::init();
+    /// use rutie::{Encoding, EncodingSupport, Object, RString, VM};
     ///
-    /// let mut string = RString::new_utf8("Hello");
+    /// fn main() {
+    ///     # VM::init();
     ///
-    /// assert!(string.is_valid_encoding(), "not valid encoding!");
+    ///     let string = RString::new_utf8("Hello");
     ///
-    /// # VM::init_loadpath();
-    /// VM::require("enc/encdb");
-    /// VM::require("enc/trans/transdb");
+    ///     assert!(string.is_valid_encoding(), "valid encoding!");
     ///
-    /// let result = VM::eval("'Hello'.force_encoding('UTF-32')").unwrap().
-    ///   try_convert_to::<RString>().unwrap();
+    ///    # VM::init_loadpath();
+    ///     VM::require("enc/encdb");
+    ///     VM::require("enc/trans/transdb");
     ///
-    /// assert!(!result.is_valid_encoding(), "is valid encoding!");
+    ///     let result = VM::eval("'Hello'.force_encoding('UTF-32')")
+    ///         .unwrap()
+    ///         .try_convert_to::<RString>()
+    ///         .unwrap();
+    ///
+    ///     let ruby_version = &RString::from(VM::eval("RUBY_VERSION").unwrap().value()).to_string();
+    ///     let ruby_version_major: u8 = ruby_version[0..1].parse().unwrap();
+    ///     let ruby_version_minor: u8 = ruby_version[2..3].parse().unwrap();
+    ///
+    ///     // UTF-32 is valid in Ruby 3.2+
+    ///     match ruby_version_major {
+    ///         3 => {
+    ///             if ruby_version_minor >= 2 {
+    ///                 assert!(result.is_valid_encoding())
+    ///             } else {
+    ///                 assert!(!result.is_valid_encoding())
+    ///             }
+    ///         }
+    ///         2 => assert!(!result.is_valid_encoding()),
+    ///         _ => unreachable!("Unknown Ruby version"),
+    ///     };
+    /// }
+    ///
     /// ```
     ///
     /// Ruby:
     ///
     /// ```ruby
-    /// string = "Hello"
+    /// string = 'Hello'
     ///
-    /// string.valid_encoding? == true
+    /// !string.valid_encoding? == true
     ///
     /// result = string.encode(Encoding::UTF_32)
+    /// ruby_version = RUBY_VERSION.chars
+    /// ruby_major_version = RUBY_VERSION.chars[0].to_i
+    /// ruby_minor_version = RUBY_VERSION.chars[2].to_i
     ///
-    /// result.valid_encoding? == false
+    /// if ruby_version_major == 3
+    ///   if ruby_version_minor >= 2
+    ///     result.valid_encoding? == true
+    ///   else
+    ///     result.valid_encoding? == false
+    ///   end
+    /// elsif ruby_version_major == 2
+    ///   result.valid_encoding? == false
+    /// else
+    ///   raise 'Unknown Ruby version'
+    /// end
     /// ```
     fn is_valid_encoding(&self) -> bool {
         let result = unsafe { self.send("valid_encoding?", &[]) };

@@ -22,7 +22,7 @@ no-link = [] # noop, for backwards compatibility.
 [dependencies]
 libc = "0.2.151"
 lazy_static = "1.4.0"
-rb-sys = { version = "0.9.77" }
+rb-sys = { version = "0.9.77", features = ["ruby-macros"] }
 
 [dev-dependencies]
 rutie = { path = ".", features = ["embed"] }

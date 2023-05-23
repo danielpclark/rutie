@@ -22,9 +22,7 @@ pub fn new_from_bytes(bytes: &[u8], enc: Value) -> Value {
     let bts = bytes.as_ptr() as *const c_char;
     let len = bytes.len() as c_long;
 
-    unsafe {
-        string::rb_enc_str_new(bts, len, encoding::rb_to_encoding(enc.into()) as *mut _).into()
-    }
+    unsafe { string::rb_enc_str_new(bts, len, encoding::rb_to_encoding(enc) as *mut _).into() }
 }
 
 pub fn new_frozen(value: Value) -> Value {
@@ -63,9 +61,8 @@ pub fn value_to_str<'a>(value: Value) -> &'a str {
 
 pub fn value_to_bytes_unchecked<'a>(value: Value) -> &'a [u8] {
     unsafe {
-        let str = string::rb_string_value_ptr(&value as *const _) as *const u8;
+        let str = string::rb_string_value_ptr(&value) as *const u8;
         let len = string::rstring_len(value) as usize;
-
         ::std::slice::from_raw_parts(str, len)
     }
 }
