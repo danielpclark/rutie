@@ -30,11 +30,6 @@ pub use crate::helpers::codepoint_iterator::CodepointIterator;
 use std::sync::{Arc, RwLock};
 
 #[cfg(test)]
-lazy_static! {
-    pub static ref LOCK_FOR_TEST: RwLock<i32> = RwLock::new(0);
-}
-
-#[cfg(test)]
 mod current_ruby {
     use super::{Object, RString, VM, *};
     use rb_sys_test_helpers::ruby_test;

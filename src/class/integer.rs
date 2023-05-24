@@ -231,15 +231,12 @@ impl PartialEq for Integer {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::{
-        types::Value, AnyException, Integer, NilClass, Object, LOCK_FOR_TEST, VM,
-    };
+    use super::super::super::{types::Value, AnyException, Integer, NilClass, Object, VM};
     use rb_sys_test_helpers::ruby_test;
 
     #[cfg(target_os = "darwin")]
-    #[test]
+    #[ruby_test]
     fn test_github_issue_113_darwin_os() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
         VM::init();
 
         let num: Integer = Integer::new(std::i64::MIN);
