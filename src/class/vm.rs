@@ -853,7 +853,7 @@ impl VM {
 
 #[cfg(test)]
 mod tests {
-    use crate::{LOCK_FOR_TEST, VM};
+    use crate::VM;
     use rb_sys_test_helpers::ruby_test;
 
     // cargo test at_exit -- --nocapture
