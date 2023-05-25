@@ -141,27 +141,37 @@ impl Class {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use rutie::{Class, Fixnum, Object};
+    /// ```
+    /// use rutie::{Array, Boolean, Class, Integer, Object, class, VM};
+    ///
+    /// # VM::init();
     ///
     /// // Without arguments
-    /// Class::from_existing("Hello").new_instance(&[]);
+    /// let array_no_args = Class::from_existing("Array").new_instance(&[]);
     ///
     /// // With arguments passing arguments to constructor
     /// let arguments = [
-    ///     Fixnum::new(1).to_any_object(),
-    ///     Fixnum::new(2).to_any_object()
+    ///     Integer::new(2).to_any_object(),
+    ///     Boolean::new(true).to_any_object()
     /// ];
+    /// let array_with_args = Class::from_existing("Array").new_instance(&arguments);
     ///
-    /// Class::from_existing("Worker").new_instance(&arguments);
+    /// # let array_no_args = array_no_args.try_convert_to::<Array>();
+    /// # assert_eq!(array_no_args, Ok(Array::new()));
+    ///
+    /// # let mut array_with_args = array_with_args.try_convert_to::<Array>();
+    /// # let mut expected_array_with_args = Array::new();
+    /// # expected_array_with_args.push(Boolean::new(true));
+    /// # expected_array_with_args.push(Boolean::new(true));
+    /// # assert_eq!(array_with_args, Ok(expected_array_with_args));
+    ///
     /// ```
-    ///
     /// Ruby:
     ///
     /// ```ruby
-    /// Hello.new
+    /// array = Array.new
     ///
-    /// Worker.new(1, 2)
+    /// range = Array.new(3, true)
     /// ```
     pub fn new_instance(&self, arguments: &[AnyObject]) -> AnyObject {
         let arguments = util::arguments_to_values(arguments);
@@ -174,9 +184,10 @@ impl Class {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use rutie::{Class, Object};
+    /// ```
+    /// use rutie::{Class, Object, VM};
     ///
+    /// # VM::init();
     /// Class::from_existing("String").allocate();
     /// ```
     ///
