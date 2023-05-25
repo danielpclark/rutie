@@ -1,15 +1,12 @@
-use libc::c_int;
 use libc::c_void;
-use typed_data::RbDataType;
 
 use crate::util::bool_to_value;
 use crate::util::c_int_to_bool;
-use crate::Boolean;
 use crate::{
     binding::symbol,
     rubysys::{class, typed_data},
     typed_data::DataTypeWrapper,
-    types::{c_long, Callback, CallbackPtr, Value},
+    types::{Callback, Value},
     util, Object,
 };
 
@@ -128,6 +125,7 @@ pub fn get_data<T>(object: Value, wrapper: &dyn DataTypeWrapper<T>) -> &mut T {
     }
 }
 
+#[allow(dead_code)]
 pub fn is_frozen(object: Value) -> Value {
     unsafe { class::rb_obj_frozen_p(object.into()).into() }
 }

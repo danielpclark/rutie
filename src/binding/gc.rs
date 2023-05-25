@@ -1,8 +1,4 @@
-use crate::{
-    rubysys::gc,
-    types::{CallbackPtr, Value},
-    util,
-};
+use crate::{rubysys::gc, types::Value, util};
 
 pub fn adjust_memory_usage(diff: isize) {
     unsafe { gc::rb_gc_adjust_memory_usage(diff) };

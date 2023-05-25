@@ -3,7 +3,7 @@ use std::ptr;
 use crate::{
     binding::symbol::internal_id,
     rubysys::{thread, vm},
-    types::{c_int, c_void, CallbackMutPtr, CallbackPtr, Value, VmPointer},
+    types::{c_int, c_void, CallbackPtr, Value, VmPointer},
     util, AnyObject,
 };
 
@@ -107,6 +107,7 @@ pub fn set_errinfo(err: Value) {
     unsafe { vm::rb_set_errinfo(err.into()) }
 }
 
+#[allow(dead_code)]
 pub fn thread_call_without_gvl<F, R, G>(func: F, unblock_func: Option<G>) -> R
 where
     F: FnMut() -> R,
@@ -133,6 +134,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 pub fn thread_call_without_gvl2<F, R, G>(func: F, unblock_func: Option<G>) -> R
 where
     F: FnMut() -> R,
@@ -159,6 +161,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 pub fn thread_call_with_gvl<F, R>(func: F) -> R
 where
     F: FnMut() -> R,
@@ -210,7 +213,7 @@ pub fn abort(arguments: &[Value]) {
     unsafe { vm::rb_f_abort(argc, argv as *const _) };
 }
 
-use crate::{rubysys::types::Argc, util::callback_call::one_parameter as at_exit_callback};
+use crate::util::callback_call::one_parameter as at_exit_callback;
 
 pub fn at_exit<F>(func: F)
 where

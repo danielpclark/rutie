@@ -94,10 +94,12 @@ pub fn is_lockedtmp(str: Value) -> bool {
     unsafe { string::is_lockedtmp(str.into()) }
 }
 
+#[allow(dead_code)]
 pub fn locktmp(str: Value) -> Value {
     unsafe { string::rb_str_locktmp(str.into()).into() }
 }
 
+#[allow(dead_code)]
 pub fn unlocktmp(str: Value) -> Value {
     unsafe { string::rb_str_unlocktmp(str.into()).into() }
 }
