@@ -4,7 +4,7 @@ version = "0.9.0"
 authors = [
   "Steve Klabnik <steve@steveklabnik.com>",
   "Dmitry Gritsay <unseductable@gmail.com>",
-  "Daniel P. Clark <6ftdan@gmail.com>"
+  "Daniel P. Clark <6ftdan@gmail.com>",
 ]
 edition = "2021"
 description = "The tie between Ruby and Rust."
@@ -17,17 +17,17 @@ build = "build.rs"
 [features]
 embed = ["rb-sys/link-ruby"]
 ruby-static = ["rb-sys/ruby-static"]
-no-link = [] # noop, for backwards compatibility.
+no-link = []                         # noop, for backwards compatibility.
 
 [dependencies]
-libc = "0.2.151"
-lazy_static = "1.4.0"
+libc = "0.2.121"
 rb-sys = { version = "0.9.77", features = ["ruby-macros"] }
 
 [dev-dependencies]
 rutie = { path = ".", features = ["embed"] }
 rb-sys-env = { version = "0.1" }
 rb-sys-test-helpers = { version = "0.1" }
+lazy_static = "1.4.0"
 
 [build-dependencies]
 rb-sys-env = "0.1"

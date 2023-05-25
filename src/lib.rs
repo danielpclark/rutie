@@ -1,6 +1,3 @@
-#![allow(unused_imports, dead_code)]
-use lazy_static::lazy_static;
-
 mod binding;
 mod class;
 mod helpers;
@@ -27,11 +24,9 @@ pub use crate::class::traits::{
 
 pub use crate::helpers::codepoint_iterator::CodepointIterator;
 
-use std::sync::{Arc, RwLock};
-
 #[cfg(test)]
 mod current_ruby {
-    use super::{Object, RString, VM, *};
+    use super::{Object, RString, VM};
     use rb_sys_test_helpers::ruby_test;
     use std::process::Command;
 
