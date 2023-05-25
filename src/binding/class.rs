@@ -54,7 +54,7 @@ pub fn ancestors(klass: Value) -> Value {
 pub fn new_instance(klass: Value, arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);
 
-    unsafe { class::rb_class_new_instance(argc, argv as *const _, klass.into()).into() }
+    unsafe { class::rb_class_new_instance(argc, argv, klass).into() }
 }
 
 pub fn instance_variable_get(object: Value, name: &str) -> Value {

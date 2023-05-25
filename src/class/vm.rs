@@ -275,7 +275,7 @@ impl VM {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{Class, Object, Proc, RString, VM, class, methods};
     ///
     /// class!(Greeter);
@@ -293,6 +293,8 @@ impl VM {
     /// );
     ///
     /// fn main() {
+    ///     # VM::init();
+    ///
     ///     Class::new("Greeter", None).define(|klass| {
     ///         klass.def_self("greet_rust_with", greet_rust_with);
     ///     });
