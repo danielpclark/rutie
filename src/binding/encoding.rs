@@ -1,7 +1,6 @@
 use crate::{
-    rubysys::{encoding, string, vm},
-    types::{c_char, c_int, size_t, EncodingIndex, EncodingType, Value, ValueType},
-    util,
+    rubysys::encoding,
+    types::{c_char, c_int, EncodingIndex, Value, ValueType},
 };
 use std::ffi::CString;
 

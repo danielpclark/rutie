@@ -3,7 +3,7 @@ use std::mem;
 use crate::{
     binding::{class as binding_class, global::rb_cObject},
     rubysys::class,
-    types::{Callback, CallbackPtr, Value},
+    types::{Callback, Value},
     util, Object,
 };
 

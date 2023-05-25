@@ -2,7 +2,6 @@ use crate::{
     binding::{
         class::const_get,
         global::{rb_cObject, RubySpecialConsts},
-        vm,
     },
     rubysys::rproc::{rb_obj_is_method, rb_obj_is_proc},
     types::{c_char, c_int, c_void, Argc, InternalValue, Value},
@@ -11,7 +10,7 @@ use crate::{
 
 use std::{
     ffi::{CStr, CString},
-    ptr, slice,
+    slice,
 };
 
 pub unsafe fn cstr_to_string(str: *const c_char) -> String {
@@ -127,7 +126,7 @@ pub fn inmost_rb_object(klass: &str) -> Value {
 }
 
 pub mod callback_call {
-    use crate::types::{c_void, st_retval, CallbackMutPtr};
+    use crate::types::{st_retval, CallbackMutPtr};
 
     pub fn no_parameters<F: FnMut() -> R, R>(ptr: CallbackMutPtr) -> R {
         let f = ptr as *mut F;

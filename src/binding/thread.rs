@@ -2,7 +2,7 @@ use std::{mem::transmute, ptr};
 
 use crate::{
     rubysys::thread,
-    types::{c_void, CallbackMutPtr, CallbackPtr, Value},
+    types::{CallbackMutPtr, CallbackPtr, Value},
     util, Object,
 };
 
