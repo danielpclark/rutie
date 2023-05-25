@@ -61,7 +61,12 @@ jobs:
         run: cargo test
 
       - name: Run Rust tests
+        if: matrix.os != 'windows-latest'
         run: cargo test
+
+      - name: Run rust test windows
+        if: matrix.os == 'windows-latest'
+        run: cargo test --features=embed
 
       # - name: Lint rust
       #   run: cargo clippy && cargo fmt --check
