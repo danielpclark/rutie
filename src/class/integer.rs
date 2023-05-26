@@ -281,7 +281,7 @@ mod tests {
         let num = str_to_num("-1 * 2 ** 31 - 1").unwrap();
         let result = VM::protect(|| {
             num.to_i32();
-            nil.into()
+            nil.to_any_object()
         });
         assert!(result.is_err());
     }
@@ -321,7 +321,7 @@ mod tests {
         let num = str_to_num("2 ** 63").unwrap();
         let result = VM::protect(|| {
             num.to_i64();
-            nil.into()
+            nil.to_any_object()
         });
         assert!(result.is_err());
 
@@ -331,7 +331,7 @@ mod tests {
         let num = str_to_num("-1 * 2 ** 63 - 1").unwrap();
         let result = VM::protect(|| {
             num.to_i64();
-            nil.into()
+            nil.to_any_object()
         });
         assert!(result.is_err());
     }
