@@ -1,4 +1,4 @@
-use crate::{binding::gc, AnyObject, Object, Symbol};
+use crate::{binding::gc, Object, Symbol};
 
 /// Garbage collection
 pub struct GC;

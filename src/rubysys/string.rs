@@ -2,11 +2,9 @@ use std::mem;
 
 use super::{
     constant::FL_USER_7,
-    types::{c_char, c_long, CallbackPtr, EncodingType, InternalValue, RBasic, Value},
+    types::{c_char, c_long, EncodingType, InternalValue, Value},
 };
-use libc::size_t;
-use rb_sys::{RString, RSTRING_PTR};
-
+use rb_sys::RString;
 pub const STR_TMPLOCK: isize = FL_USER_7;
 
 extern "C" {

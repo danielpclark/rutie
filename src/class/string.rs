@@ -1,7 +1,7 @@
 use std::convert::From;
 
 use crate::{
-    binding::{class::is_frozen, encoding, string, vm},
+    binding::{encoding, string},
     types::{Value, ValueType},
     AnyException, AnyObject, Array, Boolean, CodepointIterator, Encoding, EncodingSupport,
     Exception, Hash, Integer, NilClass, Object, TryConvert, VerifiedObject,

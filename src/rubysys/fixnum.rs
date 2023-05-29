@@ -1,5 +1,4 @@
 use super::types::Value;
-use libc::{c_long, c_longlong, c_short, c_ulong, c_ulonglong, c_ushort, intptr_t, uintptr_t};
 
 extern "C" {
     // VALUE

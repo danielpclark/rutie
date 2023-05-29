@@ -1,9 +1,6 @@
 use std::convert::From;
 
-use crate::{
-    types::{Value, ValueType},
-    AnyException, AnyObject, Array, Class, Fixnum, Object, VerifiedObject,
-};
+use crate::{types::Value, AnyException, AnyObject, Array, Class, Object, VerifiedObject};
 
 /// `Enumerator`
 #[derive(Debug)]

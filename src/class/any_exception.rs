@@ -1,6 +1,5 @@
 use crate::{
-    types::{Value, ValueType},
-    AnyObject, Class, Exception, NilClass, Object, TryConvert, VerifiedObject,
+    types::Value, AnyObject, Class, Exception, NilClass, Object, TryConvert, VerifiedObject,
 };
 use std::{
     borrow::Borrow,

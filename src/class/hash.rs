@@ -310,7 +310,7 @@ impl PartialEq for Hash {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::{Fixnum, Hash, Object, Symbol, VM};
+    use super::super::super::{Fixnum, Hash, Object, Symbol};
     use rb_sys_test_helpers::ruby_test;
 
     #[ruby_test]

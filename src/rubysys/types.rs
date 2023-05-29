@@ -1,5 +1,5 @@
+use libc::intptr_t;
 pub use libc::{c_char, c_double, c_int, c_long, c_void, size_t, ssize_t};
-use libc::{intptr_t, uintptr_t};
 
 pub use super::{
     typed_data::{RbDataType, RbDataTypeFunction},

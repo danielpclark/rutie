@@ -1,7 +1,7 @@
 use crate::{
     binding::{encoding, string},
     rubysys::string::{rstring_end, rstring_ptr},
-    types::{c_char, c_int, InternalValue},
+    types::{c_char, c_int},
     EncodingSupport, Object, RString,
 };
 
