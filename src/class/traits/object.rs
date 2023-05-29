@@ -7,7 +7,7 @@ use crate::{
     util,
 };
 
-use crate::{AnyException, AnyObject, Boolean, Class, Exception, NilClass, VerifiedObject, VM};
+use crate::{AnyException, AnyObject, Class, Exception, NilClass, VerifiedObject, VM};
 
 /// `Object`
 ///

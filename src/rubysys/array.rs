@@ -1,10 +1,4 @@
-use super::{
-    constant::{FL_USER_1, FL_USER_3, FL_USER_4, FL_USHIFT},
-    types::{c_long, InternalValue, RBasic, Value},
-};
-
-use libc::size_t;
-use std::mem;
+use super::types::{c_long, Value};
 
 extern "C" {
     // VALUE

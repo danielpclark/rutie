@@ -231,7 +231,7 @@ impl PartialEq for Integer {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::{types::Value, AnyException, Integer, NilClass, Object, VM};
+    use super::super::super::{AnyException, Integer, NilClass, Object, VM};
     use rb_sys_test_helpers::ruby_test;
 
     #[cfg(target_os = "darwin")]

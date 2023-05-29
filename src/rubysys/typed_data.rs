@@ -1,4 +1,4 @@
-use super::types::{c_char, c_int, c_void, size_t, Value};
+use super::types::{c_char, c_int, c_void, Value};
 
 extern "C" {
     // void *

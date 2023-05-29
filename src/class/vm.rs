@@ -1,8 +1,4 @@
-use crate::{
-    binding::vm,
-    types::{Argc, Value, VmPointer},
-};
-
+use crate::{binding::vm, types::VmPointer};
 use crate::{util, AnyException, AnyObject, Array, Class, NilClass, Object, Proc, TryConvert};
 
 /// Virtual Machine and helpers

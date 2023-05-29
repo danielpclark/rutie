@@ -1,10 +1,6 @@
 use std::convert::From;
 
-use crate::{
-    binding::rproc,
-    types::{Value, ValueType},
-    AnyObject, Class, Object, VerifiedObject,
-};
+use crate::{binding::rproc, types::Value, AnyObject, Class, Object, VerifiedObject};
 
 /// `Integer`
 #[derive(Debug)]

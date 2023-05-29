@@ -3,7 +3,7 @@ use std::convert::From;
 use crate::{
     binding::float,
     types::{Value, ValueType},
-    AnyException, AnyObject, Object, VerifiedObject, VM,
+    AnyException, AnyObject, Object, VerifiedObject,
 };
 
 /// `Float`

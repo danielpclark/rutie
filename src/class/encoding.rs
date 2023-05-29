@@ -1,6 +1,6 @@
 use crate::{
     binding::encoding,
-    types::{EncodingIndex, Value, ValueType},
+    types::{Value, ValueType},
     AnyException, AnyObject, Class, Exception, NilClass, Object, RString, VerifiedObject,
 };
 
