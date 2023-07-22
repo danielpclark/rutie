@@ -5,27 +5,27 @@ pub fn adjust_memory_usage(diff: isize) {
 }
 
 pub fn count() -> usize {
-    unsafe { gc::rb_gc_count() as usize }
+    unsafe { gc::rb_gc_count() }
 }
 
 pub fn disable() -> Value {
-    unsafe { gc::rb_gc_disable().into() }
+    unsafe { gc::rb_gc_disable() }
 }
 
 pub fn enable() -> Value {
-    unsafe { gc::rb_gc_enable().into() }
+    unsafe { gc::rb_gc_enable() }
 }
 
 pub fn force_recycle(obj: Value) {
-    unsafe { gc::rb_gc_force_recycle(obj.into()) }
+    unsafe { gc::rb_gc_force_recycle(obj) }
 }
 
 pub fn mark(value: Value) {
-    unsafe { gc::rb_gc_mark(value.into()) };
+    unsafe { gc::rb_gc_mark(value) };
 }
 
 pub fn mark_maybe(value: Value) {
-    unsafe { gc::rb_gc_mark_maybe(value.into()) };
+    unsafe { gc::rb_gc_mark_maybe(value) };
 }
 
 pub fn register(obj: Value) {
@@ -35,7 +35,7 @@ pub fn register(obj: Value) {
 }
 
 pub fn register_mark(obj: Value) {
-    unsafe { gc::rb_gc_register_mark_object(obj.into()) }
+    unsafe { gc::rb_gc_register_mark_object(obj) }
 }
 
 pub fn start() {
@@ -43,7 +43,7 @@ pub fn start() {
 }
 
 pub fn stat(key: Value) -> usize {
-    unsafe { gc::rb_gc_stat(key.into()) as usize }
+    unsafe { gc::rb_gc_stat(key) }
 }
 
 pub fn unregister(obj: Value) {

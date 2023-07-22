@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub fn block_proc() -> Value {
-    unsafe { vm::rb_block_proc().into() }
+    unsafe { vm::rb_block_proc() }
 }
 
 pub fn is_block_given() -> bool {
@@ -18,11 +18,11 @@ pub fn is_block_given() -> bool {
 }
 
 pub fn yield_object(value: Value) -> Value {
-    unsafe { vm::rb_yield(value.into()).into() }
+    unsafe { vm::rb_yield(value) }
 }
 
 pub fn yield_splat(values: Value) -> Value {
-    unsafe { vm::rb_yield_splat(values.into()).into() }
+    unsafe { vm::rb_yield_splat(values) }
 }
 
 pub fn init() {
@@ -50,7 +50,7 @@ pub fn call_method(receiver: Value, method: &str, arguments: &[Value]) -> Value 
     let method_id = internal_id(method);
 
     // TODO: Update the signature of `rb_funcallv` in ruby-sys to receive an `Option`
-    unsafe { vm::rb_funcallv(receiver.into(), method_id, argc, argv as *const _).into() }
+    unsafe { vm::rb_funcallv(receiver, method_id, argc, argv as *const _) }
 }
 
 pub fn call_public_method(receiver: Value, method: &str, arguments: &[Value]) -> Value {
@@ -58,20 +58,20 @@ pub fn call_public_method(receiver: Value, method: &str, arguments: &[Value]) ->
     let method_id = internal_id(method);
 
     // TODO: Update the signature of `rb_funcallv_public` in ruby-sys to receive an `Option`
-    unsafe { vm::rb_funcallv_public(receiver.into(), method_id, argc, argv as *const _).into() }
+    unsafe { vm::rb_funcallv_public(receiver, method_id, argc, argv as *const _) }
 }
 
 pub fn call_super(arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);
 
-    unsafe { vm::rb_call_super(argc, argv as *const _).into() }
+    unsafe { vm::rb_call_super(argc, argv as *const _) }
 }
 
 // "evaluation can raise an exception."
 pub fn eval_string(string: &str) -> Value {
     let s = util::str_to_cstring(string);
 
-    unsafe { vm::rb_eval_string(s.as_ptr()).into() }
+    unsafe { vm::rb_eval_string(s.as_ptr()) }
 }
 
 pub fn eval_string_protect(string: &str) -> Result<Value, c_int> {
@@ -79,7 +79,7 @@ pub fn eval_string_protect(string: &str) -> Result<Value, c_int> {
     let mut state = 0;
     let value = unsafe { vm::rb_eval_string_protect(s.as_ptr(), &mut state as *mut c_int) };
     if state == 0 {
-        Ok(value.into())
+        Ok(value)
     } else {
         Err(state)
     }
@@ -89,22 +89,22 @@ pub fn raise(exception: Value, message: &str) {
     let message = util::str_to_cstring(message);
 
     unsafe {
-        vm::rb_raise(exception.into(), message.as_ptr());
+        vm::rb_raise(exception, message.as_ptr());
     }
 }
 
 pub fn raise_ex(exception: Value) {
     unsafe {
-        vm::rb_exc_raise(exception.into());
+        vm::rb_exc_raise(exception);
     }
 }
 
 pub fn errinfo() -> Value {
-    unsafe { vm::rb_errinfo().into() }
+    unsafe { vm::rb_errinfo() }
 }
 
 pub fn set_errinfo(err: Value) {
-    unsafe { vm::rb_set_errinfo(err.into()) }
+    unsafe { vm::rb_set_errinfo(err) }
 }
 
 #[allow(dead_code)]
@@ -217,7 +217,7 @@ use crate::util::callback_call::one_parameter as at_exit_callback;
 
 pub fn at_exit<F>(func: F)
 where
-    F: FnMut(VmPointer) -> (),
+    F: FnMut(VmPointer),
 {
     let mut state = 0;
     unsafe {
