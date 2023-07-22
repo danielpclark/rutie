@@ -23,7 +23,6 @@ where
             transmute(thread_create_callbox::<R> as CallbackMutPtr),
             closure_ptr,
         )
-        .into()
     }
 }
 

@@ -10,15 +10,14 @@ pub fn call(rproc: Value, arguments: &[Value]) -> Value {
 
     unsafe {
         rproc::rb_proc_call_with_block(
-            rproc.into(),
+            rproc,
             argc,
             argv as *const _,
-            Value::from(RubySpecialConsts::Nil as InternalValue).into(),
+            Value::from(RubySpecialConsts::Nil as InternalValue),
         )
-        .into()
     }
 }
 
 pub fn binding_new() -> Value {
-    unsafe { rproc::rb_binding_new().into() }
+    unsafe { rproc::rb_binding_new() }
 }

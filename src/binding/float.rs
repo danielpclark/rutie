@@ -1,16 +1,16 @@
 use crate::{rubysys::float, types::Value, AnyException, AnyObject, Float, Object, VM};
 
 pub fn float_to_num(num: f64) -> Value {
-    unsafe { float::rb_float_new(num).into() }
+    unsafe { float::rb_float_new(num) }
 }
 
 pub fn num_to_float(num: Value) -> f64 {
-    unsafe { float::rb_num2dbl(num.into()) as f64 }
+    unsafe { float::rb_num2dbl(num) }
 }
 
 pub fn implicit_to_f(num: Value) -> Result<Float, AnyException> {
     let closure = || unsafe {
-        let value: Value = float::rb_to_float(num.into()).into();
+        let value: Value = float::rb_to_float(num);
         AnyObject::from(value)
     };
 
