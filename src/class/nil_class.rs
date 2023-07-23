@@ -47,15 +47,15 @@ impl From<Value> for NilClass {
     }
 }
 
-impl Into<Value> for NilClass {
-    fn into(self) -> Value {
-        self.value
+impl From<NilClass> for Value {
+    fn from(val: NilClass) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for NilClass {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<NilClass> for AnyObject {
+    fn from(val: NilClass) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

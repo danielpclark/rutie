@@ -68,15 +68,15 @@ impl From<InternalValue> for Boolean {
     }
 }
 
-impl Into<Value> for Boolean {
-    fn into(self) -> Value {
-        self.value
+impl From<Boolean> for Value {
+    fn from(val: Boolean) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Boolean {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Boolean> for AnyObject {
+    fn from(val: Boolean) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

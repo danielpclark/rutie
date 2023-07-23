@@ -747,7 +747,7 @@ impl VM {
     /// ```
     pub fn at_exit<F>(func: F)
     where
-        F: FnMut(VmPointer) -> (),
+        F: FnMut(VmPointer),
     {
         vm::at_exit(func)
     }

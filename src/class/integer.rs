@@ -139,9 +139,9 @@ impl From<i64> for Integer {
     }
 }
 
-impl Into<i64> for Integer {
-    fn into(self) -> i64 {
-        fixnum::num_to_i64(self.value())
+impl From<Integer> for i64 {
+    fn from(val: Integer) -> Self {
+        fixnum::num_to_i64(val.value())
     }
 }
 
@@ -153,9 +153,9 @@ impl From<u64> for Integer {
     }
 }
 
-impl Into<u64> for Integer {
-    fn into(self) -> u64 {
-        fixnum::num_to_u64(self.value())
+impl From<Integer> for u64 {
+    fn from(val: Integer) -> Self {
+        fixnum::num_to_u64(val.value())
     }
 }
 
@@ -167,9 +167,9 @@ impl From<i32> for Integer {
     }
 }
 
-impl Into<i32> for Integer {
-    fn into(self) -> i32 {
-        fixnum::num_to_i32(self.value())
+impl From<Integer> for i32 {
+    fn from(val: Integer) -> Self {
+        fixnum::num_to_i32(val.value())
     }
 }
 
@@ -181,9 +181,9 @@ impl From<u32> for Integer {
     }
 }
 
-impl Into<u32> for Integer {
-    fn into(self) -> u32 {
-        fixnum::num_to_u32(self.value())
+impl From<Integer> for u32 {
+    fn from(val: Integer) -> Self {
+        fixnum::num_to_u32(val.value())
     }
 }
 
@@ -193,15 +193,15 @@ impl From<Fixnum> for Integer {
     }
 }
 
-impl Into<Value> for Integer {
-    fn into(self) -> Value {
-        self.value
+impl From<Integer> for Value {
+    fn from(val: Integer) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Integer {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Integer> for AnyObject {
+    fn from(val: Integer) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

@@ -541,15 +541,15 @@ impl From<Value> for Array {
     }
 }
 
-impl Into<Value> for Array {
-    fn into(self) -> Value {
-        self.value
+impl From<Array> for Value {
+    fn from(val: Array) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Array {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Array> for AnyObject {
+    fn from(val: Array) -> Self {
+        AnyObject::from(val.value)
     }
 }
 
@@ -606,14 +606,14 @@ impl Iterator for ArrayIterator {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let total = self.len() as usize;
+        let total = self.len();
         (total, Some(total))
     }
 }
 
 impl ExactSizeIterator for ArrayIterator {
     fn len(&self) -> usize {
-        self.array.length() as usize
+        self.array.length()
     }
 }
 

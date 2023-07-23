@@ -210,15 +210,15 @@ impl From<Value> for Enumerator {
     }
 }
 
-impl Into<Value> for Enumerator {
-    fn into(self) -> Value {
-        self.value
+impl From<Enumerator> for Value {
+    fn from(val: Enumerator) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Enumerator {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Enumerator> for AnyObject {
+    fn from(val: Enumerator) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

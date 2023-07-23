@@ -143,15 +143,15 @@ impl From<Value> for Thread {
     }
 }
 
-impl Into<Value> for Thread {
-    fn into(self) -> Value {
-        self.value
+impl From<Thread> for Value {
+    fn from(val: Thread) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Thread {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Thread> for AnyObject {
+    fn from(val: Thread) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

@@ -740,15 +740,15 @@ impl From<Value> for Module {
     }
 }
 
-impl Into<Value> for Module {
-    fn into(self) -> Value {
-        self.value
+impl From<Module> for Value {
+    fn from(val: Module) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Module {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Module> for AnyObject {
+    fn from(val: Module) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

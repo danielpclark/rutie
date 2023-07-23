@@ -70,9 +70,9 @@ impl From<InternalValue> for AnyObject {
     }
 }
 
-impl Into<Value> for AnyObject {
-    fn into(self) -> Value {
-        self.value
+impl From<AnyObject> for Value {
+    fn from(val: AnyObject) -> Self {
+        val.value
     }
 }
 

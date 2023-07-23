@@ -81,7 +81,7 @@ pub fn define_method<I: Object, O: Object>(klass: Value, name: &str, callback: C
 
     unsafe {
         let callback = callback as *const libc::c_void;
-        class::rb_define_method(klass.into(), name.as_ptr(), callback, -1)
+        class::rb_define_method(klass, name.as_ptr(), callback, -1)
     }
 }
 
@@ -146,5 +146,5 @@ pub fn is_eql(object1: Value, object2: Value) -> Value {
 }
 
 pub fn equals(object1: Value, object2: Value) -> Value {
-    unsafe { class::rb_equal(object1.into(), object2.into()).into() }
+    unsafe { class::rb_equal(object1, object2) }
 }

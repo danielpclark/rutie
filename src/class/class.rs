@@ -32,12 +32,10 @@ use crate::{
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Class::from_existing("Integer").define(|klass| {
-///         klass.def("pow", pow);
-///     });
-/// }
+/// # VM::init();
+///   Class::from_existing("Integer").define(|klass| {
+///       klass.def("pow", pow);
+/// });
 /// ```
 ///
 /// Ruby:
@@ -675,17 +673,15 @@ impl Class {
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     # VM::init();
-    ///     let data_class = Class::from_existing("Object");
+    /// # VM::init();
+    /// let data_class = Class::from_existing("Object");
     ///
-    ///     Class::new("RubyServer", Some(&data_class)).define(|klass| {
-    ///         klass.def_self("new", ruby_server_new);
+    /// Class::new("RubyServer", Some(&data_class)).define(|klass| {
+    ///     klass.def_self("new", ruby_server_new);
     ///
-    ///         klass.def("host", ruby_server_host);
-    ///         klass.def("port", ruby_server_port);
-    ///     });
-    /// }
+    ///     klass.def("host", ruby_server_host);
+    ///     klass.def("port", ruby_server_port);
+    /// });
     /// ```
     ///
     /// To use the `RubyServer` class in Ruby:
@@ -716,15 +712,15 @@ impl From<Value> for Class {
     }
 }
 
-impl Into<Value> for Class {
-    fn into(self) -> Value {
-        self.value
+impl From<Class> for Value {
+    fn from(val: Class) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Class {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Class> for AnyObject {
+    fn from(val: Class) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

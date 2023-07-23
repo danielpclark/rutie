@@ -302,7 +302,6 @@ impl RString {
     /// ```
     pub fn codepoints(&self) -> Array {
         CodepointIterator::new(self)
-            .into_iter()
             .map(|n| Integer::new(n as i64).to_any_object())
             .collect()
     }
@@ -658,15 +657,15 @@ impl From<&'static str> for RString {
     }
 }
 
-impl Into<Value> for RString {
-    fn into(self) -> Value {
-        self.value
+impl From<RString> for Value {
+    fn from(val: RString) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for RString {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<RString> for AnyObject {
+    fn from(val: RString) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

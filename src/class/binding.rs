@@ -32,21 +32,27 @@ impl Binding {
     }
 }
 
+impl Default for Binding {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl From<Value> for Binding {
     fn from(value: Value) -> Self {
         Binding { value }
     }
 }
 
-impl Into<Value> for Binding {
-    fn into(self) -> Value {
-        self.value
+impl From<Binding> for Value {
+    fn from(val: Binding) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Binding {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Binding> for AnyObject {
+    fn from(val: Binding) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

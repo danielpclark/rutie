@@ -122,15 +122,15 @@ impl From<Value> for Symbol {
     }
 }
 
-impl Into<Value> for Symbol {
-    fn into(self) -> Value {
-        self.value
+impl From<Symbol> for Value {
+    fn from(val: Symbol) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Symbol {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Symbol> for AnyObject {
+    fn from(val: Symbol) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

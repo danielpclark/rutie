@@ -88,15 +88,15 @@ impl From<Value> for Float {
     }
 }
 
-impl Into<Value> for Float {
-    fn into(self) -> Value {
-        self.value
+impl From<Float> for Value {
+    fn from(val: Float) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Float {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Float> for AnyObject {
+    fn from(val: Float) -> Self {
+        AnyObject::from(val.value)
     }
 }
 
