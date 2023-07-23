@@ -886,7 +886,7 @@ pub trait Object: From<Value> {
         method: &str,
         arguments: &[AnyObject],
     ) -> Result<AnyObject, AnyException> {
-        let closure = || unsafe { self.send(&method, arguments.as_ref()) };
+        let closure = || unsafe { self.send(method, arguments.as_ref()) };
 
         let result = VM::protect(closure);
 
@@ -945,7 +945,7 @@ pub trait Object: From<Value> {
         let v = self.value();
         let arguments = util::arguments_to_values(arguments);
 
-        let closure = || vm::call_public_method(v, &method, &arguments).into();
+        let closure = || vm::call_public_method(v, method, &arguments).into();
 
         let result = VM::protect(closure);
 

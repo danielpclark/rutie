@@ -152,14 +152,14 @@ impl Value {
 
     fn is_obj_frozen_raw(&self) -> bool {
         unsafe {
-            let basic: *const RBasic = mem::transmute(self.value);
+            let basic: *const RBasic = self.value as *const _;
             (*basic).flags & (constant::FL_FREEZE as InternalValue) != 0
         }
     }
 
     fn builtin_type(&self) -> ValueType {
         unsafe {
-            let basic: *const RBasic = mem::transmute(self.value);
+            let basic: *const RBasic = self.value as *const _;
             let masked = (*basic).flags & (ValueType::Mask as InternalValue);
             mem::transmute(masked as u32)
         }

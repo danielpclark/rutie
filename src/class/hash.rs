@@ -273,15 +273,15 @@ impl From<Value> for Hash {
     }
 }
 
-impl Into<Value> for Hash {
-    fn into(self) -> Value {
-        self.value
+impl From<Hash> for Value {
+    fn from(val: Hash) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Hash {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Hash> for AnyObject {
+    fn from(val: Hash) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

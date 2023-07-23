@@ -29,13 +29,11 @@
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Class::new("Greeter", None).define(|klass| {
-///         klass.def("anonymous_greeting", anonymous_greeting);
-///         klass.def("friendly_greeting", friendly_greeting);
-///     });
-/// }
+/// # VM::init();
+/// Class::new("Greeter", None).define(|klass| {
+///     klass.def("anonymous_greeting", anonymous_greeting);
+///     klass.def("friendly_greeting", friendly_greeting);
+/// });
 /// ```
 ///
 /// Ruby:

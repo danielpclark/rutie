@@ -53,10 +53,10 @@ pub fn process_arguments(arguments: &[Value]) -> (Argc, *const Value) {
     (arguments.len() as Argc, arguments.as_ptr())
 }
 
-pub fn option_to_slice<'a, T>(option: &'a Option<T>) -> &'a [T] {
+pub fn option_to_slice<T>(option: &Option<T>) -> &[T] {
     match option {
-        &Some(ref v) => unsafe { slice::from_raw_parts(v, 1) },
-        &None => &[],
+        Some(v) => unsafe { slice::from_raw_parts(v, 1) },
+        None => &[],
     }
 }
 

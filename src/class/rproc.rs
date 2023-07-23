@@ -87,19 +87,19 @@ impl Proc {
 
 impl From<Value> for Proc {
     fn from(value: Value) -> Self {
-        Proc { value: value }
+        Proc { value }
     }
 }
 
-impl Into<Value> for Proc {
-    fn into(self) -> Value {
-        self.value
+impl From<Proc> for Value {
+    fn from(val: Proc) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Proc {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Proc> for AnyObject {
+    fn from(val: Proc) -> Self {
+        AnyObject::from(val.value)
     }
 }
 
