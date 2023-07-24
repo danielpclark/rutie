@@ -21,12 +21,14 @@ no-link = []                         # noop, for backwards compatibility.
 
 [dependencies]
 libc = "0.2.121"
-rb-sys = { version = "0.9.77", features = ["ruby-macros"] }
+rb-sys = { git = "https://github.com/oxidize-rb/rb-sys.git", features = [
+  "stable-api",
+] }
 
 [dev-dependencies]
 rutie = { path = ".", features = ["embed"] }
 rb-sys-env = { version = "0.1" }
-rb-sys-test-helpers = { version = "0.1" }
+rb-sys-test-helpers = { git = "https://github.com/oxidize-rb/rb-sys.git" }
 lazy_static = "1.4.0"
 
 [build-dependencies]
