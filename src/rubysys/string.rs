@@ -4,7 +4,7 @@ use super::{
     constant::FL_USER_7,
     types::{c_char, c_long, EncodingType, InternalValue, Value},
 };
-use rb_sys::RString;
+use rb_sys::{RString, VALUE};
 pub const STR_TMPLOCK: isize = FL_USER_7;
 
 extern "C" {
@@ -78,11 +78,11 @@ unsafe fn rstring_and_flags(value: Value) -> (*const RString, InternalValue) {
 }
 
 pub unsafe fn rstring_len(value: Value) -> c_long {
-    rb_sys::RSTRING_LEN(value.into())
+    rb_sys::RSTRING_LEN::<VALUE>(value.into())
 }
 
 pub unsafe fn rstring_ptr(value: Value) -> *const c_char {
-    rb_sys::RSTRING_PTR(value.into())
+    rb_sys::RSTRING_PTR::<VALUE>(value.into())
 }
 
 pub unsafe fn rstring_end(value: Value) -> *const c_char {
