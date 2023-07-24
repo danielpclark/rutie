@@ -76,11 +76,11 @@ pub fn value_to_str_unchecked<'a>(value: Value) -> &'a str {
 }
 
 pub fn bytesize(value: Value) -> i64 {
-    unsafe { string::rstring_len(value) }
+    unsafe { string::rstring_len(value).into() }
 }
 
 pub fn count_chars(value: Value) -> i64 {
-    unsafe { string::rb_str_strlen(value) }
+    unsafe { string::rb_str_strlen(value).into() }
 }
 
 pub fn concat(value: Value, bytes: &[u8]) -> Value {
