@@ -27,6 +27,13 @@ pub fn yield_splat(values: Value) -> Value {
 
 pub fn init() {
     unsafe {
+        #[cfg(windows)]
+        {
+            let mut argc = 0;
+            let mut argv: [*mut std::os::raw::c_char; 0] = [];
+            let mut argv = argv.as_mut_ptr();
+            rb_sys::rb_w32_sysinit(&mut argc, &mut argv);
+        }
         vm::ruby_init();
     }
 }
