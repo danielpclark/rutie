@@ -22,7 +22,7 @@ no-link = []                         # noop, for backwards compatibility.
 [dependencies]
 libc = "0.2.121"
 rb-sys = { git = "https://github.com/oxidize-rb/rb-sys.git", features = [
-  "stable-api",
+  "stable-api-compiled-fallback",
 ] }
 
 [dev-dependencies]
