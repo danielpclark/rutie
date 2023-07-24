@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
-        ruby: ["2.7", "3.0", "3.1", "3.2"]
+        ruby: ["2.7", "3.0", "3.1", "3.2", "head"]
         rust: ["stable"]
         include:
           - os: windows-latest
