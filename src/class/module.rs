@@ -34,12 +34,10 @@ use crate::{
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Module::new("Example").define(|klass| {
-///         klass.def("square", square);
-///     });
-/// }
+/// # VM::init();
+/// Module::new("Example").define(|klass| {
+///     klass.def("square", square);
+/// });
 /// ```
 ///
 /// Ruby:
@@ -381,13 +379,11 @@ impl Module {
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     # VM::init();
-    ///     Module::from_existing("Integer").define(|klass| {
-    ///         klass.mod_func("pow", pow);
-    ///         klass.mod_func("pow_with_default_argument", pow_with_default_argument);
-    ///     });
-    /// }
+    /// # VM::init();
+    /// Module::from_existing("Integer").define(|klass| {
+    ///     klass.mod_func("pow", pow);
+    ///     klass.mod_func("pow_with_default_argument", pow_with_default_argument);
+    /// });
     /// ```
     ///
     /// Ruby:

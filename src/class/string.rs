@@ -516,39 +516,37 @@ impl EncodingSupport for RString {
     /// ```
     /// use rutie::{Encoding, EncodingSupport, Object, RString, VM};
     ///
-    /// fn main() {
-    ///     # VM::init();
+    /// # VM::init();
     ///
-    ///     let string = RString::new_utf8("Hello");
+    /// let string = RString::new_utf8("Hello");
     ///
-    ///     assert!(string.is_valid_encoding(), "valid encoding!");
+    /// assert!(string.is_valid_encoding(), "valid encoding!");
     ///
-    ///    # VM::init_loadpath();
-    ///     VM::require("enc/encdb");
-    ///     VM::require("enc/trans/transdb");
+    /// # VM::init_loadpath();
+    /// VM::require("enc/encdb");
+    /// VM::require("enc/trans/transdb");
     ///
-    ///     let result = VM::eval("'Hello'.force_encoding('UTF-32')")
-    ///         .unwrap()
-    ///         .try_convert_to::<RString>()
-    ///         .unwrap();
+    /// let result = VM::eval("'Hello'.force_encoding('UTF-32')")
+    ///     .unwrap()
+    ///     .try_convert_to::<RString>()
+    ///     .unwrap();
     ///
-    ///     let ruby_version = &RString::from(VM::eval("RUBY_VERSION").unwrap().value()).to_string();
-    ///     let ruby_version_major: u8 = ruby_version[0..1].parse().unwrap();
-    ///     let ruby_version_minor: u8 = ruby_version[2..3].parse().unwrap();
+    /// let ruby_version = &RString::from(VM::eval("RUBY_VERSION").unwrap().value()).to_string();
+    /// let ruby_version_major: u8 = ruby_version[0..1].parse().unwrap();
+    /// let ruby_version_minor: u8 = ruby_version[2..3].parse().unwrap();
     ///
-    ///     // UTF-32 is valid in Ruby 3.2+
-    ///     match ruby_version_major {
-    ///         3 => {
-    ///             if ruby_version_minor >= 2 {
-    ///                 assert!(result.is_valid_encoding())
-    ///             } else {
-    ///                 assert!(!result.is_valid_encoding())
-    ///             }
+    /// // UTF-32 is valid in Ruby 3.2+
+    /// match ruby_version_major {
+    ///     3 => {
+    ///         if ruby_version_minor >= 2 {
+    ///             assert!(result.is_valid_encoding())
+    ///         } else {
+    ///             assert!(!result.is_valid_encoding())
     ///         }
-    ///         2 => assert!(!result.is_valid_encoding()),
-    ///         _ => unreachable!("Unknown Ruby version"),
-    ///     };
-    /// }
+    ///     }
+    ///     2 => assert!(!result.is_valid_encoding()),
+    ///     _ => unreachable!("Unknown Ruby version"),
+    /// };
     ///
     /// ```
     ///
