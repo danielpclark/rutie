@@ -108,13 +108,11 @@ macro_rules! class {
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Module::new("Greeter").define(|klass| {
-///         klass.def("anonymous_greeting", anonymous_greeting);
-///         klass.def("friendly_greeting", friendly_greeting);
-///     });
-/// }
+/// # VM::init();
+/// Module::new("Greeter").define(|klass| {
+///     klass.def("anonymous_greeting", anonymous_greeting);
+///     klass.def("friendly_greeting", friendly_greeting);
+/// });
 /// ```
 ///
 /// Ruby:
@@ -195,12 +193,10 @@ macro_rules! module {
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Class::from_existing("String").define(|klass| {
-///         klass.def("length_equals?", string_length_equals);
-///     });
-/// }
+/// # VM::init();
+/// Class::from_existing("String").define(|klass| {
+///     klass.def("length_equals?", string_length_equals);
+/// });
 /// ```
 ///
 /// Ruby:
@@ -316,12 +312,10 @@ macro_rules! unsafe_methods {
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Class::new("Server", None).define(|klass| {
-///         klass.def("start", start);
-///     });
-/// }
+/// # VM::init();
+/// Class::new("Server", None).define(|klass| {
+///     klass.def("start", start);
+/// });
 /// ```
 ///
 /// Ruby:
@@ -525,17 +519,15 @@ macro_rules! methods {
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     let data_class = Class::from_existing("Object");
+/// # VM::init();
+/// let data_class = Class::from_existing("Object");
 ///
-///     Class::new("RubyServer", Some(&data_class)).define(|klass| {
-///         klass.def_self("new", ruby_server_new);
+/// Class::new("RubyServer", Some(&data_class)).define(|klass| {
+///     klass.def_self("new", ruby_server_new);
 ///
-///         klass.def("host", ruby_server_host);
-///         klass.def("port", ruby_server_port);
-///     });
-/// }
+///     klass.def("host", ruby_server_host);
+///     klass.def("port", ruby_server_port);
+/// });
 /// ```
 ///
 /// To use the `RubyServer` class in Ruby:
@@ -621,17 +613,15 @@ macro_rules! methods {
 ///     }
 /// }
 ///
-/// fn main() {
-///     # VM::init();
-///     let data_class = Class::from_existing("Object");
+/// # VM::init();
+/// let data_class = Class::from_existing("Object");
 ///
-///     Class::new("RustyArray", Some(&data_class)).define(|klass| {
-///         klass.def_self("new", new);
+/// Class::new("RustyArray", Some(&data_class)).define(|klass| {
+///     klass.def_self("new", new);
 ///
-///         klass.def("push", push);
-///         klass.def("length", length);
-///     });
-/// }
+///     klass.def("push", push);
+///     klass.def("length", length);
+/// });
 /// ```
 ///
 /// To use the `RustyArray` class in Ruby:
@@ -728,18 +718,16 @@ macro_rules! wrappable_struct {
 /// ```
 /// use rutie::{Object, Integer, Binding, VM, eval};
 ///
-/// fn main() {
-///     # VM::init();
+/// # VM::init();
 ///
-///     let binding = eval!("asdf = 1; binding").unwrap().
-///       try_convert_to::<Binding>().unwrap();
+/// let binding = eval!("asdf = 1; binding").unwrap().
+/// try_convert_to::<Binding>().unwrap();
 ///
-///     let result = eval!("asdf", binding).unwrap();
+/// let result = eval!("asdf", binding).unwrap();
 ///
-///     match result.try_convert_to::<Integer>() {
-///         Ok(v) => assert_eq!(1, v.to_i64()),
-///         Err(_) => unreachable!(),
-///     }
+/// match result.try_convert_to::<Integer>() {
+///     Ok(v) => assert_eq!(1, v.to_i64()),
+///     Err(_) => unreachable!(),
 /// }
 /// ```
 #[macro_export]

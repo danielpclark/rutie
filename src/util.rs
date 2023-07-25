@@ -120,9 +120,7 @@ pub fn is_method(obj: Value) -> bool {
 pub fn inmost_rb_object(klass: &str) -> Value {
     let object = unsafe { rb_cObject };
 
-    klass
-        .split("::")
-        .fold(object.into(), |acc, x| const_get(acc, x))
+    klass.split("::").fold(object.into(), const_get)
 }
 
 pub mod callback_call {
