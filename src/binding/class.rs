@@ -117,6 +117,9 @@ pub fn wrap_data<T>(klass: Value, data: T, wrapper: &dyn DataTypeWrapper<T>) -> 
     unsafe { typed_data::rb_data_typed_object_wrap(klass, data, wrapper.data_type()) }
 }
 
+// TODO: Skipped the lint, but this function takes an immutable reference and returns a mutable
+// one. Changing the signature is a breaking change. What do we do?
+#[allow(clippy::mut_from_ref)]
 pub fn get_data<T>(object: Value, wrapper: &dyn DataTypeWrapper<T>) -> &mut T {
     unsafe {
         let data = typed_data::rb_check_typeddata(object, wrapper.data_type());
