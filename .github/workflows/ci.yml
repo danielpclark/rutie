@@ -61,7 +61,6 @@ jobs:
         run: cargo test
 
       - name: Run Rust tests
-        # if: matrix.os != 'windows-latest'
         run: cargo test
 
       - name: Clippy
