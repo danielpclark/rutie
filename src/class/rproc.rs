@@ -33,11 +33,9 @@ impl Proc {
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     Class::new("Greeter", None).define(|klass| {
-    ///         klass.def_self("greet_rust_with", greet_rust_with);
-    ///     });
-    /// }
+    /// Class::new("Greeter", None).define(|klass| {
+    ///     klass.def_self("greet_rust_with", greet_rust_with);
+    /// });
     /// ```
     ///
     /// Ruby:

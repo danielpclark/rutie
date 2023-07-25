@@ -186,41 +186,32 @@ impl VM {
     /// ```
     /// use rutie::{Class, Fixnum, Object, VM, eval};
     ///
-    /// fn main() {
-    ///     # VM::init();
+    /// # VM::init();
     ///
-    ///     // Successful example
+    /// // Successful example
     ///
-    ///     let result = VM::eval("2+2").ok().unwrap().try_convert_to::<Fixnum>();
+    /// let result = VM::eval("2+2").ok().unwrap().try_convert_to::<Fixnum>();
+    /// assert_eq!(result, Ok(Fixnum::new(4)));
     ///
-    ///     assert_eq!(result, Ok(Fixnum::new(4)));
-    ///
-    ///     // Error example
-    ///
-    ///     let result = VM::eval("raise 'flowers'");
-    ///
-    ///     assert!(result.is_err());
-    /// }
+    /// // Error example
+    /// let result = VM::eval("raise 'flowers'");
+    /// assert!(result.is_err());
     /// ```
     ///
     /// `Err` will return an `AnyObject` of the exception class raised.
-    ///
-    ///
     /// ```
     /// use rutie::{Class, Fixnum, Object, Exception, RString, VM, eval};
     ///
-    /// fn main() {
-    ///     # VM::init();
+    /// # VM::init();
     ///
-    ///     let result = VM::eval("raise IndexError, 'flowers'");
+    /// let result = VM::eval("raise IndexError, 'flowers'");
     ///
-    ///     match result {
-    ///       Err(ao) => {
+    /// match result {
+    ///     Err(ao) => {
     ///         let err = ao.message();
     ///         assert_eq!(err, "flowers");
-    ///       },
-    ///       _ => { unreachable!() }
-    ///     }
+    ///     },
+    ///     _ => { unreachable!() }
     /// }
     /// ```
     ///
@@ -229,7 +220,7 @@ impl VM {
     /// C/Rust.
     pub fn eval(string: &str) -> Result<AnyObject, AnyException> {
         vm::eval_string_protect(string)
-            .map(|v| AnyObject::from(v))
+            .map(AnyObject::from)
             .map_err(|_| {
                 let output = AnyException::from(vm::errinfo());
 
@@ -247,13 +238,11 @@ impl VM {
     /// ```
     /// use rutie::{Class, Fixnum, Object, VM};
     ///
-    /// fn main() {
-    ///     # VM::init();
+    /// # VM::init();
     ///
-    ///     let result = unsafe { VM::eval_str("2+2").try_convert_to::<Fixnum>() };
+    /// let result = unsafe { VM::eval_str("2+2").try_convert_to::<Fixnum>() };
     ///
-    ///     assert_eq!(result, Ok(Fixnum::new(4)));
-    /// }
+    /// assert_eq!(result, Ok(Fixnum::new(4)));
     /// ```
     ///
     /// Be aware when checking for equality amongst types like strings, that even
@@ -288,13 +277,11 @@ impl VM {
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     # VM::init();
+    /// # VM::init();
     ///
-    ///     Class::new("Greeter", None).define(|klass| {
-    ///         klass.def_self("greet_rust_with", greet_rust_with);
-    ///     });
-    /// }
+    /// Class::new("Greeter", None).define(|klass| {
+    ///     klass.def_self("greet_rust_with", greet_rust_with);
+    /// });
     /// ```
     ///
     /// Ruby:
@@ -343,13 +330,11 @@ impl VM {
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     # VM::init();
+    /// # VM::init();
     ///
-    ///     Class::new("Calculator", None).define(|klass| {
-    ///         klass.def("calculate", calculate);
-    ///     });
-    /// }
+    /// Class::new("Calculator", None).define(|klass| {
+    ///     klass.def("calculate", calculate);
+    /// });
     /// ```
     ///
     /// Ruby:
@@ -397,17 +382,15 @@ impl VM {
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     # VM::init();
+    /// # VM::init();
     ///
-    ///     Class::new("Calculator", None).define(|klass| {
-    ///         klass.def("calculate", calculate);
-    ///     });
+    /// Class::new("Calculator", None).define(|klass| {
+    ///     klass.def("calculate", calculate);
+    /// });
     ///
-    ///     let result = VM::eval(" Calculator.new().calculate(4) { |n| n * n } ").unwrap();
-    ///     let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
-    ///     assert_eq!(num, 16);
-    /// }
+    /// let result = VM::eval(" Calculator.new().calculate(4) { |n| n * n } ").unwrap();
+    /// let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
+    /// assert_eq!(num, 16);
     /// ```
     ///
     /// Ruby:
@@ -458,17 +441,15 @@ impl VM {
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     # VM::init();
+    /// # VM::init();
     ///
-    ///     Class::new("Calculator", None).define(|klass| {
-    ///         klass.def("calculate", calculate);
-    ///     });
+    /// Class::new("Calculator", None).define(|klass| {
+    ///     klass.def("calculate", calculate);
+    /// });
     ///
-    ///     let result = VM::eval(" Calculator.new().calculate([4,6,8]) { |a,b,c| a*b-c } ").unwrap();
-    ///     let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
-    ///     assert_eq!(num, 16);
-    /// }
+    /// let result = VM::eval(" Calculator.new().calculate([4,6,8]) { |a,b,c| a*b-c } ").unwrap();
+    /// let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
+    /// assert_eq!(num, 16);
     /// ```
     ///
     /// Ruby:
@@ -806,20 +787,18 @@ impl VM {
     /// );
     ///
     ///
-    /// fn main() {
-    ///     # VM::init();
+    /// # VM::init();
     ///
-    ///     Class::new("Adder", None).define(|klass| {
-    ///         klass.def("add", adder_add);
-    ///     });
-    ///     Class::new("DoAdder", Some(&Class::from_existing("Adder"))).define(|klass| {
-    ///         klass.def("add", do_adder_add);
-    ///     });
+    /// Class::new("Adder", None).define(|klass| {
+    ///     klass.def("add", adder_add);
+    /// });
+    /// Class::new("DoAdder", Some(&Class::from_existing("Adder"))).define(|klass| {
+    ///     klass.def("add", do_adder_add);
+    /// });
     ///
-    ///     let result = VM::eval(" DoAdder.new().add(4, 4) ").unwrap();
-    ///     let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
-    ///     assert_eq!(num, 8);
-    /// }
+    /// let result = VM::eval(" DoAdder.new().add(4, 4) ").unwrap();
+    /// let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
+    /// assert_eq!(num, 8);
     /// ```
     ///
     /// Ruby:

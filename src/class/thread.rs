@@ -107,11 +107,9 @@ impl Thread {
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     Class::new("Calculator", None).define(|klass| {
-    ///         klass.def("heavy_computation", heavy_computation);
-    ///     });
-    /// }
+    /// Class::new("Calculator", None).define(|klass| {
+    ///     klass.def("heavy_computation", heavy_computation);
+    /// });
     /// ```
     pub fn call_without_gvl<F, R, G>(func: F, unblock_func: Option<G>) -> R
     where
