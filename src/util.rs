@@ -84,7 +84,8 @@ pub fn option_to_slice<T>(option: &Option<T>) -> &[T] {
 //     Class::from_existing("String").define_method("==", string_eq);
 // }
 // ```
-pub fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject> {
+// TODO: Made this public function unsafe due to clippy linting, should we just skip the lint?
+pub unsafe fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject> {
     unsafe { slice::from_raw_parts(arguments, argc as usize).to_vec() }
 }
 
