@@ -318,7 +318,6 @@ use rutie::{Class, Object, VM};
 class!(Example);
 
 // Code from above
-
 fn main() {
     VM::init();
     Class::new("Example", None).define(|klass| {
