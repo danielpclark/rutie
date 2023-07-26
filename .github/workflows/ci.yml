@@ -47,6 +47,17 @@ jobs:
             examples/rutie_ruby_gvl_example/tmp/
             examples/rutie_rust_example/tmp/
 
+      - name: Run Rust crate tests
+        run: cargo test
+
+      - name: Run Clippy on Rust crate
+        run: cargo clippy
+
+      - name: Run Ruby gem tests
+        run: |
+          git submodule update --init
+          cd gem && rake test
+
       - name: Example tests (rutie_ruby_example)
         working-directory: examples/rutie_ruby_example
         run: bundle && bundle exec rake test
@@ -59,14 +70,3 @@ jobs:
       - name: Example tests (rutie_rust_example)
         working-directory: examples/rutie_rust_example
         run: cargo test
-
-      - name: Run Rust tests
-        run: cargo test
-
-      - name: Clippy
-        run: cargo clippy
-
-      - name: Run Ruby gem tests
-        run: |
-          git submodule update --init
-          cd gem && rake test
