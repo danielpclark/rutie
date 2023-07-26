@@ -1,3 +1,0 @@
-[submodule "gem"]
-	path = gem
-	url = https://github.com/danielpclark/rutie-gem.git
