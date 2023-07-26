@@ -87,6 +87,7 @@ impl Symbol {
     ///
     /// sym.to_s == 'hello'
     /// ```
+    #[allow(clippy::inherent_to_string)] // We want this instead of implementing Display.
     pub fn to_string(&self) -> String {
         symbol::value_to_string(self.value())
     }

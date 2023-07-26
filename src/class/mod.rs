@@ -3,6 +3,7 @@ pub mod any_object;
 pub mod array;
 pub mod binding;
 pub mod boolean;
+#[allow(clippy::module_inception)] // we want class::class.
 pub mod class;
 pub mod encoding;
 pub mod enumerator;
