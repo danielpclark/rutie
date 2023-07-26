@@ -5,6 +5,7 @@ authors = [
   "Steve Klabnik <steve@steveklabnik.com>",
   "Dmitry Gritsay <unseductable@gmail.com>",
   "Daniel P. Clark <6ftdan@gmail.com>",
+  "Jose Narvaez <goyox86@gmail.com>",
 ]
 edition = "2021"
 description = "The tie between Ruby and Rust."
