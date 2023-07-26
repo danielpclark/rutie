@@ -30,9 +30,9 @@ pub fn bool_to_value(state: bool) -> Value {
         RubySpecialConsts::True
     } else {
         RubySpecialConsts::False
-    };
+    } as InternalValue;
 
-    Value::from(internal_value as InternalValue)
+    Value::from(internal_value)
 }
 
 #[inline]
@@ -60,31 +60,32 @@ pub fn option_to_slice<T>(option: &Option<T>) -> &[T] {
     }
 }
 
-// Converts a pointer to array of `AnyObject`s to `Vec<AnyObject>`.
-//
-// This function is a helper for callbacks, do not use it directly.
-//
-// It will be moved to other struct, because it is not related to VM itself.
-//
-// # Examples
-//
-// ```
-// use rutie::types::Argc;
-// use rutie::{AnyObject, Boolean, Class, Object, RString, util};
-//
-// #[no_mangle]
-// pub extern fn string_eq(argc: Argc, argv: *const AnyObject, rtself: RString) -> Boolean {
-//     let argv = util::parse_arguments(argc, argv);
-//     let other_string = argv[0].try_convert_to::<RString>().unwrap();
-//
-//     Boolean::new(rtself.to_str() == other_string.to_str())
-// }
-//
-// fn main() {
-//     Class::from_existing("String").define_method("==", string_eq);
-// }
-// ```
-// TODO: Made this public function unsafe due to clippy linting, should we just skip the lint?
+/// Converts a pointer to array of `AnyObject`s to `Vec<AnyObject>`.
+///
+/// This function is a helper for callbacks, do not use it directly.
+///
+/// It will be moved to other struct, because it is not related to VM itself.
+///
+/// # Examples
+///
+/// ```
+/// use rutie::types::Argc;
+/// use rutie::{AnyObject, Boolean, Class, Object, RString, util, VM};
+///
+/// #[no_mangle]
+/// pub extern fn string_eq(argc: Argc, argv: *const AnyObject, rtself: RString) -> Boolean {
+///     let argv = unsafe { util::parse_arguments(argc, argv) };
+///     let other_string = argv[0].try_convert_to::<RString>().unwrap();
+///
+///     Boolean::new(rtself.to_str() == other_string.to_str())
+/// }
+///
+/// fn main() {
+///     # VM::init();
+///     Class::from_existing("String").define_method("==", string_eq);
+/// }
+/// ```
+/// TODO: Made this public function unsafe due to clippy linting, should we just skip the lint?
 pub unsafe fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject> {
     unsafe { slice::from_raw_parts(arguments, argc as usize).to_vec() }
 }

@@ -25,7 +25,6 @@ pub enum RubySpecialFlags {
     SymbolFlag = ruby_special_consts::RUBY_SYMBOL_FLAG as isize,
 }
 
-// #[link_name = "ruby_value_type"]
 #[derive(Debug, PartialEq)]
 #[repr(u32)]
 pub enum ValueType {
