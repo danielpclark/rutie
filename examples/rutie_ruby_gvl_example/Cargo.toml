@@ -2,6 +2,7 @@
 name = "rutie_ruby_gvl_example"
 version = "0.1.0"
 authors = ["Daniel P. Clark <6ftdan@gmail.com>"]
+edition = "2021"
 
 [dependencies]
 rutie = { path = "../../" }

@@ -1,7 +1,4 @@
-#[macro_use]
-extern crate rutie;
-
-use rutie::{AnyObject, Class, Fixnum, NilClass, Object, RString, Thread};
+use rutie::{class, methods, AnyObject, Class, Fixnum, NilClass, Object, RString, Thread};
 
 #[cfg(unix)]
 use std::os::unix::{io::AsRawFd, net::UnixStream};
