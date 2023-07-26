@@ -1,5 +1,3 @@
-use std::mem;
-
 use super::{
     constant::FL_USER_7,
     types::{c_char, c_long, EncodingType, InternalValue, Value},
@@ -71,7 +69,7 @@ extern "C" {
 }
 
 unsafe fn rstring_and_flags(value: Value) -> (*const RString, InternalValue) {
-    let rstring: *const RString = mem::transmute(value.value);
+    let rstring: *const RString = value.value as _;
     let flags = (*rstring).basic.flags;
 
     (rstring, flags)

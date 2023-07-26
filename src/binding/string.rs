@@ -75,10 +75,12 @@ pub fn value_to_str_unchecked<'a>(value: Value) -> &'a str {
     }
 }
 
+#[allow(clippy::useless_conversion)] // For w64-mingw32 rb_string_len returns i32
 pub fn bytesize(value: Value) -> i64 {
     unsafe { string::rstring_len(value).into() }
 }
 
+#[allow(clippy::useless_conversion)] // For w64-mingw32 rb_str_strlen returns i32
 pub fn count_chars(value: Value) -> i64 {
     unsafe { string::rb_str_strlen(value).into() }
 }

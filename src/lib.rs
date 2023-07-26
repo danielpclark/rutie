@@ -1,3 +1,6 @@
+// Just doing FFI no special safety considerations.
+#![allow(clippy::missing_safety_doc)]
+
 mod binding;
 mod class;
 mod helpers;

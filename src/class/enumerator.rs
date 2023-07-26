@@ -33,6 +33,7 @@ impl Enumerator {
     /// assert!(iter.next().is_err(), "not error!");
     /// assert!(iter.next().is_err(), "not error!");
     /// ```
+    #[allow(clippy::should_implement_trait)] // We don't want to implement Rust's Iterator here.
     pub fn next(&mut self) -> Result<AnyObject, AnyException> {
         self.protect_send("next", &[])
     }

@@ -140,6 +140,7 @@ impl RString {
     ///
     /// str == 'Hello, World!'
     /// ```
+    #[allow(clippy::inherent_to_string)] // We want this instead of implementing Display.
     pub fn to_string(&self) -> String {
         string::value_to_string(self.value())
     }
