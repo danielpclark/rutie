@@ -27,7 +27,7 @@ rb-sys = { git = "https://github.com/oxidize-rb/rb-sys.git", features = [
 ] }
 
 [dev-dependencies]
-rutie = { path = "." }
+rutie = { path = ".", features = ["link-ruby"] }
 rb-sys-env = { version = "0.1" }
 rb-sys-test-helpers = { git = "https://github.com/oxidize-rb/rb-sys.git" }
 lazy_static = "1.4.0"
