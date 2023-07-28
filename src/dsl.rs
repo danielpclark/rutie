@@ -143,7 +143,7 @@ macro_rules! module {
 
         impl From<$crate::types::Value> for $module {
             fn from(value: $crate::types::Value) -> Self {
-                $module { value: value }
+                $module { value }
             }
         }
 
