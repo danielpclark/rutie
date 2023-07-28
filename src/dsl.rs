@@ -64,7 +64,7 @@ macro_rules! class {
 
         impl From<$crate::types::Value> for $class {
             fn from(value: $crate::types::Value) -> Self {
-                $class { value: value }
+                $class { value }
             }
         }
 
@@ -583,6 +583,8 @@ macro_rules! methods {
 ///     // `data` is a mutable reference to the wrapped data (`&mut VectorOfObjects`).
 ///     mark(data) {
 ///         for object in &data.inner {
+///             // GC::mark is only valid in Ruby 2.
+///             #[cfg(not(ruby_gte_3_0))]
 ///             GC::mark(object);
 ///         }
 ///     }
@@ -684,7 +686,7 @@ macro_rules! wrappable_struct {
                     flags: $crate::types::Value::from(0).into(),
 
                     function: $crate::types::DataTypeFunction {
-                        dmark: dmark,
+                        dmark,
                         dfree: Some($crate::typed_data::free::<T>),
                         dsize: None,
                         reserved: reserved_bytes,
@@ -693,7 +695,7 @@ macro_rules! wrappable_struct {
                 };
 
                 $wrapper {
-                    data_type: data_type,
+                    data_type,
                     _marker: ::std::marker::PhantomData,
                 }
             }
