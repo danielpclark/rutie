@@ -49,15 +49,13 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.8.2"
+rutie = { version = "0.8", features = ["link-ruby"] }
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
 and begin to use Rutie.
 
 ```rust
-extern crate rutie;
-
 use rutie::{Object, RString, VM};
 
 fn try_it(s: &str) -> String {
@@ -86,12 +84,6 @@ fn it_works() {
 fn main() {}
 ```
 
-> NOTE: Currently in **Linux** you need to set `LD_LIBRARY_PATH` to point at the directory of your current Ruby library and in **Mac** you need to set `DYLD_LIBRARY_PATH` with that info.  You can get the path information with the following command:
-
-    ruby -e "puts RbConfig::CONFIG['libdir']"
-
-This should let you run `cargo test` and `cargo run`.
-
 Running `cargo test` should have this test pass.
 
 ## Using Rust in Ruby
@@ -102,7 +94,7 @@ file. Add Rutie to the `Cargo.toml` file and define the lib type.
 
 ```toml
 [dependencies]
-rutie = {version="xxx"}
+rutie = { version = "xxx" }
 
 [lib]
 name = "rutie_ruby_example"
@@ -112,29 +104,17 @@ crate-type = ["cdylib"]
 Then edit your `src/lib.rs` file for your Rutie code.
 
 ```rust
-#[macro_use]
-extern crate rutie;
-
-use rutie::{Class, Object, RString, VM};
+use rutie::{class, methods, Class, Object, RString, VM};
 
 class!(RutieExample);
 
 methods!(
     RutieExample,
     _rtself,
-
     fn pub_reverse(input: RString) -> RString {
-        let ruby_string = input.
-          map_err(|e| VM::raise_ex(e) ).
-          unwrap();
+        let ruby_string = input.map_err(VM::raise_ex).unwrap();
 
-        RString::new_utf8(
-          &ruby_string.
-          to_string().
-          chars().
-          rev().
-          collect::<String>()
-        )
+        RString::new_utf8(&ruby_string.to_string().chars().rev().collect::<String>())
     }
 );
 
@@ -154,20 +134,20 @@ Now you just need to load the library in Ruby.  Add the `rutie` gem to your gems
 
 ```ruby
 # gemspec
-spec.add_dependency 'rutie', '~> 0.0.3'
+spec.add_dependency 'rutie', '~> 0.0.4'
 
 # Gemfile
-gem 'rutie', '~> 0.0.3'
+gem 'rutie', '~> 0.0.4'
 ```
 
 And then load the library in your main project file `lib/rutie_ruby_example.rb`.
 
 ```ruby
-require 'rutie_ruby_example/version'
-require 'rutie'
+require_relative "rutie_ruby_example/version"
+require "rutie"
 
 module RutieRubyExample
-  Rutie.new(:rutie_ruby_example).init 'Init_rutie_ruby_example', __dir__
+  Rutie.new(:rutie_ruby_example).init "Init_rutie_ruby_example", __dir__
 end
 ```
 
@@ -177,7 +157,7 @@ That's all you need to load your Ruby things from Rust.  Now to write the test i
 ```ruby
 require "test_helper"
 
-class RutieRubyExampleTest < Minitest::Test
+class TestRutieRubyExample < Minitest::Test
   def test_it_reverses
     assert_equal "selppa", RutieExample.reverse("apples")
   end
@@ -291,9 +271,6 @@ This style of code is meant to be used outside of the `methods!` macro for now.
 You may place this method on a class or module as you normally would from a `methods!` macro definition.
 
 ```rust
-#[macro_use]
-extern crate rutie;
-
 use rutie::{Class, Object, VM};
 
 class!(Example);
