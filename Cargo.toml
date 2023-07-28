@@ -16,7 +16,7 @@ license = "MIT"
 build = "build.rs"
 
 [features]
-embed = ["rb-sys/link-ruby"]
+link-ruby = ["rb-sys/link-ruby"]
 ruby-static = ["rb-sys/ruby-static"]
 no-link = []                         # noop, for backwards compatibility.
 
@@ -27,7 +27,7 @@ rb-sys = { git = "https://github.com/oxidize-rb/rb-sys.git", features = [
 ] }
 
 [dev-dependencies]
-rutie = { path = ".", features = ["embed"] }
+rutie = { path = "." }
 rb-sys-env = { version = "0.1" }
 rb-sys-test-helpers = { git = "https://github.com/oxidize-rb/rb-sys.git" }
 lazy_static = "1.4.0"
