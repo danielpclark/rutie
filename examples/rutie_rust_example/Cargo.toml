@@ -5,4 +5,4 @@ authors = ["Daniel P. Clark <6ftdan@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-rutie = { path = "../../", features = ["embed"] }
+rutie = { path = "../../" }
