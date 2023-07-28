@@ -8,6 +8,7 @@ git_source(:github) { |repo_name| "https://github.com/#{repo_name}" }
 gemspec
 
 # Not needed for production code. Gemspec file is enough for your gems.
+# Make sure you do `git submodule update --init`
 gem 'rutie', path: '../../gem/'
 
 group :test do
