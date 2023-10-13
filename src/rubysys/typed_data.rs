@@ -31,13 +31,7 @@ pub struct RbDataTypeFunction {
 impl Copy for RbDataTypeFunction {}
 impl Clone for RbDataTypeFunction {
     fn clone(&self) -> Self {
-        Self {
-            dmark: self.dmark,
-            dfree: self.dfree,
-            dsize: self.dsize,
-            compact: self.compact,
-            reserved: self.reserved,
-        }
+        *self
     }
 }
 unsafe impl Send for RbDataTypeFunction {}
