@@ -27,6 +27,7 @@ pub fn yield_splat(values: Value) -> Value {
 
 pub fn init() {
     unsafe {
+        // Ancient knowledge, that solves windows VM startup crashes.
         #[cfg(windows)]
         {
             let mut argc = 0;
@@ -132,8 +133,8 @@ where
             thread::rb_thread_call_without_gvl(
                 callbox as CallbackPtr,
                 util::closure_to_ptr(func),
-                ptr::null() as CallbackPtr,
-                ptr::null() as *const c_void,
+                ptr::null(),
+                ptr::null(),
             )
         };
 
@@ -159,8 +160,8 @@ where
             thread::rb_thread_call_without_gvl2(
                 callbox as CallbackPtr,
                 util::closure_to_ptr(func),
-                ptr::null() as CallbackPtr,
-                ptr::null() as *const c_void,
+                ptr::null(),
+                ptr::null(),
             )
         };
 
