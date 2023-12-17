@@ -8,6 +8,18 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+
+## [0.9.0] - 2023-12-17
+### Added
+ - Support for trailing comma in method macros, thanks to @andrewtbiehl
+ - Github actions testing support, thanks to @danielpclark & @striezel
+ - Rust 2021 Edition, thanks to @goyox86
+ - Support for compiling on OpenBSD, thanks to @marvinthepa
+
+### Fixed
+ - removed warnings for allow(unused_mut) and allow(unused_variables) on methods! rtself arg, thanks to @danlarkin
+ - internal ruby string length check, thanks to @mpalmer
+
 ## [0.8.4] - 2022-03-29
 ### Added
  - Implement `Eq` and `Hash` for `Symbol`, thanks to @ahogappa0613
