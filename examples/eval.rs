@@ -12,7 +12,7 @@ fn main() {
             Err(e) => {
                 println!("{}", e);
                 process::exit(1);
-            },
+            }
         }
     } else {
         eprintln!(r#"Usage: eval "puts 'Put ruby code to be evaluated in a string after eval.' ""#);
