@@ -21,8 +21,8 @@ ruby-static = ["rb-sys/ruby-static"]
 no-link = []                         # noop, for backwards compatibility.
 
 [dependencies]
-libc = "0.2.121"
-rb-sys = { version = "0.9.86", features = ["stable-api-compiled-fallback"] }
+libc = "0.2.153"
+rb-sys = { version = "0.9.90", features = ["stable-api-compiled-fallback"] }
 rb-sys-env = "0.1"
 
 [dev-dependencies]
