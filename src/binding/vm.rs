@@ -27,6 +27,14 @@ pub fn yield_splat(values: Value) -> Value {
 
 pub fn init() {
     unsafe {
+        // Ancient knowledge, that solves windows VM startup crashes.
+        #[cfg(windows)]
+        {
+            let mut argc = 0;
+            let mut argv: [*mut std::os::raw::c_char; 0] = [];
+            let mut argv = argv.as_mut_ptr();
+            rb_sys::rb_w32_sysinit(&mut argc, &mut argv);
+        }
         vm::ruby_init();
     }
 }
@@ -50,7 +58,7 @@ pub fn call_method(receiver: Value, method: &str, arguments: &[Value]) -> Value 
     let method_id = internal_id(method);
 
     // TODO: Update the signature of `rb_funcallv` in ruby-sys to receive an `Option`
-    unsafe { vm::rb_funcallv(receiver, method_id, argc, argv) }
+    unsafe { vm::rb_funcallv(receiver, method_id, argc, argv as *const _) }
 }
 
 pub fn call_public_method(receiver: Value, method: &str, arguments: &[Value]) -> Value {
@@ -58,13 +66,13 @@ pub fn call_public_method(receiver: Value, method: &str, arguments: &[Value]) ->
     let method_id = internal_id(method);
 
     // TODO: Update the signature of `rb_funcallv_public` in ruby-sys to receive an `Option`
-    unsafe { vm::rb_funcallv_public(receiver, method_id, argc, argv) }
+    unsafe { vm::rb_funcallv_public(receiver, method_id, argc, argv as *const _) }
 }
 
 pub fn call_super(arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);
 
-    unsafe { vm::rb_call_super(argc, argv) }
+    unsafe { vm::rb_call_super(argc, argv as *const _) }
 }
 
 // "evaluation can raise an exception."
@@ -107,6 +115,7 @@ pub fn set_errinfo(err: Value) {
     unsafe { vm::rb_set_errinfo(err) }
 }
 
+#[allow(dead_code)]
 pub fn thread_call_without_gvl<F, R, G>(func: F, unblock_func: Option<G>) -> R
 where
     F: FnMut() -> R,
@@ -124,8 +133,8 @@ where
             thread::rb_thread_call_without_gvl(
                 callbox as CallbackPtr,
                 util::closure_to_ptr(func),
-                ptr::null() as CallbackPtr,
-                ptr::null() as *const c_void,
+                ptr::null(),
+                ptr::null(),
             )
         };
 
@@ -133,6 +142,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 pub fn thread_call_without_gvl2<F, R, G>(func: F, unblock_func: Option<G>) -> R
 where
     F: FnMut() -> R,
@@ -150,8 +160,8 @@ where
             thread::rb_thread_call_without_gvl2(
                 callbox as CallbackPtr,
                 util::closure_to_ptr(func),
-                ptr::null() as CallbackPtr,
-                ptr::null() as *const c_void,
+                ptr::null(),
+                ptr::null(),
             )
         };
 
@@ -159,6 +169,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 pub fn thread_call_with_gvl<F, R>(func: F) -> R
 where
     F: FnMut() -> R,
@@ -189,7 +200,7 @@ where
         let closure = &func as *const F as *const c_void;
         vm::rb_protect(
             callback_protect::<F, AnyObject> as CallbackPtr,
-            closure,
+            closure as CallbackPtr,
             &mut state as *mut c_int,
         )
     };
@@ -207,21 +218,21 @@ pub fn exit(status: i32) {
 pub fn abort(arguments: &[Value]) {
     let (argc, argv) = util::process_arguments(arguments);
 
-    unsafe { vm::rb_f_abort(argc, argv) };
+    unsafe { vm::rb_f_abort(argc, argv as *const _) };
 }
 
-use crate::{rubysys::types::Argc, util::callback_call::one_parameter as at_exit_callback};
+use crate::util::callback_call::one_parameter as at_exit_callback;
 
 pub fn at_exit<F>(func: F)
 where
-    F: FnMut(VmPointer) -> (),
+    F: FnMut(VmPointer),
 {
     let mut state = 0;
     unsafe {
         let closure = &func as *const F as *const c_void;
         vm::rb_protect(
             at_exit_callback::<F, VmPointer, ()> as CallbackPtr,
-            closure,
+            closure as CallbackPtr,
             &mut state as *mut c_int,
         )
     };

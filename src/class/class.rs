@@ -12,18 +12,15 @@ use crate::{
 /// Also see `def`, `def_self`, `define` and some more functions from `Object` trait.
 ///
 /// ```rust
-/// #[macro_use] extern crate rutie;
-///
 /// use std::error::Error;
-///
-/// use rutie::{Class, Fixnum, Object, Exception, VM};
+/// use rutie::{Class, Integer, Object, Exception, VM, methods};
 ///
 /// methods!(
-///    Fixnum,
+///    Integer,
 ///    rtself,
 ///
-///     fn pow(exp: Fixnum) -> Fixnum {
-///         // `exp` is not a valid `Fixnum`, raise an exception
+///     fn pow(exp: Integer) -> Integer {
+///         // `exp` is not a valid `Integer`, raise an exception
 ///         if let Err(ref error) = exp {
 ///             VM::raise(error.class(), &error.message());
 ///         }
@@ -31,24 +28,22 @@ use crate::{
 ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
 ///         let exp = exp.unwrap().to_i64() as u32;
 ///
-///         Fixnum::new(rtself.to_i64().pow(exp))
+///         Integer::new(rtself.to_i64().pow(exp))
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Class::from_existing("Fixnum").define(|klass| {
-///         klass.def("pow", pow);
-///     });
-/// }
+/// # VM::init();
+///   Class::from_existing("Integer").define(|klass| {
+///       klass.def("pow", pow);
+/// });
 /// ```
 ///
 /// Ruby:
 ///
 /// ```ruby
-/// class Fixnum
+/// class Integer
 ///   def pow(exp)
-///     raise TypeError unless exp.is_a?(Fixnum)
+///     raise TypeError unless exp.is_a?(Integer)
 ///
 ///     self ** exp
 ///   end
@@ -135,7 +130,7 @@ impl Class {
     pub fn from_existing(name: &str) -> Self {
         let object_class = unsafe { rb_cObject };
 
-        Self::from(class::const_get(object_class, name))
+        Self::from(class::const_get(object_class.into(), name))
     }
 
     /// Creates a new instance of `Class`
@@ -144,27 +139,37 @@ impl Class {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use rutie::{Class, Fixnum, Object};
+    /// ```
+    /// use rutie::{Array, Boolean, Class, Integer, Object, class, VM};
+    ///
+    /// # VM::init();
     ///
     /// // Without arguments
-    /// Class::from_existing("Hello").new_instance(&[]);
+    /// let array_no_args = Class::from_existing("Array").new_instance(&[]);
     ///
     /// // With arguments passing arguments to constructor
     /// let arguments = [
-    ///     Fixnum::new(1).to_any_object(),
-    ///     Fixnum::new(2).to_any_object()
+    ///     Integer::new(2).to_any_object(),
+    ///     Boolean::new(true).to_any_object()
     /// ];
+    /// let array_with_args = Class::from_existing("Array").new_instance(&arguments);
     ///
-    /// Class::from_existing("Worker").new_instance(&arguments);
+    /// # let array_no_args = array_no_args.try_convert_to::<Array>();
+    /// # assert_eq!(array_no_args, Ok(Array::new()));
+    ///
+    /// # let mut array_with_args = array_with_args.try_convert_to::<Array>();
+    /// # let mut expected_array_with_args = Array::new();
+    /// # expected_array_with_args.push(Boolean::new(true));
+    /// # expected_array_with_args.push(Boolean::new(true));
+    /// # assert_eq!(array_with_args, Ok(expected_array_with_args));
+    ///
     /// ```
-    ///
     /// Ruby:
     ///
     /// ```ruby
-    /// Hello.new
+    /// array = Array.new
     ///
-    /// Worker.new(1, 2)
+    /// range = Array.new(3, true)
     /// ```
     pub fn new_instance(&self, arguments: &[AnyObject]) -> AnyObject {
         let arguments = util::arguments_to_values(arguments);
@@ -177,9 +182,10 @@ impl Class {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use rutie::{Class, Object};
+    /// ```
+    /// use rutie::{Class, Object, VM};
     ///
+    /// # VM::init();
     /// Class::from_existing("String").allocate();
     /// ```
     ///
@@ -613,10 +619,8 @@ impl Class {
     /// Wrap `Server` structs to `RubyServer` objects
     ///
     /// ```
-    /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
-    ///
-    /// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM};
+    /// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM, class, methods, wrappable_struct};
+    /// use lazy_static::lazy_static;
     ///
     /// // The structure which we want to wrap
     /// pub struct Server {
@@ -669,17 +673,15 @@ impl Class {
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     # VM::init();
-    ///     let data_class = Class::from_existing("Object");
+    /// # VM::init();
+    /// let data_class = Class::from_existing("Object");
     ///
-    ///     Class::new("RubyServer", Some(&data_class)).define(|klass| {
-    ///         klass.def_self("new", ruby_server_new);
+    /// Class::new("RubyServer", Some(&data_class)).define(|klass| {
+    ///     klass.def_self("new", ruby_server_new);
     ///
-    ///         klass.def("host", ruby_server_host);
-    ///         klass.def("port", ruby_server_port);
-    ///     });
-    /// }
+    ///     klass.def("host", ruby_server_host);
+    ///     klass.def("port", ruby_server_port);
+    /// });
     /// ```
     ///
     /// To use the `RubyServer` class in Ruby:
@@ -699,7 +701,7 @@ impl Class {
     fn superclass_to_value(superclass: Option<&Class>) -> Value {
         match superclass {
             Some(class) => class.value(),
-            None => unsafe { rb_cObject },
+            None => unsafe { rb_cObject }.into(),
         }
     }
 }
@@ -710,15 +712,15 @@ impl From<Value> for Class {
     }
 }
 
-impl Into<Value> for Class {
-    fn into(self) -> Value {
-        self.value
+impl From<Class> for Value {
+    fn from(val: Class) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Class {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Class> for AnyObject {
+    fn from(val: Class) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

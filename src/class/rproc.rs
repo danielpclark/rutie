@@ -17,10 +17,7 @@ impl Proc {
     /// # Examples
     ///
     /// ```no_run
-    /// #[macro_use]
-    /// extern crate rutie;
-    ///
-    /// use rutie::{Class, Object, Proc, RString};
+    /// use rutie::{Class, Object, Proc, RString, class, methods};
     ///
     /// class!(Greeter);
     ///
@@ -36,11 +33,9 @@ impl Proc {
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     Class::new("Greeter", None).define(|klass| {
-    ///         klass.def_self("greet_rust_with", greet_rust_with);
-    ///     });
-    /// }
+    /// Class::new("Greeter", None).define(|klass| {
+    ///     klass.def_self("greet_rust_with", greet_rust_with);
+    /// });
     /// ```
     ///
     /// Ruby:
@@ -94,15 +89,15 @@ impl From<Value> for Proc {
     }
 }
 
-impl Into<Value> for Proc {
-    fn into(self) -> Value {
-        self.value
+impl From<Proc> for Value {
+    fn from(val: Proc) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Proc {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Proc> for AnyObject {
+    fn from(val: Proc) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

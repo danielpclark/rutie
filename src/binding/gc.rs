@@ -1,8 +1,4 @@
-use crate::{
-    rubysys::gc,
-    types::{CallbackPtr, Value},
-    util,
-};
+use crate::{rubysys::gc, types::Value, util};
 
 pub fn adjust_memory_usage(diff: isize) {
     unsafe { gc::rb_gc_adjust_memory_usage(diff) };
@@ -33,7 +29,7 @@ pub fn mark_maybe(value: Value) {
 }
 
 pub fn register(obj: Value) {
-    let addr = &obj as *const _ as CallbackPtr;
+    let addr = &obj as *const _ as *mut _;
 
     unsafe { gc::rb_gc_register_address(addr) }
 }
@@ -51,7 +47,7 @@ pub fn stat(key: Value) -> usize {
 }
 
 pub fn unregister(obj: Value) {
-    let addr = &obj as *const _ as CallbackPtr;
+    let addr = &obj as *const _ as *mut _;
 
     unsafe { gc::rb_gc_unregister_address(addr) }
 }

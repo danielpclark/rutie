@@ -1,11 +1,9 @@
 use crate::{
     binding::{class as binding_class, global::rb_cObject},
     rubysys::class,
-    types::{Callback, CallbackPtr, Value},
-    util,
+    types::{Callback, Value, CallbackPtr},
+    util, Object,
 };
-
-use crate::Object;
 
 pub fn define_module(name: &str) -> Value {
     let name = util::str_to_cstring(name);
@@ -34,7 +32,7 @@ pub fn define_module_function<I: Object, O: Object>(
 pub fn include_module(klass: Value, module: &str) {
     let object_module = unsafe { rb_cObject };
 
-    let module_value = binding_class::const_get(object_module, module);
+    let module_value = binding_class::const_get(object_module.into(), module);
 
     unsafe { class::rb_include_module(klass, module_value) };
 }
@@ -42,7 +40,7 @@ pub fn include_module(klass: Value, module: &str) {
 pub fn prepend_module(klass: Value, module: &str) {
     let object_module = unsafe { rb_cObject };
 
-    let module_value = binding_class::const_get(object_module, module);
+    let module_value = binding_class::const_get(object_module.into(), module);
 
     unsafe { class::rb_prepend_module(klass, module_value) };
 }

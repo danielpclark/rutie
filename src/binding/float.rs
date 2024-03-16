@@ -5,11 +5,14 @@ pub fn float_to_num(num: f64) -> Value {
 }
 
 pub fn num_to_float(num: Value) -> f64 {
-    unsafe { float::rb_num2dbl(num) as f64 }
+    unsafe { float::rb_num2dbl(num) }
 }
 
 pub fn implicit_to_f(num: Value) -> Result<Float, AnyException> {
-    let closure = || unsafe { AnyObject::from(float::rb_to_float(num)) };
+    let closure = || unsafe {
+        let value: Value = float::rb_to_float(num);
+        AnyObject::from(value)
+    };
 
     let result = VM::protect(closure);
 

@@ -1,14 +1,8 @@
-use std::mem;
-
-use crate::rubysys::{
-    constant::{
-        FL_USER_1, FL_USER_17, FL_USER_2, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6, FL_USER_7,
-        FL_USHIFT,
-    },
-    libc::size_t,
-    types::{c_char, c_long, CallbackPtr, EncodingType, InternalValue, RBasic, Value},
+use super::{
+    constant::FL_USER_7,
+    types::{c_char, c_long, EncodingType, InternalValue, Value},
 };
-
+use rb_sys::{RString, VALUE};
 pub const STR_TMPLOCK: isize = FL_USER_7;
 
 extern "C" {
@@ -74,99 +68,26 @@ extern "C" {
     pub fn rb_str_new_frozen(orig: Value) -> Value;
 }
 
-// #[link_name = "ruby_rstring_flags"]
-#[derive(Debug, PartialEq)]
-#[repr(C)]
-enum RStringEmbed {
-    NoEmbed = FL_USER_1,
-    LenMask = FL_USER_2 | FL_USER_3 | FL_USER_4 | FL_USER_5 | FL_USER_6,
-    LenShift = FL_USHIFT + 2,
-    LenMax = (mem::size_of::<Value>() as isize * 3) / mem::size_of::<c_char>() as isize - 1,
-    Fstr = FL_USER_17,
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-union RStringAs {
-    heap: RStringHeap,
-    ary: [c_char; RStringEmbed::LenMax as usize + 1],
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-union RStringAux {
-    capa: c_long,
-    value: InternalValue,
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-struct RStringHeap {
-    len: c_long,
-    ptr: *const c_char,
-    aux: RStringAux,
-}
-
-#[repr(C)]
-struct RString {
-    basic: RBasic,
-    as_: RStringAs,
-}
-
 unsafe fn rstring_and_flags(value: Value) -> (*const RString, InternalValue) {
-    let rstring: *const RString = mem::transmute(value.value);
+    let rstring: *const RString = value.value as _;
     let flags = (*rstring).basic.flags;
 
     (rstring, flags)
 }
 
-unsafe fn embed_check(flags: InternalValue) -> bool {
-    flags & (RStringEmbed::NoEmbed as size_t) == 0
-}
-
-pub unsafe fn rstring_embed_len(value: Value) -> c_long {
-    let (_rstring, flags) = rstring_and_flags(value);
-
-    ((flags as i64 >> RStringEmbed::LenShift as i64)
-        & (RStringEmbed::LenMask as i64 >> RStringEmbed::LenShift as i64)) as c_long
-}
-
 pub unsafe fn rstring_len(value: Value) -> c_long {
-    let (rstring, flags) = rstring_and_flags(value);
-
-    if embed_check(flags) {
-        rstring_embed_len(value)
-    } else {
-        (*rstring).as_.heap.len
-    }
+    rb_sys::RSTRING_LEN::<VALUE>(value.into())
 }
 
 pub unsafe fn rstring_ptr(value: Value) -> *const c_char {
-    let (rstring, flags) = rstring_and_flags(value);
-
-    if embed_check(flags) {
-        (*rstring).as_.ary.as_ptr()
-    } else {
-        (*rstring).as_.heap.ptr
-    }
+    rb_sys::RSTRING_PTR::<VALUE>(value.into())
 }
 
 pub unsafe fn rstring_end(value: Value) -> *const c_char {
-    let (rstring, flags) = rstring_and_flags(value);
+    let ptr = rstring_ptr(value) as *const c_char;
+    let len = rstring_len(value) as usize;
 
-    if embed_check(flags) {
-        (*rstring)
-            .as_
-            .ary
-            .as_ptr()
-            .add(rstring_embed_len(value) as usize)
-    } else {
-        (*rstring)
-            .as_
-            .heap
-            .ptr
-            .add((*rstring).as_.heap.len as usize)
-    }
+    &*ptr.add(len)
 }
 
 // ```
@@ -185,7 +106,7 @@ pub unsafe fn rstring_end(value: Value) -> *const c_char {
 // }
 // ```
 pub unsafe fn is_lockedtmp(value: Value) -> bool {
-    let (_rstring, flags) = rstring_and_flags(value);
+    let (_, flags) = rstring_and_flags(value);
 
-    flags & STR_TMPLOCK as size_t != 0
+    flags & STR_TMPLOCK as u64 != 0
 }

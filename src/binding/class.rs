@@ -1,8 +1,13 @@
+use libc::c_void;
+
+use crate::types::CallbackPtr;
+use crate::util::bool_to_value;
+use crate::util::c_int_to_bool;
 use crate::{
     binding::symbol,
     rubysys::{class, typed_data},
     typed_data::DataTypeWrapper,
-    types::{c_void, Callback, CallbackPtr, Value},
+    types::{Callback, Value},
     util, Object,
 };
 
@@ -69,14 +74,14 @@ pub fn define_attribute(object: Value, name: &str, reader: bool, writer: bool) {
 pub fn respond_to(object: Value, method: &str) -> bool {
     let result = unsafe { class::rb_respond_to(object, symbol::internal_id(method)) };
 
-    util::c_int_to_bool(result)
+    c_int_to_bool(result)
 }
 
 pub fn define_method<I: Object, O: Object>(klass: Value, name: &str, callback: Callback<I, O>) {
     let name = util::str_to_cstring(name);
 
     unsafe {
-        class::rb_define_method(klass, name.as_ptr(), callback as CallbackPtr, -1);
+        class::rb_define_method(klass, name.as_ptr(), callback as CallbackPtr, -1)
     }
 }
 
@@ -110,6 +115,9 @@ pub fn wrap_data<T>(klass: Value, data: T, wrapper: &dyn DataTypeWrapper<T>) -> 
     unsafe { typed_data::rb_data_typed_object_wrap(klass, data, wrapper.data_type()) }
 }
 
+// TODO: Skipped the lint, but this function takes an immutable reference and returns a mutable
+// one. Changing the signature is a breaking change. What do we do?
+#[allow(clippy::mut_from_ref)]
 pub fn get_data<T>(object: Value, wrapper: &dyn DataTypeWrapper<T>) -> &mut T {
     unsafe {
         let data = typed_data::rb_check_typeddata(object, wrapper.data_type());
@@ -118,6 +126,7 @@ pub fn get_data<T>(object: Value, wrapper: &dyn DataTypeWrapper<T>) -> &mut T {
     }
 }
 
+#[allow(dead_code)]
 pub fn is_frozen(object: Value) -> Value {
     unsafe { class::rb_obj_frozen_p(object) }
 }
@@ -127,9 +136,35 @@ pub fn freeze(object: Value) -> Value {
 }
 
 pub fn is_eql(object1: Value, object2: Value) -> Value {
-    unsafe { class::rb_eql(object1, object2) }
+    let result = unsafe { class::rb_eql(object1, object2) };
+    // In 3.1 and earlier we get Qtrue/Qfalse
+    if cfg!(ruby_lte_3_1) {
+        result.into()
+    } else {
+        // After 3.1 we get TRUE/true|FALSE/false
+        bool_to_value(c_int_to_bool(result))
+    }
 }
 
 pub fn equals(object1: Value, object2: Value) -> Value {
     unsafe { class::rb_equal(object1, object2) }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use rb_sys_test_helpers::ruby_test;
+    use super::*;
+    use crate::Integer;
+
+    #[ruby_test]
+    fn test_class_eql() {
+        let obj1 = Integer::new(1);
+        let obj2 = Integer::new(1);
+        let obj3 = Integer::new(2);
+        let obj4 = Integer::new(3);
+
+        assert!(is_eql(obj1.into(), obj2.into()).is_true());
+        assert!(is_eql(obj3.into(), obj4.into()).is_false());
+    }
 }

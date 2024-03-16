@@ -6,10 +6,7 @@
 /// # Examples
 ///
 /// ```
-/// #[macro_use]
-/// extern crate rutie;
-///
-/// use rutie::{Class, RString, Object, VM};
+/// use rutie::{Class, RString, Object, VM, class, methods};
 ///
 /// class!(Greeter);
 ///
@@ -32,13 +29,11 @@
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Class::new("Greeter", None).define(|klass| {
-///         klass.def("anonymous_greeting", anonymous_greeting);
-///         klass.def("friendly_greeting", friendly_greeting);
-///     });
-/// }
+/// # VM::init();
+/// Class::new("Greeter", None).define(|klass| {
+///     klass.def("anonymous_greeting", anonymous_greeting);
+///     klass.def("friendly_greeting", friendly_greeting);
+/// });
 /// ```
 ///
 /// Ruby:
@@ -69,7 +64,7 @@ macro_rules! class {
 
         impl From<$crate::types::Value> for $class {
             fn from(value: $crate::types::Value) -> Self {
-                $class { value: value }
+                $class { value }
             }
         }
 
@@ -90,10 +85,7 @@ macro_rules! class {
 /// # Examples
 ///
 /// ```
-/// #[macro_use]
-/// extern crate rutie;
-///
-/// use rutie::{Module, RString, Object, VM};
+/// use rutie::{Module, RString, Object, VM, methods, module};
 ///
 /// module!(Greeter);
 ///
@@ -116,13 +108,11 @@ macro_rules! class {
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Module::new("Greeter").define(|klass| {
-///         klass.def("anonymous_greeting", anonymous_greeting);
-///         klass.def("friendly_greeting", friendly_greeting);
-///     });
-/// }
+/// # VM::init();
+/// Module::new("Greeter").define(|klass| {
+///     klass.def("anonymous_greeting", anonymous_greeting);
+///     klass.def("friendly_greeting", friendly_greeting);
+/// });
 /// ```
 ///
 /// Ruby:
@@ -153,7 +143,7 @@ macro_rules! module {
 
         impl From<$crate::types::Value> for $module {
             fn from(value: $crate::types::Value) -> Self {
-                $module { value: value }
+                $module { value }
             }
         }
 
@@ -189,10 +179,7 @@ macro_rules! module {
 /// # Examples
 ///
 /// ```
-/// #[macro_use]
-/// extern crate rutie;
-///
-/// use rutie::{Boolean, Class, Fixnum, Object, RString, VM};
+/// use rutie::{Boolean, Class, Fixnum, Object, RString, VM, unsafe_methods};
 ///
 /// // Creates `string_length_equals` functions
 /// unsafe_methods!(
@@ -206,12 +193,10 @@ macro_rules! module {
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Class::from_existing("String").define(|klass| {
-///         klass.def("length_equals?", string_length_equals);
-///     });
-/// }
+/// # VM::init();
+/// Class::from_existing("String").define(|klass| {
+///     klass.def("length_equals?", string_length_equals);
+/// });
 /// ```
 ///
 /// Ruby:
@@ -244,7 +229,7 @@ macro_rules! unsafe_methods {
                                        #[allow(unused_mut)]
                                        #[allow(unused_variables)]
                                        mut $rtself_name: $rtself_class) -> $return_type {
-                let _arguments = $crate::util::parse_arguments(argc, argv);
+                let _arguments = unsafe { $crate::util::parse_arguments(argc, argv) };
                 let mut _i = 0;
 
                 $(
@@ -304,10 +289,7 @@ macro_rules! unsafe_methods {
 ///  - `address[:port]` is not a `Fixnum`
 ///
 /// ```
-/// #[macro_use]
-/// extern crate rutie;
-///
-/// use rutie::{Class, Fixnum, Hash, NilClass, Object, Symbol, VM};
+/// use rutie::{Class, Fixnum, Hash, NilClass, Object, Symbol, VM, class, methods};
 ///
 /// class!(Server);
 ///
@@ -330,12 +312,10 @@ macro_rules! unsafe_methods {
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Class::new("Server", None).define(|klass| {
-///         klass.def("start", start);
-///     });
-/// }
+/// # VM::init();
+/// Class::new("Server", None).define(|klass| {
+///     klass.def("start", start);
+/// });
 /// ```
 ///
 /// Ruby:
@@ -373,7 +353,7 @@ macro_rules! methods {
                                        #[allow(unused_mut)]
                                        #[allow(unused_variables)]
                                        mut $rtself_name: $rtself_class) -> $return_type {
-                let _arguments = $crate::util::parse_arguments(argc, argv);
+                let _arguments = unsafe { $crate::util::parse_arguments(argc, argv) };
                 let mut _i = 0;
 
                 $(
@@ -413,14 +393,6 @@ macro_rules! methods {
 /// ```toml
 /// lazy_static = "0.2.1" # the version is not a strict requirement
 /// ```
-///
-/// Crate root `lib.rs` or `main.rs`
-///
-/// ```ignore
-/// #[macro_use]
-/// extern crate lazy_static;
-/// ```
-///
 /// # Arguments
 ///
 ///  - `$struct_name` is name of the actual Rust struct. This structure has to be public (`pub`).
@@ -494,10 +466,7 @@ macro_rules! methods {
 /// ## Wrap `Server` structs to `RubyServer` objects
 ///
 /// ```
-/// #[macro_use] extern crate rutie;
-/// #[macro_use] extern crate lazy_static;
-///
-/// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM};
+/// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM, methods, wrappable_struct, class};
 ///
 /// // The structure which we want to wrap
 /// pub struct Server {
@@ -550,17 +519,15 @@ macro_rules! methods {
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     let data_class = Class::from_existing("Object");
+/// # VM::init();
+/// let data_class = Class::from_existing("Object");
 ///
-///     Class::new("RubyServer", Some(&data_class)).define(|klass| {
-///         klass.def_self("new", ruby_server_new);
+/// Class::new("RubyServer", Some(&data_class)).define(|klass| {
+///     klass.def_self("new", ruby_server_new);
 ///
-///         klass.def("host", ruby_server_host);
-///         klass.def("port", ruby_server_port);
-///     });
-/// }
+///     klass.def("host", ruby_server_host);
+///     klass.def("port", ruby_server_port);
+/// });
 /// ```
 ///
 /// To use the `RubyServer` class in Ruby:
@@ -577,12 +544,9 @@ macro_rules! methods {
 /// Custom array implementation using a vector which contains `AnyObject`s.
 ///
 /// ```
-/// #[macro_use] extern crate rutie;
-/// #[macro_use] extern crate lazy_static;
-///
 /// use std::ops::{Deref, DerefMut};
 ///
-/// use rutie::{AnyObject, Class, Fixnum, GC, NilClass, Object, VM};
+/// use rutie::{AnyObject, Class, Fixnum, GC, NilClass, Object, VM, wrappable_struct, class, methods};
 ///
 /// pub struct VectorOfObjects {
 ///     inner: Vec<AnyObject>,
@@ -619,6 +583,8 @@ macro_rules! methods {
 ///     // `data` is a mutable reference to the wrapped data (`&mut VectorOfObjects`).
 ///     mark(data) {
 ///         for object in &data.inner {
+///             // GC::mark is only valid in Ruby 2.
+///             #[cfg(not(ruby_gte_3_0))]
 ///             GC::mark(object);
 ///         }
 ///     }
@@ -649,17 +615,15 @@ macro_rules! methods {
 ///     }
 /// }
 ///
-/// fn main() {
-///     # VM::init();
-///     let data_class = Class::from_existing("Object");
+/// # VM::init();
+/// let data_class = Class::from_existing("Object");
 ///
-///     Class::new("RustyArray", Some(&data_class)).define(|klass| {
-///         klass.def_self("new", new);
+/// Class::new("RustyArray", Some(&data_class)).define(|klass| {
+///     klass.def_self("new", new);
 ///
-///         klass.def("push", push);
-///         klass.def("length", length);
-///     });
-/// }
+///     klass.def("push", push);
+///     klass.def("length", length);
+/// });
 /// ```
 ///
 /// To use the `RustyArray` class in Ruby:
@@ -676,17 +640,17 @@ macro_rules! methods {
 #[macro_export]
 macro_rules! wrappable_struct {
     (@mark_function_pointer) => {
-        None as Option<extern "C" fn(*mut $crate::types::c_void)>
+        None as Option<unsafe extern "C" fn(*mut $crate::types::c_void)>
     };
     // Leading comma is the comma between `$static_name: ident` and `mark` in the main macro rule.
     // Optional comma `$(,)*` is not allowed in the main rule, because it is
     // followed by `$($tail: tt)*`
     (@mark_function_pointer , mark($object: ident) $body: block) => {
-        Some(Self::mark as extern "C" fn(*mut $crate::types::c_void))
+        Some(Self::mark as unsafe extern "C" fn(*mut $crate::types::c_void))
     };
     (@mark_function_definition $struct_name: ty) => {};
     (@mark_function_definition $struct_name: ty, mark($object: ident) $body: expr) => {
-        pub extern "C" fn mark(data: *mut $crate::types::c_void) {
+        pub unsafe extern "C" fn mark(data: *mut $crate::types::c_void) {
             let mut data = unsafe { (data as *mut $struct_name).as_mut() };
 
             if let Some(ref mut $object) = data {
@@ -708,6 +672,9 @@ macro_rules! wrappable_struct {
             fn new() -> $wrapper<T> {
                 let name = concat!("Rutie/", stringify!($struct_name));
                 let name = $crate::util::str_to_cstring(name);
+                #[cfg(ruby_gte_2_7)]
+                let reserved_bytes: [*mut $crate::types::c_void; 1] = [::std::ptr::null_mut(); 1];
+                #[cfg(ruby_lt_2_7)]
                 let reserved_bytes: [*mut $crate::types::c_void; 2] = [::std::ptr::null_mut(); 2];
 
                 let dmark = wrappable_struct!(@mark_function_pointer $($tail)*);
@@ -716,18 +683,19 @@ macro_rules! wrappable_struct {
                     wrap_struct_name: name.into_raw(),
                     parent: ::std::ptr::null(),
                     data: ::std::ptr::null_mut(),
-                    flags: $crate::types::Value::from(0),
+                    flags: $crate::types::Value::from(0).into(),
 
                     function: $crate::types::DataTypeFunction {
-                        dmark: dmark,
+                        dmark,
                         dfree: Some($crate::typed_data::free::<T>),
                         dsize: None,
                         reserved: reserved_bytes,
+                        compact: None,
                     },
                 };
 
                 $wrapper {
-                    data_type: data_type,
+                    data_type,
                     _marker: ::std::marker::PhantomData,
                 }
             }
@@ -750,22 +718,18 @@ macro_rules! wrappable_struct {
 ///
 /// # Examples
 /// ```
-/// #[macro_use]
-/// extern crate rutie;
-/// use rutie::{Object, Integer, Binding, VM};
+/// use rutie::{Object, Integer, Binding, VM, eval};
 ///
-/// fn main() {
-///     # VM::init();
+/// # VM::init();
 ///
-///     let binding = eval!("asdf = 1; binding").unwrap().
-///       try_convert_to::<Binding>().unwrap();
+/// let binding = eval!("asdf = 1; binding").unwrap().
+/// try_convert_to::<Binding>().unwrap();
 ///
-///     let result = eval!("asdf", binding).unwrap();
+/// let result = eval!("asdf", binding).unwrap();
 ///
-///     match result.try_convert_to::<Integer>() {
-///         Ok(v) => assert_eq!(1, v.to_i64()),
-///         Err(_) => unreachable!(),
-///     }
+/// match result.try_convert_to::<Integer>() {
+///     Ok(v) => assert_eq!(1, v.to_i64()),
+///     Err(_) => unreachable!(),
 /// }
 /// ```
 #[macro_export]

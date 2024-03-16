@@ -1,6 +1,8 @@
-require "rbconfig"
-require "bundler/gem_tasks"
-require "rake/testtask"
+# frozen_string_literal: true
+
+require 'rbconfig'
+require 'bundler/gem_tasks'
+require 'rake/testtask'
 
 # Mac OS with rbenv users keep leaving behind build artifacts from
 #   when they tried to build against a statically linked Ruby and then
@@ -25,10 +27,10 @@ task :bundle_install do
   sh 'bundle install'
 end
 
-Rake::TestTask.new(test: [:tidy_up, :bundle_install, :build_lib]) do |t|
-  t.libs << "test"
-  t.libs << "lib"
-  t.test_files = FileList["test/**/*_test.rb"]
+Rake::TestTask.new(test: %i[tidy_up bundle_install build_lib]) do |t|
+  t.libs << 'test'
+  t.libs << 'lib'
+  t.test_files = FileList['test/**/*_test.rb']
 end
 
-task :default => :test
+task default: :test

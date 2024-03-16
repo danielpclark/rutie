@@ -1,4 +1,4 @@
-use crate::{binding::gc, AnyObject, Object, Symbol};
+use crate::{binding::gc, Object, Symbol};
 
 /// Garbage collection
 pub struct GC;
@@ -89,7 +89,7 @@ impl GC {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{RString, GC, VM};
     /// # VM::init();
     ///
@@ -98,6 +98,8 @@ impl GC {
     /// GC::mark(&obj);
     /// assert!(unsafe {GC::is_marked(&obj) }, "Object was not marked");
     /// ```
+    ///
+    #[cfg(not(ruby_gte_3_0))]
     pub unsafe fn is_marked(object: &impl Object) -> bool {
         gc::is_marked(object.value())
     }
@@ -118,6 +120,7 @@ impl GC {
     ///
     /// GC::mark(&object);
     /// ```
+    #[cfg(not(ruby_gte_3_0))]
     pub fn mark(object: &impl Object) {
         gc::mark(object.value());
     }
@@ -139,6 +142,7 @@ impl GC {
     ///
     /// GC::mark_locations(&arr);
     /// ```
+    #[cfg(not(ruby_gte_3_0))]
     pub fn mark_locations(range: &[impl Object]) {
         for object in range {
             GC::mark_maybe(object)
@@ -161,6 +165,7 @@ impl GC {
     ///
     /// GC::mark_maybe(&object);
     /// ```
+    #[cfg(not(ruby_gte_3_0))]
     pub fn mark_maybe(object: &impl Object) {
         gc::mark_maybe(object.value());
     }

@@ -87,6 +87,7 @@ impl Symbol {
     ///
     /// sym.to_s == 'hello'
     /// ```
+    #[allow(clippy::inherent_to_string)] // We want this instead of implementing Display.
     pub fn to_string(&self) -> String {
         symbol::value_to_string(self.value())
     }
@@ -122,15 +123,15 @@ impl From<Value> for Symbol {
     }
 }
 
-impl Into<Value> for Symbol {
-    fn into(self) -> Value {
-        self.value
+impl From<Symbol> for Value {
+    fn from(val: Symbol) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Symbol {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Symbol> for AnyObject {
+    fn from(val: Symbol) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

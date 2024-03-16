@@ -1,4 +1,4 @@
-use crate::rubysys::{libc, types::Value};
+use super::types::Value;
 
 extern "C" {
     // VALUE
@@ -13,7 +13,6 @@ extern "C" {
     // VALUE
     // rb_ull2inum(unsigned LONG_LONG n)
     pub fn rb_ull2inum(num: libc::c_ulonglong) -> Value;
-
     // short
     // rb_num2short(VALUE val)
     pub fn rb_num2short(num: Value) -> libc::c_short;
