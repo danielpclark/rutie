@@ -1,5 +1,6 @@
 use libc::c_void;
 
+use crate::types::CallbackPtr;
 use crate::util::bool_to_value;
 use crate::util::c_int_to_bool;
 use crate::{
@@ -80,8 +81,7 @@ pub fn define_method<I: Object, O: Object>(klass: Value, name: &str, callback: C
     let name = util::str_to_cstring(name);
 
     unsafe {
-        let callback = callback as *const libc::c_void;
-        class::rb_define_method(klass, name.as_ptr(), callback, -1)
+        class::rb_define_method(klass, name.as_ptr(), callback as CallbackPtr, -1)
     }
 }
 
@@ -93,8 +93,7 @@ pub fn define_private_method<I: Object, O: Object>(
     let name = util::str_to_cstring(name);
 
     unsafe {
-        let callback = callback as *const libc::c_void;
-        class::rb_define_private_method(klass, name.as_ptr(), callback, -1);
+        class::rb_define_private_method(klass, name.as_ptr(), callback as CallbackPtr, -1);
     }
 }
 
@@ -106,8 +105,7 @@ pub fn define_singleton_method<I: Object, O: Object>(
     let name = util::str_to_cstring(name);
 
     unsafe {
-        let callback = callback as *const libc::c_void;
-        class::rb_define_singleton_method(klass, name.as_ptr(), callback, -1);
+        class::rb_define_singleton_method(klass, name.as_ptr(), callback as CallbackPtr, -1);
     }
 }
 

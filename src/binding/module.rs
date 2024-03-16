@@ -1,7 +1,7 @@
 use crate::{
     binding::{class as binding_class, global::rb_cObject},
     rubysys::class,
-    types::{Callback, Value},
+    types::{Callback, Value, CallbackPtr},
     util, Object,
 };
 
@@ -25,8 +25,7 @@ pub fn define_module_function<I: Object, O: Object>(
     let name = util::str_to_cstring(name);
 
     unsafe {
-        let callback = callback as *const libc::c_void;
-        class::rb_define_module_function(klass, name.as_ptr(), callback, -1);
+        class::rb_define_module_function(klass, name.as_ptr(), callback as CallbackPtr, -1);
     }
 }
 
