@@ -139,15 +139,34 @@ pub fn freeze(object: Value) -> Value {
 
 pub fn is_eql(object1: Value, object2: Value) -> Value {
     let result = unsafe { class::rb_eql(object1, object2) };
-    // In 3.1 and earlier we get Qtrue/ Qfalse
+    // In 3.1 and earlier we get Qtrue/Qfalse
     if cfg!(ruby_lte_3_1) {
         result.into()
     } else {
-        // After 3.1 we get TRUE/true
+        // After 3.1 we get TRUE/true|FALSE/false
         bool_to_value(c_int_to_bool(result))
     }
 }
 
 pub fn equals(object1: Value, object2: Value) -> Value {
     unsafe { class::rb_equal(object1, object2) }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use rb_sys_test_helpers::ruby_test;
+    use super::*;
+    use crate::Integer;
+
+    #[ruby_test]
+    fn test_class_eql() {
+        let obj1 = Integer::new(1);
+        let obj2 = Integer::new(1);
+        let obj3 = Integer::new(2);
+        let obj4 = Integer::new(3);
+
+        assert!(is_eql(obj1.into(), obj2.into()).is_true());
+        assert!(is_eql(obj3.into(), obj4.into()).is_false());
+    }
 }
