@@ -308,6 +308,9 @@ Migrated `parse_arguments` from `VM` to `util`.
 
 Internal changes `util` from `binding` and `rubysys` have been replaced to reduce confusion and reduce duplication.
 
+### 0.10
+
+`crate::util::parse_arguments` has been marked as unsafe, this is considered a breaking change in Rust.
 
 ## Safety — The Rutie Philosophy vs The Rust Philosophy on Safety
 
