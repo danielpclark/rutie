@@ -301,7 +301,7 @@ pub trait Object: From<Value> {
     ///     let mut string = RString::new_utf8("Some string");
     ///
     ///     // The same can be done by modifying `string.singleton_class()`
-    ///     // or usiang `string.define_singleton_method("greeting", greeting)`
+    ///     // or using `string.define_singleton_method("greeting", greeting)`
     ///     string.define(|klass| {
     ///         klass.define_singleton_method("greeting", greeting);
     ///     });
