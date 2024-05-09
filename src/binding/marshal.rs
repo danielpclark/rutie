@@ -1,7 +1,4 @@
-use crate::{
-    rubysys::marshal,
-    types::Value,
-};
+use crate::{rubysys::marshal, types::Value};
 
 pub fn marshal_dump(val: Value, port: Value) -> Value {
     unsafe { marshal::rb_marshal_dump(val, port) }

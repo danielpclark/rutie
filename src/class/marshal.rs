@@ -1,8 +1,4 @@
-use crate::{
-    binding::marshal,
-    types::Value,
-    AnyObject, NilClass,
-};
+use crate::{binding::marshal, types::Value, AnyObject, NilClass};
 
 /// `Marshal`
 #[derive(Debug)]
