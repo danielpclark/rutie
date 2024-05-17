@@ -1,4 +1,4 @@
-use crate::rubysys::types::Value;
+use crate::{rubysys::types::Value, RString};
 
 extern "C" {
     // VALUE
@@ -6,5 +6,5 @@ extern "C" {
     pub fn rb_marshal_dump(val: Value, port: Value) -> Value;
     // VALUE
     // rb_marshal_load(VALUE port)
-    pub fn rb_marshal_load(port: Value) -> Value;
+    pub fn rb_marshal_load(port: RString) -> Value;
 }

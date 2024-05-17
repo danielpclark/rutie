@@ -1,4 +1,4 @@
-use crate::{binding::marshal, types::Value, AnyObject, NilClass};
+use crate::{binding::marshal, types::Value, AnyObject, NilClass, RString};
 
 /// `Marshal`
 #[derive(Debug)]
@@ -28,11 +28,11 @@ impl Marshal {
     ///
     /// Marshal::load(dumped) == true
     /// ```
-    pub fn load(port: AnyObject) -> AnyObject {
-        marshal::marshal_load(port.into()).into()
+    pub fn load(port: RString) -> AnyObject {
+        marshal::marshal_load(port).into()
     }
 
-    pub fn dump(val: AnyObject, port: AnyObject) -> AnyObject {
+    pub fn dump(val: AnyObject, port: AnyObject) -> RString {
         marshal::marshal_dump(val.into(), port.into()).into()
     }
 }
