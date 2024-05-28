@@ -176,6 +176,7 @@ That's all you need to load your Ruby things from Rust.  Now to write the test i
 
 ```ruby
 require_relative "test_helper"
+require "rutie_ruby_example"
 
 class RutieRubyExampleTest < Minitest::Test
   def test_it_reverses
