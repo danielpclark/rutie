@@ -175,12 +175,30 @@ That's all you need to load your Ruby things from Rust.  Now to write the test i
 `test/rutie_ruby_example_test.rb`:
 
 ```ruby
-require "test_helper"
+require_relative "test_helper"
 
 class RutieRubyExampleTest < Minitest::Test
   def test_it_reverses
     assert_equal "selppa", RutieExample.reverse("apples")
   end
+end
+```
+
+Write the following in `test/test_helper.rb`:
+
+```ruby
+require 'minitest/autorun'
+```
+
+Add the following snippet to your already scaffolded `Rakefile`:
+
+```ruby
+require "rake/testtask"
+
+Rake::TestTask.new do |t|
+  t.libs << 'test'
+  t.pattern = 'test/**/*_test.rb'
+  t.verbose = true
 end
 ```
 
