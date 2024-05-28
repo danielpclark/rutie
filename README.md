@@ -154,10 +154,10 @@ Now you just need to load the library in Ruby.  Add the `rutie` gem to your gems
 
 ```ruby
 # gemspec
-spec.add_dependency 'rutie', '~> 0.0.3'
+spec.add_dependency 'rutie', '~> 0.0.4'
 
 # Gemfile
-gem 'rutie', '~> 0.0.3'
+gem 'rutie', '~> 0.0.4'
 ```
 
 And then load the library in your main project file `lib/rutie_ruby_example.rb`.
