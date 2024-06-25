@@ -1,6 +1,5 @@
-#![allow(unused_imports, dead_code)]
-#[macro_use]
-extern crate lazy_static;
+// Just doing FFI no special safety considerations.
+#![allow(clippy::missing_safety_doc)]
 
 mod binding;
 mod class;
@@ -28,23 +27,14 @@ pub use crate::class::traits::{
 
 pub use crate::helpers::codepoint_iterator::CodepointIterator;
 
-use std::sync::{Arc, RwLock};
-
-#[cfg(test)]
-lazy_static! {
-    pub static ref LOCK_FOR_TEST: RwLock<i32> = RwLock::new(0);
-}
-
 #[cfg(test)]
 mod current_ruby {
-    use super::{Object, RString, VM, *};
+    use super::{Object, RString, VM};
+    use rb_sys_test_helpers::ruby_test;
     use std::process::Command;
 
-    #[test]
+    #[ruby_test]
     fn is_linked_ruby() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
-
         let rv = RString::from(VM::eval("RUBY_VERSION").unwrap().value()).to_string();
         let output = Command::new("ruby")
             .arg("-e")

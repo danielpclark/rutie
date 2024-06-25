@@ -12,11 +12,8 @@ use crate::{
 /// Also see `def`, `def_self`, `define` and some more functions from `Object` trait.
 ///
 /// ```rust
-/// #[macro_use] extern crate rutie;
-///
 /// use std::error::Error;
-///
-/// use rutie::{Module, Fixnum, Object, Exception, VM};
+/// use rutie::{Module, Integer, Object, Exception, VM, module, methods};
 ///
 /// module!(Example);
 ///
@@ -24,8 +21,8 @@ use crate::{
 ///    Example,
 ///    rtself,
 ///
-///     fn square(exp: Fixnum) -> Fixnum {
-///         // `exp` is not a valid `Fixnum`, raise an exception
+///     fn square(exp: Integer) -> Integer {
+///         // `exp` is not a valid `Integer`, raise an exception
 ///         if let Err(ref error) = exp {
 ///             VM::raise(error.class(), &error.message());
 ///         }
@@ -33,16 +30,14 @@ use crate::{
 ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
 ///         let exp = exp.unwrap().to_i64();
 ///
-///         Fixnum::new(exp * exp)
+///         Integer::new(exp * exp)
 ///     }
 /// );
 ///
-/// fn main() {
-///     # VM::init();
-///     Module::new("Example").define(|klass| {
-///         klass.def("square", square);
-///     });
-/// }
+/// # VM::init();
+/// Module::new("Example").define(|klass| {
+///     klass.def("square", square);
+/// });
 /// ```
 ///
 /// Ruby:
@@ -114,7 +109,7 @@ impl Module {
     /// Object.const_get('Record')
     /// ```
     pub fn from_existing(name: &str) -> Self {
-        let object_module = unsafe { rb_cObject };
+        let object_module = unsafe { rb_cObject }.into();
 
         Self::from(class::const_get(object_module, name))
     }
@@ -355,17 +350,14 @@ impl Module {
     /// Raise `Fixnum` to the power of `exp`.
     ///
     /// ```rust
-    /// #[macro_use] extern crate rutie;
-    ///
     /// use std::error::Error;
-    ///
-    /// use rutie::{Module, Fixnum, Object, Exception, VM};
+    /// use rutie::{Module, Integer, Object, Exception, VM, methods};
     ///
     /// methods!(
-    ///     Fixnum,
+    ///     Integer,
     ///     rtself,
     ///
-    ///     fn pow(exp: Fixnum) -> Fixnum {
+    ///     fn pow(exp: Integer) -> Integer {
     ///         // `exp` is not a valid `Fixnum`, raise an exception
     ///         if let Err(ref error) = exp {
     ///             VM::raise(error.class(), &error.message());
@@ -374,32 +366,30 @@ impl Module {
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
     ///         let exp = exp.unwrap().to_i64() as u32;
     ///
-    ///         Fixnum::new(rtself.to_i64().pow(exp))
+    ///         Integer::new(rtself.to_i64().pow(exp))
     ///     }
     ///
-    ///     fn pow_with_default_argument(exp: Fixnum) -> Fixnum {
+    ///     fn pow_with_default_argument(exp: Integer) -> Integer {
     ///         let default_exp = 0;
     ///         let exp = exp.map(|exp| exp.to_i64()).unwrap_or(default_exp);
     ///
     ///         let result = rtself.to_i64().pow(exp as u32);
     ///
-    ///         Fixnum::new(result)
+    ///         Integer::new(result)
     ///     }
     /// );
     ///
-    /// fn main() {
-    ///     # VM::init();
-    ///     Module::from_existing("Fixnum").define(|klass| {
-    ///         klass.mod_func("pow", pow);
-    ///         klass.mod_func("pow_with_default_argument", pow_with_default_argument);
-    ///     });
-    /// }
+    /// # VM::init();
+    /// Module::from_existing("Integer").define(|klass| {
+    ///     klass.mod_func("pow", pow);
+    ///     klass.mod_func("pow_with_default_argument", pow_with_default_argument);
+    /// });
     /// ```
     ///
     /// Ruby:
     ///
     /// ```ruby
-    /// module Fixnum
+    /// module Integer
     ///   def pow(exp)
     ///     raise ArgumentError unless exp.is_a?(Fixnum)
     ///
@@ -735,7 +725,7 @@ impl Module {
     fn superclass_to_value(superclass: Option<&Class>) -> Value {
         match superclass {
             Some(class) => class.value(),
-            None => unsafe { rb_cObject },
+            None => unsafe { rb_cObject }.into(),
         }
     }
 }
@@ -746,15 +736,15 @@ impl From<Value> for Module {
     }
 }
 
-impl Into<Value> for Module {
-    fn into(self) -> Value {
-        self.value
+impl From<Module> for Value {
+    fn from(val: Module) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Module {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Module> for AnyObject {
+    fn from(val: Module) -> Self {
+        AnyObject::from(val.value)
     }
 }
 

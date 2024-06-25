@@ -19,8 +19,9 @@ pub fn join(array: Value, separator: Value) -> Value {
     unsafe { array::rb_ary_join(array, separator) }
 }
 
+#[allow(clippy::useless_conversion)] // For w64-mingw32 rb_ary_len returns i32
 pub fn len(array: Value) -> i64 {
-    unsafe { array::rb_ary_len(array) as i64 }
+    unsafe { array::rb_ary_len(array).into() }
 }
 
 pub fn push(array: Value, item: Value) -> Value {

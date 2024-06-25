@@ -8,10 +8,12 @@ pub fn u32_to_num(num: u32) -> Value {
     unsafe { fixnum::rb_uint2inum(num as usize) }
 }
 
+#[allow(dead_code)]
 pub fn isize_to_num(num: isize) -> Value {
     unsafe { fixnum::rb_int2inum(num) }
 }
 
+#[allow(dead_code)]
 pub fn usize_to_num(num: usize) -> Value {
     unsafe { fixnum::rb_uint2inum(num) }
 }
@@ -29,13 +31,15 @@ pub fn num_to_i32(num: Value) -> i32 {
 }
 
 pub fn num_to_u32(num: Value) -> u32 {
-    unsafe { fixnum::rb_num2uint(num) as u32 }
+    unsafe { fixnum::rb_num2long(num) as u32 }
 }
 
+#[allow(dead_code)]
 pub fn num_to_isize(num: Value) -> isize {
     unsafe { fixnum::rb_num2long(num) as isize }
 }
 
+#[allow(dead_code)]
 pub fn num_to_usize(num: Value) -> usize {
     unsafe { fixnum::rb_num2ulong(num) as usize }
 }

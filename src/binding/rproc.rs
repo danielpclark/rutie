@@ -12,7 +12,7 @@ pub fn call(rproc: Value, arguments: &[Value]) -> Value {
         rproc::rb_proc_call_with_block(
             rproc,
             argc,
-            argv,
+            argv as *const _,
             Value::from(RubySpecialConsts::Nil as InternalValue),
         )
     }

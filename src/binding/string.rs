@@ -22,7 +22,7 @@ pub fn new_from_bytes(bytes: &[u8], enc: Value) -> Value {
     let bts = bytes.as_ptr() as *const c_char;
     let len = bytes.len() as c_long;
 
-    unsafe { string::rb_enc_str_new(bts, len, encoding::rb_to_encoding(enc)) }
+    unsafe { string::rb_enc_str_new(bts, len, encoding::rb_to_encoding(enc) as *mut _) }
 }
 
 pub fn new_frozen(value: Value) -> Value {
@@ -37,7 +37,7 @@ pub fn method_to_str(str: Value) -> Value {
 
 pub fn value_to_string(value: Value) -> String {
     unsafe {
-        let str = string::rb_string_value_cstr(&value);
+        let str = string::rb_string_value_cstr(&value as *const _);
 
         util::cstr_to_string(str)
     }
@@ -53,7 +53,7 @@ pub fn value_to_string_unchecked(value: Value) -> String {
 
 pub fn value_to_str<'a>(value: Value) -> &'a str {
     unsafe {
-        let str = string::rb_string_value_cstr(&value);
+        let str = string::rb_string_value_cstr(&value as *const _);
 
         util::cstr_to_str(str)
     }
@@ -63,7 +63,6 @@ pub fn value_to_bytes_unchecked<'a>(value: Value) -> &'a [u8] {
     unsafe {
         let str = string::rb_string_value_ptr(&value) as *const u8;
         let len = string::rstring_len(value) as usize;
-
         ::std::slice::from_raw_parts(str, len)
     }
 }
@@ -76,12 +75,14 @@ pub fn value_to_str_unchecked<'a>(value: Value) -> &'a str {
     }
 }
 
+#[allow(clippy::useless_conversion)] // For w64-mingw32 rb_string_len returns i32
 pub fn bytesize(value: Value) -> i64 {
-    unsafe { string::rstring_len(value) as i64 }
+    unsafe { string::rstring_len(value).into() }
 }
 
+#[allow(clippy::useless_conversion)] // For w64-mingw32 rb_str_strlen returns i32
 pub fn count_chars(value: Value) -> i64 {
-    unsafe { string::rb_str_strlen(value) as i64 }
+    unsafe { string::rb_str_strlen(value).into() }
 }
 
 pub fn concat(value: Value, bytes: &[u8]) -> Value {
@@ -95,10 +96,12 @@ pub fn is_lockedtmp(str: Value) -> bool {
     unsafe { string::is_lockedtmp(str) }
 }
 
+#[allow(dead_code)]
 pub fn locktmp(str: Value) -> Value {
     unsafe { string::rb_str_locktmp(str) }
 }
 
+#[allow(dead_code)]
 pub fn unlocktmp(str: Value) -> Value {
     unsafe { string::rb_str_unlocktmp(str) }
 }

@@ -1,5 +1,3 @@
-extern crate libc;
-
 pub mod array;
 pub mod class;
 pub mod constant;
@@ -17,8 +15,4 @@ pub mod types;
 pub mod value;
 pub mod vm;
 
-use crate::rubysys::types::Value;
-
-extern "C" {
-    pub static rb_cObject: Value;
-}
+pub use rb_sys::rb_cObject;

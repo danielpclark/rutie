@@ -1,4 +1,7 @@
-use crate::{types::Value, Object, VerifiedObject};
+use crate::{
+    types::{InternalValue, Value},
+    Object, VerifiedObject,
+};
 use std::{borrow::Borrow, convert::AsRef, ops::Deref};
 
 /// Representation of any Ruby object while its type is unknown
@@ -59,9 +62,17 @@ impl From<Value> for AnyObject {
     }
 }
 
-impl Into<Value> for AnyObject {
-    fn into(self) -> Value {
-        self.value
+impl From<InternalValue> for AnyObject {
+    fn from(value: InternalValue) -> Self {
+        AnyObject {
+            value: Value::from(value),
+        }
+    }
+}
+
+impl From<AnyObject> for Value {
+    fn from(val: AnyObject) -> Self {
+        val.value
     }
 }
 

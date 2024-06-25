@@ -1,4 +1,4 @@
-use crate::rubysys::value::ValueType;
+use super::value::ValueType;
 
 pub const FL_WB_PROTECTED: isize = 1 << 5;
 pub const FL_PROMOTED0: isize = 1 << 5;
@@ -12,7 +12,7 @@ pub const FL_FREEZE: isize = 1 << 11;
 
 pub const FL_USHIFT: isize = 12;
 
-pub const FL_USER_0: isize = 1 << (FL_USHIFT + 0);
+pub const FL_USER_0: isize = 1 << FL_USHIFT;
 pub const FL_USER_1: isize = 1 << (FL_USHIFT + 1);
 pub const FL_USER_2: isize = 1 << (FL_USHIFT + 2);
 pub const FL_USER_3: isize = 1 << (FL_USHIFT + 3);

@@ -1,4 +1,4 @@
-use crate::{binding::vm, util, AnyObject, Array, Class, Object, RString};
+use crate::{binding::vm, util, AnyObject, Array, Object, RString};
 
 /// Descendants of class Exception are used to communicate between Kernel#raise
 /// and rescue statements in `begin ... end` blocks. Exception objects carry

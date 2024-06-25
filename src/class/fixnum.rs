@@ -131,15 +131,15 @@ impl From<Value> for Fixnum {
     }
 }
 
-impl Into<Value> for Fixnum {
-    fn into(self) -> Value {
-        self.value
+impl From<Fixnum> for Value {
+    fn from(val: Fixnum) -> Self {
+        val.value
     }
 }
 
-impl Into<AnyObject> for Fixnum {
-    fn into(self) -> AnyObject {
-        AnyObject::from(self.value)
+impl From<Fixnum> for AnyObject {
+    fn from(val: Fixnum) -> Self {
+        AnyObject::from(val.value)
     }
 }
 
