@@ -8,6 +8,7 @@ pub mod fixnum;
 pub mod float;
 pub mod gc;
 pub mod hash;
+pub mod marshal;
 pub mod rproc;
 pub mod string;
 pub mod symbol;
