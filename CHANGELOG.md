@@ -8,6 +8,8 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+### Changed
+ - Upgraded code base to use rb-sys build system for Ruby 3, thanks to @goyox86
 
 ## [0.9.0] - 2023-12-17
 ### Added

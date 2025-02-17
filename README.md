@@ -2,7 +2,7 @@
 
 [![GitHub Actions Status](https://github.com/danielpclark/rutie/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/danielpclark/rutie/actions/workflows/ci.yml)
 [![Ruby 2 Compatible](https://img.shields.io/badge/Supports-Ruby%202-brightgreen)](https://travis-ci.org/danielpclark/rutie)
-[![Maintenance](https://img.shields.io/maintenance/yes/2023.svg)](https://github.com/danielpclark/rutie/commits/master)
+[![Maintenance](https://img.shields.io/maintenance/yes/2025.svg)](https://github.com/danielpclark/rutie/commits/master)
 [![GitHub contributors](https://img.shields.io/github/contributors/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/graphs/contributors)
 [![license](https://img.shields.io/github/license/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/blob/master/LICENSE)
 [![crates.io version](https://img.shields.io/crates/v/rutie.svg)](https://crates.io/crates/rutie)
