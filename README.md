@@ -7,7 +7,7 @@
 [![license](https://img.shields.io/github/license/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/blob/master/LICENSE)
 [![crates.io version](https://img.shields.io/crates/v/rutie.svg)](https://crates.io/crates/rutie)
 
-> Rutie — /ro&#x035E;oˈˌtī/rOOˈˌtI/rüˈˌtaI/
+> Rutie — /ro&#x035E;oˈˌtī/rOOˈˌtɪ/rüˈˌtaɪ/
 
 Integrate Ruby with your Rust application.  Or integrate Rust with your Ruby application.
 This project allows you to do either with relative ease.
