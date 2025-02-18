@@ -227,13 +227,11 @@ pub fn at_exit<F>(func: F)
 where
     F: FnMut(VmPointer),
 {
-    let mut state = 0;
     unsafe {
         let closure = &func as *const F as *const c_void;
-        vm::rb_protect(
+        vm::rb_set_end_proc(
             at_exit_callback::<F, VmPointer, ()> as CallbackPtr,
-            closure as CallbackPtr,
-            &mut state as *mut c_int,
+            closure as CallbackPtr
         )
     };
 }
