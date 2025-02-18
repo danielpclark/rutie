@@ -1,6 +1,6 @@
 [package]
 name = "rutie"
-version = "0.9.0"
+version = "0.10.0"
 authors = [
   "Steve Klabnik <steve@steveklabnik.com>",
   "Dmitry Gritsay <unseductable@gmail.com>",
@@ -21,9 +21,9 @@ ruby-static = ["rb-sys/ruby-static"]
 no-link = []                         # noop, for backwards compatibility.
 
 [dependencies]
-libc = "0.2.153"
-rb-sys = { version = "0.9.90", features = ["stable-api-compiled-fallback"] }
-rb-sys-env = "0.1"
+libc = "0.2.169"
+rb-sys = { version = "0.9.110", features = ["stable-api-compiled-fallback"] }
+rb-sys-env = "0.2.2"
 
 [dev-dependencies]
 rutie = { path = ".", features = ["link-ruby"] }
@@ -36,3 +36,6 @@ rb-sys-env = "0.1"
 [badges]
 travis-ci = { repository = "danielpclark/rutie", branch = "master" }
 maintenance = { status = "actively-developed" }
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(ruby_gte_3_0)', 'cfg(ruby_lte_3_1)'] }

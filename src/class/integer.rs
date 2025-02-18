@@ -234,7 +234,7 @@ mod tests {
     use super::super::super::{AnyException, Integer, NilClass, Object, VM};
     use rb_sys_test_helpers::ruby_test;
 
-    #[cfg(target_os = "darwin")]
+    #[cfg(target_os = "macos")]
     #[ruby_test]
     fn test_github_issue_113_darwin_os() {
         VM::init();
