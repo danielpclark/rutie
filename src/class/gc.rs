@@ -78,6 +78,7 @@ impl GC {
     ///
     /// GC::force_recycle(obj);
     /// ```
+    #[cfg(not(ruby_gt_3_3))]
     pub fn force_recycle(object: impl Object) {
         gc::force_recycle(object.value())
     }
