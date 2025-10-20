@@ -1,5 +1,7 @@
 ## Rutie
 
+### USE RUBY 2 OR ELSE
+
 [![GitHub Actions Status](https://github.com/danielpclark/rutie/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/danielpclark/rutie/actions/workflows/ci.yml)
 [![Ruby 2 Compatible](https://img.shields.io/badge/Supports-Ruby%202-brightgreen)](https://travis-ci.org/danielpclark/rutie)
 [![Maintenance](https://img.shields.io/maintenance/yes/2025.svg)](https://github.com/danielpclark/rutie/commits/master)
