@@ -216,15 +216,79 @@ fn dynamic_linker_args() {
 
 fn static_linker_args() {
     let mut library = Library::new();
-    // On Windows this names the import library for the Ruby DLL.
-    if !windows::is_target() {
-        library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), true);
+
+    if windows::is_target() {
+        library.parse_libs_cflags(
+            format!("-l{}-static", rbconfig("RUBY_SO_NAME")).as_bytes(),
+            true,
+        );
+        library.parse_libs_cflags(rbconfig("MAINLIBS").as_bytes(), false);
+        return;
     }
-    library.parse_libs_cflags(
-        format!("-l{}-static", rbconfig("RUBY_SO_NAME")).as_bytes(),
-        true,
+
+    // Link the archive Ruby installs (`LIBRUBY_A`, `libruby-static.a`).
+    // `LIBRUBYARG_SHARED` names the shared library (`-lruby`), which is not
+    // an archive, so asking for it as a static library always failed.
+    let archive = static_ruby_archive();
+    println!(
+        "cargo:rustc-link-search=native={}",
+        archive.parent().unwrap().display()
     );
+
+    // The whole archive, like the `ruby` executable: extensions (`enc/*.so`,
+    // `objspace.so`, ...) of a static Ruby are not linked to a libruby and
+    // call Ruby functions that Rutie itself never references.
+    let name = archive.file_name().unwrap().to_string_lossy();
+    let name = name.trim_start_matches("lib").trim_end_matches(".a");
+    println!("cargo:rustc-link-lib=static:+whole-archive={}", name);
+
+    // ...and those extensions find the functions in the executable, so it
+    // must export them (Ruby links `ruby` with `-Wl,-export-dynamic`). This
+    // covers Rutie's own tests and examples; a program embedding a static
+    // Ruby links with `-C link-arg=-Wl,--export-dynamic` itself.
+    if is_linux_like_target() {
+        println!("cargo:rustc-link-arg=-Wl,--export-dynamic");
+    }
+
+    // What the archive itself needs (`-lpthread -ldl -lcrypt -lm`, ...).
     library.parse_libs_cflags(rbconfig("MAINLIBS").as_bytes(), false);
+    library.parse_libs_cflags(rbconfig("LIBS").as_bytes(), false);
+}
+
+fn is_linux_like_target() -> bool {
+    matches!(
+        env::var("CARGO_CFG_TARGET_OS").as_deref(),
+        Ok("linux") | Ok("android") | Ok("freebsd") | Ok("openbsd")
+    )
+}
+
+// The static Ruby library, looked up in `RUBY_STATIC_PATH` (if set) and then
+// Ruby's `libdir`. Ruby only installs it when built with `--disable-shared`,
+// so a missing archive is reported here instead of as a linker error.
+fn static_ruby_archive() -> PathBuf {
+    let file = rbconfig("LIBRUBY_A");
+    let dirs: Vec<PathBuf> = env::var_os("RUBY_STATIC_PATH")
+        .map(PathBuf::from)
+        .into_iter()
+        .chain(Some(PathBuf::from(rbconfig("libdir"))))
+        .collect();
+
+    dirs.iter()
+        .map(|dir| dir.join(&file))
+        .find(|path| path.is_file())
+        .unwrap_or_else(|| {
+            panic!(
+                "Linking Ruby statically (RUBY_STATIC is set, or Ruby was built without a \
+                 shared library), but {} is not in {}. Build Ruby with \
+                 `--disable-shared`, or set RUBY_STATIC_PATH to the directory that \
+                 holds it.",
+                file,
+                dirs.iter()
+                    .map(|dir| dir.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(" or ")
+            )
+        })
 }
 
 #[derive(Debug)]
