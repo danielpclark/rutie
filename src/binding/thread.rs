@@ -245,6 +245,16 @@ where
     unsafe { thread::rb_fiber_new(crate::binding::rproc::proc_callback, data) }
 }
 
+#[cfg(ruby_gte_3_2)]
+pub fn fiber_new_storage<F>(func: F, storage: Value) -> Value
+where
+    F: FnMut(&[Value]) -> Value + 'static,
+{
+    let data = crate::binding::rproc::closure_data(func);
+
+    unsafe { thread::rb_fiber_new_storage(crate::binding::rproc::proc_callback, data, storage) }
+}
+
 pub fn fiber_resume(fiber: Value, arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);
 

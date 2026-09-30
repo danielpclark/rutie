@@ -7,6 +7,9 @@ use crate::{
     util, AnyException, AnyObject, Class, Object, VerifiedObject,
 };
 
+#[cfg(ruby_gte_3_2)]
+use crate::{Hash, NilClass};
+
 // Resuming or yielding a fiber under an `rb_protect` other than the one it
 // was created under raises "fiber called across stack rewinding barrier",
 // so exceptions are rescued with `rb_rescue2` instead. Its tag also
@@ -100,6 +103,63 @@ impl Fiber {
         let fiber = rescue(|| thread::fiber_new(closure)).expect("could not create a Fiber");
 
         Fiber::from(fiber.value())
+    }
+
+    /// Like [`Fiber::new`](#method.new), but the fiber starts with its own
+    /// fiber storage (`Fiber[key]`) instead of a copy of the current fiber's
+    /// (`rb_fiber_new_storage`, Ruby 3.2+).
+    ///
+    /// `None` starts with empty storage. `Some(hash)` starts with a copy of
+    /// `hash`, which must have only `Symbol` keys and not be frozen; otherwise
+    /// the `TypeError` or `FrozenError` is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{AnyObject, Class, Exception, Fiber, Fixnum, Hash, NilClass, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let read_storage = |_: &[AnyObject]| {
+    ///     // `Fiber[:request_id]`
+    ///     let fiber_class = Class::from_existing("Fiber");
+    ///     let value = fiber_class.protect_send("[]", &[Symbol::new("request_id").into()]).unwrap();
+    ///     if value.is_nil() { Fixnum::new(0).into() } else { value }
+    /// };
+    ///
+    /// let mut storage = Hash::new();
+    /// storage.store(Symbol::new("request_id"), Fixnum::new(7));
+    ///
+    /// let fiber = Fiber::with_storage(Some(&storage), read_storage).unwrap();
+    /// assert_eq!(fiber.resume(&[]).unwrap(), Fixnum::new(7).into());
+    ///
+    /// let empty = Fiber::with_storage(None, read_storage).unwrap();
+    /// assert_eq!(empty.resume(&[]).unwrap(), Fixnum::new(0).into());
+    ///
+    /// let mut bad = Hash::new();
+    /// bad.store(Fixnum::new(1), NilClass::new());
+    /// let error = Fiber::with_storage(Some(&bad), read_storage).unwrap_err();
+    /// assert_eq!(error.class().name().unwrap().to_str(), "TypeError");
+    /// ```
+    #[cfg(ruby_gte_3_2)]
+    pub fn with_storage<F>(storage: Option<&Hash>, mut func: F) -> Result<Self, AnyException>
+    where
+        F: FnMut(&[AnyObject]) -> AnyObject + 'static,
+    {
+        let closure = move |arguments: &[Value]| {
+            // `AnyObject` is a `#[repr(C)]` wrapper around a single `Value`.
+            let arguments = unsafe {
+                std::slice::from_raw_parts(arguments.as_ptr() as *const AnyObject, arguments.len())
+            };
+
+            func(arguments).value()
+        };
+        let storage = match storage {
+            Some(hash) => hash.value(),
+            None => NilClass::new().value(),
+        };
+
+        rescue(|| thread::fiber_new_storage(closure, storage))
+            .map(|fiber| Fiber::from(fiber.value()))
     }
 
     /// Starts or continues the fiber, passing `arguments` (Ruby's `resume`,
@@ -293,6 +353,40 @@ mod tests {
                 .unwrap()
                 .try_convert_to::<Fiber>()
                 .is_ok());
+        });
+    }
+
+    #[cfg(ruby_gte_3_2)]
+    #[test]
+    fn test_with_storage() {
+        use crate::{AnyObject, Class, Hash, NilClass, Symbol};
+
+        crate::on_ruby_thread(|| {
+            let storage_value = |_: &[AnyObject]| {
+                Class::from_existing("Fiber")
+                    .protect_send("[]", &[Symbol::new("key").into()])
+                    .unwrap()
+            };
+
+            let mut storage = Hash::new();
+            storage.store(Symbol::new("key"), Fixnum::new(5));
+
+            let fiber = Fiber::with_storage(Some(&storage), storage_value).unwrap();
+            assert_eq!(fiber.resume(&[]).unwrap(), Fixnum::new(5).into());
+
+            // The fiber got a copy.
+            storage.store(Symbol::new("key"), Fixnum::new(6));
+            let fiber = Fiber::with_storage(None, storage_value).unwrap();
+            assert!(fiber.resume(&[]).unwrap().is_nil());
+
+            let mut frozen = Hash::new();
+            frozen.freeze();
+            let error = Fiber::with_storage(Some(&frozen), storage_value).unwrap_err();
+            assert_eq!(error.class().name().unwrap().to_str(), "FrozenError");
+
+            let mut bad = Hash::new();
+            bad.store(Fixnum::new(1), NilClass::new());
+            assert!(Fiber::with_storage(Some(&bad), storage_value).is_err());
         });
     }
 }
