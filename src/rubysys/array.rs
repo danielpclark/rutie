@@ -1,7 +1,7 @@
 use crate::rubysys::{
     constant::{FL_USER_1, FL_USER_3, FL_USER_4, FL_USHIFT},
     libc::size_t,
-    types::{c_long, InternalValue, RBasic, Value},
+    types::{c_int, c_long, InternalValue, RBasic, Value},
 };
 
 use std::mem;
@@ -16,6 +16,53 @@ extern "C" {
     // VALUE
     // rb_ary_freeze(VALUE ary)
     pub fn rb_ary_freeze(array: Value) -> Value;
+    // VALUE
+    // rb_ary_aref(int argc, const VALUE *argv, VALUE ary)
+    pub fn rb_ary_aref(argc: c_int, argv: *const Value, array: Value) -> Value;
+    // VALUE
+    // rb_ary_assoc(VALUE ary, VALUE key)
+    pub fn rb_ary_assoc(array: Value, key: Value) -> Value;
+    // VALUE
+    // rb_ary_clear(VALUE ary)
+    pub fn rb_ary_clear(array: Value) -> Value;
+    // VALUE
+    // rb_ary_cmp(VALUE ary1, VALUE ary2)
+    pub fn rb_ary_cmp(array: Value, other: Value) -> Value;
+    // VALUE
+    // rb_ary_delete(VALUE ary, VALUE item)
+    pub fn rb_ary_delete(array: Value, item: Value) -> Value;
+    // VALUE
+    // rb_ary_delete_at(VALUE ary, long pos)
+    pub fn rb_ary_delete_at(array: Value, position: c_long) -> Value;
+    // VALUE
+    // rb_ary_includes(VALUE ary, VALUE item)
+    pub fn rb_ary_includes(array: Value, item: Value) -> Value;
+    // VALUE
+    // rb_ary_plus(VALUE x, VALUE y)
+    pub fn rb_ary_plus(array: Value, other: Value) -> Value;
+    // VALUE
+    // rb_ary_rassoc(VALUE ary, VALUE value)
+    pub fn rb_ary_rassoc(array: Value, value: Value) -> Value;
+    // VALUE
+    // rb_ary_replace(VALUE copy, VALUE orig)
+    pub fn rb_ary_replace(copy: Value, original: Value) -> Value;
+    // VALUE
+    // rb_ary_resize(VALUE ary, long len)
+    pub fn rb_ary_resize(array: Value, len: c_long) -> Value;
+    // VALUE
+    // rb_ary_rotate(VALUE ary, long cnt)
+    pub fn rb_ary_rotate(array: Value, count: c_long) -> Value;
+    // VALUE
+    // rb_ary_subseq(VALUE ary, long beg, long len)
+    //
+    // `Qnil` when out of range.
+    pub fn rb_ary_subseq(array: Value, begin: c_long, len: c_long) -> Value;
+    // VALUE
+    // rb_ary_to_ary(VALUE obj)
+    pub fn rb_ary_to_ary(object: Value) -> Value;
+    // VALUE
+    // rb_check_array_type(VALUE ary)
+    pub fn rb_check_array_type(object: Value) -> Value;
     // VALUE
     // rb_ary_entry(VALUE ary, long offset)
     pub fn rb_ary_entry(array: Value, offset: c_long) -> Value;

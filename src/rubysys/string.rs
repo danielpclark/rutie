@@ -6,7 +6,9 @@ use crate::rubysys::{
         FL_USHIFT,
     },
     libc::size_t,
-    types::{c_char, c_long, CallbackPtr, EncodingType, InternalValue, RBasic, Value},
+    types::{
+        c_char, c_double, c_int, c_long, CallbackPtr, EncodingType, InternalValue, RBasic, Value,
+    },
 };
 
 pub const STR_TMPLOCK: isize = FL_USER_7;
@@ -75,6 +77,86 @@ extern "C" {
     // VALUE
     // rb_str_freeze(VALUE str)
     pub fn rb_str_freeze(string: Value) -> Value;
+    // VALUE
+    // rb_str_buf_append(VALUE str, VALUE str2)
+    pub fn rb_str_buf_append(string: Value, other: Value) -> Value;
+    // VALUE
+    // rb_str_buf_new(long capa)
+    pub fn rb_str_buf_new(capacity: c_long) -> Value;
+    // size_t
+    // rb_str_capacity(VALUE str)
+    pub fn rb_str_capacity(string: Value) -> size_t;
+    // int
+    // rb_str_cmp(VALUE str1, VALUE str2)
+    pub fn rb_str_cmp(string: Value, other: Value) -> c_int;
+    // VALUE
+    // rb_str_conv_enc(VALUE str, rb_encoding *from, rb_encoding *to)
+    pub fn rb_str_conv_enc(string: Value, from: EncodingType, to: EncodingType) -> Value;
+    // VALUE
+    // rb_str_dup(VALUE str)
+    pub fn rb_str_dup(string: Value) -> Value;
+    // VALUE
+    // rb_str_ellipsize(VALUE str, long len)
+    pub fn rb_str_ellipsize(string: Value, len: c_long) -> Value;
+    // VALUE
+    // rb_str_equal(VALUE str1, VALUE str2)
+    pub fn rb_str_equal(string: Value, other: Value) -> Value;
+    // st_index_t
+    // rb_str_hash(VALUE str)
+    pub fn rb_str_hash(string: Value) -> size_t;
+    // VALUE
+    // rb_str_inspect(VALUE str)
+    pub fn rb_str_inspect(string: Value) -> Value;
+    // VALUE
+    // rb_str_intern(VALUE str)
+    pub fn rb_str_intern(string: Value) -> Value;
+    // VALUE
+    // rb_str_length(VALUE str)
+    pub fn rb_str_length(string: Value) -> Value;
+    // void
+    // rb_str_modify(VALUE str)
+    pub fn rb_str_modify(string: Value);
+    // VALUE
+    // rb_str_plus(VALUE str1, VALUE str2)
+    pub fn rb_str_plus(string: Value, other: Value) -> Value;
+    // VALUE
+    // rb_str_replace(VALUE str, VALUE str2)
+    pub fn rb_str_replace(string: Value, other: Value) -> Value;
+    // VALUE
+    // rb_str_resize(VALUE str, long len)
+    //
+    // Growing leaves the new bytes uninitialized.
+    pub fn rb_str_resize(string: Value, len: c_long) -> Value;
+    // VALUE
+    // rb_str_scrub(VALUE str, VALUE repl)
+    //
+    // Returns `Qnil` when `str` has no invalid byte sequences.
+    pub fn rb_str_scrub(string: Value, replacement: Value) -> Value;
+    // void
+    // rb_str_set_len(VALUE str, long len)
+    pub fn rb_str_set_len(string: Value, len: c_long);
+    // VALUE
+    // rb_str_split(VALUE str, const char *sep0)
+    pub fn rb_str_split(string: Value, separator: *const c_char) -> Value;
+    // VALUE
+    // rb_str_subseq(VALUE str, long beg, long len)
+    //
+    // Byte offsets, not bounds-checked.
+    pub fn rb_str_subseq(string: Value, begin: c_long, len: c_long) -> Value;
+    // VALUE
+    // rb_str_substr(VALUE str, long beg, long len)
+    //
+    // Character offsets; `Qnil` when out of range.
+    pub fn rb_str_substr(string: Value, begin: c_long, len: c_long) -> Value;
+    // VALUE
+    // rb_str_times(VALUE str, VALUE times)
+    pub fn rb_str_times(string: Value, times: Value) -> Value;
+    // double
+    // rb_str_to_dbl(VALUE str, int badcheck)
+    pub fn rb_str_to_dbl(string: Value, badcheck: c_int) -> c_double;
+    // VALUE
+    // rb_str_to_inum(VALUE str, int base, int badcheck)
+    pub fn rb_str_to_inum(string: Value, base: c_int, badcheck: c_int) -> Value;
 }
 
 // #[link_name = "ruby_rstring_flags"]

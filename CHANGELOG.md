@@ -59,6 +59,15 @@ API and may have breaking changes during a teeny version change.
    (Ruby's `format`) and `VM::p`, thanks to @danielpclark
  - `ScannedArgs`, `KeywordArgs` and `GlobalVariable` are exported from the
    crate root, thanks to @danielpclark
+ - `RString` methods: `with_capacity`, `capacity`, `compare` (and
+   `PartialOrd`), `ellipsize`, `plus`, `replace`, `truncate`, `scrub`, `split`,
+   `byte_slice` (bounds-checked), `substr`, `times`, `to_i`, `parse_integer`,
+   `to_f`, `parse_float`, `coderange` (with the new `CodeRange` enum) and
+   `with_locked_bytes` (borrows the bytes while Ruby can't modify the string),
+   thanks to @danielpclark
+ - `Array` methods: `delete`, `delete_at`, `includes`, `clear`, `slice`,
+   `plus`, `compare`, `replace`, `resize`, `rotate_bang`, `assoc`, `rassoc`,
+   and `TryConvert` (`Array.try_convert`), thanks to @danielpclark
 
 ### Changed
  - **Breaking:** `VM::at_exit` now registers a real end proc

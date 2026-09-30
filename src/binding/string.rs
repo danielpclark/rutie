@@ -1,6 +1,6 @@
 use crate::{
     rubysys::{encoding, string},
-    types::{c_char, c_long, Value},
+    types::{c_char, c_int, c_long, Value},
     util,
 };
 
@@ -105,4 +105,87 @@ pub fn unlocktmp(str: Value) -> Value {
 
 pub fn freeze(value: Value) -> Value {
     unsafe { string::rb_str_freeze(value) }
+}
+
+// An empty UTF-8 string with room for `capacity` bytes.
+pub fn with_capacity(capacity: usize) -> Value {
+    unsafe {
+        let value = string::rb_str_buf_new(capacity as c_long);
+        encoding::rb_enc_associate_index(value, encoding::rb_utf8_encindex());
+
+        value
+    }
+}
+
+pub fn capacity(value: Value) -> usize {
+    unsafe { string::rb_str_capacity(value) as usize }
+}
+
+pub fn compare(value: Value, other: Value) -> i32 {
+    unsafe { string::rb_str_cmp(value, other) as i32 }
+}
+
+pub fn dup(value: Value) -> Value {
+    unsafe { string::rb_str_dup(value) }
+}
+
+pub fn ellipsize(value: Value, len: usize) -> Value {
+    unsafe { string::rb_str_ellipsize(value, len as c_long) }
+}
+
+pub fn plus(value: Value, other: Value) -> Value {
+    unsafe { string::rb_str_plus(value, other) }
+}
+
+pub fn replace(value: Value, other: Value) -> Value {
+    unsafe { string::rb_str_replace(value, other) }
+}
+
+// Only shrinks: growing through `rb_str_resize` would expose uninitialized bytes.
+pub fn truncate(value: Value, len: usize) {
+    if (len as i64) < bytesize(value) {
+        unsafe { string::rb_str_resize(value, len as c_long) };
+    }
+}
+
+pub fn scrub(value: Value, replacement: Value) -> Value {
+    unsafe { string::rb_str_scrub(value, replacement) }
+}
+
+pub fn split(value: Value, separator: &str) -> Value {
+    let separator = util::str_to_cstring(separator);
+
+    unsafe { string::rb_str_split(value, separator.as_ptr()) }
+}
+
+// `None` unless `begin..begin + len` is within the string's bytes.
+pub fn byte_slice(value: Value, begin: usize, len: usize) -> Option<Value> {
+    let size = bytesize(value) as usize;
+
+    match begin.checked_add(len) {
+        Some(end) if end <= size => {
+            Some(unsafe { string::rb_str_subseq(value, begin as c_long, len as c_long) })
+        }
+        _ => None,
+    }
+}
+
+pub fn substr(value: Value, begin: i64, len: i64) -> Value {
+    unsafe { string::rb_str_substr(value, begin as c_long, len as c_long) }
+}
+
+pub fn times(value: Value, times: Value) -> Value {
+    unsafe { string::rb_str_times(value, times) }
+}
+
+pub fn to_f64(value: Value, strict: bool) -> f64 {
+    unsafe { string::rb_str_to_dbl(value, util::bool_to_c_int(strict)) }
+}
+
+pub fn to_integer(value: Value, base: u32, strict: bool) -> Value {
+    unsafe { string::rb_str_to_inum(value, base as c_int, util::bool_to_c_int(strict)) }
+}
+
+pub fn coderange(value: Value) -> c_int {
+    unsafe { encoding::rb_enc_str_coderange(value) }
 }

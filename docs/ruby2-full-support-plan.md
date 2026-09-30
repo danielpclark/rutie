@@ -286,19 +286,37 @@ as they land; keep this file current.
 
 ### P2 — core types to parity with the C API
 
-- [ ] **String:** `rb_str_dup`, `rb_str_substr`, `rb_str_split`, `rb_str_cmp`,
+- [x] **String:** `rb_str_dup`, `rb_str_substr`, `rb_str_split`, `rb_str_cmp`,
       `rb_str_equal`, `rb_str_hash`, `rb_str_inspect`, `rb_str_replace`,
       `rb_str_resize`, `rb_str_buf_new`, `rb_str_buf_append`, `rb_str_plus`,
       `rb_str_times`, `rb_str_to_inum`, `rb_str_to_dbl`, `rb_str_intern`,
       `rb_str_length`, `rb_str_capacity`, `rb_str_set_len`, `rb_str_modify`,
       `rb_str_conv_enc`, `rb_enc_str_coderange`, `rb_enc_mbclen`, `rb_enc_nth`,
       `rb_str_scrub`. Byte-slice (`&[u8]`) views must respect `rb_str_locktmp`.
-- [ ] **Array:** `rb_ary_delete`, `rb_ary_delete_at`, `rb_ary_includes`,
+      Done: all bound in `rubysys`/`binding`; `RString` gained `with_capacity`,
+      `capacity`, `compare`/`PartialOrd`, `ellipsize`, `plus`, `replace`,
+      `truncate`, `scrub`, `split`, `byte_slice`, `substr`, `times`,
+      `to_i`/`parse_integer`, `to_f`/`parse_float`, `coderange` (`CodeRange`)
+      and `with_locked_bytes` (locktmp held via `rb_ensure`, panic-safe).
+      Safety notes: `rb_str_subseq` is not bounds-checked (wrapped as
+      `byte_slice` with a check); growing with `rb_str_resize` exposes
+      uninitialized bytes (only `truncate` is public). `dup`, `inspect`,
+      `hash`, `length`, `intern`, `equal`, `buf_append` are covered by the
+      `Object` trait, `count_chars`, `Symbol::from_rstring` and existing
+      methods. `set_len`, `modify`, `conv_enc`, `mbclen`, `nth` stay
+      binding-level (raw pointers/encodings).
+- [x] **Array:** `rb_ary_delete`, `rb_ary_delete_at`, `rb_ary_includes`,
       `rb_ary_clear`, `rb_ary_subseq`, `rb_ary_plus`, `rb_ary_cmp`, `rb_ary_replace`,
       `rb_ary_resize`, `rb_ary_rotate`, `rb_ary_assoc`, `rb_ary_rassoc`,
       `rb_ary_to_ary`, `rb_check_array_type`, `rb_ary_each` (via `rb_block_call`),
       `rb_ary_freeze`, `rb_ary_aref`. `Array` should implement `IntoIterator`
       (by `Value` copy) and `FromIterator<AnyObject>`.
+      Done: `delete`, `delete_at`, `includes`, `clear`, `slice`, `plus`,
+      `compare`, `replace`, `resize`, `rotate_bang`, `assoc`, `rassoc`,
+      `TryConvert` (`rb_check_array_type`). `IntoIterator`/`FromIterator`
+      already existed; freezing is `Object::freeze`. `rb_ary_aref`,
+      `rb_ary_to_ary` bound in `rubysys`; `rb_ary_each` needs a Ruby block, so
+      iteration uses the iterator or `send_with_block`.
 - [ ] **Hash:** `rb_hash_lookup`, `rb_hash_lookup2`, `rb_hash_fetch`,
       `rb_hash_has_key`? (use `rb_hash_lookup2` with undef), `rb_hash_keys`,
       `rb_hash_values`, `rb_hash_update_by`, `rb_hash_set_ifnone`,
