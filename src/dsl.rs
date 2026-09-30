@@ -172,8 +172,10 @@ macro_rules! module {
 ///
 ///  - it uses automatic unsafe conversions for arguments
 ///     (no guarantee that Ruby objects match the types which you expect);
-///  - no bound checks for the array of provided arguments
-///     (no guarantee that all the expected arguments are provided);
+///  - arguments are not checked one by one: extra arguments are ignored, and
+///     too few raise an `ArgumentError` (`rb_error_arity`) before the method
+///     body runs, instead of the `Result` per argument that `methods!` gives.
+///     Before 0.11 too few arguments made the callback panic.
 ///
 /// That is why creating callbacks in unsafe way may cause panics.
 ///
@@ -192,7 +194,7 @@ macro_rules! module {
 /// #[macro_use]
 /// extern crate rutie;
 ///
-/// use rutie::{Boolean, Class, Fixnum, Object, RString, VM};
+/// use rutie::{Boolean, Class, Exception, Fixnum, Object, RString, VM};
 ///
 /// // Creates `string_length_equals` functions
 /// unsafe_methods!(
@@ -211,6 +213,13 @@ macro_rules! module {
 ///     Class::from_existing("String").define(|klass| {
 ///         klass.def("length_equals?", string_length_equals);
 ///     });
+///
+///     let result = VM::eval("'abc'.length_equals?(3)").unwrap();
+///     assert!(result.try_convert_to::<Boolean>().unwrap().to_bool());
+///
+///     // A missing argument raises instead of reading past the arguments.
+///     let error = VM::eval("'abc'.length_equals?").unwrap_err();
+///     assert_eq!(error.message(), "wrong number of arguments (given 0, expected 1)");
 /// }
 /// ```
 ///
@@ -244,6 +253,14 @@ macro_rules! unsafe_methods {
                                        #[allow(unused_mut)]
                                        #[allow(unused_variables)]
                                        mut $rtself_name: $rtself_class) -> $return_type {
+                // Checked before anything is allocated, since raising skips
+                // Rust destructors. Extra arguments are ignored.
+                let _required: $crate::types::Argc = 0 $(+ { let _ = stringify!($arg_name); 1 })*;
+
+                if argc < _required {
+                    $crate::VM::raise_arity_error(argc as i32, _required as i32, _required as i32);
+                }
+
                 let _arguments = $crate::util::parse_arguments(argc, argv);
                 let mut _i = 0;
 
@@ -356,49 +373,150 @@ macro_rules! unsafe_methods {
 ///   end
 /// end
 /// ```
+///
+/// # Variadic methods (splat)
+///
+/// A last parameter written `*name`, with no type, takes any remaining
+/// arguments as an `Array` (Ruby's `*name`). The parameters before it keep
+/// their `Result` types.
+///
+/// ```
+/// #[macro_use]
+/// extern crate rutie;
+///
+/// use rutie::{Array, Class, Fixnum, Object, RString, VM};
+///
+/// class!(Logger);
+///
+/// methods!(
+///     Logger,
+///     rtself,
+///
+///     // def log(level, *parts)
+///     fn log(level: RString, *parts) -> RString {
+///         let level = level.map(|level| level.to_string()).unwrap_or_default();
+///         let parts: Vec<String> = parts
+///             .into_iter()
+///             .map(|part| part.try_convert_to::<RString>().map(|s| s.to_string()).unwrap_or_default())
+///             .collect();
+///
+///         RString::new_utf8(&format!("[{}] {}", level, parts.join(" ")))
+///     }
+///
+///     // def count(*values)
+///     fn count(*values) -> Fixnum {
+///         Fixnum::new(values.length() as i64)
+///     }
+/// );
+///
+/// fn main() {
+///     # VM::init();
+///     Class::new("Logger", None).define(|klass| {
+///         klass.def("log", log);
+///         klass.def("count", count);
+///     });
+///
+///     let line = VM::eval("Logger.new.log('info', 'server', 'started')").unwrap();
+///     assert_eq!(line.try_convert_to::<RString>().unwrap().to_str(), "[info] server started");
+///
+///     let line = VM::eval("Logger.new.log('warn')").unwrap();
+///     assert_eq!(line.try_convert_to::<RString>().unwrap().to_str(), "[warn] ");
+///
+///     let count = VM::eval("Logger.new.count(1, :two, 'three')").unwrap();
+///     assert_eq!(count.try_convert_to::<Fixnum>().unwrap().to_i64(), 3);
+///
+///     let count = VM::eval("Logger.new.count").unwrap();
+///     assert_eq!(count.try_convert_to::<Fixnum>().unwrap().to_i64(), 0);
+/// }
+/// ```
+///
+/// Ruby:
+///
+/// ```ruby
+/// class Logger
+///   def log(level, *parts)
+///     "[#{level}] #{parts.join(' ')}"
+///   end
+///
+///   def count(*values)
+///     values.length
+///   end
+/// end
+/// ```
+///
+/// For optional, keyword and block parameters, write a plain
+/// `extern fn(Argc, *const AnyObject, Self)` function and use
+/// [`VM::scan_args`](struct.VM.html#method.scan_args).
 #[macro_export]
 macro_rules! methods {
+    // A trailing `*name` collects the remaining arguments into an `Array`.
+    (@method $rtself_class: ty, $rtself_name: ident, $method_name: ident,
+        ($($arg_name: ident: $arg_type: ty),+ , * $splat_name: ident $(,)?),
+        $return_type: ty, $body: block) => {
+        $crate::methods!(@define $rtself_class, $rtself_name, $method_name,
+            [$($arg_name: $arg_type),+], [$splat_name], $return_type, $body);
+    };
+    (@method $rtself_class: ty, $rtself_name: ident, $method_name: ident,
+        (* $splat_name: ident $(,)?), $return_type: ty, $body: block) => {
+        $crate::methods!(@define $rtself_class, $rtself_name, $method_name,
+            [], [$splat_name], $return_type, $body);
+    };
+    (@method $rtself_class: ty, $rtself_name: ident, $method_name: ident,
+        ($($arg_name: ident: $arg_type: ty),* $(,)?), $return_type: ty, $body: block) => {
+        $crate::methods!(@define $rtself_class, $rtself_name, $method_name,
+            [$($arg_name: $arg_type),*], [], $return_type, $body);
+    };
+    (@define $rtself_class: ty, $rtself_name: ident, $method_name: ident,
+        [$($arg_name: ident: $arg_type: ty),*], [$($splat_name: ident)?],
+        $return_type: ty, $body: block) => {
+        pub extern fn $method_name(argc: $crate::types::Argc,
+                                   argv: *const $crate::AnyObject,
+                                   #[allow(unused_mut)]
+                                   #[allow(unused_variables)]
+                                   mut $rtself_name: $rtself_class) -> $return_type {
+            let _arguments = $crate::util::parse_arguments(argc, argv);
+            let mut _i = 0;
+
+            $(
+                let $arg_name =
+                    _arguments
+                        .get(_i)
+                        .ok_or_else(|| {
+                            <$crate::AnyException as $crate::Exception>::new("ArgumentError",
+                                Some(&format!(
+                                    "Argument '{}: {}' not found for method '{}'",
+                                    stringify!($arg_name),
+                                    stringify!($arg_type),
+                                    stringify!($method_name)
+                                ))
+                            )
+                        }).and_then(|argument| {
+                            <$crate::AnyObject as $crate::Object>
+                                ::try_convert_to::<$arg_type>(argument)
+                        });
+
+                _i += 1;
+            )*
+
+            $(
+                let $splat_name: $crate::Array = _arguments.iter().skip(_i).cloned().collect();
+            )?
+
+            $body
+        }
+    };
     (
         $rtself_class: ty,
         $rtself_name: ident,
         $(
             fn $method_name: ident
-            ($($arg_name: ident: $arg_type: ty),* $(,)?) -> $return_type: ty $body: block
+            ($($params: tt)*) -> $return_type: ty $body: block
             $(,)?
         )*
     ) => {
         $(
-            pub extern fn $method_name(argc: $crate::types::Argc,
-                                       argv: *const $crate::AnyObject,
-                                       #[allow(unused_mut)]
-                                       #[allow(unused_variables)]
-                                       mut $rtself_name: $rtself_class) -> $return_type {
-                let _arguments = $crate::util::parse_arguments(argc, argv);
-                let mut _i = 0;
-
-                $(
-                    let $arg_name =
-                        _arguments
-                            .get(_i)
-                            .ok_or_else(|| {
-                                <$crate::AnyException as $crate::Exception>::new("ArgumentError",
-                                    Some(&format!(
-                                        "Argument '{}: {}' not found for method '{}'",
-                                        stringify!($arg_name),
-                                        stringify!($arg_type),
-                                        stringify!($method_name)
-                                    ))
-                                )
-                            }).and_then(|argument| {
-                                <$crate::AnyObject as $crate::Object>
-                                    ::try_convert_to::<$arg_type>(argument)
-                            });
-
-                    _i += 1;
-                )*
-
-                $body
-            }
+            $crate::methods!(@method $rtself_class, $rtself_name, $method_name,
+                ($($params)*), $return_type, $body);
         )*
     }
 }
@@ -416,9 +534,10 @@ macro_rules! methods {
 ///
 /// Crate root `lib.rs` or `main.rs`
 ///
-/// ```ignore
+/// ```
 /// #[macro_use]
 /// extern crate lazy_static;
+/// # fn main() {}
 /// ```
 ///
 /// # Arguments
@@ -441,9 +560,25 @@ macro_rules! methods {
 ///
 ///     For example,
 ///
-///     ```ignore
-///     server1.get_data(&*SERVER_WRAPPER);
-///     server2.get_data(&*SERVER_WRAPPER); // <-- the same `SERVER_WRAPPER`
+///     ```
+///     # #[macro_use] extern crate rutie;
+///     # #[macro_use] extern crate lazy_static;
+///     # use rutie::{AnyObject, Class, Object, VM};
+///     pub struct Server {
+///         port: u16,
+///     }
+///
+///     wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER);
+///
+///     # fn main() {
+///     # VM::init();
+///     let class = Class::new("SharedWrapperServer", None);
+///     let server1: AnyObject = class.wrap_data(Server { port: 3000 }, &*SERVER_WRAPPER);
+///     let server2: AnyObject = class.wrap_data(Server { port: 3001 }, &*SERVER_WRAPPER);
+///
+///     assert_eq!(server1.get_data(&*SERVER_WRAPPER).port, 3000);
+///     assert_eq!(server2.get_data(&*SERVER_WRAPPER).port, 3001); // <-- the same `SERVER_WRAPPER`
+///     # }
 ///     ```
 ///
 ///  - (optional) `mark(data) { ... }` is a block which will be called during the "mark"
@@ -462,18 +597,41 @@ macro_rules! methods {
 ///
 ///      - It is not allowed to allocate new Ruby objects in the `mark` function.
 ///
-/// The result of `wrappable_struct!` is:
+///  - (optional) `size(data) { ... }` is a block returning the memory used by the
+///    struct in bytes, as a `usize` (the `dsize` function). Ruby reports it through
+///    `ObjectSpace.memsize_of` and uses it in GC statistics. `data` is a shared
+///    reference to the wrapped struct (`&$struct_name`).
 ///
-/// ```ignore
+///    `mark` and `size` can be given in either order. Both run inside Ruby's
+///    garbage collector as `extern "C"` functions, so a panic in them aborts the
+///    process.
+///
+/// The wrapped struct's data type leaves Ruby 2.7's `dcompact` slot empty, so
+/// `GC.compact` does not move objects marked with `GC::mark` (they are pinned).
+///
+/// The result of `wrappable_struct!` is a wrapper type and a `lazy_static`
+/// holding its only value, which implements
+/// [`DataTypeWrapper`](typed_data/trait.DataTypeWrapper.html) for the struct:
+///
+/// ```
+/// # #[macro_use] extern crate rutie;
+/// # #[macro_use] extern crate lazy_static;
+/// use rutie::typed_data::DataTypeWrapper;
+///
+/// pub struct Server;
+///
 /// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER);
 ///
 /// // produces
+/// //
+/// // pub struct ServerWrapper<T> { /* ... */ }
+/// //
+/// // lazy_static! { pub static ref SERVER_WRAPPER: ServerWrapper<Server> = /* ... */; }
 ///
-/// struct ServerWrapper {
-///     // ...
-/// }
-///
-/// pub static ref SERVER_WRAPPER: ServerWrapper<Server> = // ...
+/// # fn main() {
+/// let wrapper: &ServerWrapper<Server> = &*SERVER_WRAPPER;
+/// let _: &dyn DataTypeWrapper<Server> = wrapper;
+/// # }
 /// ```
 ///
 /// # Class
@@ -673,19 +831,75 @@ macro_rules! methods {
 ///
 /// array.length == 3
 /// ```
+///
+/// ## Reporting memory use
+///
+/// ```
+/// #[macro_use] extern crate rutie;
+/// #[macro_use] extern crate lazy_static;
+///
+/// use rutie::{AnyObject, Class, Fixnum, Object, VM};
+///
+/// pub struct Buffer {
+///     bytes: Vec<u8>,
+/// }
+///
+/// wrappable_struct! {
+///     Buffer,
+///     BufferWrapper,
+///     BUFFER_WRAPPER,
+///
+///     size(data) {
+///         std::mem::size_of::<Buffer>() + data.bytes.capacity()
+///     }
+/// }
+///
+/// fn main() {
+///     # VM::init();
+///     let buffer = Buffer { bytes: vec![0; 64 * 1024] };
+///     let object: AnyObject = Class::new("RutieBuffer", None).wrap_data(buffer, &*BUFFER_WRAPPER);
+///
+///     VM::init_loadpath();
+///     VM::protect_require("objspace").unwrap();
+///
+///     let memsize = Class::from_existing("ObjectSpace")
+///         .protect_send("memsize_of", &[object.to_any_object()])
+///         .unwrap()
+///         .try_convert_to::<Fixnum>()
+///         .unwrap()
+///         .to_i64();
+///
+///     assert!(memsize >= 64 * 1024);
+/// }
+/// ```
 #[macro_export]
 macro_rules! wrappable_struct {
-    (@mark_function_pointer) => {
+    // Collects the optional `mark(..) { .. }` and `size(..) { .. }` clauses,
+    // in any order, then defines the wrapper.
+    (@parse $struct_name: ty, $wrapper: ident, $static_name: ident,
+        { $($mark: tt)* }, { $($size: tt)* }, $(,)?) => {
+        $crate::wrappable_struct!(@define $struct_name, $wrapper, $static_name,
+            { $($mark)* }, { $($size)* });
+    };
+    (@parse $struct_name: ty, $wrapper: ident, $static_name: ident,
+        { }, { $($size: tt)* }, , mark($object: ident) $body: block $($rest: tt)*) => {
+        $crate::wrappable_struct!(@parse $struct_name, $wrapper, $static_name,
+            { $object $body }, { $($size)* }, $($rest)*);
+    };
+    (@parse $struct_name: ty, $wrapper: ident, $static_name: ident,
+        { $($mark: tt)* }, { }, , size($object: ident) $body: block $($rest: tt)*) => {
+        $crate::wrappable_struct!(@parse $struct_name, $wrapper, $static_name,
+            { $($mark)* }, { $object $body }, $($rest)*);
+    };
+
+    (@mark_function_pointer { }) => {
         None as Option<extern "C" fn(*mut $crate::types::c_void)>
     };
-    // Leading comma is the comma between `$static_name: ident` and `mark` in the main macro rule.
-    // Optional comma `$(,)*` is not allowed in the main rule, because it is
-    // followed by `$($tail: tt)*`
-    (@mark_function_pointer , mark($object: ident) $body: block) => {
+    (@mark_function_pointer { $object: ident $body: block }) => {
         Some(Self::mark as extern "C" fn(*mut $crate::types::c_void))
     };
-    (@mark_function_definition $struct_name: ty) => {};
-    (@mark_function_definition $struct_name: ty, mark($object: ident) $body: expr) => {
+    (@mark_function_definition $struct_name: ty, { }) => {};
+    (@mark_function_definition $struct_name: ty, { $object: ident $body: block }) => {
         pub extern "C" fn mark(data: *mut $crate::types::c_void) {
             let mut data = unsafe { (data as *mut $struct_name).as_mut() };
 
@@ -694,7 +908,31 @@ macro_rules! wrappable_struct {
             }
         }
     };
-    ($struct_name: ty, $wrapper: ident, $static_name: ident $($tail: tt)*) => {
+
+    (@size_function_pointer { }) => {
+        None as Option<extern "C" fn(*const $crate::types::c_void) -> $crate::types::size_t>
+    };
+    (@size_function_pointer { $object: ident $body: block }) => {
+        Some(Self::size as extern "C" fn(*const $crate::types::c_void) -> $crate::types::size_t)
+    };
+    (@size_function_definition $struct_name: ty, { }) => {};
+    (@size_function_definition $struct_name: ty, { $object: ident $body: block }) => {
+        pub extern "C" fn size(data: *const $crate::types::c_void) -> $crate::types::size_t {
+            let data = unsafe { (data as *const $struct_name).as_ref() };
+
+            match data {
+                Some($object) => {
+                    let size: usize = $body;
+
+                    size as $crate::types::size_t
+                }
+                None => 0,
+            }
+        }
+    };
+
+    (@define $struct_name: ty, $wrapper: ident, $static_name: ident,
+        { $($mark: tt)* }, { $($size: tt)* }) => {
         pub struct $wrapper<T> {
             data_type: $crate::types::DataType,
             _marker: ::std::marker::PhantomData<T>,
@@ -708,9 +946,12 @@ macro_rules! wrappable_struct {
             fn new() -> $wrapper<T> {
                 let name = concat!("Rutie/", stringify!($struct_name));
                 let name = $crate::util::str_to_cstring(name);
+                // `reserved[0]` is `dcompact` on Ruby 2.7; left empty, objects
+                // marked with `GC::mark` are pinned by `GC.compact`.
                 let reserved_bytes: [*mut $crate::types::c_void; 2] = [::std::ptr::null_mut(); 2];
 
-                let dmark = wrappable_struct!(@mark_function_pointer $($tail)*);
+                let dmark = $crate::wrappable_struct!(@mark_function_pointer { $($mark)* });
+                let dsize = $crate::wrappable_struct!(@size_function_pointer { $($size)* });
 
                 let data_type = $crate::types::DataType {
                     wrap_struct_name: name.into_raw(),
@@ -721,7 +962,7 @@ macro_rules! wrappable_struct {
                     function: $crate::types::DataTypeFunction {
                         dmark: dmark,
                         dfree: Some($crate::typed_data::free::<T>),
-                        dsize: None,
+                        dsize: dsize,
                         reserved: reserved_bytes,
                     },
                 };
@@ -732,7 +973,8 @@ macro_rules! wrappable_struct {
                 }
             }
 
-            wrappable_struct!(@mark_function_definition $struct_name $($tail)*);
+            $crate::wrappable_struct!(@mark_function_definition $struct_name, { $($mark)* });
+            $crate::wrappable_struct!(@size_function_definition $struct_name, { $($size)* });
         }
 
         unsafe impl<T> Sync for $wrapper<T> {}
@@ -743,6 +985,10 @@ macro_rules! wrappable_struct {
                 &self.data_type
             }
         }
+    };
+
+    ($struct_name: ty, $wrapper: ident, $static_name: ident $($tail: tt)*) => {
+        $crate::wrappable_struct!(@parse $struct_name, $wrapper, $static_name, { }, { }, $($tail)*);
     };
 }
 
@@ -797,4 +1043,158 @@ macro_rules! eval {
 
         $crate::Class::from_existing("Kernel").protect_send("eval", arguments)
     }};
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{AnyObject, Array, Class, Exception, Fixnum, Object, RString, GC, VM};
+
+    crate::class!(RutieDslSplat);
+
+    crate::methods!(
+        RutieDslSplat,
+        rtself,
+
+        fn dsl_rest_only(*rest) -> Array {
+            rest
+        }
+
+        fn dsl_first_and_rest(first: Fixnum, *rest,) -> Array {
+            let mut result = Array::new();
+            result.push(first.map(|n| n.to_any_object()).unwrap_or_else(|e| e.to_any_object()));
+            result.push(rest);
+            result
+        }
+
+        fn dsl_plain(a: Fixnum, b: Fixnum) -> Fixnum {
+            Fixnum::new(a.unwrap().to_i64() + b.unwrap().to_i64())
+        }
+    );
+
+    crate::unsafe_methods!(
+        RutieDslSplat,
+        rtself,
+        fn dsl_unsafe_two(a: Fixnum, b: Fixnum) -> Fixnum {
+            Fixnum::new(a.to_i64() * b.to_i64())
+        }
+    );
+
+    pub struct Payload {
+        objects: Vec<AnyObject>,
+        extra: usize,
+    }
+
+    crate::wrappable_struct! {
+        Payload,
+        PayloadWrapper,
+        PAYLOAD_WRAPPER,
+
+        size(data) {
+            std::mem::size_of::<Payload>() + data.extra
+        },
+
+        mark(data) {
+            for object in &data.objects {
+                GC::mark(object);
+            }
+        },
+    }
+
+    pub struct Plain;
+
+    crate::wrappable_struct!(Plain, PlainWrapper, PLAIN_WRAPPER);
+
+    fn eval_array(code: &str) -> Array {
+        VM::eval(code).unwrap().try_convert_to::<Array>().unwrap()
+    }
+
+    #[test]
+    fn test_methods_splat() {
+        crate::on_ruby_thread(|| {
+            Class::new("RutieDslSplat", None).define(|klass| {
+                klass.def("rest_only", dsl_rest_only);
+                klass.def("first_and_rest", dsl_first_and_rest);
+                klass.def("plain", dsl_plain);
+                klass.def("unsafe_two", dsl_unsafe_two);
+            });
+
+            assert_eq!(eval_array("RutieDslSplat.new.rest_only").length(), 0);
+            assert_eq!(
+                eval_array("RutieDslSplat.new.rest_only(1, 2, 3)").length(),
+                3
+            );
+
+            let result = eval_array("RutieDslSplat.new.first_and_rest(1, :a, :b)");
+            assert_eq!(result.at(0).try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+            assert_eq!(result.at(1).try_convert_to::<Array>().unwrap().length(), 2);
+
+            // A missing positional argument is an error value, and the rest is empty.
+            let result = eval_array("RutieDslSplat.new.first_and_rest");
+            assert!(Class::argument_error().case_equals(&result.at(0)));
+            assert_eq!(result.at(1).try_convert_to::<Array>().unwrap().length(), 0);
+
+            let sum = VM::eval("RutieDslSplat.new.plain(2, 3)").unwrap();
+            assert_eq!(sum.try_convert_to::<Fixnum>(), Ok(Fixnum::new(5)));
+        });
+    }
+
+    #[test]
+    fn test_unsafe_methods_arity() {
+        crate::on_ruby_thread(|| {
+            Class::new("RutieDslSplat", None).define(|klass| {
+                klass.def("unsafe_two", dsl_unsafe_two);
+            });
+
+            let product = VM::eval("RutieDslSplat.new.unsafe_two(6, 7)").unwrap();
+            assert_eq!(product.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+
+            // Extra arguments are ignored.
+            let product = VM::eval("RutieDslSplat.new.unsafe_two(6, 7, 8)").unwrap();
+            assert_eq!(product.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+
+            let error = VM::eval("RutieDslSplat.new.unsafe_two(6)").unwrap_err();
+            assert!(Class::argument_error().case_equals(&error));
+            assert_eq!(
+                error.message(),
+                "wrong number of arguments (given 1, expected 2)"
+            );
+        });
+    }
+
+    #[test]
+    fn test_wrappable_struct_mark_and_size() {
+        crate::on_ruby_thread(|| {
+            VM::init_loadpath();
+            VM::protect_require("objspace").unwrap();
+
+            let class = Class::new("RutieDslPayload", None);
+            let payload = Payload {
+                objects: vec![RString::new_utf8("kept alive").to_any_object()],
+                extra: 1 << 20,
+            };
+            let object: AnyObject = class.wrap_data(payload, &*PAYLOAD_WRAPPER);
+
+            GC::start();
+
+            let kept = object.get_data(&*PAYLOAD_WRAPPER).objects[0].clone();
+            assert_eq!(
+                kept.try_convert_to::<RString>().unwrap().to_str(),
+                "kept alive"
+            );
+
+            let memsize = |object: &AnyObject| {
+                Class::from_existing("ObjectSpace")
+                    .protect_send("memsize_of", &[object.clone()])
+                    .unwrap()
+                    .try_convert_to::<Fixnum>()
+                    .unwrap()
+                    .to_i64()
+            };
+
+            assert!(memsize(&object) >= 1 << 20);
+
+            let plain: AnyObject = class.wrap_data(Plain, &*PLAIN_WRAPPER);
+            assert!(memsize(&plain) < 1 << 20);
+        });
+    }
 }

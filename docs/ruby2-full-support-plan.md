@@ -544,21 +544,53 @@ as they land; keep this file current.
 
 ### P6 — DSL, docs, examples, release
 
-- [ ] `wrappable_struct!`: make the three `ignore`d doctests runnable; add
+- [x] `wrappable_struct!`: make the three `ignore`d doctests runnable; add
       `dsize` support (`rb_data_typed_object_zalloc` + size fn) and a
       `#[derive]`-free way to declare the wrapped type `Send`-safe; document
       the 2.7 `dcompact` slot (§3).
-- [ ] `methods!`: keyword args (gated), splat, optional args (P0-5); emit
+      Done: the three examples run and assert (0 ignored doctests). New
+      optional `size(data) { .. }` clause (`dsize`, reported by
+      `ObjectSpace.memsize_of`), accepted before or after `mark`. The wrapper
+      stays `Sync` for any `T`, since it only holds the type descriptor (no
+      derive needed). `dcompact` (`reserved[0]` on 2.7) is left empty, so
+      objects marked with `GC::mark` are pinned by `GC.compact`; documented.
+      Internal macro calls go through `$crate::` so `rutie::wrappable_struct!`
+      works without importing the macro.
+- [x] `methods!`: keyword args (gated), splat, optional args (P0-5); emit
       `rb_error_arity` on mismatch instead of panicking.
-- [ ] Build all `examples/` in CI (they exercise `rutie_ruby_example`,
+      Done: splat, the README's "Variadic Functions / Splat Operator" goal
+      (done here instead of a separate P9): a trailing `*name` parameter
+      takes the remaining arguments as an `Array`, with no unsafe code, and
+      the README now shows it. Each method's parameter list goes to an
+      internal `@method` rule, so large `methods!` blocks don't recurse
+      deeply. Optional, keyword and block parameters use
+      `VM::scan_args` in a plain `extern fn` (P0-5, documented from
+      `methods!`); keeping the rest of the grammar unchanged keeps existing
+      code compiling. `methods!` never panicked on missing arguments (each
+      one is a `Result`). `unsafe_methods!` indexed past `argv`, which
+      panicked inside an `extern fn`; it now raises `rb_error_arity` before
+      allocating anything (extra arguments are still ignored).
+- [x] Build all `examples/` in CI (they exercise `rutie_ruby_example`,
       `rutie_ruby_gvl_example`, `rutie_rust_example` end to end), on the same
       matrix as the crate.
+      Done: a CI step on every dynamic Linux/macOS row runs `examples/eval.rs`,
+      `rutie_rust_example`'s tests, and both Ruby extension examples'
+      minitest suites (`rutie` gem plus minitest `~> 5.15.0`; the reporter gem
+      is now optional in their `test_helper.rb`). Verified locally on 2.5.9,
+      2.6.10 and 2.7.8. The failure step now prints only the end of the RVM
+      make log, which used to push the test output out of reach.
 - [x] README: "Ruby 2 Notes" rewritten for 0.10 (support table, OpenSSL 1.1
       recipe). Still to do: add the local multi-Ruby testing recipe from §0.4.
-- [ ] `build.rs`: honour `$RUBY` consistently (it does for `rbconfig`; check
+      Done: "Testing against several Rubies" under Contributing (ground rule
+      4's recipe).
+- [x] `build.rs`: honour `$RUBY` consistently (it does for `rbconfig`; check
       `is_linked_ruby` test uses the same), emit the version cfgs (P0-1, done),
       and print a clear error when the linked Ruby's major version ≠ 2 (a
       `cargo:warning` is printed since P0-1; decide whether it should fail).
+      Done: `is_linked_ruby` now runs `$RUBY` like `build.rs`. Decision: keep
+      the warning rather than failing, so the later Ruby 3 work can build
+      the crate while it's being ported; the warning says Ruby 2 is the
+      supported target.
 - [ ] Release cadence: 0.10.0 = this baseline; 0.11 = P0 + P1; 0.12 = P2;
       0.13 = P3 + P4; 0.14 = P5 + P6; 0.15 = P7 + P8; then declare "Ruby 2
       complete" (1.0 is a maintainer call) and only then branch for Ruby 3.

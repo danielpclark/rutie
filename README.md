@@ -276,50 +276,34 @@ any Ruby methods which can be used from Ruby._
 
 ## Variadic Functions / Splat Operator
 
-A preferred way to integrate a dynamic amount of parameters has not yet been implemented in Rutie,
-but you can still manage to get it done in the following way.
-
-```rust
-use rutie::{AnyObject, Array};
-use rutie::types::{Argc, Value};
-use rutie::util::str_to_cstring;
-use rutie::rubysys::class;
-use std::mem;
-
-pub extern fn example_method(argc: Argc, argv: *const AnyObject, _rtself: AnyObject) -> AnyObject {
-    let args = Value::from(0);
-
-    unsafe {
-        let p_argv: *const Value = mem::transmute(argv);
-
-        class::rb_scan_args(
-            argc,
-            p_argv,
-            str_to_cstring("*").as_ptr(),
-            &args
-        )
-    };
-
-    let arguments = Array::from(args);
-
-    let output = // YOUR CODE HERE.  Use arguments as you see fit.
-
-    output.to_any_object()
-}
-```
-
-This style of code is meant to be used outside of the `methods!` macro for now.
-You may place this method on a class or module as you normally would from a `methods!` macro definition.
+Since 0.11 the `methods!` macro takes a Ruby-style splat: a last parameter written
+`*name` (with no type) receives the remaining arguments as an `Array`. The
+parameters before it keep their usual `Result` types.
 
 ```rust
 #[macro_use]
 extern crate rutie;
 
-use rutie::{Class, Object, VM};
+use rutie::{Array, Class, Object, RString, VM};
 
 class!(Example);
 
-// Code from above
+methods!(
+    Example,
+    rtself,
+
+    // def example_method(name, *rest)
+    fn example_method(name: RString, *rest) -> Array {
+        let mut result = Array::new();
+
+        if let Ok(name) = name {
+            result.push(name);
+        }
+
+        result.push(rest);
+        result
+    }
+);
 
 fn main() {
     VM::init();
@@ -329,8 +313,12 @@ fn main() {
 }
 ```
 
-The Rutie project has in its plans to remove the need for anyone to write unsafe code for
-variadic support and will likely be updating the `methods!` macro to support this natively.
+For optional, keyword and block parameters, write a plain
+`extern fn(Argc, *const AnyObject, Self)` function and let
+[`VM::scan_args`](https://docs.rs/rutie/latest/rutie/struct.VM.html#method.scan_args)
+parse the arguments with an `rb_scan_args` format such as `"11*:&"`. It returns
+`ScannedArgs` (required, optional, splat, post, keywords and block) without any
+unsafe code; see its documentation for an example.
 
 ## Migrating from Ruru to Rutie
 
@@ -541,6 +529,31 @@ the documentation.  There is a subfolder under `class` for traits called `traits
 Macros for abstracting away complexity are in `src/dsl.rs`.
 
 Ruby's helper gem is in the submodule folder `gem`.
+
+### Testing against several Rubies
+
+Changes must pass on Ruby 2.5, 2.6 and 2.7. `build.rs` links against the `ruby`
+first on your `PATH` (or the one named by `$RUBY`), so install each version under
+its own prefix and give each its own Cargo target directory. A stale build linked
+against another Ruby crashes at test time.
+
+```sh
+for version in 2.5.9 2.6.10 2.7.8; do
+  PATH="/opt/rb/$version/bin:$PATH" \
+  CARGO_TARGET_DIR="$HOME/rt-$version/target" \
+  cargo test
+done
+```
+
+`CARGO_TARGET_DIR` must end in `/target`. If you use one target directory,
+run `cargo clean` whenever you switch Rubies. Any way of installing the Rubies
+works: RVM, rbenv/ruby-build, release tarballs, or RVM's prebuilt binaries.
+Build them with `--enable-shared`, which RVM does by default.
+
+Unit tests live in a `#[cfg(test)] mod tests` at the bottom of each file and run
+their body through `crate::on_ruby_thread(|| { ... })`, because Ruby 2 must be
+used from the thread that started it. Every public item also needs a doctest
+that runs and asserts.
 
 ## Rutie's Future
 

@@ -132,6 +132,10 @@ API and may have breaking changes during a teeny version change.
    thanks to @danielpclark
  - New `Fiber` type (`new` from a Rust closure, `resume`, `yield_values`,
    `current`, `is_alive`), thanks to @danielpclark
+ - `methods!` accepts a trailing splat parameter (`fn log(level: RString, *parts)`)
+   that receives the remaining arguments as an `Array`, thanks to @danielpclark
+ - `wrappable_struct!` accepts an optional `size(data) { .. }` clause (Ruby's
+   `dsize`, reported by `ObjectSpace.memsize_of`), thanks to @danielpclark
  - VM lifecycle: `VM::try_init` (returns the error instead of exiting),
    `VM::init_with_args`, `VM::set_argv`, `VM::set_script_name`,
    `VM::run_file` (runs a script as the main program, once per process),
@@ -148,6 +152,12 @@ API and may have breaking changes during a teeny version change.
    Ruby 2 must be used from the thread that started it, thanks to @danielpclark
 
 ### Fixed
+ - `unsafe_methods!` callbacks called with too few arguments panicked inside
+   an `extern fn` (aborting the process); they now raise `ArgumentError`
+   (`rb_error_arity`), thanks to @danielpclark
+ - `wrappable_struct!` and `methods!` can be called by path
+   (`rutie::wrappable_struct!`) without importing the macro,
+   thanks to @danielpclark
  - `VM::raise` passed its message to `rb_raise` as a printf format, so a
    message containing `%` read arbitrary memory; the message is now always
    used as plain text, thanks to @danielpclark

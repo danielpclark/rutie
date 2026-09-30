@@ -132,7 +132,9 @@ mod current_ruby {
     fn is_linked_ruby() {
         crate::on_ruby_thread(|| {
             let rv = RString::from(VM::eval("RUBY_VERSION").unwrap().value()).to_string();
-            let output = Command::new("ruby")
+            // The same Ruby `build.rs` links against.
+            let ruby = std::env::var_os("RUBY").unwrap_or_else(|| "ruby".into());
+            let output = Command::new(ruby)
                 .arg("-e")
                 .arg("printf RUBY_VERSION")
                 .output()
