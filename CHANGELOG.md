@@ -33,6 +33,14 @@ on 0.11.x.
  - Ruby 3.0 support, and the `ruby_3_0`/`ruby_gte_3_0` cfg flags,
    thanks to @danielpclark
 
+### Fixed
+ - A stack walk inside a fiber made by `Fiber::new` or `Fiber::with_storage`
+   crashed on Ruby 3.3 on arm64 macOS: a Rust panic in the fiber with
+   `RUST_BACKTRACE` set segfaulted, and Ruby's crash report then hung.
+   Ruby 3.3 leaves a return address at the bottom of fiber stacks where 3.2
+   and x86_64 have 0; the fiber body now clears it before running,
+   thanks to @danielpclark
+
 ## [0.11.2] - 2026-10-01
 Adds the C API Ruby 3.1 and 3.2 introduced, which 0.11 did not bind. What
 needs Ruby 3.1 is marked "Ruby 3.1+" and is not built on Ruby 3.0.

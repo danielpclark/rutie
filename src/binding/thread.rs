@@ -260,11 +260,68 @@ where
     }
 }
 
+// Ruby 3.3 and 3.4 on arm64 enter a new fiber by `ret`urning into its entry
+// function (`fiber_entry`) with that same address in the link register, so
+// the entry function's frame record holds a return address where Ruby 3.2
+// and x86_64 have 0. A stack walk from inside the fiber, such as the Rust
+// backtrace of a panic with `RUST_BACKTRACE` set, then carries on below the
+// fiber stack with a null frame pointer and crashes (and Ruby's crash report
+// hangs doing the same walk). `fiber_entry` never returns (`rb_fiber_start`
+// ends in `rb_fiber_terminate`), so its saved return address is cleared,
+// which ends the walk there as on Ruby 3.2.
+//
+// Frame records are only walked on macOS, whose arm64 ABI requires them.
+#[cfg(all(ruby_gte_3_3, target_arch = "aarch64", target_os = "macos"))]
+#[inline(never)]
+fn end_fiber_frame_chain() {
+    // A frame record is the caller's frame pointer followed by the return
+    // address; x29 points at this function's own record.
+    let mut record: *mut usize;
+    unsafe { std::arch::asm!("mov {}, x29", out(reg) record) };
+
+    for _ in 0..4096 {
+        if record.is_null() {
+            return;
+        }
+
+        let caller = unsafe { *record } as *mut usize;
+
+        if caller.is_null() {
+            // The bottom of the fiber stack.
+            unsafe { *record.add(1) = 0 };
+            return;
+        }
+
+        // Records are further up the stack the further out they are; stop
+        // on anything else rather than follow a broken chain.
+        if caller <= record {
+            return;
+        }
+
+        record = caller;
+    }
+}
+
+#[cfg(not(all(ruby_gte_3_3, target_arch = "aarch64", target_os = "macos")))]
+fn end_fiber_frame_chain() {}
+
+// The body of a fiber created from Rust; see `end_fiber_frame_chain`.
+fn fiber_body<F>(mut func: F) -> impl FnMut(&[Value]) -> Value + 'static
+where
+    F: FnMut(&[Value]) -> Value + 'static,
+{
+    move |arguments| {
+        end_fiber_frame_chain();
+
+        func(arguments)
+    }
+}
+
 pub fn fiber_new<F>(func: F) -> Value
 where
     F: FnMut(&[Value]) -> Value + 'static,
 {
-    let data = crate::binding::rproc::closure_data(func);
+    let data = crate::binding::rproc::closure_data(fiber_body(func));
 
     unsafe { thread::rb_fiber_new(crate::binding::rproc::proc_callback, data) }
 }
@@ -274,7 +331,7 @@ pub fn fiber_new_storage<F>(func: F, storage: Value) -> Value
 where
     F: FnMut(&[Value]) -> Value + 'static,
 {
-    let data = crate::binding::rproc::closure_data(func);
+    let data = crate::binding::rproc::closure_data(fiber_body(func));
 
     unsafe { thread::rb_fiber_new_storage(crate::binding::rproc::proc_callback, data, storage) }
 }

@@ -773,6 +773,27 @@ mod tests {
         });
     }
 
+    // Walking the stack from inside a fiber crashed on Ruby 3.3+ on arm64
+    // (see `end_fiber_frame_chain` in src/binding/thread.rs). A panic in a
+    // fiber does this walk when `RUST_BACKTRACE` is set; `force_capture`
+    // always does.
+    #[test]
+    fn test_backtrace_inside_fiber() {
+        use crate::Boolean;
+        use std::backtrace::{Backtrace, BacktraceStatus};
+
+        crate::on_ruby_thread(|| {
+            let fiber = Fiber::new(|_| {
+                let captured = Backtrace::force_capture().status() == BacktraceStatus::Captured;
+
+                Boolean::new(captured).into()
+            });
+
+            assert_eq!(fiber.resume(&[]).unwrap(), Boolean::new(true).into());
+            assert!(!fiber.is_alive());
+        });
+    }
+
     #[cfg(ruby_gte_3_2)]
     #[test]
     fn test_with_storage() {

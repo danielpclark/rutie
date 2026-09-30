@@ -272,6 +272,16 @@ still need the R1 check: presence doesn't mean the signature is unchanged.
 - [x] 3.3 behaviour: every unit test and doctest passes on 3.3 unchanged
       (none asserts a `NoMethodError` message), and the unit and `Thread`
       doctests pass with `RUBY_MN_THREADS=1`. `rb_io_t` is not read.
+      On arm64, 3.3 enters a new fiber by `ret`urning into `fiber_entry`
+      with that address in the link register (upstream `fa0f7522c4`, still
+      so in 3.4 and on Ruby's master in September 2026), so its frame
+      record holds a return address where 3.2 and x86_64 have 0. Any
+      stack walk from inside the fiber then runs off the bottom with a
+      null frame pointer: `test_fiber` segfaulted under `RUST_BACKTRACE`
+      (as in CI), and Ruby's crash report hung. `fiber_new` clears that
+      return address on macOS arm64 (`end_fiber_frame_chain`); a
+      `force_capture` test covers it. Rust code that panics in a fiber Ruby
+      made (not `Fiber::new`) is still exposed; Linux arm64 is untested.
 - [x] Optional 3.3 APIs: `IO::is_closed` uses `rb_io_closed_p` on 3.3.
       *Deferred:* `rb_data_define` (a `DataClass` wrapper deserves its own
       design), `rb_io_path`/`rb_io_mode`, `rb_io_open_descriptor`.
