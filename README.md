@@ -554,7 +554,7 @@ toolchain).
 
 #### Dynamic vs Static Builds
 
-Ruby needs to be compiled with the `--enable shared` option.  Dynamic linking to the Ruby library provides the best performance and best support.  Static build support is incomplete for now.
+Ruby needs to be compiled with the `--enable-shared` option for dynamic linking, which provides the best performance and best support.
 
 If using RBENV then the following is recommended:
 
@@ -564,9 +564,20 @@ You can check if your Ruby is compiled to be dynamically linked to by running th
 
     ruby -e "pp RbConfig::CONFIG['ENABLE_SHARED']"
 
-If you still run into `ld: library not found for -lruby-static` issue, try running `cargo clean`. This'll clean any artifacts from previous attempts.
+To link Ruby statically instead, use a Ruby built with `--disable-shared`,
+which installs `libruby-static.a`. Rutie links it statically when Ruby has no
+shared library, or when `RUBY_STATIC` is set; `RUBY_STATIC_PATH` names another
+directory holding the archive. `build.rs` stops with an explanation if the
+archive is missing. (A shared Ruby's archive is not a substitute: its
+extensions are linked to `libruby.so` and would load a second Ruby.)
 
-If you'd like to make a pull request for adding static build support there are currently 3 methods not working with it and linking to the proper name of the ruby static lib file & path needs to be updated.
+Rutie links the whole archive, because a static Ruby's extensions
+(`enc/*.so`, `objspace.so`, ...) call Ruby functions from the executable that
+loads them. On Linux they also need those functions exported:
+Rutie's own tests and examples link with `-Wl,--export-dynamic`, and a program
+of yours that embeds a static Ruby needs the same flag
+(`RUSTFLAGS="-C link-arg=-Wl,--export-dynamic"`, or a `rustc-link-arg` in its
+build script). Static linking is tested on Linux.
 
 ## Contributing
 
