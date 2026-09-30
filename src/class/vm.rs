@@ -28,6 +28,11 @@ impl VM {
     /// If you write a library which is being connected to Ruby in runtime (e.g. some gem), this
     /// function should not be used.
     ///
+    /// Calling it again while the VM is running does nothing (`ruby_setup` returns early), so it
+    /// is safe to call more than once from the thread that started the VM. It must not be called
+    /// after [`VM::cleanup`](#method.cleanup). It exits the process if Ruby fails to boot; use
+    /// [`VM::try_init`](#method.try_init) to get the error instead.
+    ///
     /// # Examples
     ///
     /// ```
@@ -824,6 +829,27 @@ impl VM {
     /// Child died
     /// Terminating: 27460
     /// ```
+    ///
+    /// Ruby 2 has no public C API for installing signal handlers, so this
+    /// (`Signal.trap`) is the supported way to handle signals; a handler can
+    /// be a Rust closure wrapped with [`Proc::new`](struct.Proc.html#method.new).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let previous = VM::trap(&[RString::new_utf8("USR2").into(), RString::new_utf8("IGNORE").into()])
+    ///     .unwrap();
+    ///
+    /// // Restoring the previous handler returns the one just installed.
+    /// let installed = VM::trap(&[RString::new_utf8("USR2").into(), previous]).unwrap();
+    /// assert_eq!(installed.try_convert_to::<RString>().unwrap().to_str(), "IGNORE");
+    ///
+    /// // Unknown signals are errors.
+    /// assert!(VM::trap(&[RString::new_utf8("NOT_A_SIGNAL").into(), RString::new_utf8("IGNORE").into()]).is_err());
+    /// ```
     pub fn trap(arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
         Class::from_existing("Signal").protect_send("trap", arguments)
     }
@@ -845,6 +871,10 @@ impl VM {
     ///
     /// Before 0.11 this method called `func` immediately; that behaviour is
     /// still available as [`VM::call_protected`](#method.call_protected).
+    ///
+    /// For code that must run after Ruby is gone (when the VM itself is
+    /// freed, after every `at_exit` handler and finalizer), use
+    /// [`VM::at_vm_exit`](#method.at_vm_exit) (`ruby_vm_at_exit`) instead.
     ///
     /// # Examples
     ///
@@ -949,6 +979,317 @@ impl VM {
     /// ```
     pub unsafe fn cleanup() -> i32 {
         vm::cleanup(0)
+    }
+
+    /// Starts the Ruby VM like [`VM::init`](#method.init) (`ruby_setup`),
+    /// but returns the error state instead of exiting the process when Ruby
+    /// fails to boot.
+    ///
+    /// Like `VM::init`, it does nothing when the VM is already running, so
+    /// calling either of them again is harmless (on the thread that started
+    /// the VM). Neither may be called after [`VM::cleanup`](#method.cleanup).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    ///
+    /// assert_eq!(VM::try_init(), Ok(()));
+    /// assert!(VM::is_initialized());
+    ///
+    /// // Starting it again is a no-op.
+    /// VM::init();
+    /// assert_eq!(VM::try_init(), Ok(()));
+    /// ```
+    pub fn try_init() -> Result<(), i32> {
+        match vm::setup() {
+            0 => Ok(()),
+            state => Err(state),
+        }
+    }
+
+    /// Starts the Ruby VM and sets `ARGV` to `arguments`
+    /// ([`VM::init`](#method.init) followed by
+    /// [`VM::set_argv`](#method.set_argv)).
+    ///
+    /// # Panics
+    ///
+    /// Panics if an argument contains a NUL byte.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Object, RString, VM};
+    ///
+    /// VM::init_with_args(&["--verbose", "input.txt"]);
+    ///
+    /// let argv = unsafe { VM::eval_str("ARGV") }.try_convert_to::<Array>().unwrap();
+    ///
+    /// assert_eq!(argv.length(), 2);
+    /// assert_eq!(argv.at(1).try_convert_to::<RString>().unwrap().to_str(), "input.txt");
+    /// ```
+    pub fn init_with_args(arguments: &[&str]) {
+        vm::init();
+        vm::set_argv(arguments);
+    }
+
+    /// Replaces the contents of `ARGV` with `arguments` (`ruby_set_argv`).
+    /// Ruby copies them into frozen strings.
+    ///
+    /// # Panics
+    ///
+    /// Panics if an argument contains a NUL byte.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::set_argv(&["a", "b", "c"]);
+    ///
+    /// let argv = unsafe { VM::eval_str("ARGV") }.try_convert_to::<Array>().unwrap();
+    /// assert_eq!(argv.length(), 3);
+    /// assert!(argv.at(0).is_frozen());
+    ///
+    /// VM::set_argv(&[]);
+    /// assert_eq!(unsafe { VM::eval_str("ARGV.size") }.try_convert_to::<rutie::Fixnum>().unwrap().to_i64(), 0);
+    /// ```
+    pub fn set_argv(arguments: &[&str]) {
+        vm::set_argv(arguments)
+    }
+
+    /// Sets the script name, `$0` and `$PROGRAM_NAME` (`ruby_script`).
+    ///
+    /// Assigning `$0` from Ruby afterwards still raises
+    /// `RuntimeError: $0 not initialized` in a program that embeds Ruby
+    /// without [`VM::run_file`](#method.run_file), because Ruby has no
+    /// process arguments to rewrite.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `name` contains a NUL byte.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::set_script_name("my_tool");
+    ///
+    /// let name = unsafe { VM::eval_str("$0") }.try_convert_to::<RString>().unwrap();
+    /// assert_eq!(name.to_str(), "my_tool");
+    ///
+    /// assert!(VM::eval("$0 = 'renamed'").is_err());
+    /// ```
+    pub fn set_script_name(name: &str) {
+        vm::set_script_name(name)
+    }
+
+    /// Runs the Ruby script at `path` as the main program, with `arguments`
+    /// in `ARGV`, like `ruby path arguments...` would (`ruby_options` and
+    /// `ruby_exec_node`): `$0` is `path`, `__FILE__ == $0` holds, `DATA`
+    /// reads what follows `__END__`, and RubyGems is loaded unless disabled
+    /// in `RUBYOPT`.
+    ///
+    /// Ruby processes its command line only once per process, so this works
+    /// once, in a program that embeds Ruby; later calls, and calls from an
+    /// extension loaded by the `ruby` command, return a `RuntimeError`
+    /// without running anything. Use [`VM::load`](#method.load) or
+    /// [`VM::require`](#method.require) for further files.
+    ///
+    /// Returns the exception the script raised or failed with (a
+    /// `SystemExit` for `exit`, a `LoadError` for a missing file, a
+    /// `SyntaxError`). Ruby prints errors that happen before the script
+    /// starts, such as the last two, to standard error itself.
+    ///
+    /// Like the `ruby` command, it also sets process-wide state: the load
+    /// path, the default external encoding (from the locale), `$0`, `ARGV`,
+    /// and the process title. The argument strings are kept until the
+    /// process exits, since Ruby rewrites them when `$0` is assigned. Call
+    /// it from the thread that started the VM; it does not shut the VM
+    /// down (see [`VM::cleanup`](#method.cleanup)).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `path` or an argument contains a NUL byte.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let path = std::env::temp_dir().join(format!("rutie_run_file_{}.rb", std::process::id()));
+    /// std::fs::write(&path, "$answer = ARGV.map(&:to_i).sum if __FILE__ == $0").unwrap();
+    /// let path = path.to_str().unwrap();
+    ///
+    /// VM::run_file(path, &["40", "2"]).unwrap();
+    ///
+    /// let answer = VM::global_get("$answer").try_convert_to::<Fixnum>().unwrap();
+    /// assert_eq!(answer.to_i64(), 42);
+    ///
+    /// // Only the first call runs a script.
+    /// let error = VM::run_file(path, &[]).unwrap_err();
+    /// assert!(error.message().contains("once"));
+    ///
+    /// std::fs::remove_file(path).unwrap();
+    /// ```
+    ///
+    /// The script's exception is returned:
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let path = std::env::temp_dir().join(format!("rutie_run_file_exit_{}.rb", std::process::id()));
+    /// std::fs::write(&path, "exit 3").unwrap();
+    ///
+    /// let error = VM::run_file(path.to_str().unwrap(), &[]).unwrap_err();
+    /// assert!(error.is_kind_of(&Class::system_exit()));
+    ///
+    /// std::fs::remove_file(path).unwrap();
+    /// ```
+    pub fn run_file(path: &str, arguments: &[&str]) -> Result<(), AnyException> {
+        if vm::has_run_options() {
+            return Err(AnyException::new(
+                "RuntimeError",
+                Some("Ruby's command line was already processed; VM::run_file works once per process"),
+            ));
+        }
+
+        // `--` keeps a path that starts with `-` from being read as an option.
+        let mut options = vec!["ruby", "--", path];
+        options.extend_from_slice(arguments);
+
+        match vm::run_options(&options) {
+            Ok(_) => Ok(()),
+            Err(Ok(exception)) => Err(AnyException::from(exception)),
+            Err(Err(status)) => Err(AnyException::new(
+                "RuntimeError",
+                Some(&format!("ruby exited with status {}", status)),
+            )),
+        }
+    }
+
+    /// Returns whether the Ruby VM has been started in this process, by
+    /// [`VM::init`](#method.init) or, for an extension, by the `ruby`
+    /// process that loaded it. It stays `true` after
+    /// [`VM::cleanup`](#method.cleanup).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    ///
+    /// assert!(!VM::is_initialized());
+    ///
+    /// VM::init();
+    ///
+    /// assert!(VM::is_initialized());
+    /// ```
+    pub fn is_initialized() -> bool {
+        vm::is_initialized()
+    }
+
+    /// Returns whether the current native thread is a Ruby thread
+    /// (`ruby_native_thread_p`): the thread that started the VM, or one
+    /// created by Ruby. Other threads must not call Ruby APIs. Always
+    /// `false` before the VM starts.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    ///
+    /// assert!(!VM::is_ruby_thread());
+    ///
+    /// VM::init();
+    ///
+    /// assert!(VM::is_ruby_thread());
+    /// assert!(!std::thread::spawn(VM::is_ruby_thread).join().unwrap());
+    /// ```
+    pub fn is_ruby_thread() -> bool {
+        vm::is_ruby_thread()
+    }
+
+    /// Returns whether the machine stack of the current Ruby thread is close
+    /// to Ruby's limit (`ruby_stack_check`), past which Ruby raises
+    /// `SystemStackError`. Deeply recursive Rust code that calls back into
+    /// Ruby can check it and stop early.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// assert!(!VM::is_stack_near_limit());
+    /// ```
+    pub fn is_stack_near_limit() -> bool {
+        vm::is_stack_near_limit()
+    }
+
+    /// Returns how much of the current Ruby thread's machine stack is in use,
+    /// in `VALUE`-sized words (`ruby_stack_length`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// fn deeper(depth: u32) -> usize {
+    ///     let padding = [depth as u8; 4096];
+    ///
+    ///     if depth == 0 {
+    ///         VM::stack_length() + (padding[0] as usize)
+    ///     } else {
+    ///         deeper(depth - 1) + (padding[1] as usize)
+    ///     }
+    /// }
+    ///
+    /// let shallow = VM::stack_length();
+    ///
+    /// assert!(shallow > 0);
+    /// assert!(deeper(4) > shallow);
+    /// ```
+    pub fn stack_length() -> usize {
+        vm::stack_length()
+    }
+
+    /// Registers `func` to be called while the VM is being freed at the end
+    /// of [`VM::cleanup`](#method.cleanup) (`ruby_vm_at_exit`), after every
+    /// [`VM::at_exit`](#method.at_exit) handler and finalizer has run.
+    ///
+    /// Unlike `VM::at_exit`, Ruby can no longer be used when `func` runs, so
+    /// it takes a plain function (no captured state) for releasing
+    /// resources that live outside Ruby. It receives the VM being freed. A
+    /// panic in `func` aborts the process.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{types::VmPointer, VM};
+    /// use std::sync::atomic::{AtomicBool, Ordering};
+    ///
+    /// static FREED: AtomicBool = AtomicBool::new(false);
+    ///
+    /// extern "C" fn on_vm_exit(vm: VmPointer) {
+    ///     assert!(!vm.is_null());
+    ///     FREED.store(true, Ordering::SeqCst);
+    /// }
+    ///
+    /// VM::init();
+    /// VM::at_vm_exit(on_vm_exit);
+    ///
+    /// unsafe { VM::cleanup() };
+    ///
+    /// assert!(FREED.load(Ordering::SeqCst));
+    /// ```
+    pub fn at_vm_exit(func: extern "C" fn(VmPointer)) {
+        vm::at_vm_exit(func)
     }
 
     /// Calls `body`, then always calls `ensure`, even when `body` raises a
@@ -2861,6 +3202,50 @@ mod tests {
             klass.undef_alloc_func();
             let error = VM::eval("RutieVmTestAliases.new").unwrap_err();
             assert!(Class::from_existing("TypeError").case_equals(&error));
+        });
+    }
+
+    #[test]
+    fn test_lifecycle_queries() {
+        crate::on_ruby_thread(|| {
+            // The test VM is already running, so these are no-ops.
+            VM::init();
+            assert_eq!(VM::try_init(), Ok(()));
+
+            assert!(VM::is_initialized());
+            assert!(VM::is_ruby_thread());
+            assert!(!std::thread::spawn(VM::is_ruby_thread).join().unwrap());
+
+            assert!(!VM::is_stack_near_limit());
+            assert!(VM::stack_length() > 0);
+        });
+    }
+
+    #[test]
+    fn test_argv_and_script_name() {
+        crate::on_ruby_thread(|| {
+            VM::set_argv(&["one", "two"]);
+
+            let argv = VM::eval("ARGV").unwrap().try_convert_to::<Array>().unwrap();
+            assert_eq!(argv.length(), 2);
+            assert_eq!(
+                argv.at(0).try_convert_to::<RString>().unwrap().to_str(),
+                "one"
+            );
+            assert!(argv.at(1).is_frozen());
+
+            VM::set_argv(&[]);
+            assert_eq!(VM::eval("ARGV.empty?").unwrap().value().is_true(), true);
+
+            VM::set_script_name("rutie_unit_test");
+            let name = VM::eval("$PROGRAM_NAME")
+                .unwrap()
+                .try_convert_to::<RString>()
+                .unwrap();
+            assert_eq!(name.to_str(), "rutie_unit_test");
+
+            // Without process arguments Ruby refuses to rewrite `$0`.
+            assert!(VM::eval("$0 = 'renamed'").is_err());
         });
     }
 }

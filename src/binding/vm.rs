@@ -7,7 +7,7 @@ use std::{
 use crate::{
     binding::{class, exception, global::RubySpecialConsts, symbol::internal_id},
     rubysys::{exception::rb_eRuntimeError, thread, vm},
-    types::{c_int, c_void, CallbackMutPtr, CallbackPtr, InternalValue, Value, VmPointer},
+    types::{c_char, c_int, c_void, CallbackMutPtr, CallbackPtr, InternalValue, Value, VmPointer},
     util, AnyObject,
 };
 
@@ -313,6 +313,107 @@ where
 
 pub fn cleanup(status: c_int) -> c_int {
     unsafe { vm::ruby_cleanup(status) }
+}
+
+pub fn setup() -> c_int {
+    unsafe { vm::ruby_setup() }
+}
+
+// `rb_cObject` is set while the VM boots and never cleared, so this is true
+// from `ruby_setup` on, and in extensions loaded by a running Ruby.
+pub fn is_initialized() -> bool {
+    unsafe { crate::rubysys::rb_cObject.value != 0 }
+}
+
+// `ruby_native_thread_p` reads a thread-local key that only exists once the
+// VM has started, so it is not called before that.
+pub fn is_ruby_thread() -> bool {
+    is_initialized() && util::c_int_to_bool(unsafe { vm::ruby_native_thread_p() })
+}
+
+pub fn set_script_name(name: &str) {
+    let name = util::str_to_cstring(name);
+
+    unsafe { vm::ruby_script(name.as_ptr()) }
+}
+
+// Ruby copies each argument into a frozen string, so the C strings only need
+// to live for the call.
+pub fn set_argv(arguments: &[&str]) {
+    let arguments: Vec<_> = arguments.iter().map(|a| util::str_to_cstring(a)).collect();
+    let mut pointers: Vec<_> = arguments
+        .iter()
+        .map(|a| a.as_ptr() as *mut c_char)
+        .collect();
+
+    unsafe { vm::ruby_set_argv(pointers.len() as c_int, pointers.as_mut_ptr()) }
+}
+
+// Takes the pending exception, if any, out of `$!`.
+fn take_errinfo() -> Option<Value> {
+    let error = errinfo();
+
+    if error.is_nil() {
+        None
+    } else {
+        set_errinfo(nil());
+        Some(error)
+    }
+}
+
+// Whether `ruby_options` has run in this process (it sets `rb_argv0`): the
+// `ruby` command runs it before loading any extension.
+pub fn has_run_options() -> bool {
+    unsafe { vm::rb_argv0.value != 0 }
+}
+
+// Runs `options` like the `ruby` command would. Callers must check
+// `has_run_options` first, since `ruby_options` works once per process. `ruby_options` keeps the
+// argument vector for the life of the process (`$0 =` writes into it, as
+// with a real `argv`), so it is leaked on purpose.
+//
+// Ok is the exit status of a script that compiled and ran without raising;
+// Err is the exception, or the exit status when Ruby left none (it has
+// printed its error already).
+pub fn run_options(options: &[&str]) -> Result<c_int, Result<Value, c_int>> {
+    let mut pointers: Vec<*mut c_char> = options
+        .iter()
+        .map(|option| util::str_to_cstring(option).into_raw())
+        .collect();
+    let argc = pointers.len() as c_int;
+    pointers.push(ptr::null_mut());
+    let argv = Box::leak(pointers.into_boxed_slice()).as_mut_ptr();
+
+    let node = unsafe { vm::ruby_options(argc, argv) };
+    let mut status = 0;
+
+    if !util::c_int_to_bool(unsafe { vm::ruby_executable_node(node, &mut status) }) {
+        return match take_errinfo() {
+            Some(error) => Err(Ok(error)),
+            None if status == 0 => Ok(0),
+            None => Err(Err(status)),
+        };
+    }
+
+    let state = unsafe { vm::ruby_exec_node(node) };
+
+    match take_errinfo() {
+        Some(error) if state != 0 => Err(Ok(error)),
+        _ if state != 0 => Err(Err(state)),
+        _ => Ok(0),
+    }
+}
+
+pub fn is_stack_near_limit() -> bool {
+    util::c_int_to_bool(unsafe { vm::ruby_stack_check() })
+}
+
+pub fn stack_length() -> usize {
+    unsafe { vm::ruby_stack_length(ptr::null_mut()) as usize }
+}
+
+pub fn at_vm_exit(func: extern "C" fn(VmPointer)) {
+    unsafe { vm::ruby_vm_at_exit(func as VmPointer) }
 }
 
 // Runs `func` under `rb_protect`. On an exception the error info is cleared

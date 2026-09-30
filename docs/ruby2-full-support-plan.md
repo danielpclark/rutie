@@ -513,17 +513,34 @@ as they land; keep this file current.
 
 ### P5 — VM lifecycle and embedding
 
-- [ ] `ruby_setup`, `ruby_cleanup`, `ruby_finalize`, `ruby_options`,
+- [x] `ruby_setup`, `ruby_cleanup`, `ruby_finalize`, `ruby_options`,
       `ruby_run_node`, `ruby_exec_node`, `ruby_script`, `ruby_set_argv`,
       `ruby_prog_init`, `ruby_init_stack` (only where the platform needs it),
       `ruby_sysinit`, `ruby_native_thread_p`, `ruby_stack_check`,
       `ruby_stack_length`. Surface: `VM::init_with_args(&[&str])`,
       `VM::cleanup() -> i32`, `VM::run_file`, and make `VM::init` idempotent
       (it is not today: calling twice is UB).
-- [ ] `rb_set_end_proc` proper `at_exit` (P0-2) and `ruby_vm_at_exit` semantics
+      Done: all of these are bound in `rubysys` (with `rb_argv0`). Surface:
+      `VM::try_init` (`ruby_setup`, error instead of `exit`),
+      `VM::init_with_args`, `VM::set_argv`, `VM::set_script_name`,
+      `VM::run_file`, `VM::is_initialized` (`rb_cObject` is set),
+      `VM::is_ruby_thread`, `VM::is_stack_near_limit`, `VM::stack_length`;
+      `VM::cleanup` since P0-2. `VM::init` was already idempotent
+      (`ruby_setup` returns early when the VM exists; re-init after
+      `ruby_cleanup` is still unsupported), now documented and tested.
+      `ruby_options` works once per process (2.7 reads past its builtin
+      table when the prelude loads again, and the `ruby` command has already
+      called it in an extension), so `run_file` checks `rb_argv0` and
+      returns an error instead; it leaks its argv on purpose, as Ruby keeps
+      it for `$0=`. `ruby_finalize`, `ruby_run_node`, `ruby_sysinit`,
+      `ruby_init_stack`, `ruby_prog_init` stay `rubysys`-only.
+- [x] `rb_set_end_proc` proper `at_exit` (P0-2) and `ruby_vm_at_exit` semantics
       documented side by side. (`VM::cleanup` exists since P0-2.)
-- [ ] Signals: `rb_f_trap`-equivalents are not public C API; document that
+      Done: `VM::at_vm_exit` (`ruby_vm_at_exit`, plain `extern "C" fn`,
+      runs when the VM is freed) cross-referenced from `VM::at_exit`.
+- [x] Signals: `rb_f_trap`-equivalents are not public C API; document that
       `VM::trap` (exists via `Signal.trap`) is the supported route.
+      Done: documented on `VM::trap`, with a running doctest.
 
 ### P6 — DSL, docs, examples, release
 

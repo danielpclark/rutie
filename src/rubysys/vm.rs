@@ -1,9 +1,13 @@
 use crate::rubysys::types::{
-    c_char, c_int, c_void, Argc, BlockCallFunction, CallbackMutPtr, CallbackPtr, Id, Value,
+    c_char, c_int, c_void, size_t, Argc, BlockCallFunction, CallbackMutPtr, CallbackPtr, Id, Value,
     VmPointer,
 };
 
 extern "C" {
+    // RUBY_EXTERN VALUE rb_argv0;
+    //
+    // The script name given to `ruby_options`; `Qfalse` (0) until it runs.
+    pub static rb_argv0: Value;
     // void
     // ruby_init(void)
     pub fn ruby_init();
@@ -182,4 +186,64 @@ extern "C" {
     // int
     // ruby_cleanup(volatile int ex)
     pub fn ruby_cleanup(status: c_int) -> c_int;
+    // int
+    // ruby_setup(void)
+    //
+    // `ruby_init` without the `exit(EXIT_FAILURE)` on failure; returns the
+    // tag state instead. Does nothing when the VM already exists.
+    pub fn ruby_setup() -> c_int;
+    // void
+    // ruby_finalize(void)
+    //
+    // Runs the end procs and the finalizers of every object without freeing
+    // the VM; no Ruby object may be used afterwards.
+    pub fn ruby_finalize();
+    // void *
+    // ruby_options(int argc, char **argv)
+    //
+    // Processes `ruby(1)` command line options and compiles the script. Keeps
+    // `argv` (for `$0=` and `Process.setproctitle`), which must therefore
+    // live until the process exits. Only callable once per process: Ruby
+    // 2.7 reads past its builtin table when it loads the prelude again.
+    pub fn ruby_options(argc: c_int, argv: *mut *mut c_char) -> *mut c_void;
+    // int
+    // ruby_executable_node(void *n, int *status)
+    pub fn ruby_executable_node(node: *mut c_void, status: *mut c_int) -> c_int;
+    // int
+    // ruby_exec_node(void *n)
+    pub fn ruby_exec_node(node: *mut c_void) -> c_int;
+    // int
+    // ruby_run_node(void *n)
+    //
+    // `ruby_exec_node` followed by `ruby_cleanup`.
+    pub fn ruby_run_node(node: *mut c_void) -> c_int;
+    // void
+    // ruby_script(const char *name)
+    pub fn ruby_script(name: *const c_char);
+    // void
+    // ruby_set_script_name(VALUE name)
+    pub fn ruby_set_script_name(name: Value);
+    // void
+    // ruby_set_argv(int argc, char **argv)
+    pub fn ruby_set_argv(argc: c_int, argv: *mut *mut c_char);
+    // void
+    // ruby_prog_init(void)
+    pub fn ruby_prog_init();
+    // void
+    // ruby_init_stack(volatile VALUE *addr)
+    pub fn ruby_init_stack(addr: *mut Value);
+    // void
+    // ruby_sysinit(int *argc, char ***argv)
+    //
+    // Keeps `argv` like `ruby_options` does.
+    pub fn ruby_sysinit(argc: *mut c_int, argv: *mut *mut *mut c_char);
+    // int
+    // ruby_native_thread_p(void)
+    pub fn ruby_native_thread_p() -> c_int;
+    // int
+    // ruby_stack_check(void)
+    pub fn ruby_stack_check() -> c_int;
+    // size_t
+    // ruby_stack_length(VALUE **p)
+    pub fn ruby_stack_length(p: *mut *mut Value) -> size_t;
 }

@@ -132,6 +132,12 @@ API and may have breaking changes during a teeny version change.
    thanks to @danielpclark
  - New `Fiber` type (`new` from a Rust closure, `resume`, `yield_values`,
    `current`, `is_alive`), thanks to @danielpclark
+ - VM lifecycle: `VM::try_init` (returns the error instead of exiting),
+   `VM::init_with_args`, `VM::set_argv`, `VM::set_script_name`,
+   `VM::run_file` (runs a script as the main program, once per process),
+   `VM::is_initialized`, `VM::is_ruby_thread`, `VM::is_stack_near_limit`,
+   `VM::stack_length` and `VM::at_vm_exit` (`ruby_vm_at_exit`),
+   thanks to @danielpclark
 
 ### Changed
  - **Breaking:** `VM::at_exit` now registers a real end proc
