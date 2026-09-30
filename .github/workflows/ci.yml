@@ -151,10 +151,12 @@ jobs:
         cargo build -vv &&
         cargo test -vv
 
+    # Only the end of the make log: the whole log is thousands of lines and
+    # pushes the test output out of reach of log viewers that show the tail.
     - name: Print RVM make log
       if: failure() && runner.os != 'Windows'
       continue-on-error: true
-      run: cat $HOME/.rvm/log/*_ruby-${{ matrix.ruby_version }}/make.log
+      run: tail -n 40 $HOME/.rvm/log/*_ruby-${{ matrix.ruby_version }}/make.log
 
     # - name: After script
     #   run: |
