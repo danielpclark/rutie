@@ -471,6 +471,25 @@ fn should_link() -> bool {
 }
 
 fn main() {
+    // Which Ruby is found depends on these, not on files cargo tracks, and
+    // cfgs from one Ruby used with another is a silent ABI mismatch (`Qnil`
+    // differs between 3.1 and 3.2). `PATH` and the version managers'
+    // variables cover switching Ruby with RVM, chruby, rbenv or asdf, except
+    // when rbenv/asdf pick the version from a file.
+    println!("cargo:rerun-if-changed=build.rs");
+    for var in [
+        "RUBY",
+        "PATH",
+        "RBENV_VERSION",
+        "ASDF_RUBY_VERSION",
+        "RUBY_STATIC",
+        "RUBY_STATIC_PATH",
+        "MINGW_LIBS",
+        "NO_LINK_RUTIE",
+    ] {
+        println!("cargo:rerun-if-env-changed={}", var);
+    }
+
     ruby_version_cfgs();
 
     // Ruby programs calling Rust doesn't need cc linking
