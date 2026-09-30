@@ -7,31 +7,17 @@ use crate::{
     util, AnyException, AnyObject, Class, Object, VerifiedObject,
 };
 
-// Resuming or yielding a fiber under an `rb_protect` other than the one it
-// was created under raises "fiber called across stack rewinding barrier",
-// so exceptions are rescued with `rb_rescue2` instead. Its tag also
-// satisfies Ruby's requirement that fibers are only used while the thread
-// is "running" (has an active tag).
+// Fibers are created, resumed and yielded through `vm::fiber_call`, which
+// gives Ruby the tag it needs to switch fibers and returns an exception as
+// `Err` (see there for why that is `rb_rescue2`, or `rb_protect` on Rubies
+// whose fibers copy the machine stack).
 fn rescue<F>(func: F) -> Result<AnyObject, AnyException>
 where
     F: FnOnce() -> Value,
 {
-    let mut error = None;
-
-    let result = vm::rescue(
-        func,
-        |exception| {
-            error = Some(exception);
-
-            exception
-        },
-        &[unsafe { rb_eException }],
-    );
-
-    match error {
-        Some(exception) => Err(AnyException::from(exception)),
-        None => Ok(AnyObject::from(result)),
-    }
+    vm::fiber_call(func)
+        .map(AnyObject::from)
+        .map_err(AnyException::from)
 }
 
 /// Ruby's `Fiber`, a coroutine.
@@ -53,11 +39,19 @@ impl Fiber {
     /// ("Can't eval on top of Fiber or Thread"); call Ruby methods from the
     /// body instead.
     ///
+    /// Ruby 2.5 and 2.6 for arm64 macOS have no native fibers; theirs copy
+    /// the machine stack, and resume only under the `rb_protect` they were
+    /// created under. There `resume` on a fiber made here returns a
+    /// `FiberError` ("fiber called across stack rewinding barrier"). Fibers
+    /// that Ruby code creates and resumes, inside one `VM::eval`, work, and so
+    /// does `Enumerator::next` called from one place, such as a loop.
+    ///
     /// # Examples
     ///
     /// ```
     /// use rutie::{Fiber, Fixnum, Object, VM};
     /// # VM::init();
+    /// # if cfg!(rutie_copy_stack_fibers) { return; } // See `Fiber::new`.
     ///
     /// let counter = Fiber::new(|arguments| {
     ///     let mut n = arguments[0].try_convert_to::<Fixnum>().unwrap().to_i64();
@@ -116,6 +110,7 @@ impl Fiber {
     /// ```
     /// use rutie::{AnyObject, Fiber, Object, RString, Symbol, VM};
     /// # VM::init();
+    /// # if cfg!(rutie_copy_stack_fibers) { return; } // See `Fiber::new`.
     ///
     /// let fiber = Fiber::new(|arguments: &[AnyObject]| {
     ///     let text = arguments[0].try_convert_to::<RString>().unwrap().to_string();
@@ -184,6 +179,7 @@ impl Fiber {
     /// ```
     /// use rutie::{Fiber, NilClass, VM};
     /// # VM::init();
+    /// # if cfg!(rutie_copy_stack_fibers) { return; } // See `Fiber::new`.
     ///
     /// let fiber = Fiber::new(|_| NilClass::new().into());
     ///
@@ -244,6 +240,18 @@ mod tests {
     #[test]
     fn test_fiber() {
         crate::on_ruby_thread(|| {
+            // Ruby 2.5 and 2.6 on arm64 macOS: see `Fiber::new`. A fiber made
+            // in Rust returns a `FiberError` when resumed, and does not crash.
+            if cfg!(rutie_copy_stack_fibers) {
+                let fiber = Fiber::new(|_| crate::NilClass::new().into());
+                let error = fiber.resume(&[]).unwrap_err();
+
+                assert_eq!(error.class().name().unwrap().to_str(), "FiberError");
+                assert!(error.message().contains("stack rewinding barrier"));
+
+                return;
+            }
+
             let generator = Fiber::new(|_| {
                 for i in 1..=3 {
                     Fiber::yield_values(&[Fixnum::new(i).into()]).unwrap();

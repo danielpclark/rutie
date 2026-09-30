@@ -55,6 +55,7 @@ fn ruby_version_cfgs() {
         println!("cargo:rustc-check-cfg=cfg(ruby_2_{})", minor);
         println!("cargo:rustc-check-cfg=cfg(ruby_gte_2_{})", minor);
     }
+    println!("cargo:rustc-check-cfg=cfg(rutie_copy_stack_fibers)");
 
     let (major, minor) = match (try_rbconfig("MAJOR"), try_rbconfig("MINOR")) {
         (Ok(major), Ok(minor)) => match (major.parse::<u32>(), minor.parse::<u32>()) {
@@ -96,7 +97,24 @@ fn ruby_version_cfgs() {
         }
     }
 
+    copy_stack_fibers_cfg(major, minor);
+
     ci_stderr_log!("Ruby version cfg flags set for Ruby {}.{}", major, minor);
+}
+
+// `rutie_copy_stack_fibers`: this Ruby's fibers copy the machine stack
+// instead of switching to a stack of their own. Ruby picks that when it has
+// neither a coroutine implementation nor `getcontext` for the target, which
+// among the Rubies Rutie supports means 2.5 and 2.6 on arm64 macOS (2.7 added
+// an arm64 macOS coroutine). Ruby does not record the choice in `RbConfig` or
+// its headers, so the target and version decide, as in Ruby's `configure`.
+fn copy_stack_fibers_cfg(major: u32, minor: u32) {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+
+    if target_os == "macos" && target_arch == "aarch64" && (major, minor) < (2, 7) {
+        println!("cargo:rustc-cfg=rutie_copy_stack_fibers");
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
