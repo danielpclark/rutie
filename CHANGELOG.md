@@ -104,6 +104,14 @@ API and may have breaking changes during a teeny version change.
  - `Encoding` methods: `ascii_8bit`, `locale`, `filesystem`, `of`, `index`,
    `chr`, `is_ascii_compatible` and `is_dummy`; `RString::concat_bytes`,
    thanks to @danielpclark
+ - Typed accessors for Ruby's built-in classes (`Class::array()`,
+   `Class::string()`, `Class::struct_class()`, ...), exception classes
+   (`Class::standard_error()`, `Class::argument_error()`, ...) and modules
+   (`Module::kernel()`, `Module::enumerable()`, ...), read from Ruby's
+   `rb_c*`/`rb_e*`/`rb_m*` globals, thanks to @danielpclark
+ - `AnyException::from_class`, `AnyException::from_errno`,
+   `AnyException::from_io_error` and `VM::raise_interrupt`,
+   thanks to @danielpclark
 
 ### Changed
  - **Breaking:** `VM::at_exit` now registers a real end proc

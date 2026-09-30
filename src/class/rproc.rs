@@ -199,7 +199,7 @@ impl Object for Proc {
 
 impl VerifiedObject for Proc {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        Class::from_existing("Proc").case_equals(object)
+        Class::proc().case_equals(object)
     }
 
     fn error_message() -> &'static str {

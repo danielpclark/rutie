@@ -166,7 +166,7 @@ impl Object for Thread {
 
 impl VerifiedObject for Thread {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        object.class() == Class::from_existing("Thread")
+        object.class() == Class::thread()
     }
 
     fn error_message() -> &'static str {

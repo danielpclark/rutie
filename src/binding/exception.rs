@@ -72,3 +72,7 @@ pub fn warning(message: &str) {
 
     unsafe { exception::rb_warning(PERCENT_S.as_ptr() as *const c_char, message.as_ptr()) }
 }
+
+pub fn interrupt() -> ! {
+    unsafe { exception::rb_interrupt() }
+}

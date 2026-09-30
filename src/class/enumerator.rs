@@ -327,7 +327,7 @@ impl Object for Enumerator {
 
 impl VerifiedObject for Enumerator {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        Class::from_existing("Enumerator").case_equals(object)
+        Class::enumerator().case_equals(object)
     }
 
     fn error_message() -> &'static str {

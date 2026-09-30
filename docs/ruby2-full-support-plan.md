@@ -408,7 +408,7 @@ as they land; keep this file current.
 
 ### P3 — exceptions, IO, and the standard objects an embedder hits
 
-- [ ] **Exceptions:** `rb_exc_new_str`, `rb_exc_new_cstr`, `rb_exc_new`,
+- [x] **Exceptions:** `rb_exc_new_str`, `rb_exc_new_cstr`, `rb_exc_new`,
       `rb_class_new_instance` for exception classes, `rb_ensure`/`rb_rescue`
       (P0-3), `rb_exc_fatal`, `rb_interrupt`, `rb_bug` (bind but never call in
       library code), `rb_syserr_new`, `rb_mod_syserr_fail`. Expose the builtin
@@ -419,7 +419,12 @@ as they land; keep this file current.
       `rb_eSystemExit`, `rb_eInterrupt`, `rb_eSignal`, `rb_eEncodingError`,
       `rb_eEncCompatError`, `rb_eLoadError`, `rb_eSecurityError`) as
       `extern static` VALUEs with a typed `Class` accessor each.
-- [ ] **Builtin class/module globals:** `rb_cObject`, `rb_cBasicObject`,
+      Done: all `rb_e*` statics (`rubysys::exception`) with `Class::*()`
+      accessors generated with doctests (`src/class/builtins.rs`);
+      `AnyException::from_class` (no name lookup), `from_errno`,
+      `from_io_error`; `VM::raise_interrupt`. `rb_exc_fatal`, `rb_bug`,
+      `rb_mod_syserr_fail`, `rb_exc_new(_cstr)` bound in `rubysys` only.
+- [x] **Builtin class/module globals:** `rb_cObject`, `rb_cBasicObject`,
       `rb_mKernel`, `rb_mComparable`, `rb_mEnumerable`, `rb_cString`, `rb_cArray`,
       `rb_cHash`, `rb_cInteger`, `rb_cFloat`, `rb_cRational`, `rb_cComplex`,
       `rb_cRange`, `rb_cRegexp`, `rb_cTime`, `rb_cSymbol`, `rb_cProc`, `rb_cMethod`,
@@ -427,6 +432,12 @@ as they land; keep this file current.
       `rb_cFalseClass`, `rb_cEncoding`, `rb_cStruct`, `rb_cEnumerator`,
       `rb_cModule`, `rb_cClass`. Today many wrappers do `Class::from_existing("X")`
       string lookups; replace with the statics.
+      Done: `rubysys::builtins` + `Class::*()`/`Module::*()` accessors
+      (`class_class`, `module_class`, `method_class`, `struct_class` avoid
+      keyword/trait clashes). `rb_cFixnum`/`rb_cBignum`/`rb_cCont` are not
+      exported by 2.5-2.7. Internal `VerifiedObject` checks (`Proc`,
+      `Binding`, `Encoding`, `Enumerator`, `Exception`, `Thread`) and
+      `VM::exit_bang` now use the statics; semantics are unchanged.
 - [ ] **IO / File / Dir:** `rb_io_write`, `rb_io_puts`, `rb_io_print`, `rb_io_gets`,
       `rb_io_getbyte`, `rb_io_close`, `rb_io_flush`, `rb_io_eof`, `rb_io_binmode`,
       `rb_io_check_readable/writable/closed`, `rb_io_stdio_file`, `rb_stdin`,

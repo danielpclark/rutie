@@ -377,7 +377,7 @@ impl Object for Encoding {
 impl VerifiedObject for Encoding {
     fn is_correct_type<T: Object>(object: &T) -> bool {
         // `Encoding` instances are `T_DATA`, not classes.
-        Class::from_existing("Encoding").case_equals(object)
+        Class::encoding().case_equals(object)
     }
 
     fn error_message() -> &'static str {

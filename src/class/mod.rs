@@ -3,6 +3,7 @@ pub mod any_object;
 pub mod array;
 pub mod binding;
 pub mod boolean;
+pub mod builtins;
 pub mod class;
 pub mod complex;
 pub mod encoding;

@@ -180,7 +180,7 @@ impl Object for Binding {
 
 impl VerifiedObject for Binding {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        Class::from_existing("Binding").case_equals(object)
+        Class::binding().case_equals(object)
     }
 
     fn error_message() -> &'static str {

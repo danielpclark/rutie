@@ -740,7 +740,7 @@ impl VM {
     /// assert_eq!(error.unwrap().inspect(), "#<TypeError: no implicit conversion of Symbol into Integer>");
     /// ```
     pub unsafe fn exit_bang(arguments: &[AnyObject]) {
-        Class::from_existing("Process").send("exit!", arguments.as_ref());
+        crate::Module::process().send("exit!", arguments.as_ref());
     }
 
     /// Terminate execution immediately, effectively by calling
@@ -1409,6 +1409,23 @@ impl VM {
     /// ```
     pub fn raise_arity_error(argc: i32, min: i32, max: i32) -> ! {
         exception::error_arity(argc, min, max)
+    }
+
+    /// Raises `Interrupt`, as if the process got `SIGINT` (`rb_interrupt`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| VM::raise_interrupt());
+    ///
+    /// assert!(result.is_err());
+    /// assert!(Class::interrupt().case_equals(&VM::error_pop().unwrap()));
+    /// ```
+    pub fn raise_interrupt() -> ! {
+        exception::interrupt()
     }
 
     /// Raises `ZeroDivisionError` with Ruby's usual message (`rb_num_zerodiv`).
