@@ -256,7 +256,8 @@ mod tests {
                 ("true", ValueType::True),
                 ("false", ValueType::False),
                 ("1", ValueType::Fixnum),
-                ("-(2 ** 40)", ValueType::Fixnum),
+                // A Fixnum on every platform: 64-bit Windows has a 32-bit `long`.
+                ("-(2 ** 20)", ValueType::Fixnum),
                 ("1.5", ValueType::Float),
                 ("1e300", ValueType::Float),
                 (":sym", ValueType::Symbol),
