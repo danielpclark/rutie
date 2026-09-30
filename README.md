@@ -1,9 +1,9 @@
 ## Rutie
 
-### USE RUBY 2 OR ELSE
+### Ruby 3.0, 3.1 and 3.2 (Ruby 2: use 0.10)
 
 [![GitHub Actions Status](https://github.com/danielpclark/rutie/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/danielpclark/rutie/actions/workflows/ci.yml)
-[![Ruby 2 Compatible](https://img.shields.io/badge/Supports-Ruby%202-brightgreen)](https://travis-ci.org/danielpclark/rutie)
+[![Ruby 3.0–3.2 Compatible](https://img.shields.io/badge/Supports-Ruby%203.0%20%7C%203.1%20%7C%203.2-brightgreen)](https://github.com/danielpclark/rutie#ruby-version-support)
 [![Maintenance](https://img.shields.io/maintenance/yes/2026.svg)](https://github.com/danielpclark/rutie/commits/master)
 [![GitHub contributors](https://img.shields.io/github/contributors/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/graphs/contributors)
 [![license](https://img.shields.io/github/license/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/blob/master/LICENSE)
@@ -51,7 +51,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.10.1"
+rutie = "0.11.0"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
@@ -363,6 +363,45 @@ discontinued. Its `link-ruby` and `ruby-static` cargo features do not exist in
 0.10; use the `no-link` feature (or `NO_LINK_RUTIE`) and the `RUBY_STATIC`
 environment variable as documented below, and expect Ruby 2, not Ruby 3.
 
+#### 0.11
+
+0.11 supports Ruby 3.0, 3.1 and 3.2 and drops Ruby 2 (stay on 0.10.x for
+Ruby 2.5–2.7). Migrating from 0.10:
+
+- **Build.** `build.rs` fails with a message naming the right Rutie line when
+  it finds a Ruby other than 3.0–3.2. The cfg flags are now `ruby_3_0`,
+  `ruby_3_1`, `ruby_3_2` and `ruby_gte_3_0`…`ruby_gte_3_2`; the `ruby_2_*`
+  flags are gone. Switching Ruby (a new `PATH`, `RUBY`, `RBENV_VERSION` or
+  `ASDF_RUBY_VERSION`) now rebuilds Rutie; run `cargo clean -p rutie` if you
+  switch some other way.
+- **Keyword arguments** follow Ruby 3. `VM::scan_args` only fills the `:`
+  keywords when the method was called with keywords; a trailing `Hash`
+  passed positionally stays positional. `VM::scan_args_with_keywords` keeps
+  Ruby 2's behaviour of taking a trailing `Hash` as keywords.
+  `Object::send_with_keywords` and `VM::is_keyword_given` are available on
+  every supported Ruby. `methods!` receives keywords as a trailing `Hash`.
+- **Removed:** `Class::data` (Ruby 3 no longer exports `rb_cData`).
+- **Changed behaviour:**
+  - `IO::binmode` also sets the external encoding to ASCII-8BIT, as Ruby's
+    `IO#binmode` does.
+  - `VM::run_file` loads the script like `VM::load` after setting `$0` and
+    `ARGV`, so it can run more than once and returns errors (including
+    `SystemExit`) instead of exiting.
+  - `VM::init` processes Ruby's command line once (with RubyGems and
+    `RUBYOPT` off), because Ruby 3 loads part of its core library there, so
+    `$0` can be assigned.
+  - Methods an embedded VM defines through Rutie are not Ractor-safe: calling
+    one outside the main Ractor raises `Ractor::UnsafeError`, as it already
+    did in an extension. `unsafe { VM::ext_ractor_safe(true) }` opts in.
+- **No-ops and deprecations:** `GC::force_recycle` does nothing from Ruby 3.1.
+  `Thread::wait_fd` and `Thread::wait_fd_writable` wrap C functions Ruby
+  deprecates from 3.1; use `Thread::wait_readable` and
+  `Thread::wait_writable`. Both old methods get `#[deprecated]` in 0.12.
+- **New:** GC compaction support (`GC::mark_movable`, `GC::location`,
+  `GC::compact` and a `compact` clause in `wrappable_struct!`),
+  `Fiber::with_storage` (Ruby 3.2), `Hash::with_capacity`, and the Ractor and
+  wait methods above. See the CHANGELOG for the full list.
+
 
 ## Safety — The Rutie Philosophy vs The Rust Philosophy on Safety
 
@@ -454,11 +493,10 @@ Everything is tested against 64 bit operating systems with 64 bit Ruby & Rust bu
 
 ### Ruby version support
 
-Every published Rutie release targets **Ruby 2**:
-
 | Rutie | Ruby | Notes |
 |---|---|---|
-| 0.10.x | 2.5, 2.6, 2.7 | current; dynamic linking on Linux and macOS is the supported configuration |
+| 0.11.x | 3.0, 3.1, 3.2 | current; dynamic linking on Linux is the supported configuration, macOS and Windows are best-effort |
+| 0.10.x | 2.5, 2.6, 2.7 | the Ruby 2 line |
 | 0.9.x | 2.5, 2.6, 2.7 | still works on Ruby 2, but superseded by 0.10.0 (`VM::at_exit` crash fix, current-Cargo build fix) |
 | 0.8.x | 2.5, 2.6, 2.7 | older Ruby 2 line |
 
@@ -468,48 +506,30 @@ Each Rutie minor version supports exactly three Ruby minor versions:
 
 | Rutie | Ruby | Status |
 |---|---|---|
-| 0.10 | 2.5, 2.6, 2.7 | current: Ruby 2 |
-| 0.11 | 3.0, 3.1, 3.2 | planned: first Ruby 3 release, drops Ruby 2 |
+| 0.10 | 2.5, 2.6, 2.7 | released: Ruby 2 |
+| 0.11 | 3.0, 3.1, 3.2 | current: first Ruby 3 release, drops Ruby 2 |
 | 0.12 | 3.1, 3.2, 3.3 | planned: drops 3.0, adds 3.3 |
 | 0.13 | 3.2, 3.3, 3.4 | planned: drops 3.1, adds 3.4 |
 
 The Ruby 3 work is planned in `docs/ruby3-upgrade-plan.md`.
 
-No released Rutie supports Ruby 3. An `rb-sys`-based rewrite lived on `master`
-between February and September 2025 (self-labelled 0.10.0, tested only against
-Ruby 2.7 and 3.0–3.4, never published to crates.io); it has been reverted and
-is not supported. If you depended on it through a `git = "..."` dependency,
-pin the commit you were using or move to a released 0.10.x. Ruby 3 support
-will be taken up once Ruby 2 coverage is complete (see
-`docs/ruby2-full-support-plan.md`), following the roadmap above.
+An `rb-sys`-based rewrite lived on `master` between February and September
+2025 (self-labelled 0.10.0, never published to crates.io); it has been
+reverted and is not supported. If you depended on it through a
+`git = "..."` dependency, move to 0.11 (Ruby 3) or 0.10.x (Ruby 2).
 
-Ruby 2 needs OpenSSL 1.1. If your platform no longer ships it (Homebrew
-removed `openssl@1.1`), build it and point both RVM and pkg-config at it, as
-`.github/workflows/ci.yml` does:
-
-```
-wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-tar xf openssl-1.1.1l.tar.gz
-cd openssl-1.1.1l
-./config --prefix=/usr/local/openssl-1.1.1l --openssldir=/usr/local/openssl-1.1.1l
-make && sudo make install_sw
-cd ..
-export PKG_CONFIG_PATH=/usr/local/openssl-1.1.1l/lib/pkgconfig
-rvm install 2.7.8 --with-openssl-dir=/usr/local/openssl-1.1.1l
-rvm use 2.7.8
-```
-
-(`PKG_CONFIG_PATH` matters on Ruby 2.5 and 2.6: their `openssl` extension asks
-pkg-config first, and an OpenSSL 3 answer overrides `--with-openssl-dir`.)
+Prebuilt Rubies (`ruby/setup-ruby`, RVM's binaries, distribution packages)
+are the easiest way to get each version. Building Ruby 3.0 from source needs
+OpenSSL 1.1 for its `openssl` extension; 3.1 and later build with OpenSSL 3.
 
 #### Linux & Mac
 
-- Rust 1.26 or later
-- Ruby (64 bit) 2.5, 2.6 or 2.7 (Ruby 3 is not supported by any release; see "Ruby version support")
+- A current stable Rust (CI tests stable and beta)
+- Ruby (64 bit) 3.0, 3.1 or 3.2, built with `--enable-shared` (see "Ruby version support")
 
 #### Windows
-- Rust 1.26 or later
-- Ruby 2.5–2.7 built with MingW (64 bit) — best-effort, not covered by CI
+- A current stable Rust
+- Ruby 3.0–3.2 from RubyInstaller (64 bit) — best-effort: CI builds it, but failures do not block
 - MS Visual Studio (Build Tools)
 
 #### Dynamic vs Static Builds
@@ -518,7 +538,7 @@ Ruby needs to be compiled with the `--enable shared` option.  Dynamic linking to
 
 If using RBENV then the following is recommended:
 
-    CONFIGURE_OPTS=--enable-shared rbenv install 2.7.1
+    CONFIGURE_OPTS=--enable-shared rbenv install 3.2.6
 
 You can check if your Ruby is compiled to be dynamically linked to by running the following and getting a `"yes"` response.
 
@@ -544,26 +564,27 @@ Ruby's helper gem is in the submodule folder `gem`.
 
 ### Testing against several Rubies
 
-Changes must pass on Ruby 2.5, 2.6 and 2.7. `build.rs` links against the `ruby`
+Changes must pass on Ruby 3.0, 3.1 and 3.2. `build.rs` links against the `ruby`
 first on your `PATH` (or the one named by `$RUBY`), so install each version under
-its own prefix and give each its own Cargo target directory. A stale build linked
-against another Ruby crashes at test time.
+its own prefix and give each its own Cargo target directory, so switching does
+not rebuild everything.
 
 ```sh
-for version in 2.5.9 2.6.10 2.7.8; do
+for version in 3.0.7 3.1.7 3.2.9; do
   PATH="/opt/rb/$version/bin:$PATH" \
   CARGO_TARGET_DIR="$HOME/rt-$version/target" \
   cargo test
 done
 ```
 
-`CARGO_TARGET_DIR` must end in `/target`. If you use one target directory,
-run `cargo clean` whenever you switch Rubies. Any way of installing the Rubies
+`CARGO_TARGET_DIR` must end in `/target`. `python3 ci/check_rubysys.py` checks
+the `rubysys` declarations against the Ruby on your `PATH` (headers and, on
+Linux, `libruby`'s exports), as CI does. Any way of installing the Rubies
 works: RVM, rbenv/ruby-build, release tarballs, or RVM's prebuilt binaries.
 Build them with `--enable-shared`, which RVM does by default.
 
 Unit tests live in a `#[cfg(test)] mod tests` at the bottom of each file and run
-their body through `crate::on_ruby_thread(|| { ... })`, because Ruby 2 must be
+their body through `crate::on_ruby_thread(|| { ... })`, because Ruby must be
 used from the thread that started it. Every public item also needs a doctest
 that runs and asserts.
 

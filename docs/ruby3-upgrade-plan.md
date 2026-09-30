@@ -128,6 +128,8 @@ CI catches later drift.
 | `rb_thread_wait_fd`, `rb_thread_fd_writable` | deprecated since 3.1 *(NEWS)*, still declared in 3.4 *(headers)* | `Thread::wait_fd`, `Thread::wait_fd_writable` | 0.11: add `rb_io_wait`-based variants (3.0+); 0.12: deprecate the old ones; remove when Ruby does |
 | `$SAFE`, taint and trust functions | removed (3.0 / 3.2) *(NEWS)* | none bound | nothing to do beyond the constants in §3 |
 | `rb_newobj`, `rb_newobj_of` | removed in 3.4 *(NEWS)* | not bound | none |
+| `rb_objspace_marked_object_p` | not in public headers; **not exported by 3.4** *(exports)* | `GC::is_marked` | 0.12: `#[deprecated]`; 0.13: remove |
+| `rb_complex_polar` | deprecated since 3.0 *(headers)* | `Complex::polar` | 0.11: bind `rb_complex_new_polar` instead |
 | `rb_postponed_job_register(_one)` | deprecated in 3.3 *(NEWS)* | not bound | bind `rb_postponed_job_preregister`/`trigger` if ever needed |
 | `rb_io_t` members | hidden in 3.3 *(NEWS)* | not read | keep using `IO` methods and `rb_io_*` functions |
 
@@ -186,50 +188,54 @@ still need the R1 check: presence doesn't mean the signature is unchanged.
 
 ## 6. 0.11 — Ruby 3.0, 3.1, 3.2
 
-- [ ] **R0 Branch, cfgs, CI.** `0.10-stable` branch; §2 for 3.0/3.1/3.2;
-      `build.rs` rejects Ruby 2; delete `ruby_2_*` gates and code paths;
-      CI on `ruby/setup-ruby` (or RVM binaries) with OpenSSL 1.1 for 3.0.
-- [ ] **R1 ABI audit.** §3 changes (special constants, `RString`,
-      `RArray`, flag constants), the prototype-check script, and deletion of
-      the declarations in §4. Unit tests for every direct struct read on all
-      three Rubies, including embedded and heap strings and arrays at the
-      embed boundary.
-- [ ] **R2 Removed and deprecated APIs.** §4 actions for 0.11:
-      `GC::force_recycle` documented as a no-op on 3.1+; `Thread::wait_fd`
-      and `wait_fd_writable` gain `rb_io_wait` variants
-      (`Thread::wait_readable`/`wait_writable`, returning `Result`).
-- [ ] **R3 Keyword arguments.** Ungate `send_with_keywords`,
-      `is_keyword_given` and the `rb_*_kw` bindings; revisit `VM::scan_args`
-      and `KeywordArgs` for 3.0 semantics; update the splat/keyword docs in
-      `methods!`.
-- [ ] **R4 GC compaction.** Bind `rb_gc_mark_movable`, `rb_gc_location`
-      (both already in 2.7's headers *(headers)*, so this can also be done
-      for 0.10 behind `ruby_gte_2_7`); add
-      an optional `compact(data) { .. }` clause to `wrappable_struct!` that
-      sets `dcompact`, and `GC::mark_movable`/`GC::location` for mark and
-      compact functions. `GC::mark` keeps pinning (the safe default).
-      Tests run `GC.compact` / `GC.verify_compaction_references`.
-- [ ] **R5 Ractor.** Bind `rb_ext_ractor_safe`; Rutie extensions stay
-      non-Ractor-safe by default, and an explicit opt-in documents the
-      requirements (no shared Rust state without synchronisation,
-      `Send + Sync` closures). Typed data gets `RUBY_TYPED_FROZEN_SHAREABLE`
-      as an opt-in flag. Main-Ractor-only behaviour is tested.
-- [ ] **R6 Fibers, scheduler, threads.** Retest the fiber barrier (§5);
-      bind the fiber scheduler hooks only if a safe wrapper is designed
-      (`rb_fiber_scheduler_*` is the 3.1+ naming *(headers)*; gate it
-      `ruby_gte_3_1`); add
-      `Fiber` storage for 3.2 (`rb_fiber_new_storage`, gated
-      `ruby_gte_3_2`).
-- [ ] **R7 Tests and doctests.** Every unit test and doctest passes on
-      3.0, 3.1 and 3.2, with message assertions made stable (§5) and no
-      Ruby 2-only snippets. The P7 inventory table is regenerated, with P8's
-      rules (running, asserting doctests) kept.
-- [ ] **R8 New APIs worth wrapping (optional).** `rb_hash_new_capa` (3.2,
-      `Hash::with_capacity`), the memory view API (3.0) if a safe wrapper is
-      clear.
-- [ ] **R9 Release.** README support table and "Ruby 3" notes, CHANGELOG,
-      a migration guide from 0.10 (build and linking changes, keyword
-      semantics, removed or no-op APIs), and a version bump to 0.11.0.
+- [x] **R0 Branch, cfgs, CI.** §2 for 3.0/3.1/3.2; `build.rs` rejects Ruby 2
+      (and 3.3+) naming the Rutie line to use; `ruby_2_*` gates and code
+      paths deleted. CI uses `ruby/setup-ruby` on `ubuntu-22.04` (it has
+      3.0 builds, so no OpenSSL step), with macOS and Windows best-effort
+      and static-Ruby rows dropped (RVM never produced a static `libruby`).
+      `build.rs` now reruns when `PATH`, `RUBY` or a version manager's
+      variable changes: it printed no `rerun-if` lines, so switching Ruby
+      kept the old cfgs, a silent ABI mismatch now that `Qnil` differs.
+      *Left to the maintainer:* creating `0.10-stable` from the 0.10.1
+      release (`dc8f8bb`), and tagging releases.
+- [x] **R1 ABI audit.** §3 changes (special constants, `RString`, `RArray`,
+      `FL_SHAREABLE`); `ci/check_rubysys.py` (headers, return types,
+      exports; run in CI) found `rb_enc_codepoint_len` declared with the
+      wrong return type and the deprecated `rb_complex_polar`; both fixed.
+      Unit tests read strings of 0–700 bytes and arrays of 0–200 elements,
+      made several ways, across the embed boundary, and check the special
+      constants and `Value::ty` against Ruby. `rb_eql` returning `int`
+      (`Object::is_eql` was always `false` on 3.x) was found here too.
+      Decision: no C shim; the direct reads are version-gated and tested.
+- [x] **R2 Removed and deprecated APIs.** `Class::data` removed;
+      `GC::force_recycle` documented as a no-op on 3.1+;
+      `Thread::wait_readable`/`wait_writable` (`rb_io_wait`, taking an `IO`
+      and an optional timeout, returning `Result<bool, _>`).
+- [x] **R3 Keyword arguments.** Ungated with R0. `VM::scan_args` follows
+      Ruby 3 (`RB_SCAN_ARGS_PASS_CALLED_KEYWORDS`), and
+      `VM::scan_args_with_keywords` keeps Ruby 2's reading (rule 8: a
+      second method rather than a changed one). `methods!` docs and a test
+      cover keywords arriving as a trailing `Hash`.
+- [x] **R4 GC compaction.** `GC::mark_movable`, `GC::location`,
+      `GC::compact`, and a `compact` clause in `wrappable_struct!` stored in
+      `reserved[0]` (so `DataTypeFunction` keeps its layout). A test moves
+      200 wrapped strings with `GC.verify_compaction_references`.
+- [x] **R5 Ractor.** `VM::ext_ractor_safe` (unsafe) and
+      `VM::ext_ractor_unsafe`. Ruby's main thread starts with C methods
+      marked Ractor-safe, so `VM::init` switches that off. Tested from a
+      real Ractor. *Deferred:* `RUBY_TYPED_FROZEN_SHAREABLE` for wrapped
+      data, which needs `get_data_mut` to refuse frozen objects first.
+- [x] **R6 Fibers, scheduler, threads.** Fiber tests pass on 3.0–3.2 with
+      `rb_rescue2` kept. `Fiber::with_storage` (3.2, `rb_fiber_new_storage`).
+      Scheduler hooks are not bound (no safe wrapper designed yet).
+- [x] **R7 Tests and doctests.** Every unit test and doctest passes on
+      3.0.6, 3.1.4 and 3.2.6 (stable Rust); doctests no longer name
+      `Fixnum`/`Bignum` or use UTF-32 as a real encoding. `VM::run_file`
+      has a unit test now that it is a `load`.
+- [x] **R8 New APIs (optional).** `Hash::with_capacity` on every supported
+      Ruby (a hint, ignored before 3.2). Memory view: skipped.
+- [x] **R9 Release.** README (support table, roadmap, badge, 0.11
+      migration notes), CHANGELOG, version 0.11.0.
 
 ## 7. 0.12 — Ruby 3.1, 3.2, 3.3
 
@@ -237,7 +243,9 @@ still need the R1 check: presence doesn't mean the signature is unchanged.
 - [ ] `RString`: add the 3.3 layout (top-level `len`); three layouts become
       3.1, 3.2 and 3.3.
 - [ ] `GC::force_recycle` and `Thread::wait_fd`/`wait_fd_writable` get
-      `#[deprecated]` pointing to their replacements.
+      `#[deprecated]` pointing to their replacements. `GC::is_marked` too:
+      Ruby 3.4 no longer exports `rb_objspace_marked_object_p` (found by
+      `ci/check_rubysys.py`), and there is no replacement.
 - [ ] 3.3 behaviour: `NoMethodError` message format, M:N threads (§5),
       `rb_io_t` hiding (nothing bound).
 - [ ] Optional 3.3 APIs: `rb_data_define` (Ruby's `Data`, a `DataClass`
@@ -249,7 +257,8 @@ still need the R1 check: presence doesn't mean the signature is unchanged.
 
 - [ ] Drop 3.1: `Qnil`/`Qundef` become one set of values (`0x04`/`0x24`);
       `RString` has two layouts (3.2 and 3.3+).
-- [ ] Remove `GC::force_recycle` (`rb_gc_force_recycle` is gone in 3.4).
+- [ ] Remove `GC::force_recycle` (`rb_gc_force_recycle` is gone in 3.4) and
+      `GC::is_marked` (`rb_objspace_marked_object_p` is gone in 3.4).
 - [ ] Check the 3.4 prototypes and exports with the R1 script against a real
       3.4 `libruby` (only headers were checked for this plan).
 - [ ] 3.4 behaviour: message quoting and class names, `Hash#inspect`,
