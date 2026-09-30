@@ -65,9 +65,16 @@ jobs:
           sudo apt-get install -y build-essential autoconf libyaml-dev libffi-dev zlib1g-dev libgmp-dev libreadline-dev
         fi
         git clone --depth 1 https://github.com/rbenv/ruby-build.git "$RUNNER_TEMP/ruby-build"
+        configure_opts="--disable-shared --disable-install-doc --disable-yjit"
+        # Ruby 3.0's bundled bigdecimal doesn't compile with the current Apple
+        # clang ("'maybe_unused' attribute cannot be applied to types"), and
+        # Rutie doesn't use it.
+        if [[ "$RUNNER_OS" == "macOS" && "${{ matrix.ruby_version }}" == 3.0.* ]]; then
+          configure_opts="$configure_opts --with-out-ext=bigdecimal"
+        fi
         # ruby-build only names its log on failure, so show the end of it.
         export TMPDIR="$RUNNER_TEMP"
-        RUBY_CONFIGURE_OPTS="--disable-shared --disable-install-doc --disable-yjit" \
+        RUBY_CONFIGURE_OPTS="$configure_opts" \
           "$RUNNER_TEMP/ruby-build/bin/ruby-build" "${{ matrix.ruby_version }}" "$HOME/.rubies/${{ matrix.ruby_version }}" \
           || { tail -n 150 "$RUNNER_TEMP"/ruby-build.*.log; exit 1; }
         echo "$HOME/.rubies/${{ matrix.ruby_version }}/bin" >> "$GITHUB_PATH"

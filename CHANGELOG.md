@@ -75,7 +75,8 @@ from Ruru to Rutie → 0.11" in the README.
    the standard library): `build.rs` now warns about it, the README says to
    build a static Ruby with `--disable-yjit`, and CI does, thanks to @danielpclark
  - CI prints the end of `ruby-build`'s log when building a static Ruby
-   fails, thanks to @danielpclark
+   fails, and builds macOS's static Ruby 3.0 without `bigdecimal`, which
+   doesn't compile with the current Apple clang, thanks to @danielpclark
  - Windows: `VM::try_init` crashed on Ruby 3.1 and 3.2: it booted without
    `ruby_sysinit`, which Ruby 3's boot needs; it now calls it like
    `VM::init`, thanks to @danielpclark
