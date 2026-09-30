@@ -712,8 +712,11 @@ impl Class {
     ///
     /// class!(RubyCounter);
     ///
-    /// extern "C" fn counter_alloc(klass: Class) -> AnyObject {
-    ///     klass.wrap_data(Counter { count: 0 }, &*COUNTER_WRAPPER)
+    /// // `extern "C"` (`extern "C-unwind"` on Windows), see `rutie_callback!`.
+    /// rutie_callback! {
+    ///     fn counter_alloc(klass: Class) -> AnyObject {
+    ///         klass.wrap_data(Counter { count: 0 }, &*COUNTER_WRAPPER)
+    ///     }
     /// }
     ///
     /// methods!(
@@ -740,7 +743,7 @@ impl Class {
     ///     assert_eq!(count.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
     /// }
     /// ```
-    pub fn define_alloc_func(&mut self, func: extern "C" fn(Class) -> AnyObject) {
+    pub fn define_alloc_func(&mut self, func: rutie_callback!(type fn(Class) -> AnyObject)) {
         // `Class` and `AnyObject` are `#[repr(C)]` wrappers around a `Value`.
         let func: AllocFunction = unsafe { ::std::mem::transmute(func) };
 
@@ -1452,8 +1455,10 @@ mod tests {
         RUTIE_ALLOC_COUNTER
     );
 
-    extern "C" fn counter_alloc(klass: Class) -> AnyObject {
-        klass.wrap_data(RutieAllocCounter { count: 41 }, &*RUTIE_ALLOC_COUNTER)
+    rutie_callback! {
+        fn counter_alloc(klass: Class) -> AnyObject {
+            klass.wrap_data(RutieAllocCounter { count: 41 }, &*RUTIE_ALLOC_COUNTER)
+        }
     }
 
     #[test]

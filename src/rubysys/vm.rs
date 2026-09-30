@@ -101,9 +101,9 @@ extern "C" {
     // rb_ensure(VALUE (*b_proc)(ANYARGS), VALUE data1,
     //           VALUE (*e_proc)(ANYARGS), VALUE data2)
     pub fn rb_ensure(
-        body: extern "C" fn(CallbackMutPtr) -> Value,
+        body: rutie_callback!(type fn(CallbackMutPtr) -> Value),
         body_data: CallbackMutPtr,
-        ensure: extern "C" fn(CallbackMutPtr) -> Value,
+        ensure: rutie_callback!(type fn(CallbackMutPtr) -> Value),
         ensure_data: CallbackMutPtr,
     ) -> Value;
     // VALUE
@@ -154,9 +154,9 @@ extern "C" {
     // rb_rescue(VALUE (* b_proc)(ANYARGS), VALUE data1,
     //           VALUE (* r_proc)(ANYARGS), VALUE data2)
     pub fn rb_rescue(
-        body: extern "C" fn(CallbackMutPtr) -> Value,
+        body: rutie_callback!(type fn(CallbackMutPtr) -> Value),
         body_data: CallbackMutPtr,
-        rescue: extern "C" fn(CallbackMutPtr, Value) -> Value,
+        rescue: rutie_callback!(type fn(CallbackMutPtr, Value) -> Value),
         rescue_data: CallbackMutPtr,
     ) -> Value;
     // VALUE
@@ -166,9 +166,9 @@ extern "C" {
     // The variadic arguments are the exception classes to rescue,
     // terminated by a `0` (`Value::from(0)`).
     pub fn rb_rescue2(
-        body: extern "C" fn(CallbackMutPtr) -> Value,
+        body: rutie_callback!(type fn(CallbackMutPtr) -> Value),
         body_data: CallbackMutPtr,
-        rescue: extern "C" fn(CallbackMutPtr, Value) -> Value,
+        rescue: rutie_callback!(type fn(CallbackMutPtr, Value) -> Value),
         rescue_data: CallbackMutPtr,
         ...
     ) -> Value;
@@ -177,7 +177,7 @@ extern "C" {
     //
     // `data` is marked by the GC, so it must be a Ruby object or an
     // immediate value, never a raw pointer.
-    pub fn rb_set_end_proc(func: extern "C" fn(Value), data: Value);
+    pub fn rb_set_end_proc(func: rutie_callback!(type fn(Value)), data: Value);
     // void
     // rb_throw(const char *tag, VALUE val)
     pub fn rb_throw(tag: *const c_char, value: Value) -> !;

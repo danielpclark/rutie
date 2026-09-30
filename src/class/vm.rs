@@ -2035,7 +2035,7 @@ impl VM {
     /// invalid or the arguments do not fit it.
     ///
     /// This is meant for methods that take a variable number of arguments,
-    /// defined with a plain `extern` function (see the example) since
+    /// defined with a plain function (see the example and `rutie_callback!`) since
     /// `methods!` gives each argument its own parameter.
     ///
     /// # Examples
@@ -2047,26 +2047,29 @@ impl VM {
     /// use rutie::types::Argc;
     ///
     /// // def greet(name, greeting = "Hello", *rest)
-    /// pub extern "C" fn greet(argc: Argc, argv: *const AnyObject, _rtself: AnyObject) -> RString {
-    ///     let arguments = rutie::util::parse_arguments(argc, argv);
+    /// // `extern "C"` (`extern "C-unwind"` on Windows), see `rutie_callback!`.
+    /// rutie_callback! {
+    ///     pub fn greet(argc: Argc, argv: *const AnyObject, _rtself: AnyObject) -> RString {
+    ///         let arguments = rutie::util::parse_arguments(argc, argv);
     ///
-    ///     let args = VM::scan_args(&arguments, "11*");
+    ///         let args = VM::scan_args(&arguments, "11*");
     ///
-    ///     if let Err(ref error) = args {
-    ///         VM::raise_message(error.class(), &error.message());
+    ///         if let Err(ref error) = args {
+    ///             VM::raise_message(error.class(), &error.message());
+    ///         }
+    ///
+    ///         // We can safely unwrap here
+    ///         let args = args.unwrap();
+    ///
+    ///         let name = args.required[0].try_convert_to::<RString>().unwrap();
+    ///         let greeting = args.optional[0]
+    ///             .as_ref()
+    ///             .map(|greeting| greeting.try_convert_to::<RString>().unwrap().to_string())
+    ///             .unwrap_or_else(|| "Hello".to_string());
+    ///         let rest = args.splat.unwrap().length();
+    ///
+    ///         RString::new_utf8(&format!("{} {} (+{})", greeting, name.to_str(), rest))
     ///     }
-    ///
-    ///     // We can safely unwrap here
-    ///     let args = args.unwrap();
-    ///
-    ///     let name = args.required[0].try_convert_to::<RString>().unwrap();
-    ///     let greeting = args.optional[0]
-    ///         .as_ref()
-    ///         .map(|greeting| greeting.try_convert_to::<RString>().unwrap().to_string())
-    ///         .unwrap_or_else(|| "Hello".to_string());
-    ///     let rest = args.splat.unwrap().length();
-    ///
-    ///     RString::new_utf8(&format!("{} {} (+{})", greeting, name.to_str(), rest))
     /// }
     ///
     /// fn main() {
@@ -3140,23 +3143,25 @@ mod tests {
     #[test]
     fn test_scan_args_in_method_with_block() {
         crate::on_ruby_thread(|| {
-            extern "C" fn rutie_scan_block(
-                argc: crate::types::Argc,
-                argv: *const AnyObject,
-                _rtself: AnyObject,
-            ) -> AnyObject {
-                let arguments = crate::util::parse_arguments(argc, argv);
-                let args = VM::scan_args(&arguments, "1&");
+            rutie_callback! {
+                fn rutie_scan_block(
+                    argc: crate::types::Argc,
+                    argv: *const AnyObject,
+                    _rtself: AnyObject,
+                ) -> AnyObject {
+                    let arguments = crate::util::parse_arguments(argc, argv);
+                    let args = VM::scan_args(&arguments, "1&");
 
-                if let Err(ref error) = args {
-                    VM::raise_message(error.class(), &error.message());
-                }
+                    if let Err(ref error) = args {
+                        VM::raise_message(error.class(), &error.message());
+                    }
 
-                let args = args.unwrap();
+                    let args = args.unwrap();
 
-                match args.block {
-                    Some(block) => block.call(&args.required),
-                    None => Symbol::new("no_block").into(),
+                    match args.block {
+                        Some(block) => block.call(&args.required),
+                        None => Symbol::new("no_block").into(),
+                    }
                 }
             }
 
@@ -3182,12 +3187,14 @@ mod tests {
     #[test]
     fn test_is_keyword_given() {
         crate::on_ruby_thread(|| {
-            extern "C" fn rutie_keyword_given(
-                _argc: crate::types::Argc,
-                _argv: *const AnyObject,
-                _rtself: AnyObject,
-            ) -> crate::Boolean {
-                crate::Boolean::new(VM::is_keyword_given())
+            rutie_callback! {
+                fn rutie_keyword_given(
+                    _argc: crate::types::Argc,
+                    _argv: *const AnyObject,
+                    _rtself: AnyObject,
+                ) -> crate::Boolean {
+                    crate::Boolean::new(VM::is_keyword_given())
+                }
             }
 
             Class::from_existing("Object").define(|klass| {

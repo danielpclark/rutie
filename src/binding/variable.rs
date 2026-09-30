@@ -43,27 +43,31 @@ struct VirtualVariable<G, S> {
     setter: Option<S>,
 }
 
-extern "C" fn virtual_getter<G, S>(_id: Id, data: *mut Value) -> Value
-where
-    G: FnMut() -> Value,
-{
-    let variable = unsafe { &mut *(data as *mut VirtualVariable<G, S>) };
+rutie_callback! {
+    fn virtual_getter<G, S>(_id: Id, data: *mut Value) -> Value
+    where
+        G: FnMut() -> Value,
+    {
+        let variable = unsafe { &mut *(data as *mut VirtualVariable<G, S>) };
 
-    vm::call_catching_panic(|| (variable.getter)())
+        vm::call_catching_panic(|| (variable.getter)())
+    }
 }
 
-extern "C" fn virtual_setter<G, S>(value: Value, id: Id, data: *mut Value)
-where
-    S: FnMut(Value),
-{
-    let variable = unsafe { &mut *(data as *mut VirtualVariable<G, S>) };
+rutie_callback! {
+    fn virtual_setter<G, S>(value: Value, id: Id, data: *mut Value)
+    where
+        S: FnMut(Value),
+    {
+        let variable = unsafe { &mut *(data as *mut VirtualVariable<G, S>) };
 
-    match variable.setter {
-        Some(ref mut setter) => vm::call_catching_panic(|| setter(value)),
-        None => {
-            let message = format!("{} is a read-only variable", symbol::id_to_string(id));
+        match variable.setter {
+            Some(ref mut setter) => vm::call_catching_panic(|| setter(value)),
+            None => {
+                let message = format!("{} is a read-only variable", symbol::id_to_string(id));
 
-            vm::raise_message(unsafe { rb_eNameError }, &message)
+                vm::raise_message(unsafe { rb_eNameError }, &message)
+            }
         }
     }
 }

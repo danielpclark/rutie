@@ -26,13 +26,13 @@ pub type VmPointer = CallbackPtr;
 pub type Argc = c_int;
 pub type CallbackPtr = *const c_void;
 pub type CallbackMutPtr = *mut c_void;
-pub type BlockCallFunction = extern "C" fn(
+pub type BlockCallFunction = rutie_callback!(type fn(
     yielded_arg: Value,
     callback_arg: Value,
     argc: c_int,
     argv: *const Value,
     block_arg: Value,
-) -> Value;
+) -> Value);
 
 #[repr(C)]
 pub struct RBasic {

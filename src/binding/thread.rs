@@ -92,21 +92,25 @@ where
     }
 }
 
-extern "C" fn thread_create_callbox<R>(boxptr: CallbackMutPtr) -> Value
-where
-    R: Object,
-{
-    let mut fnbox: Box<Box<dyn FnMut() -> R>> =
-        unsafe { Box::from_raw(boxptr as *mut Box<dyn FnMut() -> R>) };
+rutie_callback! {
+    fn thread_create_callbox<R>(boxptr: CallbackMutPtr) -> Value
+    where
+        R: Object,
+    {
+        let mut fnbox: Box<Box<dyn FnMut() -> R>> =
+            unsafe { Box::from_raw(boxptr as *mut Box<dyn FnMut() -> R>) };
 
-    fnbox().value()
+        fnbox().value()
+    }
 }
 
-extern "C" fn thread_call_callbox(boxptr: CallbackMutPtr) -> CallbackPtr {
-    let mut fnbox: Box<Box<dyn FnMut() -> CallbackPtr>> =
-        unsafe { Box::from_raw(boxptr as *mut Box<dyn FnMut() -> CallbackPtr>) };
+rutie_callback! {
+    fn thread_call_callbox(boxptr: CallbackMutPtr) -> CallbackPtr {
+        let mut fnbox: Box<Box<dyn FnMut() -> CallbackPtr>> =
+            unsafe { Box::from_raw(boxptr as *mut Box<dyn FnMut() -> CallbackPtr>) };
 
-    fnbox()
+        fnbox()
+    }
 }
 
 pub fn current() -> Value {
@@ -221,15 +225,17 @@ pub fn mutex_sleep(mutex: Value, timeout: Value) -> Value {
     unsafe { thread::rb_mutex_sleep(mutex, timeout) }
 }
 
-extern "C" fn synchronize_callback<F>(data: CallbackMutPtr) -> Value
-where
-    F: FnOnce() -> Value,
-{
-    match unsafe { (*(data as *mut Option<F>)).take() } {
-        Some(func) => crate::binding::vm::call_catching_panic(func),
-        None => Value::from(
-            crate::binding::global::RubySpecialConsts::Nil as crate::types::InternalValue,
-        ),
+rutie_callback! {
+    fn synchronize_callback<F>(data: CallbackMutPtr) -> Value
+    where
+        F: FnOnce() -> Value,
+    {
+        match unsafe { (*(data as *mut Option<F>)).take() } {
+            Some(func) => crate::binding::vm::call_catching_panic(func),
+            None => Value::from(
+                crate::binding::global::RubySpecialConsts::Nil as crate::types::InternalValue,
+            ),
+        }
     }
 }
 

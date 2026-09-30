@@ -9,4 +9,4 @@ pub use crate::rubysys::types::{
 #[cfg(any(unix, windows))]
 pub use crate::rubysys::types::RawFd;
 
-pub type Callback<I, O> = extern "C" fn(Argc, *const AnyObject, I) -> O;
+pub type Callback<I, O> = rutie_callback!(type fn(Argc, *const AnyObject, I) -> O);

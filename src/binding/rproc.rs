@@ -51,23 +51,25 @@ lazy_static! {
     };
 }
 
-pub(crate) extern "C" fn proc_callback(
-    _yielded: Value,
-    data: Value,
-    argc: c_int,
-    argv: *const Value,
-    _block_arg: Value,
-) -> Value {
-    let closure = unsafe {
-        &mut *(typed_data::rb_check_typeddata(data, &*PROC_CLOSURE_TYPE) as *mut ProcClosure)
-    };
-    let arguments: &[Value] = if argc > 0 && !argv.is_null() {
-        unsafe { slice::from_raw_parts(argv, argc as usize) }
-    } else {
-        &[]
-    };
+rutie_callback! {
+    pub(crate) fn proc_callback(
+        _yielded: Value,
+        data: Value,
+        argc: c_int,
+        argv: *const Value,
+        _block_arg: Value,
+    ) -> Value {
+        let closure = unsafe {
+            &mut *(typed_data::rb_check_typeddata(data, &*PROC_CLOSURE_TYPE) as *mut ProcClosure)
+        };
+        let arguments: &[Value] = if argc > 0 && !argv.is_null() {
+            unsafe { slice::from_raw_parts(argv, argc as usize) }
+        } else {
+            &[]
+        };
 
-    vm::call_catching_panic(move || (closure.0)(arguments))
+        vm::call_catching_panic(move || (closure.0)(arguments))
+    }
 }
 
 // A hidden typed-data object owning `func`, to pass as the data argument of

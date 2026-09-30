@@ -146,7 +146,7 @@ extern "C" {
     // VALUE
     // rb_thread_create(VALUE (*fn)(ANYARGS), void *arg)
     pub fn rb_thread_create(
-        function: extern "C" fn(*mut c_void) -> Value,
+        function: rutie_callback!(type fn(*mut c_void) -> Value),
         data: *mut c_void,
     ) -> Value;
 
@@ -193,7 +193,7 @@ extern "C" {
     // rb_mutex_synchronize(VALUE mutex, VALUE (*func)(VALUE arg), VALUE arg)
     pub fn rb_mutex_synchronize(
         mutex: Value,
-        func: extern "C" fn(CallbackMutPtr) -> Value,
+        func: rutie_callback!(type fn(CallbackMutPtr) -> Value),
         arg: CallbackMutPtr,
     ) -> Value;
     // VALUE
