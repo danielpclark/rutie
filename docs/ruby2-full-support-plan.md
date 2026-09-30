@@ -438,20 +438,35 @@ as they land; keep this file current.
       exported by 2.5-2.7. Internal `VerifiedObject` checks (`Proc`,
       `Binding`, `Encoding`, `Enumerator`, `Exception`, `Thread`) and
       `VM::exit_bang` now use the statics; semantics are unchanged.
-- [ ] **IO / File / Dir:** `rb_io_write`, `rb_io_puts`, `rb_io_print`, `rb_io_gets`,
+- [x] **IO / File / Dir:** `rb_io_write`, `rb_io_puts`, `rb_io_print`, `rb_io_gets`,
       `rb_io_getbyte`, `rb_io_close`, `rb_io_flush`, `rb_io_eof`, `rb_io_binmode`,
       `rb_io_check_readable/writable/closed`, `rb_io_stdio_file`, `rb_stdin`,
       `rb_stdout`, `rb_stderr`, `rb_file_open`, `rb_file_open_str`,
       `rb_file_expand_path`, `rb_file_absolute_path`, `rb_file_dirname`,
       `rb_dir_getwd`, `rb_io_taint_check`? (no — taint). New types `IO`, `File`.
-- [ ] **Marshal / ObjectSpace / GC extras:** `rb_marshal_dump`, `rb_marshal_load`,
+      Done: `IO` (standard streams, write/puts/print/gets/getbyte/flush/close/
+      eof/binmode, all `Result`), `File` (`open`, path helpers,
+      `current_directory`; `Deref<Target = IO>`). `rb_io_check_*` and
+      `rb_io_stdio_file` take the internal `rb_io_t *`, so they are not
+      bound; `is_closed` uses `closed?`.
+- [x] **Marshal / ObjectSpace / GC extras:** `rb_marshal_dump`, `rb_marshal_load`,
       `rb_define_finalizer`, `rb_undefine_finalizer`, `rb_objspace_each_objects`
       (careful), `rb_memory_id`, `rb_gc_writebarrier`, `rb_gc_writebarrier_unprotect`,
       `rb_gc_latest_gc_info`, `rb_gc_register_mark_object` (exists). `GC::WeakMap`
       via `rb_funcall`.
-- [ ] **Load / require / $LOAD_PATH:** `rb_load`, `rb_load_protect`, `rb_f_require`,
+      Done: `Marshal::dump`/`load` (documented as unsafe for untrusted
+      data), `GC::define_finalizer`/`undefine_finalizer`/`latest_info`/
+      `write_barrier`/`write_barrier_unprotect`. `rb_memory_id` is 2.7-only
+      (bound, gated). `rb_objspace_each_objects` hands out raw heap pages and
+      is not bound; use `ObjectSpace.each_object` with `send_with_block`.
+- [x] **Load / require / $LOAD_PATH:** `rb_load`, `rb_load_protect`, `rb_f_require`,
       `rb_provide`, `rb_provided`, `rb_feature_provided`, `ruby_incpush`,
       `rb_require_string` (2.7). Surface: `VM::load(path, wrap)`, `VM::provide`.
+      Done: `VM::load` (`rb_load_protect`), `protect_require` (`rb_f_require`
+      on every version; `rb_require_string` bound for 2.7), `provide`,
+      `is_provided`, `add_load_path` (`ruby_incpush`), `find_file`. Features
+      are recorded with their extension (`"x.so"`); `rb_provided("x")`
+      without one only matches `.rb` features.
 
 ### P4 — concurrency
 

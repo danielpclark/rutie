@@ -30,6 +30,8 @@ pub use crate::class::{
     global_variable::GlobalVariable,
     hash::{Hash, HashIterator},
     integer::Integer,
+    io::{File, IO},
+    marshal::Marshal,
     method::Method,
     module::Module,
     nil_class::NilClass,

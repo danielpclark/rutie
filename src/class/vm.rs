@@ -1,5 +1,5 @@
 use crate::{
-    binding::{class, exception, hash, object, symbol, variable, vm},
+    binding::{class, exception, hash, io, object, symbol, variable, vm},
     helpers::scan_args::{KeywordArgs, ScanArgsFormat, ScannedArgs},
     rubysys::{exception::rb_eStandardError, rproc},
     types::{Argc, Id, Value, VmPointer},
@@ -1975,6 +1975,144 @@ impl VM {
         object::p(object.value())
     }
 
+    /// Loads and runs the Ruby file at `path` (Ruby's `load`,
+    /// `rb_load_protect`), returning the exception it raises. With `wrap`,
+    /// the file runs in an anonymous module so its methods and constants do
+    /// not leak into the global namespace.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let path = std::env::temp_dir().join("rutie_vm_load_example.rb");
+    /// std::fs::write(&path, "$rutie_loaded = 42").unwrap();
+    ///
+    /// VM::load(path.to_str().unwrap(), false).unwrap();
+    ///
+    /// assert_eq!(VM::global_get("$rutie_loaded").try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    /// assert!(VM::load("/no/such/file.rb", false).is_err());
+    /// # std::fs::remove_file(path).unwrap();
+    /// ```
+    pub fn load(path: &str, wrap: bool) -> Result<(), AnyException> {
+        let path = RString::new_utf8(path);
+
+        io::load_protect(path.value(), wrap).map_err(|_| {
+            VM::error_pop().unwrap_or_else(|_| AnyException::new("LoadError", Some("load failed")))
+        })
+    }
+
+    /// Requires the feature `name` (Ruby's `require`, `rb_f_require`),
+    /// returning `true` if it was loaded now, `false` if it already was, or
+    /// the `LoadError` (or any exception it raised) otherwise.
+    ///
+    /// Unlike [`VM::require`](#method.require), a missing feature is an
+    /// error value instead of an unrescued exception.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, VM};
+    /// # VM::init();
+    /// VM::init_loadpath();
+    ///
+    /// assert!(VM::protect_require("set").is_ok());
+    /// assert_eq!(VM::protect_require("set").unwrap(), false);
+    ///
+    /// let error = VM::protect_require("no_such_rutie_feature").unwrap_err();
+    ///
+    /// assert!(Class::load_error().case_equals(&error));
+    /// ```
+    pub fn protect_require(name: &str) -> Result<bool, AnyException> {
+        let name = RString::new_utf8(name);
+
+        vm::protect_value(|| io::require(name.value()))
+            .map(|loaded| loaded.is_true())
+            .map_err(AnyException::from)
+    }
+
+    /// Records `feature` in `$LOADED_FEATURES` (`rb_provide`), the way a
+    /// C extension announces the feature it implements.
+    ///
+    /// Give the name with its extension (`"name.so"` or `"name.rb"`), as
+    /// Ruby's own extensions do, and ask [`VM::is_provided`](#method.is_provided)
+    /// with the same name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// assert!(!VM::is_provided("rutie_provided_example.so"));
+    ///
+    /// VM::provide("rutie_provided_example.so");
+    ///
+    /// assert!(VM::is_provided("rutie_provided_example.so"));
+    ///
+    /// let features = VM::global_get("$LOADED_FEATURES").try_convert_to::<Array>().unwrap();
+    /// assert!(features.includes(&RString::new_utf8("rutie_provided_example.so")));
+    /// ```
+    pub fn provide(feature: &str) {
+        io::provide(feature)
+    }
+
+    /// Returns `true` if `feature` has been required or provided
+    /// (`rb_provided`). Without an extension only `.rb` features match, so
+    /// ask for `"name.so"` to find a provided extension.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// assert!(VM::is_provided("enumerator"));
+    /// ```
+    pub fn is_provided(feature: &str) -> bool {
+        io::is_provided(feature)
+    }
+
+    /// Adds the directory `path` to the front of `$LOAD_PATH`
+    /// (`ruby_incpush`; several directories may be joined with the
+    /// platform's path separator).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let dir = std::env::temp_dir().join("rutie_load_path_example");
+    /// std::fs::create_dir_all(&dir).unwrap();
+    /// std::fs::write(dir.join("rutie_feature.rb"), "RUTIE_FEATURE = :loaded").unwrap();
+    ///
+    /// VM::add_load_path(dir.to_str().unwrap());
+    ///
+    /// assert!(VM::find_file("rutie_feature.rb").is_some());
+    /// assert_eq!(VM::protect_require("rutie_feature").unwrap(), true);
+    /// # std::fs::remove_dir_all(dir).unwrap();
+    /// ```
+    pub fn add_load_path(path: &str) {
+        io::add_load_path(path)
+    }
+
+    /// Returns the full path of `name` found in `$LOAD_PATH`, or `None`
+    /// (`rb_find_file`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// assert!(VM::find_file("no_such_rutie_file.rb").is_none());
+    /// ```
+    pub fn find_file(name: &str) -> Option<RString> {
+        io::find_file(RString::new_utf8(name).value()).map(RString::from)
+    }
+
     /// Call super
     ///
     /// # Examples
@@ -2663,6 +2801,43 @@ mod tests {
             VM::define_global_const("RUTIE_TEST_CONST", Fixnum::new(8));
             let value = VM::eval("RUTIE_TEST_CONST").unwrap();
             assert_eq!(value.try_convert_to::<Fixnum>(), Ok(Fixnum::new(8)));
+        });
+    }
+
+    #[test]
+    fn test_load_require_and_provide() {
+        crate::on_ruby_thread(|| {
+            let dir = std::env::temp_dir().join("rutie_vm_load_unit_test");
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("rutie_unit_feature.rb"), "$rutie_unit_feature = 1").unwrap();
+            std::fs::write(dir.join("rutie_unit_broken.rb"), "raise 'broken on load'").unwrap();
+            std::fs::write(dir.join("rutie_unit_wrapped.rb"), "RUTIE_WRAPPED_CONST = 1").unwrap();
+
+            VM::add_load_path(dir.to_str().unwrap());
+
+            assert!(VM::find_file("rutie_unit_feature.rb").is_some());
+            assert_eq!(VM::protect_require("rutie_unit_feature").unwrap(), true);
+            assert_eq!(VM::protect_require("rutie_unit_feature").unwrap(), false);
+            assert!(VM::is_provided("rutie_unit_feature"));
+
+            let error = VM::protect_require("rutie_unit_broken").unwrap_err();
+            assert_eq!(error.message(), "broken on load");
+
+            // A wrapped load keeps constants out of Object.
+            let wrapped = dir.join("rutie_unit_wrapped.rb");
+            VM::load(wrapped.to_str().unwrap(), true).unwrap();
+            assert!(!Class::object().is_const_defined_at("RUTIE_WRAPPED_CONST"));
+            VM::load(wrapped.to_str().unwrap(), false).unwrap();
+            assert!(Class::object().is_const_defined_at("RUTIE_WRAPPED_CONST"));
+
+            let error = VM::load("/no/such/rutie/file.rb", false).unwrap_err();
+            assert!(Class::load_error().case_equals(&error));
+
+            VM::provide("rutie_unit_virtual_feature.so");
+            assert!(VM::is_provided("rutie_unit_virtual_feature.so"));
+            assert!(!VM::is_provided("rutie_unit_never_provided.so"));
+
+            std::fs::remove_dir_all(dir).unwrap();
         });
     }
 

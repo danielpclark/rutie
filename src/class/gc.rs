@@ -1,9 +1,123 @@
-use crate::{binding::gc, AnyObject, Object, Symbol};
+use crate::{
+    binding::{gc, vm},
+    AnyException, AnyObject, Hash, Object, Symbol,
+};
 
 /// Garbage collection
 pub struct GC;
 
 impl GC {
+    /// Registers `finalizer` to be called with the object's id after
+    /// `object` is garbage collected (Ruby's `ObjectSpace.define_finalizer`,
+    /// `rb_define_finalizer`), or returns the error: an `ArgumentError` if
+    /// `finalizer` is not callable, a `FrozenError` for a frozen object.
+    ///
+    /// The finalizer must not refer to `object`, or it is never collected.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, NilClass, Object, Proc, VM};
+    /// # VM::init();
+    ///
+    /// let object = VM::eval("Object.new").unwrap();
+    /// let finalizer = Proc::new(|_| NilClass::new().into());
+    ///
+    /// assert!(GC::define_finalizer(&object, &finalizer).is_ok());
+    /// assert!(GC::define_finalizer(&object, &NilClass::new()).is_err());
+    ///
+    /// GC::undefine_finalizer(&object);
+    /// ```
+    pub fn define_finalizer<T: Object, F: Object>(
+        object: &T,
+        finalizer: &F,
+    ) -> Result<(), AnyException> {
+        let (object, finalizer) = (object.value(), finalizer.value());
+
+        vm::protect_value(|| gc::define_finalizer(object, finalizer))
+            .map(|_| ())
+            .map_err(AnyException::from)
+    }
+
+    /// Removes the finalizers of `object` (Ruby's
+    /// `ObjectSpace.undefine_finalizer`, `rb_undefine_finalizer`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, VM};
+    /// # VM::init();
+    ///
+    /// GC::undefine_finalizer(&VM::eval("Object.new").unwrap());
+    /// ```
+    pub fn undefine_finalizer<T: Object>(object: &T) {
+        gc::undefine_finalizer(object.value());
+    }
+
+    /// Returns information about the latest garbage collection, such as
+    /// `:major_by` and `:gc_by` (Ruby's `GC.latest_gc_info`,
+    /// `rb_gc_latest_gc_info`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// GC::start();
+    ///
+    /// assert!(GC::latest_info().has_key(&Symbol::new("gc_by")));
+    /// ```
+    pub fn latest_info() -> Hash {
+        let info = Hash::new();
+
+        Hash::from(gc::latest_gc_info(info.value()))
+    }
+
+    /// Tells the generational GC that `parent` now references `child`
+    /// (`rb_gc_writebarrier`, C's `RB_OBJ_WRITTEN`).
+    ///
+    /// Only needed for objects created as write-barrier protected, which
+    /// Rutie's `wrappable_struct!` data objects are not.
+    ///
+    /// # Safety
+    ///
+    /// `parent` must be a heap object (not an immediate like a `Fixnum`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, GC, RString, VM};
+    /// # VM::init();
+    ///
+    /// let parent = Array::new();
+    /// let child = RString::new_utf8("child");
+    ///
+    /// unsafe { GC::write_barrier(&parent, &child) };
+    /// ```
+    pub unsafe fn write_barrier<P: Object, C: Object>(parent: &P, child: &C) {
+        gc::writebarrier(parent.value(), child.value());
+    }
+
+    /// Marks `object` as not write-barrier protected, so the generational GC
+    /// always rescans it (`rb_gc_writebarrier_unprotect`).
+    ///
+    /// # Safety
+    ///
+    /// `object` must be a heap object (not an immediate like a `Fixnum`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, GC, VM};
+    /// # VM::init();
+    ///
+    /// unsafe { GC::write_barrier_unprotect(&Array::new()) };
+    /// ```
+    pub unsafe fn write_barrier_unprotect<T: Object>(object: &T) {
+        gc::writebarrier_unprotect(object.value());
+    }
+
     /// Notify memory usage to the GC engine by extension libraries, to trigger GC
     /// This is useful when you wrap large rust objects using wrap_data,
     /// when you do so, ruby is unaware of the allocated memory and might not run GC
@@ -247,5 +361,55 @@ impl GC {
     /// ```
     pub fn unregister(object: &impl Object) {
         gc::unregister(object.value())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Fixnum, NilClass, Object, Proc, Symbol, GC, VM};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+
+    #[test]
+    fn test_finalizers_run_after_collection() {
+        crate::on_ruby_thread(|| {
+            let finalized = Arc::new(AtomicUsize::new(0));
+
+            for _ in 0..20 {
+                let object = VM::eval("Object.new").unwrap();
+                let counter = finalized.clone();
+                let finalizer = Proc::new(move |_| {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                    NilClass::new().into()
+                });
+
+                GC::define_finalizer(&object, &finalizer).unwrap();
+            }
+
+            GC::start();
+            GC::start();
+            VM::eval("20.times { Object.new }").unwrap();
+
+            assert!(finalized.load(Ordering::SeqCst) > 0, "no finalizer ran");
+
+            let frozen = VM::eval("Object.new.freeze").unwrap();
+            assert!(GC::define_finalizer(&frozen, &Proc::new(|_| NilClass::new().into())).is_err());
+            assert!(
+                GC::define_finalizer(&VM::eval("Object.new").unwrap(), &Fixnum::new(1)).is_err()
+            );
+        });
+    }
+
+    #[test]
+    fn test_latest_info() {
+        crate::on_ruby_thread(|| {
+            GC::start();
+
+            let info = GC::latest_info();
+            assert!(info.has_key(&Symbol::new("major_by")));
+            assert!(info.length() > 2);
+        });
     }
 }

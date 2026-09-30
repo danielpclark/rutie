@@ -11,6 +11,7 @@ pub mod fixnum;
 pub mod float;
 pub mod gc;
 pub mod hash;
+pub mod io;
 pub mod numeric;
 pub mod object;
 pub mod range;

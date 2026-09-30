@@ -8,6 +8,7 @@ pub mod float;
 pub mod gc;
 pub mod global;
 pub mod hash;
+pub mod io;
 pub mod module;
 pub mod numeric;
 pub mod object;

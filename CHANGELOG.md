@@ -112,6 +112,17 @@ API and may have breaking changes during a teeny version change.
  - `AnyException::from_class`, `AnyException::from_errno`,
    `AnyException::from_io_error` and `VM::raise_interrupt`,
    thanks to @danielpclark
+ - New `IO` type (`stdin`, `stdout`, `stderr`, `write`, `puts`, `print`,
+   `gets`, `getbyte`, `flush`, `close`, `is_closed`, `is_eof`, `binmode`) and
+   `File` type (`open`, `expand_path`, `absolute_path`, `dirname`,
+   `current_directory`, and the `IO` methods through `Deref`); operations
+   that can raise return `Result`, thanks to @danielpclark
+ - `Marshal::dump` and `Marshal::load`, thanks to @danielpclark
+ - `GC::define_finalizer`, `GC::undefine_finalizer`, `GC::latest_info`,
+   `GC::write_barrier` and `GC::write_barrier_unprotect`,
+   thanks to @danielpclark
+ - `VM::load`, `VM::protect_require`, `VM::provide`, `VM::is_provided`,
+   `VM::add_load_path` and `VM::find_file`, thanks to @danielpclark
 
 ### Changed
  - **Breaking:** `VM::at_exit` now registers a real end proc

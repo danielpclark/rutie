@@ -61,3 +61,23 @@ pub unsafe fn is_marked(obj: Value) -> bool {
 
     util::c_int_to_bool(int)
 }
+
+pub fn define_finalizer(object: Value, block: Value) -> Value {
+    unsafe { gc::rb_define_finalizer(object, block) }
+}
+
+pub fn undefine_finalizer(object: Value) -> Value {
+    unsafe { gc::rb_undefine_finalizer(object) }
+}
+
+pub fn latest_gc_info(hash: Value) -> Value {
+    unsafe { gc::rb_gc_latest_gc_info(hash) }
+}
+
+pub fn writebarrier(parent: Value, child: Value) {
+    unsafe { gc::rb_gc_writebarrier(parent, child) }
+}
+
+pub fn writebarrier_unprotect(object: Value) {
+    unsafe { gc::rb_gc_writebarrier_unprotect(object) }
+}
