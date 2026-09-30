@@ -253,11 +253,12 @@ macro_rules! unsafe_methods {
         )*
     ) => {
         $(
-            pub extern fn $method_name(argc: $crate::types::Argc,
-                                       argv: *const $crate::AnyObject,
-                                       #[allow(unused_mut)]
-                                       #[allow(unused_variables)]
-                                       mut $rtself_name: $rtself_class) -> $return_type {
+            $crate::rutie_callback! {
+            pub fn $method_name(argc: $crate::types::Argc,
+                                argv: *const $crate::AnyObject,
+                                #[allow(unused_mut)]
+                                #[allow(unused_variables)]
+                                mut $rtself_name: $rtself_class) -> $return_type {
                 let _arguments = $crate::util::parse_arguments(argc, argv);
                 let mut _i = 0;
 
@@ -271,6 +272,7 @@ macro_rules! unsafe_methods {
                 )*
 
                 $body
+            }
             }
         )*
     }
@@ -442,7 +444,8 @@ macro_rules! unsafe_methods {
 /// ```
 ///
 /// For optional, keyword and block parameters, write a plain
-/// `extern fn(Argc, *const AnyObject, Self)` function and use
+/// `fn(Argc, *const AnyObject, Self)` function with
+/// [`rutie_callback!`](macro.rutie_callback.html) and use
 /// [`VM::scan_args`](struct.VM.html#method.scan_args).
 #[macro_export]
 macro_rules! methods {
@@ -466,11 +469,12 @@ macro_rules! methods {
     (@define $rtself_class: ty, $rtself_name: ident, $method_name: ident,
         [$($arg_name: ident: $arg_type: ty),*], [$($splat_name: ident)?],
         $return_type: ty, $body: block) => {
-        pub extern fn $method_name(argc: $crate::types::Argc,
-                                   argv: *const $crate::AnyObject,
-                                   #[allow(unused_mut)]
-                                   #[allow(unused_variables)]
-                                   mut $rtself_name: $rtself_class) -> $return_type {
+        $crate::rutie_callback! {
+        pub fn $method_name(argc: $crate::types::Argc,
+                            argv: *const $crate::AnyObject,
+                            #[allow(unused_mut)]
+                            #[allow(unused_variables)]
+                            mut $rtself_name: $rtself_class) -> $return_type {
             let _arguments = $crate::util::parse_arguments(argc, argv);
             let mut _i = 0;
 
@@ -500,6 +504,7 @@ macro_rules! methods {
             )?
 
             $body
+        }
         }
     };
     (

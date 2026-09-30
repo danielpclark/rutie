@@ -201,11 +201,13 @@ where
     }
 }
 
-extern "C" fn callbox(boxptr: *mut c_void) -> *const c_void {
-    let mut fnbox: Box<Box<dyn FnMut() -> *const c_void>> =
-        unsafe { Box::from_raw(boxptr as *mut Box<dyn FnMut() -> *const c_void>) };
+rutie_callback! {
+    fn callbox(boxptr: *mut c_void) -> *const c_void {
+        let mut fnbox: Box<Box<dyn FnMut() -> *const c_void>> =
+            unsafe { Box::from_raw(boxptr as *mut Box<dyn FnMut() -> *const c_void>) };
 
-    fnbox()
+        fnbox()
+    }
 }
 
 use crate::util::callback_call::no_parameters as callback_protect;
@@ -271,24 +273,28 @@ where
 }
 
 // `data` points to an `Option<F>` on the caller's stack, taken exactly once.
-extern "C" fn call_once_callback<F>(data: CallbackMutPtr) -> Value
-where
-    F: FnOnce() -> Value,
-{
-    match unsafe { (*(data as *mut Option<F>)).take() } {
-        Some(func) => call_catching_panic(func),
-        None => nil(),
+rutie_callback! {
+    fn call_once_callback<F>(data: CallbackMutPtr) -> Value
+    where
+        F: FnOnce() -> Value,
+    {
+        match unsafe { (*(data as *mut Option<F>)).take() } {
+            Some(func) => call_catching_panic(func),
+            None => nil(),
+        }
     }
 }
 
 // `data` is a boxed `FnOnce` whose pointer is tagged as a Fixnum (see `at_exit`).
-extern "C" fn end_proc_callback(data: Value) {
-    let boxed = unsafe {
-        Box::from_raw((data.value & !(1 as InternalValue)) as *mut Box<dyn FnOnce(VmPointer)>)
-    };
-    let func: Box<dyn FnOnce(VmPointer)> = *boxed;
+rutie_callback! {
+    fn end_proc_callback(data: Value) {
+        let boxed = unsafe {
+            Box::from_raw((data.value & !(1 as InternalValue)) as *mut Box<dyn FnOnce(VmPointer)>)
+        };
+        let func: Box<dyn FnOnce(VmPointer)> = *boxed;
 
-    call_catching_panic(move || func(ptr::null()))
+        call_catching_panic(move || func(ptr::null()))
+    }
 }
 
 // Registers `func` to run when the VM runs its end procs (Ruby's `at_exit`).
@@ -309,14 +315,16 @@ where
 }
 
 // `rb_protect` calls this with the closure pointer as its only argument.
-extern "C" fn call_protected_callback<F>(closure: *mut c_void) -> Value
-where
-    F: FnMut(VmPointer),
-{
-    let f = closure as *mut F;
-    unsafe { (*f)(ptr::null()) };
+rutie_callback! {
+    fn call_protected_callback<F>(closure: *mut c_void) -> Value
+    where
+        F: FnMut(VmPointer),
+    {
+        let f = closure as *mut F;
+        unsafe { (*f)(ptr::null()) };
 
-    nil()
+        nil()
+    }
 }
 
 // Runs `func` immediately under `rb_protect` (what `at_exit` did before 0.10).
@@ -466,15 +474,17 @@ where
     }
 }
 
-extern "C" fn ensure_callback<E>(data: CallbackMutPtr) -> Value
-where
-    E: FnOnce(),
-{
-    if let Some(func) = unsafe { (*(data as *mut Option<E>)).take() } {
-        call_catching_panic(func)
-    }
+rutie_callback! {
+    fn ensure_callback<E>(data: CallbackMutPtr) -> Value
+    where
+        E: FnOnce(),
+    {
+        if let Some(func) = unsafe { (*(data as *mut Option<E>)).take() } {
+            call_catching_panic(func)
+        }
 
-    nil()
+        nil()
+    }
 }
 
 pub fn ensure<B, E>(body: B, ensure: E) -> Value
@@ -501,23 +511,25 @@ struct Rescue<'a, R> {
 }
 
 // Exceptions that are not one of the requested classes are raised again.
-extern "C" fn rescue_callback<R>(data: CallbackMutPtr, exception: Value) -> Value
-where
-    R: FnOnce(Value) -> Value,
-{
-    let rescue = unsafe { &mut *(data as *mut Rescue<R>) };
-
-    if !rescue
-        .classes
-        .iter()
-        .any(|&klass| class::is_kind_of(exception, klass))
+rutie_callback! {
+    fn rescue_callback<R>(data: CallbackMutPtr, exception: Value) -> Value
+    where
+        R: FnOnce(Value) -> Value,
     {
-        raise_ex(exception)
-    }
+        let rescue = unsafe { &mut *(data as *mut Rescue<R>) };
 
-    match rescue.handler.take() {
-        Some(handler) => call_catching_panic(move || handler(exception)),
-        None => nil(),
+        if !rescue
+            .classes
+            .iter()
+            .any(|&klass| class::is_kind_of(exception, klass))
+        {
+            raise_ex(exception)
+        }
+
+        match rescue.handler.take() {
+            Some(handler) => call_catching_panic(move || handler(exception)),
+            None => nil(),
+        }
     }
 }
 
@@ -546,19 +558,21 @@ where
     }
 }
 
-extern "C" fn catch_callback<F>(
-    tag: Value,
-    data: Value,
-    _argc: c_int,
-    _argv: *const Value,
-    _block_arg: Value,
-) -> Value
-where
-    F: FnOnce(Value) -> Value,
-{
-    match unsafe { (*(data.value as *mut Option<F>)).take() } {
-        Some(func) => call_catching_panic(move || func(tag)),
-        None => nil(),
+rutie_callback! {
+    fn catch_callback<F>(
+        tag: Value,
+        data: Value,
+        _argc: c_int,
+        _argv: *const Value,
+        _block_arg: Value,
+    ) -> Value
+    where
+        F: FnOnce(Value) -> Value,
+    {
+        match unsafe { (*(data.value as *mut Option<F>)).take() } {
+            Some(func) => call_catching_panic(move || func(tag)),
+            None => nil(),
+        }
     }
 }
 
@@ -594,24 +608,26 @@ pub fn is_keyword_given() -> bool {
 }
 
 // `data` points to the block closure; all yielded values are in `argv`.
-extern "C" fn block_callback<F>(
-    _yielded: Value,
-    data: Value,
-    argc: c_int,
-    argv: *const Value,
-    _block_arg: Value,
-) -> Value
-where
-    F: FnMut(&[Value]) -> Value,
-{
-    let block = unsafe { &mut *(data.value as *mut F) };
-    let arguments: &[Value] = if argc > 0 && !argv.is_null() {
-        unsafe { slice::from_raw_parts(argv, argc as usize) }
-    } else {
-        &[]
-    };
+rutie_callback! {
+    fn block_callback<F>(
+        _yielded: Value,
+        data: Value,
+        argc: c_int,
+        argv: *const Value,
+        _block_arg: Value,
+    ) -> Value
+    where
+        F: FnMut(&[Value]) -> Value,
+    {
+        let block = unsafe { &mut *(data.value as *mut F) };
+        let arguments: &[Value] = if argc > 0 && !argv.is_null() {
+            unsafe { slice::from_raw_parts(argv, argc as usize) }
+        } else {
+            &[]
+        };
 
-    call_catching_panic(move || block(arguments))
+        call_catching_panic(move || block(arguments))
+    }
 }
 
 pub fn call_method_with_block<F>(

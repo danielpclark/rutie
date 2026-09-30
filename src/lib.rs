@@ -2,6 +2,108 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(windows)]
+/// Defines a function for Ruby to call, or names the type of one, with the
+/// right ABI: `extern "C"`, or `extern "C-unwind"` on Windows.
+///
+/// Use it for functions Rutie passes to Ruby that a Ruby exception (`raise`,
+/// `throw`, `break`) can pass through, such as a method body given to
+/// [`Object::def`](trait.Object.html#method.def) or an allocator given to
+/// [`Class::define_alloc_func`](struct.Class.html#method.define_alloc_func).
+/// `methods!` and `unsafe_methods!` already use it.
+///
+/// On Windows, Ruby 2.5 jumps to its exception handlers with a `longjmp` that
+/// unwinds the frames in between, and an unwind leaving an `extern "C"`
+/// function aborts the process (Rust 1.81 and later). Ruby 2.6 and later do
+/// not unwind. `extern "C-unwind"` needs Rust 1.71 or later.
+///
+/// `rutie_callback! { fn name(...) -> T { ... } }` defines a function (with
+/// any attributes, visibility and generics), and
+/// `rutie_callback!(type fn(...) -> T)` is its type.
+///
+/// # Examples
+///
+/// ```
+/// #[macro_use] extern crate rutie;
+///
+/// use rutie::{AnyObject, Class, Object, VM};
+///
+/// rutie_callback! {
+///     fn refuse(klass: Class) -> AnyObject {
+///         VM::raise(Class::from_existing("TypeError"), "allocation refused");
+///         klass.into()
+///     }
+/// }
+///
+/// fn main() {
+///     # VM::init();
+///     let allocator: rutie_callback!(type fn(Class) -> AnyObject) = refuse;
+///
+///     Class::new("Refused", None).define_alloc_func(allocator);
+///
+///     // The exception passes through `allocate` back to Ruby.
+///     assert!(VM::eval("Refused.new").is_err());
+/// }
+/// ```
+#[macro_export]
+macro_rules! rutie_callback {
+    (type fn $($signature:tt)*) => { extern "C-unwind" fn $($signature)* };
+    ($(#[$attribute:meta])* $visibility:vis fn $($function:tt)*) => {
+        $(#[$attribute])* $visibility extern "C-unwind" fn $($function)*
+    };
+}
+
+#[cfg(not(windows))]
+/// Defines a function for Ruby to call, or names the type of one, with the
+/// right ABI: `extern "C"`, or `extern "C-unwind"` on Windows.
+///
+/// Use it for functions Rutie passes to Ruby that a Ruby exception (`raise`,
+/// `throw`, `break`) can pass through, such as a method body given to
+/// [`Object::def`](trait.Object.html#method.def) or an allocator given to
+/// [`Class::define_alloc_func`](struct.Class.html#method.define_alloc_func).
+/// `methods!` and `unsafe_methods!` already use it.
+///
+/// On Windows, Ruby 2.5 jumps to its exception handlers with a `longjmp` that
+/// unwinds the frames in between, and an unwind leaving an `extern "C"`
+/// function aborts the process (Rust 1.81 and later). Ruby 2.6 and later do
+/// not unwind. `extern "C-unwind"` needs Rust 1.71 or later.
+///
+/// `rutie_callback! { fn name(...) -> T { ... } }` defines a function (with
+/// any attributes, visibility and generics), and
+/// `rutie_callback!(type fn(...) -> T)` is its type.
+///
+/// # Examples
+///
+/// ```
+/// #[macro_use] extern crate rutie;
+///
+/// use rutie::{AnyObject, Class, Object, VM};
+///
+/// rutie_callback! {
+///     fn refuse(klass: Class) -> AnyObject {
+///         VM::raise(Class::from_existing("TypeError"), "allocation refused");
+///         klass.into()
+///     }
+/// }
+///
+/// fn main() {
+///     # VM::init();
+///     let allocator: rutie_callback!(type fn(Class) -> AnyObject) = refuse;
+///
+///     Class::new("Refused", None).define_alloc_func(allocator);
+///
+///     // The exception passes through `allocate` back to Ruby.
+///     assert!(VM::eval("Refused.new").is_err());
+/// }
+/// ```
+#[macro_export]
+macro_rules! rutie_callback {
+    (type fn $($signature:tt)*) => { extern "C" fn $($signature)* };
+    ($(#[$attribute:meta])* $visibility:vis fn $($function:tt)*) => {
+        $(#[$attribute])* $visibility extern "C" fn $($function)*
+    };
+}
+
 mod binding;
 mod class;
 mod helpers;

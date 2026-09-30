@@ -5,9 +5,9 @@ use crate::rubysys::types::{c_char, Id, Value};
 // callbacks take the common leading arguments, which is valid for both.
 
 // VALUE getter(ID id, VALUE *data)
-pub type GlobalGetter = extern "C" fn(id: Id, data: *mut Value) -> Value;
+pub type GlobalGetter = rutie_callback!(type fn(id: Id, data: *mut Value) -> Value);
 // void setter(VALUE value, ID id, VALUE *data)
-pub type GlobalSetter = extern "C" fn(value: Value, id: Id, data: *mut Value);
+pub type GlobalSetter = rutie_callback!(type fn(value: Value, id: Id, data: *mut Value));
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
