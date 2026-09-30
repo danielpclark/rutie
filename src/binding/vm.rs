@@ -37,6 +37,37 @@ pub fn init() {
     unsafe {
         vm::ruby_init();
     }
+
+    if let Err(state) = finish_boot() {
+        panic!("Ruby failed to finish booting (state {})", state);
+    }
+}
+
+// Ruby 3 defines part of its core library (`Marshal.load`, `Time.at`, much of
+// `Integer`, `Kernel#tap`, ...) in Ruby files compiled into the interpreter,
+// and loads them (`rb_call_builtin_inits`) while processing the command line,
+// not in `ruby_init`. So after `ruby_init`/`ruby_setup` the command line is
+// processed once, with an empty `-e` script. RubyGems and `RUBYOPT` stay off:
+// an embedded VM starts with the core library only, as it always did.
+// When a `ruby` process already did this (an extension), nothing happens.
+fn finish_boot() -> Result<(), c_int> {
+    if has_run_options() {
+        return Ok(());
+    }
+
+    match run_options(&["ruby", "--disable=gems,rubyopt", "-e", ""]) {
+        Ok(_) => {}
+        Err(Ok(_exception)) => return Err(1),
+        Err(Err(status)) => return Err(status),
+    }
+
+    // `-e` made `$0` "-e"; name the program instead.
+    let program = std::env::args()
+        .next()
+        .unwrap_or_else(|| "ruby".to_string());
+    set_script_name(&program);
+
+    Ok(())
 }
 
 pub fn init_loadpath() {
@@ -326,7 +357,10 @@ pub fn cleanup(status: c_int) -> c_int {
 }
 
 pub fn setup() -> c_int {
-    unsafe { vm::ruby_setup() }
+    match unsafe { vm::ruby_setup() } {
+        0 => finish_boot().err().unwrap_or(0),
+        state => state,
+    }
 }
 
 // `rb_cObject` is set while the VM boots and never cleared, so this is true
@@ -574,7 +608,6 @@ pub fn jump_tag(state: c_int) -> ! {
     unsafe { vm::rb_jump_tag(state) }
 }
 
-#[cfg(ruby_gte_2_7)]
 pub fn is_keyword_given() -> bool {
     util::c_int_to_bool(unsafe { vm::rb_keyword_given_p() })
 }
@@ -642,7 +675,6 @@ pub fn call_method_with_proc(
 }
 
 // The last argument must be a `Hash`; it is passed as keywords.
-#[cfg(ruby_gte_2_7)]
 pub fn call_method_with_keywords(receiver: Value, method: &str, arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);
 

@@ -39,7 +39,6 @@ pub fn begin_length(range: Value, total: usize) -> Option<(usize, usize)> {
 }
 
 // `(begin, end, step, exclude_end)` of a range or arithmetic sequence.
-#[cfg(ruby_gte_2_6)]
 pub fn arithmetic_sequence(object: Value) -> Option<(Value, Value, Value, bool)> {
     let nil = Value::from(RubySpecialConsts::Nil as InternalValue);
     let mut components = range::ArithmeticSequenceComponents {

@@ -34,21 +34,32 @@ fn try_rbconfig(key: &str) -> Result<String, std::io::Error> {
     Ok(String::from_utf8(config.stdout).expect("RbConfig value not UTF-8!"))
 }
 
-// Minor versions of Ruby 2 that Rutie supports. Each one gets an exact
-// `ruby_2_N` cfg and, from 2.6 on, a cumulative `ruby_gte_2_N` cfg.
-const SUPPORTED_RUBY_2_MINORS: [u32; 3] = [5, 6, 7];
+// The Ruby versions this Rutie line supports (each Rutie minor supports three
+// Ruby minors; see the README's version roadmap). Each one gets an exact
+// `ruby_X_Y` cfg and a cumulative `ruby_gte_X_Y` cfg.
+const SUPPORTED_RUBIES: [(u32, u32); 3] = [(3, 0), (3, 1), (3, 2)];
 
-// Emits `ruby_2_5` / `ruby_2_6` / `ruby_2_7` for the exact version of the
-// Ruby found by `rbconfig` and `ruby_gte_2_6` / `ruby_gte_2_7` for every
-// version at or above those, so bindings can be gated with
-// `#[cfg(ruby_gte_2_7)]` instead of sniffing the version at runtime.
+// Which Rutie line supports a Ruby this one doesn't, for the error message.
+fn rutie_line_for(major: u32, minor: u32) -> &'static str {
+    match (major, minor) {
+        (2, 5..=7) => "Rutie 0.10",
+        (3, 3) => "Rutie 0.12 or 0.13",
+        (3, 4) => "Rutie 0.13",
+        _ => "no Rutie release yet",
+    }
+}
+
+// Emits `ruby_3_0` / `ruby_3_1` / `ruby_3_2` for the exact version of the
+// Ruby found by `rbconfig` and `ruby_gte_3_0` / `ruby_gte_3_1` / `ruby_gte_3_2`
+// for every version at or above those, so bindings can be gated with
+// `#[cfg(ruby_gte_3_2)]` instead of sniffing the version at runtime.
 //
 // The version is also exported to crates depending on Rutie as
 // `DEP_RUBY_VERSION_MAJOR` / `DEP_RUBY_VERSION_MINOR` (through `links = "ruby"`).
 fn ruby_version_cfgs() {
-    for minor in SUPPORTED_RUBY_2_MINORS.iter() {
-        println!("cargo:rustc-check-cfg=cfg(ruby_2_{})", minor);
-        println!("cargo:rustc-check-cfg=cfg(ruby_gte_2_{})", minor);
+    for (major, minor) in SUPPORTED_RUBIES.iter() {
+        println!("cargo:rustc-check-cfg=cfg(ruby_{}_{})", major, minor);
+        println!("cargo:rustc-check-cfg=cfg(ruby_gte_{}_{})", major, minor);
     }
 
     let (major, minor) = match (try_rbconfig("MAJOR"), try_rbconfig("MINOR")) {
@@ -73,21 +84,31 @@ fn ruby_version_cfgs() {
     println!("cargo:version_major={}", major);
     println!("cargo:version_minor={}", minor);
 
-    if major != 2 || !SUPPORTED_RUBY_2_MINORS.contains(&minor) {
-        println!(
-            "cargo:warning=Rutie supports Ruby 2.5, 2.6 and 2.7; found Ruby {}.{}. \
-             Ruby 3 is not supported yet.",
-            major, minor
+    if !SUPPORTED_RUBIES.contains(&(major, minor)) {
+        let supported: Vec<String> = SUPPORTED_RUBIES
+            .iter()
+            .map(|(major, minor)| format!("{}.{}", major, minor))
+            .collect();
+
+        // The struct layouts and constants Rutie reads differ between Ruby
+        // versions, so building against another one would be unsound.
+        panic!(
+            "Rutie {} supports Ruby {}; found Ruby {}.{} (use {}).",
+            env::var("CARGO_PKG_VERSION").unwrap_or_default(),
+            supported.join(", "),
+            major,
+            minor,
+            rutie_line_for(major, minor)
         );
     }
 
-    for supported in SUPPORTED_RUBY_2_MINORS.iter() {
-        if major == 2 && minor == *supported {
-            println!("cargo:rustc-cfg=ruby_2_{}", supported);
+    for supported in SUPPORTED_RUBIES.iter() {
+        if (major, minor) == *supported {
+            println!("cargo:rustc-cfg=ruby_{}_{}", supported.0, supported.1);
         }
 
-        if major > 2 || (major == 2 && minor >= *supported) {
-            println!("cargo:rustc-cfg=ruby_gte_2_{}", supported);
+        if (major, minor) >= *supported {
+            println!("cargo:rustc-cfg=ruby_gte_{}_{}", supported.0, supported.1);
         }
     }
 
