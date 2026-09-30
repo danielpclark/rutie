@@ -125,44 +125,20 @@ pub fn to_complex(object: Value) -> Value {
     unsafe { numeric::rb_Complex(object, fixnum::i64_to_num(0)) }
 }
 
-#[cfg(ruby_gte_2_6)]
 pub fn complex_real(complex: Value) -> Value {
     unsafe { numeric::rb_complex_real(complex) }
 }
 
-#[cfg(not(ruby_gte_2_6))]
-pub fn complex_real(complex: Value) -> Value {
-    crate::binding::vm::call_method(complex, "real", &[])
-}
-
-#[cfg(ruby_gte_2_6)]
 pub fn complex_imaginary(complex: Value) -> Value {
     unsafe { numeric::rb_complex_imag(complex) }
 }
 
-#[cfg(not(ruby_gte_2_6))]
-pub fn complex_imaginary(complex: Value) -> Value {
-    crate::binding::vm::call_method(complex, "imaginary", &[])
-}
-
-#[cfg(ruby_gte_2_6)]
 pub fn complex_abs(complex: Value) -> Value {
     unsafe { numeric::rb_complex_abs(complex) }
 }
 
-#[cfg(not(ruby_gte_2_6))]
-pub fn complex_abs(complex: Value) -> Value {
-    crate::binding::vm::call_method(complex, "abs", &[])
-}
-
-#[cfg(ruby_gte_2_6)]
 pub fn complex_arg(complex: Value) -> Value {
     unsafe { numeric::rb_complex_arg(complex) }
-}
-
-#[cfg(not(ruby_gte_2_6))]
-pub fn complex_arg(complex: Value) -> Value {
-    crate::binding::vm::call_method(complex, "arg", &[])
 }
 
 pub fn coerce_bin(x: Value, y: Value, operator: &str) -> Value {

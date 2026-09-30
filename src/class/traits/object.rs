@@ -949,7 +949,7 @@ pub trait Object: From<Value> {
     /// a.eql?(c)
     /// ```
     fn is_eql<T: Object>(&self, other: &T) -> bool {
-        class::is_eql(self.value(), other.value()).is_true()
+        class::is_eql(self.value(), other.value())
     }
 
     /// Alias for Ruby's `equal?`
@@ -1620,7 +1620,6 @@ pub trait Object: From<Value> {
     /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
     /// # VM::init();
     ///
-    /// # #[cfg(ruby_gte_2_7)]
     /// # {
     /// VM::eval("def rutie_kw(a, b: 0); a + b; end").unwrap();
     ///
@@ -1633,7 +1632,6 @@ pub trait Object: From<Value> {
     /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
     /// # }
     /// ```
-    #[cfg(ruby_gte_2_7)]
     unsafe fn send_with_keywords(
         &self,
         method: &str,
@@ -2297,7 +2295,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_2_7)]
     #[test]
     fn test_send_with_keywords() {
         crate::on_ruby_thread(|| {

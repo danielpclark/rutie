@@ -117,9 +117,6 @@ extern "C" {
     ) -> Value;
     // VALUE
     // rb_funcallv_kw(VALUE recv, ID mid, int argc, const VALUE *argv, int kw_splat)
-    //
-    // Ruby 2.7 and later only.
-    #[cfg(ruby_gte_2_7)]
     pub fn rb_funcallv_kw(
         receiver: Value,
         method: Id,
@@ -138,9 +135,6 @@ extern "C" {
     pub fn rb_jump_tag(state: c_int) -> !;
     // int
     // rb_keyword_given_p(void)
-    //
-    // Ruby 2.7 and later only.
-    #[cfg(ruby_gte_2_7)]
     pub fn rb_keyword_given_p() -> c_int;
     // void
     // rb_need_block(void)

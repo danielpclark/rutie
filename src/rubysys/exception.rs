@@ -55,9 +55,6 @@ extern "C" {
     pub fn rb_exc_new_str(exception_class: Value, message: Value) -> Value;
     // void
     // rb_frozen_error_raise(VALUE frozen_obj, const char *fmt, ...)
-    //
-    // Ruby 2.7 and later only.
-    #[cfg(ruby_gte_2_7)]
     pub fn rb_frozen_error_raise(object: Value, fmt: *const c_char, ...) -> !;
     // void
     // rb_bug(const char *fmt, ...)

@@ -57,9 +57,6 @@ extern "C" {
     pub fn rb_gc_writebarrier_unprotect(object: Value);
     // VALUE
     // rb_memory_id(VALUE obj)
-    //
-    // Ruby 2.7 and later only.
-    #[cfg(ruby_gte_2_7)]
     pub fn rb_memory_id(object: Value) -> Value;
     // VALUE
     // rb_undefine_finalizer(VALUE obj)

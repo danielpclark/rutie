@@ -157,7 +157,6 @@ impl Range {
     /// use rutie::{Fixnum, Object, Range, VM};
     /// # VM::init();
     ///
-    /// # #[cfg(ruby_gte_2_6)]
     /// # {
     /// let sequence = VM::eval("(1..10).step(3)").unwrap();
     /// let (begin, end, step, exclusive) = Range::arithmetic_sequence(&sequence).unwrap();
@@ -167,7 +166,6 @@ impl Range {
     /// assert!(Range::arithmetic_sequence(&Fixnum::new(1)).is_none());
     /// # }
     /// ```
-    #[cfg(ruby_gte_2_6)]
     pub fn arithmetic_sequence<T: Object>(
         object: &T,
     ) -> Option<(AnyObject, AnyObject, AnyObject, bool)> {
@@ -259,7 +257,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_2_6)]
     #[test]
     fn test_endless_range_and_arithmetic_sequence() {
         crate::on_ruby_thread(|| {

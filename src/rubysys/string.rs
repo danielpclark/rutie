@@ -38,7 +38,7 @@ extern "C" {
     pub fn rb_str_strlen(str: Value) -> c_long;
     // int
     // rb_enc_str_asciionly_p(VALUE str)
-    pub fn rb_enc_str_asciionly_p(str: Value) -> bool;
+    pub fn rb_enc_str_asciionly_p(str: Value) -> c_int;
     // VALUE
     // rb_enc_str_new(const char *ptr, long len, rb_encoding *enc)
     pub fn rb_enc_str_new(str: *const c_char, len: c_long, enc: EncodingType) -> Value;
@@ -207,11 +207,34 @@ unsafe fn embed_check(flags: InternalValue) -> bool {
     flags & (RStringEmbed::NoEmbed as size_t) == 0
 }
 
+// Ruby 3.0 and 3.1 keep an embedded string's length in the flag bits.
+#[cfg(not(ruby_gte_3_2))]
 pub unsafe fn rstring_embed_len(value: Value) -> c_long {
     let (_rstring, flags) = rstring_and_flags(value);
 
     ((flags as i64 >> RStringEmbed::LenShift as i64)
         & (RStringEmbed::LenMask as i64 >> RStringEmbed::LenShift as i64)) as c_long
+}
+
+// Ruby 3.2 (`USE_RVARGC`) keeps it in `as.embed.len`, which sits where
+// `as.heap.len` does.
+#[cfg(ruby_gte_3_2)]
+pub unsafe fn rstring_embed_len(value: Value) -> c_long {
+    let (rstring, _flags) = rstring_and_flags(value);
+
+    (*rstring).as_.heap.len
+}
+
+// Where an embedded string's bytes start.
+#[cfg(not(ruby_gte_3_2))]
+unsafe fn rstring_embed_ptr(rstring: *const RString) -> *const c_char {
+    (*rstring).as_.ary.as_ptr()
+}
+
+// In Ruby 3.2 `as.embed.ary` follows `as.embed.len`.
+#[cfg(ruby_gte_3_2)]
+unsafe fn rstring_embed_ptr(rstring: *const RString) -> *const c_char {
+    (&(*rstring).as_ as *const RStringAs as *const c_char).add(mem::size_of::<c_long>())
 }
 
 pub unsafe fn rstring_len(value: Value) -> c_long {
@@ -228,28 +251,14 @@ pub unsafe fn rstring_ptr(value: Value) -> *const c_char {
     let (rstring, flags) = rstring_and_flags(value);
 
     if embed_check(flags) {
-        (*rstring).as_.ary.as_ptr()
+        rstring_embed_ptr(rstring)
     } else {
         (*rstring).as_.heap.ptr
     }
 }
 
 pub unsafe fn rstring_end(value: Value) -> *const c_char {
-    let (rstring, flags) = rstring_and_flags(value);
-
-    if embed_check(flags) {
-        (*rstring)
-            .as_
-            .ary
-            .as_ptr()
-            .add(rstring_embed_len(value) as usize)
-    } else {
-        (*rstring)
-            .as_
-            .heap
-            .ptr
-            .add((*rstring).as_.heap.len as usize)
-    }
+    rstring_ptr(value).add(rstring_len(value) as usize)
 }
 
 // ```

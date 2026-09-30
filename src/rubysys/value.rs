@@ -7,12 +7,21 @@ use crate::rubysys::{
 
 const SPECIAL_SHIFT: usize = 8;
 
-#[cfg(target_pointer_width = "32")]
+// `Qnil`, `Qtrue` and `Qundef` changed in Ruby 3.2 (`special_consts.h`).
+#[cfg(all(target_pointer_width = "32", not(ruby_gte_3_2)))]
 pub enum RubySpecialConsts {
     False = 0,
     True = 0x02,
     Nil = 0x04,
     Undef = 0x06,
+}
+
+#[cfg(all(target_pointer_width = "32", ruby_gte_3_2))]
+pub enum RubySpecialConsts {
+    False = 0,
+    True = 0x06,
+    Nil = 0x02,
+    Undef = 0x0a,
 }
 
 #[cfg(target_pointer_width = "32")]
@@ -24,12 +33,20 @@ pub enum RubySpecialFlags {
     SymbolFlag = 0x0e,
 }
 
-#[cfg(target_pointer_width = "64")]
+#[cfg(all(target_pointer_width = "64", not(ruby_gte_3_2)))]
 pub enum RubySpecialConsts {
     False = 0,
     True = 0x14,
     Nil = 0x08,
     Undef = 0x34,
+}
+
+#[cfg(all(target_pointer_width = "64", ruby_gte_3_2))]
+pub enum RubySpecialConsts {
+    False = 0,
+    True = 0x14,
+    Nil = 0x04,
+    Undef = 0x24,
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -123,28 +140,25 @@ impl Value {
     }
 
     pub fn ty(&self) -> ValueType {
-        if self.is_immediate() {
-            if self.is_fixnum() {
-                ValueType::Fixnum
-            } else if self.is_flonum() {
-                ValueType::Float
-            } else if self.is_true() {
-                ValueType::True
-            } else if self.is_symbol() {
-                ValueType::Symbol
-            } else if self.is_undef() {
-                ValueType::Undef
-            } else {
-                self.builtin_type()
-            }
-        } else if !self.is_test() {
-            if self.is_nil() {
-                ValueType::Nil
-            } else if self.is_false() {
-                ValueType::False
-            } else {
-                self.builtin_type()
-            }
+        // The exact special constants first: from Ruby 3.2 `Qnil` has a bit
+        // inside the immediate mask, so it must not reach `builtin_type`.
+        if self.is_nil() {
+            ValueType::Nil
+        } else if self.is_false() {
+            ValueType::False
+        } else if self.is_true() {
+            ValueType::True
+        } else if self.is_undef() {
+            ValueType::Undef
+        } else if self.is_fixnum() {
+            ValueType::Fixnum
+        } else if self.is_flonum() {
+            ValueType::Float
+        } else if self.is_symbol() {
+            ValueType::Symbol
+        } else if self.is_special_const() {
+            // No other special constants exist; never dereference one.
+            ValueType::None
         } else {
             self.builtin_type()
         }

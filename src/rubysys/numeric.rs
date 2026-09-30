@@ -60,21 +60,12 @@ extern "C" {
     pub fn rb_Complex(real: Value, imaginary: Value) -> Value;
     // VALUE
     // rb_complex_abs(VALUE z)
-    //
-    // Ruby 2.6 and later only.
-    #[cfg(ruby_gte_2_6)]
     pub fn rb_complex_abs(complex: Value) -> Value;
     // VALUE
     // rb_complex_arg(VALUE z)
-    //
-    // Ruby 2.6 and later only.
-    #[cfg(ruby_gte_2_6)]
     pub fn rb_complex_arg(complex: Value) -> Value;
     // VALUE
     // rb_complex_imag(VALUE z)
-    //
-    // Ruby 2.6 and later only.
-    #[cfg(ruby_gte_2_6)]
     pub fn rb_complex_imag(complex: Value) -> Value;
     // VALUE
     // rb_complex_new(VALUE x, VALUE y)
@@ -87,9 +78,6 @@ extern "C" {
     pub fn rb_complex_raw(real: Value, imaginary: Value) -> Value;
     // VALUE
     // rb_complex_real(VALUE z)
-    //
-    // Ruby 2.6 and later only.
-    #[cfg(ruby_gte_2_6)]
     pub fn rb_complex_real(complex: Value) -> Value;
     // VALUE
     // rb_cstr_to_inum(const char *str, int base, int badcheck)

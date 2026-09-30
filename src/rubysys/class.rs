@@ -59,9 +59,12 @@ extern "C" {
         callback: CallbackPtr,
         argc: Argc,
     );
-    // VALUE
+    // int
     // rb_eql(VALUE obj1, VALUE obj2)
-    pub fn rb_eql(obj1: Value, obj2: Value) -> Value;
+    //
+    // Ruby 2 returns `Qtrue`/`Qfalse` through the `int`, Ruby 3 `TRUE`/`FALSE`;
+    // only "nonzero" is meaningful.
+    pub fn rb_eql(obj1: Value, obj2: Value) -> c_int;
     // VALUE
     // rb_equal(VALUE obj1, VALUE obj2)
     pub fn rb_equal(obj1: Value, obj2: Value) -> Value;
@@ -101,6 +104,18 @@ extern "C" {
     // int
     // rb_scan_args(int argc, const VALUE *argv, const char *fmt, ...)
     pub fn rb_scan_args(argc: Argc, argv: *const Value, fmt: *const c_char, ...) -> c_int;
+    // int
+    // rb_scan_args_kw(int kw_flag, int argc, const VALUE *argv, const char *fmt, ...)
+    //
+    // `kw_flag`: `RB_SCAN_ARGS_PASS_CALLED_KEYWORDS` (0), `RB_SCAN_ARGS_KEYWORDS`
+    // (1) or `RB_SCAN_ARGS_LAST_HASH_KEYWORDS` (3).
+    pub fn rb_scan_args_kw(
+        kw_flag: c_int,
+        argc: Argc,
+        argv: *const Value,
+        fmt: *const c_char,
+        ...
+    ) -> c_int;
     // void
     // rb_define_alias(VALUE klass, const char *name1, const char *name2)
     pub fn rb_define_alias(klass: Value, new_name: *const c_char, old_name: *const c_char);
