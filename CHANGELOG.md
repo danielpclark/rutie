@@ -86,6 +86,14 @@ from Ruru to Rutie → 0.11" in the README.
    deprecated, thanks to @danielpclark
  - The `eval` example flushes `$stdout` by calling `VM::cleanup`,
    thanks to @danielpclark
+ - Rutie's unit tests aborted or crashed on Ruby 3.2 built with YJIT, whose
+   `libruby` exports YJIT's copy of the Rust runtime: libruby came before
+   the Rust standard library on the test binary's link line, so panics were
+   started and caught by YJIT's `__rust_start_panic`/`__rust_panic_cleanup`.
+   On Unix, libruby is now linked through a `#[link]` attribute (after std,
+   for crates that depend on Rutie) and as a trailing linker argument for
+   Rutie's own tests, thanks to @danielpclark
+
 ## [0.10.2] - 2026-09-30
 ### Added
  - Windows support: Rutie builds, links and passes its tests on 64-bit

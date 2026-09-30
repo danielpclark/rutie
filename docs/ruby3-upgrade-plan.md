@@ -71,7 +71,23 @@ yet confirmed.
   (`ubuntu/22.04/x86_64`) and 3.2.6/3.3.6 (`ubuntu/24.04/x86_64`). 3.4 has no
   RVM binary; build it with ruby-build, or from the `v3_4_*` tag. One
   `CARGO_TARGET_DIR=$HOME/rt-<version>/target` per Ruby, as in the Ruby 2
-  recipe.
+  recipe. Test a 3.2 built with YJIT as well (see the next item): the
+  3.2.6 binaries above have no YJIT.
+- **libruby and the Rust runtime:** Ruby 3.2 built with YJIT (Rust) exports
+  YJIT's copy of the Rust runtime from `libruby`: `__rust_start_panic`,
+  `__rust_panic_cleanup` and, when the rustc versions match, hundreds of
+  `core`/`alloc` functions (3.2.11: 1719 `_R` symbols; 3.3 and 3.4 hide
+  them). Any binary that meets libruby before the Rust standard library on
+  its link line binds its panic runtime to YJIT's, so the first
+  `resume_unwind` aborts (seen with the same rustc; a different rustc
+  can crash instead). rustc
+  puts a crate's own native libraries before std and an upstream crate's
+  after it, so only Rutie's own unit-test binary was affected. `build.rs`
+  links libruby through a generated `#[link]` attribute
+  (`$OUT_DIR/link_ruby.rs`, included by `src/lib.rs` outside `cfg(test)`)
+  and gives Rutie's own targets a trailing `-l` linker argument. Check with
+  `nm -m <test binary> | grep "from libruby" | grep " __R"`, which must
+  print nothing.
 
 ## 3. ABI differences that affect Rutie's direct struct reads
 
@@ -229,7 +245,8 @@ still need the R1 check: presence doesn't mean the signature is unchanged.
       `rb_rescue2` kept. `Fiber::with_storage` (3.2, `rb_fiber_new_storage`).
       Scheduler hooks are not bound (no safe wrapper designed yet).
 - [x] **R7 Tests and doctests.** Every unit test and doctest passes on
-      3.0.6, 3.1.4 and 3.2.6 (stable Rust); doctests no longer name
+      3.0.6, 3.1.4 and 3.2.6 (stable Rust), and on a 3.2 built with YJIT
+      (3.2.11, §2 "libruby and the Rust runtime"); doctests no longer name
       `Fixnum`/`Bignum` or use UTF-32 as a real encoding. `VM::run_file`
       has a unit test now that it is a `load`.
 - [x] **R8 New APIs (optional).** `Hash::with_capacity` on every supported
