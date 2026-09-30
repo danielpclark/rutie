@@ -31,6 +31,14 @@ pub fn mark(value: Value) {
     unsafe { gc::rb_gc_mark(value) };
 }
 
+pub fn mark_movable(value: Value) {
+    unsafe { gc::rb_gc_mark_movable(value) };
+}
+
+pub fn location(value: Value) -> Value {
+    unsafe { gc::rb_gc_location(value) }
+}
+
 pub fn mark_maybe(value: Value) {
     unsafe { gc::rb_gc_mark_maybe(value) };
 }

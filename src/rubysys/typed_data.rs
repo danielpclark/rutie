@@ -24,6 +24,8 @@ pub struct RbDataTypeFunction {
     pub dmark: Option<extern "C" fn(*mut c_void)>,
     pub dfree: Option<extern "C" fn(*mut c_void)>,
     pub dsize: Option<extern "C" fn(*const c_void) -> size_t>,
+    // `dcompact` and `reserved[1]` in Ruby 3's headers: `reserved[0]` holds
+    // the compaction callback, a `void (*)(void *)`, or null.
     pub reserved: [*mut c_void; 2],
 }
 
