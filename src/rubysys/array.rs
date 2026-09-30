@@ -153,3 +153,39 @@ pub unsafe fn rb_ary_len(value: Value) -> c_long {
             & (RArrayEmbed::LenMask as i64 >> RArrayEmbed::LenShift as i64)) as c_long
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::rb_ary_len;
+    use crate::{Array, Fixnum, Object, VM};
+
+    // Arrays across the embedded/heap boundary (3 elements on Ruby 3.0/3.1,
+    // the slot size on 3.2), made in several ways, including shared slices.
+    #[test]
+    fn test_direct_rarray_len() {
+        crate::on_ruby_thread(|| {
+            let arrays = VM::eval(
+                "(0..200).flat_map do |n|
+                   a = Array.new(n) { |i| i }
+                   grown = []; n.times { |i| grown << i }
+                   [a, a.dup, grown, ([nil] + a)[1..], a.first(n), a.frozen? ? a : a.dup.freeze]
+                 end",
+            )
+            .unwrap();
+            let arrays = Array::from(arrays.value());
+
+            for i in 0..arrays.length() {
+                let array = arrays.at(i as i64);
+                let length = unsafe { array.send("length", &[]) };
+                let expected = length.try_convert_to::<Fixnum>().unwrap().to_i64();
+
+                assert_eq!(
+                    unsafe { rb_ary_len(array.value()) } as i64,
+                    expected,
+                    "array #{}",
+                    i
+                );
+            }
+        });
+    }
+}
