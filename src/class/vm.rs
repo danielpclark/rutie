@@ -3768,4 +3768,42 @@ mod tests {
             assert_eq!(main.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
         });
     }
+
+    #[test]
+    fn test_run_file() {
+        crate::on_ruby_thread(|| {
+            let dir = std::env::temp_dir().join(format!("rutie_run_file_{}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            let script = dir.join("script.rb");
+            std::fs::write(&script, "$rutie_run_file = [$0, ARGV.dup]").unwrap();
+            let path = script.to_str().unwrap();
+
+            let original_name = RString::from(VM::eval("$0").unwrap().value()).to_string();
+
+            VM::run_file(path, &["a", "b"]).unwrap();
+            let seen = Array::from(VM::eval("$rutie_run_file").unwrap().value());
+            assert_eq!(RString::from(seen.at(0).value()).to_string(), path);
+            assert_eq!(Array::from(seen.at(1).value()).length(), 2);
+
+            // Not once per process: a second run works.
+            VM::run_file(path, &[]).unwrap();
+            let seen = Array::from(VM::eval("$rutie_run_file").unwrap().value());
+            assert_eq!(Array::from(seen.at(1).value()).length(), 0);
+
+            // Errors are returned; `exit` is a `SystemExit`.
+            std::fs::write(&script, "raise ArgumentError, 'bad'").unwrap();
+            let error = VM::run_file(path, &[]).unwrap_err();
+            assert!(Class::from_existing("ArgumentError").case_equals(&error));
+
+            std::fs::write(&script, "exit 4").unwrap();
+            let error = VM::run_file(path, &[]).unwrap_err();
+            assert!(Class::from_existing("SystemExit").case_equals(&error));
+
+            assert!(VM::run_file(dir.join("missing.rb").to_str().unwrap(), &[]).is_err());
+
+            VM::set_script_name(&original_name);
+            VM::set_argv(&[]);
+            std::fs::remove_dir_all(&dir).unwrap();
+        });
+    }
 }
