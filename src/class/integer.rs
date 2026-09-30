@@ -592,7 +592,7 @@ impl TryFrom<Integer> for u128 {
 mod tests {
     use super::super::super::{types::Value, AnyException, Integer, NilClass, Object, VM};
 
-    #[cfg(target_os = "darwin")]
+    #[cfg(target_os = "macos")]
     #[test]
     fn test_github_issue_113_darwin_os() {
         crate::on_ruby_thread(|| {
