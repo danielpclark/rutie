@@ -607,12 +607,18 @@ macro_rules! methods {
 ///    `ObjectSpace.memsize_of` and uses it in GC statistics. `data` is a shared
 ///    reference to the wrapped struct (`&$struct_name`).
 ///
-///    `mark` and `size` can be given in either order. Both run inside Ruby's
-///    garbage collector as `extern "C"` functions, so a panic in them aborts the
-///    process.
+///  - (optional) `compact(data) { ... }` is a block called after `GC.compact`
+///    has moved objects (the `dcompact` function). It must replace every Ruby
+///    object the struct holds with `GC::location(..)` of it. `data` is a
+///    mutable reference to the wrapped struct (`&mut $struct_name`).
 ///
-/// The wrapped struct's data type leaves Ruby 2.7's `dcompact` slot empty, so
-/// `GC.compact` does not move objects marked with `GC::mark` (they are pinned).
+///    Without it, objects marked with `GC::mark` are pinned: compaction never
+///    moves them. With it, `mark` should use `GC::mark_movable` for the objects
+///    `compact` updates (see [`GC::mark_movable`](struct.GC.html#method.mark_movable)).
+///
+///    `mark`, `size` and `compact` can be given in any order. All run inside
+///    Ruby's garbage collector as `extern "C"` functions, so a panic in them
+///    aborts the process, and none may allocate Ruby objects.
 ///
 /// The result of `wrappable_struct!` is a wrapper type and a `lazy_static`
 /// holding its only value, which implements
@@ -879,22 +885,30 @@ macro_rules! methods {
 /// ```
 #[macro_export]
 macro_rules! wrappable_struct {
-    // Collects the optional `mark(..) { .. }` and `size(..) { .. }` clauses,
-    // in any order, then defines the wrapper.
+    // Collects the optional `mark(..) { .. }`, `size(..) { .. }` and
+    // `compact(..) { .. }` clauses, in any order, then defines the wrapper.
     (@parse $struct_name: ty, $wrapper: ident, $static_name: ident,
-        { $($mark: tt)* }, { $($size: tt)* }, $(,)?) => {
+        { $($mark: tt)* }, { $($size: tt)* }, { $($compact: tt)* }, $(,)?) => {
         $crate::wrappable_struct!(@define $struct_name, $wrapper, $static_name,
-            { $($mark)* }, { $($size)* });
+            { $($mark)* }, { $($size)* }, { $($compact)* });
     };
     (@parse $struct_name: ty, $wrapper: ident, $static_name: ident,
-        { }, { $($size: tt)* }, , mark($object: ident) $body: block $($rest: tt)*) => {
+        { }, { $($size: tt)* }, { $($compact: tt)* },
+        , mark($object: ident) $body: block $($rest: tt)*) => {
         $crate::wrappable_struct!(@parse $struct_name, $wrapper, $static_name,
-            { $object $body }, { $($size)* }, $($rest)*);
+            { $object $body }, { $($size)* }, { $($compact)* }, $($rest)*);
     };
     (@parse $struct_name: ty, $wrapper: ident, $static_name: ident,
-        { $($mark: tt)* }, { }, , size($object: ident) $body: block $($rest: tt)*) => {
+        { $($mark: tt)* }, { }, { $($compact: tt)* },
+        , size($object: ident) $body: block $($rest: tt)*) => {
         $crate::wrappable_struct!(@parse $struct_name, $wrapper, $static_name,
-            { $($mark)* }, { $object $body }, $($rest)*);
+            { $($mark)* }, { $object $body }, { $($compact)* }, $($rest)*);
+    };
+    (@parse $struct_name: ty, $wrapper: ident, $static_name: ident,
+        { $($mark: tt)* }, { $($size: tt)* }, { },
+        , compact($object: ident) $body: block $($rest: tt)*) => {
+        $crate::wrappable_struct!(@parse $struct_name, $wrapper, $static_name,
+            { $($mark)* }, { $($size)* }, { $object $body }, $($rest)*);
     };
 
     (@mark_function_pointer { }) => {
@@ -936,8 +950,25 @@ macro_rules! wrappable_struct {
         }
     };
 
+    (@compact_function_pointer { }) => {
+        ::std::ptr::null_mut()
+    };
+    (@compact_function_pointer { $object: ident $body: block }) => {
+        Self::compact as extern "C" fn(*mut $crate::types::c_void) as *mut $crate::types::c_void
+    };
+    (@compact_function_definition $struct_name: ty, { }) => {};
+    (@compact_function_definition $struct_name: ty, { $object: ident $body: block }) => {
+        pub extern "C" fn compact(data: *mut $crate::types::c_void) {
+            let mut data = unsafe { (data as *mut $struct_name).as_mut() };
+
+            if let Some(ref mut $object) = data {
+                $body
+            }
+        }
+    };
+
     (@define $struct_name: ty, $wrapper: ident, $static_name: ident,
-        { $($mark: tt)* }, { $($size: tt)* }) => {
+        { $($mark: tt)* }, { $($size: tt)* }, { $($compact: tt)* }) => {
         pub struct $wrapper<T> {
             data_type: $crate::types::DataType,
             _marker: ::std::marker::PhantomData<T>,
@@ -951,9 +982,11 @@ macro_rules! wrappable_struct {
             fn new() -> $wrapper<T> {
                 let name = concat!("Rutie/", stringify!($struct_name));
                 let name = $crate::util::str_to_cstring(name);
-                // `reserved[0]` is `dcompact` on Ruby 2.7; left empty, objects
-                // marked with `GC::mark` are pinned by `GC.compact`.
-                let reserved_bytes: [*mut $crate::types::c_void; 2] = [::std::ptr::null_mut(); 2];
+                // `reserved[0]` is `dcompact`. Without a `compact` clause it is
+                // null, and objects marked with `GC::mark` are pinned by
+                // `GC.compact`.
+                let dcompact = $crate::wrappable_struct!(@compact_function_pointer { $($compact)* });
+                let reserved_bytes: [*mut $crate::types::c_void; 2] = [dcompact, ::std::ptr::null_mut()];
 
                 let dmark = $crate::wrappable_struct!(@mark_function_pointer { $($mark)* });
                 let dsize = $crate::wrappable_struct!(@size_function_pointer { $($size)* });
@@ -980,6 +1013,7 @@ macro_rules! wrappable_struct {
 
             $crate::wrappable_struct!(@mark_function_definition $struct_name, { $($mark)* });
             $crate::wrappable_struct!(@size_function_definition $struct_name, { $($size)* });
+            $crate::wrappable_struct!(@compact_function_definition $struct_name, { $($compact)* });
         }
 
         unsafe impl<T> Sync for $wrapper<T> {}
@@ -993,7 +1027,7 @@ macro_rules! wrappable_struct {
     };
 
     ($struct_name: ty, $wrapper: ident, $static_name: ident $($tail: tt)*) => {
-        $crate::wrappable_struct!(@parse $struct_name, $wrapper, $static_name, { }, { }, $($tail)*);
+        $crate::wrappable_struct!(@parse $struct_name, $wrapper, $static_name, { }, { }, { }, $($tail)*);
     };
 }
 
@@ -1105,6 +1139,46 @@ mod tests {
         },
     }
 
+    pub struct Movable {
+        strings: Vec<RString>,
+    }
+
+    static MOVED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+    crate::wrappable_struct! {
+        Movable,
+        MovableWrapper,
+        MOVABLE_WRAPPER,
+
+        compact(data) {
+            for string in data.strings.iter_mut() {
+                let moved = GC::location(string);
+
+                if moved.value().value != string.value().value {
+                    MOVED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                }
+
+                *string = moved;
+            }
+        },
+
+        mark(data) {
+            for string in &data.strings {
+                GC::mark_movable(string);
+            }
+        },
+    }
+
+    // Not inlined, so no copy of the strings stays on the (pinning) stack.
+    #[inline(never)]
+    fn movable_object() -> AnyObject {
+        let strings = (0..200)
+            .map(|i| RString::new_utf8(&format!("s{}", i)))
+            .collect();
+
+        Class::new("RutieDslMovable", None).wrap_data(Movable { strings }, &*MOVABLE_WRAPPER)
+    }
+
     pub struct Plain;
 
     crate::wrappable_struct!(Plain, PlainWrapper, PLAIN_WRAPPER);
@@ -1199,6 +1273,33 @@ mod tests {
 
             let plain: AnyObject = class.wrap_data(Plain, &*PLAIN_WRAPPER);
             assert!(memsize(&plain) < 1 << 20);
+        });
+    }
+
+    #[test]
+    fn test_wrappable_struct_compact() {
+        crate::on_ruby_thread(|| {
+            let object = movable_object();
+
+            let compacted = VM::eval(
+                "begin
+                   GC.verify_compaction_references(toward: :empty, double_heap: true)
+                   true
+                 rescue NotImplementedError
+                   false
+                 end",
+            )
+            .unwrap();
+
+            let strings = &object.get_data(&*MOVABLE_WRAPPER).strings;
+
+            for (i, string) in strings.iter().enumerate() {
+                assert_eq!(string.to_str(), format!("s{}", i));
+            }
+
+            if compacted.value().is_true() {
+                assert!(MOVED.load(std::sync::atomic::Ordering::SeqCst) > 0);
+            }
         });
     }
 }
