@@ -1,4 +1,4 @@
-use crate::rubysys::types::{CallbackMutPtr, CallbackPtr, Value};
+use crate::rubysys::types::{c_long, CallbackMutPtr, CallbackPtr, Value};
 
 extern "C" {
     // VALUE
@@ -22,6 +22,10 @@ extern "C" {
     // VALUE
     // rb_hash_new(void)
     pub fn rb_hash_new() -> Value;
+    // VALUE
+    // rb_hash_new_capa(long capa)
+    #[cfg(ruby_gte_3_2)]
+    pub fn rb_hash_new_capa(capa: c_long) -> Value;
     // VALUE
     // rb_hash_size(VALUE hash)
     pub fn rb_hash_size(hash: Value) -> Value;
