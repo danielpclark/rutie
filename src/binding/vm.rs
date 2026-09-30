@@ -50,6 +50,11 @@ pub fn init() {
 // processed once, with an empty `-e` script. RubyGems and `RUBYOPT` stay off:
 // an embedded VM starts with the core library only, as it always did.
 // When a `ruby` process already did this (an extension), nothing happens.
+//
+// Ruby also starts its main thread with C methods treated as Ractor-safe
+// (extensions loaded by `require` start unsafe). An embedded VM is switched
+// to unsafe as well, so methods defined through Rutie are not called from
+// other Ractors unless `ext_ractor_safe(true)` opts in.
 fn finish_boot() -> Result<(), c_int> {
     if has_run_options() {
         return Ok(());
@@ -67,7 +72,13 @@ fn finish_boot() -> Result<(), c_int> {
         .unwrap_or_else(|| "ruby".to_string());
     set_script_name(&program);
 
+    ext_ractor_safe(false);
+
     Ok(())
+}
+
+pub fn ext_ractor_safe(flag: bool) {
+    unsafe { vm::rb_ext_ractor_safe(flag) };
 }
 
 pub fn init_loadpath() {
