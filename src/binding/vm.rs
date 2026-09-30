@@ -49,22 +49,27 @@ fn init_stack() {
     unsafe { vm::ruby_init_stack(&mut marker) };
 }
 
+// `ruby.exe` calls `ruby_sysinit` before booting the VM; on Windows Ruby's
+// IO, environment and sockets do not work without it, and Ruby 3's boot
+// (`finish_boot`) uses them.
+#[cfg(windows)]
+fn sysinit() {
+    static SYSINIT: std::sync::Once = std::sync::Once::new();
+
+    SYSINIT.call_once(|| {
+        let mut argc: c_int = 0;
+        let mut argv: *mut *mut c_char = ptr::null_mut();
+
+        unsafe { vm::ruby_sysinit(&mut argc, &mut argv) };
+    });
+}
+
+#[cfg(not(windows))]
+fn sysinit() {}
+
 pub fn init() {
     init_stack();
-
-    // `ruby.exe` calls `ruby_sysinit` before `ruby_init`; on Windows Ruby's
-    // IO, environment and sockets do not work without it.
-    #[cfg(windows)]
-    {
-        static SYSINIT: std::sync::Once = std::sync::Once::new();
-
-        SYSINIT.call_once(|| {
-            let mut argc: c_int = 0;
-            let mut argv: *mut *mut c_char = ptr::null_mut();
-
-            unsafe { vm::ruby_sysinit(&mut argc, &mut argv) };
-        });
-    }
+    sysinit();
 
     unsafe {
         vm::ruby_init();
@@ -409,6 +414,7 @@ pub fn cleanup(status: c_int) -> c_int {
 
 pub fn setup() -> c_int {
     init_stack();
+    sysinit();
 
     match unsafe { vm::ruby_setup() } {
         0 => finish_boot().err().unwrap_or(0),

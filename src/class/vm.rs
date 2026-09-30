@@ -1344,8 +1344,10 @@ impl VM {
     }
 
     /// Runs the Ruby script at `path` as the main program, with `arguments`
-    /// in `ARGV`: `$0` is set to `path` (so `__FILE__ == $0` holds) and the
-    /// file is loaded at the top level (`rb_load_protect`).
+    /// in `ARGV`: `$0` is set to the script's path as `load` resolves it
+    /// (`rb_find_file`, which expands it and, on Windows, uses `/`
+    /// separators), so `__FILE__ == $0` holds, and the file is loaded at the
+    /// top level (`rb_load_protect`).
     ///
     /// Returns the exception the script raised or failed with: a
     /// `SystemExit` for `exit`, a `LoadError` for a missing file, a
@@ -1384,7 +1386,12 @@ impl VM {
     /// std::fs::remove_file(path).unwrap();
     /// ```
     pub fn run_file(path: &str, arguments: &[&str]) -> Result<(), AnyException> {
-        vm::set_script_name(path);
+        // The same string `load` gives the script as `__FILE__`. A missing
+        // file keeps `path`; `load` then fails with a `LoadError`.
+        let script = Self::find_file(path)
+            .map(|found| found.to_string())
+            .unwrap_or_else(|| path.to_string());
+        vm::set_script_name(&script);
         vm::set_argv(arguments);
 
         Self::load(path, false)
@@ -2164,21 +2171,23 @@ impl VM {
     /// use rutie::types::Argc;
     ///
     /// // def describe(count, **options, &block)
-    /// pub extern "C" fn describe(argc: Argc, argv: *const AnyObject, _rtself: AnyObject) -> Fixnum {
-    ///     let arguments = rutie::util::parse_arguments(argc, argv);
-    ///     let args = match VM::scan_args(&arguments, "1:&") {
-    ///         Ok(args) => args,
-    ///         Err(error) => VM::raise_message(error.class(), &error.message()),
-    ///     };
+    /// rutie::rutie_callback! {
+    ///     pub fn describe(argc: Argc, argv: *const AnyObject, _rtself: AnyObject) -> Fixnum {
+    ///         let arguments = rutie::util::parse_arguments(argc, argv);
+    ///         let args = match VM::scan_args(&arguments, "1:&") {
+    ///             Ok(args) => args,
+    ///             Err(error) => VM::raise_message(error.class(), &error.message()),
+    ///         };
     ///
-    ///     let verbose = args
-    ///         .keywords
-    ///         .map(|options| options.at(&Symbol::new("verbose")))
-    ///         .map(|value| value.try_convert_to::<Fixnum>().unwrap().to_i64())
-    ///         .unwrap_or(0);
-    ///     let block = if args.block.is_some() { 100 } else { 0 };
+    ///         let verbose = args
+    ///             .keywords
+    ///             .map(|options| options.at(&Symbol::new("verbose")))
+    ///             .map(|value| value.try_convert_to::<Fixnum>().unwrap().to_i64())
+    ///             .unwrap_or(0);
+    ///         let block = if args.block.is_some() { 100 } else { 0 };
     ///
-    ///     Fixnum::new(args.required.len() as i64 + verbose * 10 + block)
+    ///         Fixnum::new(args.required.len() as i64 + verbose * 10 + block)
+    ///     }
     /// }
     ///
     /// fn main() {
