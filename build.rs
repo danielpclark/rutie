@@ -167,9 +167,25 @@ fn windows_static_ruby_dep() {
 }
 
 fn use_static() {
-    if let Some(location) = env::var_os("RUBY_STATIC_PATH").map(|s| s.to_string_lossy().to_string())
-    {
+    let static_path = env::var_os("RUBY_STATIC_PATH").map(|s| s.to_string_lossy().to_string());
+
+    if let Some(location) = &static_path {
         println!("cargo:rustc-link-search={}", location);
+    } else {
+        let libdir = rbconfig("libdir");
+        let archive = PathBuf::from(&libdir).join(rbconfig("LIBRUBY_A"));
+
+        if !archive.exists() {
+            println!(
+                "cargo:warning=Linking libruby statically, but {} does not exist; \
+                 linking will likely fail. Set RUBY_STATIC_PATH to the directory \
+                 holding the static library, or use a Ruby built with \
+                 `--enable-shared` (without RUBY_STATIC).",
+                archive.display()
+            );
+        }
+
+        println!("cargo:rustc-link-search=native={}", libdir);
     }
 
     // If Windows
@@ -181,7 +197,30 @@ fn use_static() {
     // **Flags must be last in order for linking!**
     static_linker_args();
 
+    // A static libruby ends up inside the executable, and Ruby's extensions
+    // (`enc/encdb`, loaded at boot) call libruby's functions from there. The
+    // linker's dead-code removal (`-dead_strip`, `--gc-sections`) drops every
+    // function Rutie does not call unless the executable exports them. Build
+    // script link args reach only Rutie's own targets, so the flag is also
+    // published as `DEP_RUBY_LINK_ARG` for dependent crates' build scripts.
+    if let Some(arg) = export_dynamic_arg() {
+        println!("cargo:rustc-link-arg={}", arg);
+        println!("cargo:link_arg={}", arg);
+    }
+    println!("cargo:static=true");
+
     ci_stderr_log!("Using static linker flags");
+}
+
+// The linker flag that exports an executable's global symbols. Extensions on
+// Windows link against Ruby's DLL instead, which a static libruby cannot
+// stand in for.
+fn export_dynamic_arg() -> Option<&'static str> {
+    match env::var("CARGO_CFG_TARGET_OS").as_deref() {
+        Ok("windows") => None,
+        Ok("macos") | Ok("ios") => Some("-Wl,-export_dynamic"),
+        _ => Some("-Wl,--export-dynamic"),
+    }
 }
 
 fn use_dylib() {
@@ -543,13 +582,19 @@ fn main() {
         // If windows OS do windows stuff
         windows_support();
 
+        // The shared libruby is the way Rutie links Ruby. A Ruby built
+        // without one (`--disable-shared`) is linked statically as a
+        // fallback, whatever the OS or version; `RUBY_STATIC` forces that.
         if is_static() {
             ci_stderr_log!("RUBY_STATIC is set");
             use_static()
         } else {
             match rbconfig("ENABLE_SHARED").as_str() {
-                "no" => use_static(),
                 "yes" => use_dylib(),
+                "no" => {
+                    ci_stderr_log!("This Ruby has no shared libruby; falling back to static");
+                    use_static()
+                }
                 _ => {
                     let msg = "Error! Couldn't find a valid value for \
                     RbConfig::CONFIG['ENABLE_SHARED']. \

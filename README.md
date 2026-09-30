@@ -534,7 +534,8 @@ OpenSSL 1.1 for its `openssl` extension; 3.1 and later build with OpenSSL 3.
 
 #### Dynamic vs Static Builds
 
-Ruby needs to be compiled with the `--enable shared` option.  Dynamic linking to the Ruby library provides the best performance and best support.  Static build support is incomplete for now.
+Rutie links Ruby's shared library (`libruby`), which gives the best performance and
+support, so Ruby should be compiled with the `--enable-shared` option.
 
 If using RBENV then the following is recommended:
 
@@ -544,7 +545,29 @@ You can check if your Ruby is compiled to be dynamically linked to by running th
 
     ruby -e "pp RbConfig::CONFIG['ENABLE_SHARED']"
 
-If you still run into `ld: library not found for -lruby-static` issue, try running `cargo clean`. This'll clean any artifacts from previous attempts.
+A Ruby built without a shared library (`"no"` above; `ruby/setup-ruby`'s macOS Ruby 3.1 is
+one) is linked statically instead, as a fallback. Static support is incomplete, and two
+things differ from a shared Ruby:
+
+- A program that embeds Ruby must export libruby's functions for Ruby's own extensions
+  (`enc/encdb` is loaded at boot), or Ruby crashes loading them. Rutie does this for its
+  own tests and examples, and publishes the linker flag as `DEP_RUBY_LINK_ARG` for your
+  build script, as `examples/rutie_rust_example/build.rs` uses it:
+
+  ```rust
+  if let Ok(arg) = std::env::var("DEP_RUBY_LINK_ARG") {
+      println!("cargo:rustc-link-arg={}", arg);
+  }
+  ```
+
+- A library loaded into Ruby (a gem's extension) must not link libruby at all, or it
+  carries a second VM that was never started. Build it with the `no-link` feature or
+  `NO_LINK_RUTIE` set (on macOS with `-C link-args=-Wl,-undefined,dynamic_lookup`).
+
+`RUBY_STATIC` forces static linking, and `RUBY_STATIC_PATH` names the directory holding the
+static library when it is not in Ruby's `libdir`. If you still run into
+`ld: library not found for -lruby-static` issue, try running `cargo clean`. This'll clean
+any artifacts from previous attempts.
 
 If you'd like to make a pull request for adding static build support there are currently 3 methods not working with it and linking to the proper name of the ruby static lib file & path needs to be updated.
 

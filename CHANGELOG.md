@@ -93,6 +93,18 @@ from Ruru to Rutie → 0.11" in the README.
    On Unix, libruby is now linked through a `#[link]` attribute (after std,
    for crates that depend on Rutie) and as a trailing linker argument for
    Rutie's own tests, thanks to @danielpclark
+ - A Ruby built without a shared libruby (`--disable-shared`, such as
+   `ruby/setup-ruby`'s macOS Ruby 3.1) is linked statically as a fallback;
+   the shared libruby stays the way Rutie links Ruby. The fallback failed
+   with "library 'ruby.3.1-static' not found" (`build.rs` now searches
+   Ruby's `libdir`), and then crashed loading Ruby's extensions, whose
+   libruby functions the linker had dead-stripped from the executable: the
+   static fallback now exports them (`-export_dynamic` or
+   `--export-dynamic`, by linker) for Rutie's own targets and publishes the
+   flag as `DEP_RUBY_LINK_ARG` for dependent crates (see the README).
+   `RUBY`, `RUBY_STATIC`, `RUBY_STATIC_PATH`, `NO_LINK_RUTIE`, `MINGW_LIBS`
+   and the `no-link` feature work as in 0.10; without `RUBY_STATIC_PATH`,
+   static linking also searches Ruby's `libdir`, thanks to @danielpclark
 
 ## [0.10.1] - 2026-09-30
 ### Fixed
