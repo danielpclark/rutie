@@ -33,7 +33,31 @@ pub fn yield_splat(values: Value) -> Value {
     unsafe { vm::rb_yield_splat(values) }
 }
 
+// `ruby` calls `ruby_init_stack` before booting the VM (`RUBY_INIT_STACK`):
+// it records the machine stack the GC scans and the stack-copying fibers
+// save and restore. Without it, a VM booted off the process's main thread
+// takes as the top of its stack a local inside `ruby_init`'s own frames. On
+// macOS arm64, Ruby 2.5 and 2.6 have no native fibers and copy that stack,
+// so resuming a fiber (`Enumerator#next`) restored a wrong range and crashed.
+// Any address on the thread's stack works; macOS then uses the thread's full
+// stack bounds. Skipped once the VM exists, since the call also records the
+// calling thread as Ruby's main thread.
+#[cfg(target_os = "macos")]
+fn init_stack() {
+    if is_initialized() {
+        return;
+    }
+
+    let mut marker = Value::from(0);
+    unsafe { vm::ruby_init_stack(&mut marker) };
+}
+
+#[cfg(not(target_os = "macos"))]
+fn init_stack() {}
+
 pub fn init() {
+    init_stack();
+
     // `ruby.exe` calls `ruby_sysinit` before `ruby_init`; on Windows Ruby's
     // IO, environment and sockets do not work without it.
     #[cfg(windows)]
@@ -348,6 +372,8 @@ pub fn cleanup(status: c_int) -> c_int {
 }
 
 pub fn setup() -> c_int {
+    init_stack();
+
     unsafe { vm::ruby_setup() }
 }
 
@@ -555,6 +581,50 @@ where
             crate::rubysys::exception::rb_eException,
             Value::from(0),
         )
+    }
+}
+
+// Runs `func`, which may create, resume or yield a fiber, and returns an
+// exception it raises as `Err`.
+//
+// Ruby switches fibers only while the thread has an active tag, and resumes a
+// fiber only under the `rb_protect` it was created under ("fiber called across
+// stack rewinding barrier"), so this uses `rb_rescue2`: a tag, and no barrier.
+//
+// Where fibers copy the machine stack (`rutie_copy_stack_fibers`), a new fiber
+// starts by jumping to the thread's root jump buffer, which an embedded VM
+// only has inside `rb_protect`. Under `rb_rescue2` it jumped into a finished
+// frame and crashed, so there this uses `rb_protect`: a fiber then runs when it
+// is created and resumed from the same place (`Enumerator#next` in a loop) and
+// raises `FiberError` otherwise.
+#[cfg(rutie_copy_stack_fibers)]
+pub fn fiber_call<F>(func: F) -> Result<Value, Value>
+where
+    F: FnOnce() -> Value,
+{
+    protect_value(func)
+}
+
+#[cfg(not(rutie_copy_stack_fibers))]
+pub fn fiber_call<F>(func: F) -> Result<Value, Value>
+where
+    F: FnOnce() -> Value,
+{
+    let mut error = None;
+
+    let result = rescue(
+        func,
+        |exception| {
+            error = Some(exception);
+
+            exception
+        },
+        &[unsafe { crate::rubysys::exception::rb_eException }],
+    );
+
+    match error {
+        Some(exception) => Err(exception),
+        None => Ok(result),
     }
 }
 

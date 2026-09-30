@@ -55,6 +55,18 @@ API and may have breaking changes during a teeny version change.
  - CI: the static-Ruby jobs never passed `--disable-shared` to RVM (the check
    read `RUBY_STATIC` in the step that sets it), so they built a shared Ruby
    and then linked it statically, thanks to @danielpclark
+ - macOS arm64 with Ruby 2.5 and 2.6: `Enumerator` iteration (`next`,
+   `peek`, `iter`, ...) and `Fiber` crashed with a segfault since 0.10.0.
+   These Rubies have no native fibers there; theirs copy the machine stack
+   and start a new fiber by jumping to a frame that an embedded VM only has
+   inside `rb_protect`, while Rutie switched fibers under `rb_rescue2`. On
+   such Rubies (`rutie_copy_stack_fibers`, set by `build.rs`) fibers are now
+   switched under `rb_protect`: `Enumerator::next` from one place (a loop)
+   works, and what these Rubies cannot do from Rust, such as resuming a
+   `Fiber::new` fiber or one enumerator from different stack depths, returns
+   a `FiberError` instead of crashing. `VM::init` and `VM::try_init` also call
+   `ruby_init_stack` first on macOS, as `ruby` does. Other platforms and Ruby
+   2.7 are unchanged, thanks to @danielpclark
 
 ## [0.10.1] - 2026-09-30
 ### Fixed
