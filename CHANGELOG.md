@@ -7,7 +7,7 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
-## [0.10.0] - Unreleased
+## [0.10.0] - 2026-09-30
 ### Added
  - `build.rs` sets `ruby_2_5`/`ruby_2_6`/`ruby_2_7` and cumulative
    `ruby_gte_2_5`/`ruby_gte_2_6`/`ruby_gte_2_7` cfg flags for the Ruby it builds
@@ -163,6 +163,8 @@ API and may have breaking changes during a teeny version change.
    workflow, thanks to @danielpclark
 
 ### Removed
+ - The `rubysys` declaration of `rb_str_valid_encoding_p`, a `static` function
+   Ruby never exports (unused; `rubysys` is a private API), thanks to @danielpclark
  - The unpublished `rb-sys`-based tree that lived on `master` from February
    2025 (self-labelled 0.10.0, tested only against Ruby 2.7 and 3.0-3.4). It
    was never released to crates.io and is not supported; users of it via a git

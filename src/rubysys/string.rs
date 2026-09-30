@@ -44,9 +44,6 @@ extern "C" {
     // VALUE
     // rb_str_export_locale(VALUE str)
     pub fn rb_str_export_locale(str: Value) -> Value;
-    // static VALUE
-    // rb_str_valid_encoding_p(VALUE str)
-    pub fn rb_str_valid_encoding_p(str: Value) -> bool;
     // VALUE
     // rb_str_cat(VALUE str, const char *ptr, long len)
     pub fn rb_str_cat(str: Value, ptr: *const c_char, len: c_long) -> Value;

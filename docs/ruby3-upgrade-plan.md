@@ -121,8 +121,9 @@ CI catches later drift.
 
 | Symbol | Status in 3.x | Used by Rutie | Action |
 |---|---|---|---|
-| `rb_cData` | not exported from 3.0 *(exports)*, removed in 3.2 *(NEWS)* | declared only | delete the declaration (0.11) |
-| `rb_enc_from_encoding_index`, `rb_f_eval`, `rb_str_force_encoding`, `rb_str_valid_encoding_p` | never in public headers; not exported by 3.0–3.3 *(exports)* | declared only | delete the declarations (0.11); can be done in 0.10.x already, since nothing calls them |
+| `rb_cData` | not exported from 3.0 *(exports)*, removed in 3.2 *(NEWS)* | `Class::data()` | 0.11: remove `Class::data()` and the declaration (a public API removal, so it waits for the MINOR release) |
+| `rb_str_valid_encoding_p` | `static` in Ruby's C source, never exported | declared only | removed in 0.10.0 |
+| `rb_enc_from_encoding_index`, `rb_f_eval`, `rb_str_force_encoding` | never in public headers; not exported | only in commented-out notes ("LINKER CANNOT FIND") | nothing to do |
 | `rb_gc_force_recycle` | deprecated no-op since 3.1 *(headers, NEWS)*, **removed in 3.4** *(NEWS)* | `GC::force_recycle` | 0.11: document as a no-op on 3.1+; 0.12: `#[deprecated]`; 0.13: remove the method (linking fails on 3.4 otherwise) |
 | `rb_thread_wait_fd`, `rb_thread_fd_writable` | deprecated since 3.1 *(NEWS)*, still declared in 3.4 *(headers)* | `Thread::wait_fd`, `Thread::wait_fd_writable` | 0.11: add `rb_io_wait`-based variants (3.0+); 0.12: deprecate the old ones; remove when Ruby does |
 | `$SAFE`, taint and trust functions | removed (3.0 / 3.2) *(NEWS)* | none bound | nothing to do beyond the constants in §3 |
