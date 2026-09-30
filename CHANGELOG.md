@@ -15,6 +15,18 @@ API and may have breaking changes during a teeny version change.
    extensions, and Windows is tested in CI, thanks to @danielpclark
  - `Thread::wait_fd` and `Thread::wait_fd_writable` on Windows, where they take
    a descriptor of Ruby's C runtime (`IO#fileno`), thanks to @danielpclark
+ - `rutie_callback!` defines a function for Ruby to call (a method body, an
+   allocator, ...) with the right ABI, or names its type: `extern "C"`, or
+   `extern "C-unwind"` on Windows, thanks to @danielpclark
+### Changed
+ - Windows: functions Ruby calls that a Ruby exception can pass through are
+   `extern "C-unwind"`: `methods!`/`unsafe_methods!` methods, the
+   `types::Callback` and `Class::define_alloc_func` types, and the `rubysys`
+   callback types. Ruby 2.5 for Windows raises with a `longjmp` that unwinds,
+   and Rust 1.81 and later abort when that leaves an `extern "C"` function
+   (`STATUS_STACK_BUFFER_OVERRUN`). Windows needs Rust 1.71 or later; write
+   hand-written callbacks with `rutie_callback!`. Other platforms are
+   unchanged, thanks to @danielpclark
 ### Fixed
  - Windows: `build.rs` makes the MSVC import library for the Ruby DLL from the
    DLL's export table in `OUT_DIR`, instead of running `dumpbin` and batch

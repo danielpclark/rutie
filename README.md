@@ -314,7 +314,8 @@ fn main() {
 ```
 
 For optional, keyword and block parameters, write a plain
-`extern fn(Argc, *const AnyObject, Self)` function and let
+`fn(Argc, *const AnyObject, Self)` function with `rutie_callback!` (it is
+`extern "C"`, or `extern "C-unwind"` on Windows) and let
 [`VM::scan_args`](https://docs.rs/rutie/latest/rutie/struct.VM.html#method.scan_args)
 parse the arguments with an `rb_scan_args` format such as `"11*:&"`. It returns
 `ScannedArgs` (required, optional, splat, post, keywords and block) without any
@@ -411,6 +412,14 @@ rutie = {version="xxx", features=["no-link"]}
 Windows could not find the Ruby DLL (`x64-msvcrt-ruby270.dll`, ...) or one of
 the DLLs it needs. Put Ruby's `bin` and `bin\ruby_builtin_dlls` directories on
 `PATH` (see "Windows" under "Operating System Requirements").
+
+#### Windows: exit code 0xc0000409 (STATUS_STACK_BUFFER_OVERRUN)
+
+A Ruby exception passed through an `extern "C"` function Ruby called, and Rust
+aborted (Ruby 2.5 on Windows unwinds when it raises). Define functions you
+hand to Ruby yourself, such as method bodies for `def` or allocators for
+`define_alloc_func`, with `rutie_callback!`, which makes them
+`extern "C-unwind"` on Windows. `methods!` already does.
 
 #### Windows: could not run lib.exe
 
@@ -522,8 +531,9 @@ pkg-config first, and an OpenSSL 3 answer overrides `--with-openssl-dir`.)
 
 #### Windows
 
-- Rust with the MSVC toolchain (`x86_64-pc-windows-msvc`, the default) and the
-  Visual Studio C++ Build Tools, or the GNU toolchain (`x86_64-pc-windows-gnu`)
+- Rust 1.71 or later with the MSVC toolchain (`x86_64-pc-windows-msvc`, the
+  default) and the Visual Studio C++ Build Tools, or the GNU toolchain
+  (`x86_64-pc-windows-gnu`)
 - Ruby (64 bit) 2.5, 2.6 or 2.7 from [RubyInstaller](https://rubyinstaller.org/)
   (without the Devkit); CI tests 2.5.9, 2.6.10 and 2.7.8. A Ruby built with
   MSVC (mswin) works too.
