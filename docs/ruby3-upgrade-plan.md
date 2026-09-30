@@ -209,6 +209,10 @@ still need the R1 check: presence doesn't mean the signature is unchanged.
       paths deleted. CI uses `ruby/setup-ruby` on `ubuntu-22.04` (it has
       3.0 builds, so no OpenSSL step), with macOS and Windows best-effort
       and static-Ruby rows dropped (RVM never produced a static `libruby`).
+      *Update:* 0.11 is rebased onto 0.10.2 (`0.10-windows-support`), so CI
+      also runs Windows (MSVC and GNU, required) and static Rubies built
+      with `ruby-build` on Linux and macOS (best-effort), with the Ruby 2
+      specifics of that work (copy-stack fibers) removed.
       `build.rs` now reruns when `PATH`, `RUBY` or a version manager's
       variable changes: it printed no `rerun-if` lines, so switching Ruby
       kept the old cfgs, a silent ABI mismatch now that `Qnil` differs.

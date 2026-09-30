@@ -64,9 +64,17 @@ from Ruru to Rutie → 0.11" in the README.
    `ASDF_RUBY_VERSION` or the static-linking variables change, so switching
    Ruby no longer keeps another Ruby's cfgs and link flags,
    thanks to @danielpclark
- - CI tests Ruby 3.0, 3.1 and 3.2 from `ruby/setup-ruby` on Linux (macOS and
-   Windows best-effort), with stable and beta Rust; static-Ruby rows are
-   dropped, thanks to @danielpclark
+ - CI tests Ruby 3.0, 3.1 and 3.2 from `ruby/setup-ruby` on Linux, macOS
+   and Windows (MSVC and GNU toolchains), with stable and beta Rust, plus
+   static Rubies built with `ruby-build` on Linux and macOS, thanks to @danielpclark
+ - A static Ruby's archive is no longer linked whole: with YJIT (Ruby 3.2)
+   it contains YJIT's Rust runtime, whose allocator symbols clashed with the
+   program's (`duplicate symbol: __rust_alloc`), thanks to @danielpclark
+ - Windows, macOS and static-Ruby support from 0.10.2 carry over to Ruby 3.
+   Fibers always use native coroutines there, so the Ruby 2.5/2.6 arm64 macOS
+   stack-copying workaround (`rutie_copy_stack_fibers`) is gone, and
+   `VM::init`/`VM::try_init` call `ruby_init_stack` on every platform, as
+   `ruby` does, thanks to @danielpclark
  - `GC::force_recycle` is documented as a no-op from Ruby 3.1,
    thanks to @danielpclark
 

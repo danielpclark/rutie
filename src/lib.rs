@@ -12,10 +12,12 @@ extern crate lazy_static;
 /// [`Class::define_alloc_func`](struct.Class.html#method.define_alloc_func).
 /// `methods!` and `unsafe_methods!` already use it.
 ///
-/// On Windows, Ruby 2.5 jumps to its exception handlers with a `longjmp` that
-/// unwinds the frames in between, and an unwind leaving an `extern "C"`
-/// function aborts the process (Rust 1.81 and later). Ruby 2.6 and later do
-/// not unwind. `extern "C-unwind"` needs Rust 1.71 or later.
+/// On Windows, a Ruby that jumps to its exception handlers with a `longjmp`
+/// that unwinds the frames in between (as Ruby 2.5 for Windows did) aborts
+/// the process when the unwind leaves an `extern "C"` function (Rust 1.81 and
+/// later). RubyInstaller's Ruby 3 builds do not unwind; the ABI is kept so
+/// callbacks are safe with any Windows Ruby. `extern "C-unwind"` needs Rust
+/// 1.71 or later.
 ///
 /// `rutie_callback! { fn name(...) -> T { ... } }` defines a function (with
 /// any attributes, visibility and generics), and
@@ -63,10 +65,12 @@ macro_rules! rutie_callback {
 /// [`Class::define_alloc_func`](struct.Class.html#method.define_alloc_func).
 /// `methods!` and `unsafe_methods!` already use it.
 ///
-/// On Windows, Ruby 2.5 jumps to its exception handlers with a `longjmp` that
-/// unwinds the frames in between, and an unwind leaving an `extern "C"`
-/// function aborts the process (Rust 1.81 and later). Ruby 2.6 and later do
-/// not unwind. `extern "C-unwind"` needs Rust 1.71 or later.
+/// On Windows, a Ruby that jumps to its exception handlers with a `longjmp`
+/// that unwinds the frames in between (as Ruby 2.5 for Windows did) aborts
+/// the process when the unwind leaves an `extern "C"` function (Rust 1.81 and
+/// later). RubyInstaller's Ruby 3 builds do not unwind; the ABI is kept so
+/// callbacks are safe with any Windows Ruby. `extern "C-unwind"` needs Rust
+/// 1.71 or later.
 ///
 /// `rutie_callback! { fn name(...) -> T { ... } }` defines a function (with
 /// any attributes, visibility and generics), and
@@ -173,7 +177,7 @@ lazy_static! {
     pub static ref LOCK_FOR_TEST: RwLock<i32> = RwLock::new(0);
 }
 
-// Ruby 2 is bound to the native thread that starts it: `ruby_init` records
+// Ruby is bound to the native thread that starts it: `ruby_init` records
 // that thread's stack for the GC to scan and for stack overflow checks. The
 // test harness runs every test on its own thread, so unit tests send their
 // bodies to one long-lived thread that owns the VM instead of calling

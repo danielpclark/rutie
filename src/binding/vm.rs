@@ -34,15 +34,12 @@ pub fn yield_splat(values: Value) -> Value {
 }
 
 // `ruby` calls `ruby_init_stack` before booting the VM (`RUBY_INIT_STACK`):
-// it records the machine stack the GC scans and the stack-copying fibers
-// save and restore. Without it, a VM booted off the process's main thread
-// takes as the top of its stack a local inside `ruby_init`'s own frames. On
-// macOS arm64, Ruby 2.5 and 2.6 have no native fibers and copy that stack,
-// so resuming a fiber (`Enumerator#next`) restored a wrong range and crashed.
-// Any address on the thread's stack works; macOS then uses the thread's full
-// stack bounds. Skipped once the VM exists, since the call also records the
-// calling thread as Ruby's main thread.
-#[cfg(target_os = "macos")]
+// it records the machine stack the GC scans. Without it a VM booted off the
+// process's main thread takes a local inside `ruby_init`'s own frames as the
+// top of its stack, and from Ruby 3.4 the GC scans no stack at all, freeing objects held
+// only in Rust locals. Any address on the thread's stack works: Ruby then
+// reads the thread's stack bounds. Skipped once the VM exists, since the call
+// also records the calling thread as Ruby's main thread.
 fn init_stack() {
     if is_initialized() {
         return;
@@ -51,9 +48,6 @@ fn init_stack() {
     let mut marker = Value::from(0);
     unsafe { vm::ruby_init_stack(&mut marker) };
 }
-
-#[cfg(not(target_os = "macos"))]
-fn init_stack() {}
 
 pub fn init() {
     init_stack();
@@ -635,22 +629,8 @@ where
 // Ruby switches fibers only while the thread has an active tag, and resumes a
 // fiber only under the `rb_protect` it was created under ("fiber called across
 // stack rewinding barrier"), so this uses `rb_rescue2`: a tag, and no barrier.
-//
-// Where fibers copy the machine stack (`rutie_copy_stack_fibers`), a new fiber
-// starts by jumping to the thread's root jump buffer, which an embedded VM
-// only has inside `rb_protect`. Under `rb_rescue2` it jumped into a finished
-// frame and crashed, so there this uses `rb_protect`: a fiber then runs when it
-// is created and resumed from the same place (`Enumerator#next` in a loop) and
-// raises `FiberError` otherwise.
-#[cfg(rutie_copy_stack_fibers)]
-pub fn fiber_call<F>(func: F) -> Result<Value, Value>
-where
-    F: FnOnce() -> Value,
-{
-    protect_value(func)
-}
-
-#[cfg(not(rutie_copy_stack_fibers))]
+// (Ruby 3 has native fibers on every platform Rutie supports; Ruby 2.5 and 2.6
+// on arm64 macOS copied the machine stack and needed `rb_protect` here.)
 pub fn fiber_call<F>(func: F) -> Result<Value, Value>
 where
     F: FnOnce() -> Value,

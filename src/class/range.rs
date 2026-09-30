@@ -67,7 +67,7 @@ impl Range {
     }
 
     /// Returns the last bound (`rb_range_values`); `nil` for an endless
-    /// range (Ruby 2.6+).
+    /// range.
     ///
     /// # Examples
     ///
@@ -148,8 +148,6 @@ impl Range {
     /// Returns `(begin, end, step, exclude_end)` of a range or an
     /// arithmetic sequence such as `(1..10).step(3)`, or `None` for
     /// anything else (`rb_arithmetic_sequence_extract`).
-    ///
-    /// Only available on Ruby 2.6 and later.
     ///
     /// # Examples
     ///
@@ -249,7 +247,7 @@ mod tests {
 
             let from_ruby = VM::eval("(1..4)").unwrap();
             assert!(from_ruby.try_convert_to::<Range>().is_ok());
-            // A Struct is not a Range even though Ruby 2 stores ranges as structs.
+            // A Struct is not a Range, although Ruby stores ranges as structs.
             assert!(VM::eval("Struct.new(:a).new(1)")
                 .unwrap()
                 .try_convert_to::<Range>()

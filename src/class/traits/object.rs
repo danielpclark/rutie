@@ -1607,8 +1607,8 @@ pub trait Object: From<Value> {
     /// arguments (`rb_funcallv_kw`), like Ruby's
     /// `object.method(*arguments, **keywords)`.
     ///
-    /// Only available on Ruby 2.7. On Ruby 2.5 and 2.6 a trailing `Hash`
-    /// argument given to `send` is taken as keywords.
+    /// Ruby 3 separates keywords from positional arguments: a trailing `Hash`
+    /// given to `send` stays a positional argument.
     ///
     /// # Safety
     ///

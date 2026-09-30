@@ -1,9 +1,6 @@
 use crate::rubysys::types::{c_char, Id, Value};
 
-// Ruby 2.5 and 2.6 call a getter as `getter(id, data, gvar)` and a setter as
-// `setter(value, id, data, gvar)`; Ruby 2.7 drops the trailing `gvar`. Rust
-// callbacks take the common leading arguments, which is valid for both.
-
+// `rb_gvar_getter_t` and `rb_gvar_setter_t`.
 // VALUE getter(ID id, VALUE *data)
 pub type GlobalGetter = rutie_callback!(type fn(id: Id, data: *mut Value) -> Value);
 // void setter(VALUE value, ID id, VALUE *data)

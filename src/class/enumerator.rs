@@ -401,8 +401,7 @@ mod tests {
             hash.store(Symbol::new("a"), Fixnum::new(1));
             hash.store(Symbol::new("b"), Fixnum::new(2));
 
-            // One loop, so every `next` comes from the same place, as Ruby 2.5
-            // and 2.6 on arm64 macOS need (see `Fiber::new`).
+            // One loop.
             let pairs = Enumerator::new(&hash, "each_pair", &[]);
             let mut collected = Vec::new();
             for pair in pairs.iter() {
@@ -417,11 +416,6 @@ mod tests {
                     .try_convert_to::<Symbol>(),
                 Ok(Symbol::new("b"))
             );
-
-            // The rest resumes one enumerator from several places.
-            if cfg!(rutie_copy_stack_fibers) {
-                return;
-            }
 
             // Iteration continues from the enumerator's position.
             let mut numbers = VM::eval("[1, 2, 3].each")
@@ -470,16 +464,6 @@ mod tests {
                 .unwrap()
                 .try_convert_to::<Enumerator>()
                 .unwrap();
-
-            // Ruby 2.5 and 2.6 on arm64 macOS copy the fiber's stack and
-            // resume it only from the `rb_protect` it started under (see
-            // `Fiber::new`): another stack depth is a `FiberError`, not a crash.
-            if cfg!(rutie_copy_stack_fibers) {
-                assert_eq!(deeper(&mut enumerator, 0), 1);
-                assert!(enumerator.next().is_err());
-
-                return;
-            }
 
             assert_eq!(deeper(&mut enumerator, 0), 1);
             assert_eq!(deeper(&mut enumerator, 5), 2);

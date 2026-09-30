@@ -66,7 +66,6 @@ fn ruby_version_cfgs() {
         println!("cargo:rustc-check-cfg=cfg(ruby_{}_{})", major, minor);
         println!("cargo:rustc-check-cfg=cfg(ruby_gte_{}_{})", major, minor);
     }
-    println!("cargo:rustc-check-cfg=cfg(rutie_copy_stack_fibers)");
 
     let (major, minor) = match (try_rbconfig("MAJOR"), try_rbconfig("MINOR")) {
         (Ok(major), Ok(minor)) => match (major.parse::<u32>(), minor.parse::<u32>()) {
@@ -118,24 +117,7 @@ fn ruby_version_cfgs() {
         }
     }
 
-    copy_stack_fibers_cfg(major, minor);
-
     ci_stderr_log!("Ruby version cfg flags set for Ruby {}.{}", major, minor);
-}
-
-// `rutie_copy_stack_fibers`: this Ruby's fibers copy the machine stack
-// instead of switching to a stack of their own. Ruby picks that when it has
-// neither a coroutine implementation nor `getcontext` for the target, which
-// among the Rubies Rutie supports means 2.5 and 2.6 on arm64 macOS (2.7 added
-// an arm64 macOS coroutine). Ruby does not record the choice in `RbConfig` or
-// its headers, so the target and version decide, as in Ruby's `configure`.
-fn copy_stack_fibers_cfg(major: u32, minor: u32) {
-    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
-
-    if target_os == "macos" && target_arch == "aarch64" && (major, minor) < (2, 7) {
-        println!("cargo:rustc-cfg=rutie_copy_stack_fibers");
-    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -242,7 +224,7 @@ fn ruby_lib_link_name() -> String {
 fn dynamic_linker_args() {
     // On Windows `src/rubysys` links the Ruby DLL itself, through `#[link]`
     // attributes (see `build/windows.rs`), and `LIBS` are the DLL's own
-    // dependencies (`-lgmp` on Ruby 2.5), which programs using it do not need.
+    // dependencies (`-lgmp`, ...), which programs using it do not need.
     if windows::is_target() {
         return;
     }
@@ -250,24 +232,19 @@ fn dynamic_linker_args() {
     let mut library = Library::new();
     let name = ruby_lib_link_name();
 
-    if cfg!(target_os = "windows") {
-        library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), false);
-        println!("cargo:rustc-link-lib=dylib={}", name);
-    } else {
-        // Everything but libruby itself (`-L`, `-F`, frameworks), which
-        // `link_libruby` places.
-        let libruby = [
-            format!("-l{}", name),
-            format!("-l{}", rbconfig("RUBY_SO_NAME")),
-        ];
-        let args = split_flags(rbconfig("LIBRUBYARG_SHARED").as_bytes())
-            .into_iter()
-            .filter(|arg| !libruby.contains(arg))
-            .collect::<Vec<_>>()
-            .join(" ");
-        library.parse_libs_cflags(args.as_bytes(), false);
-        link_libruby(&name);
-    }
+    // Everything but libruby itself (`-L`, `-F`, frameworks), which
+    // `link_libruby` places.
+    let libruby = [
+        format!("-l{}", name),
+        format!("-l{}", rbconfig("RUBY_SO_NAME")),
+    ];
+    let args = split_flags(rbconfig("LIBRUBYARG_SHARED").as_bytes())
+        .into_iter()
+        .filter(|arg| !libruby.contains(arg))
+        .collect::<Vec<_>>()
+        .join(" ");
+    library.parse_libs_cflags(args.as_bytes(), false);
+    link_libruby(&name);
 
     library.parse_libs_cflags(rbconfig("LIBS").as_bytes(), false);
 }
@@ -319,14 +296,16 @@ fn static_linker_args() {
         archive.parent().unwrap().display()
     );
 
-    // The whole archive, like the `ruby` executable: extensions (`enc/*.so`,
-    // `objspace.so`, ...) of a static Ruby are not linked to a libruby and
-    // call Ruby functions that Rutie itself never references.
+    // Not the whole archive: `ruby_init` reaches every core object file, as
+    // for the `ruby` executable, and a Ruby built with YJIT has YJIT's Rust
+    // runtime in the archive, whose allocator symbols would then clash with
+    // the program's.
     let name = archive.file_name().unwrap().to_string_lossy();
     let name = name.trim_start_matches("lib").trim_end_matches(".a");
-    println!("cargo:rustc-link-lib=static:+whole-archive={}", name);
+    println!("cargo:rustc-link-lib=static={}", name);
 
-    // ...and those extensions find the functions in the executable, so it
+    // A static Ruby's extensions (`enc/*.so`, `objspace.so`, ...) are not
+    // linked to a libruby: they find Ruby's functions in the executable, so it
     // must export them (Ruby links `ruby` with `-Wl,-export-dynamic`). This
     // covers Rutie's own tests and examples; a program embedding a static
     // Ruby links with `-C link-arg=-Wl,--export-dynamic` itself.
