@@ -1,5 +1,8 @@
 use crate::rubysys::{
-    constant::{FL_USER_1, FL_USER_3, FL_USER_4, FL_USHIFT},
+    constant::{
+        FL_USER_1, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6, FL_USER_7, FL_USER_8, FL_USER_9,
+        FL_USHIFT,
+    },
     libc::size_t,
     types::{c_int, c_long, InternalValue, RBasic, Value},
 };
@@ -112,9 +115,12 @@ extern "C" {
 #[derive(Debug, PartialEq)]
 #[repr(C)]
 enum RArrayEmbed {
-    LenMax = 3,
     Flag = FL_USER_1,
+    // Ruby 3.2 (`USE_RVARGC`) embeds longer arrays and widens the mask.
+    #[cfg(not(ruby_gte_3_2))]
     LenMask = FL_USER_4 | FL_USER_3,
+    #[cfg(ruby_gte_3_2)]
+    LenMask = FL_USER_9 | FL_USER_8 | FL_USER_7 | FL_USER_6 | FL_USER_5 | FL_USER_4 | FL_USER_3,
     LenShift = FL_USHIFT + 3,
 }
 

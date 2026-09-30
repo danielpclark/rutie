@@ -294,19 +294,20 @@ mod current_ruby {
             )
             .to_string();
 
-            let cfg_version = if cfg!(ruby_2_5) {
-                "2.5"
-            } else if cfg!(ruby_2_6) {
-                "2.6"
-            } else if cfg!(ruby_2_7) {
-                "2.7"
+            let cfg_version = if cfg!(ruby_3_0) {
+                "3.0"
+            } else if cfg!(ruby_3_1) {
+                "3.1"
+            } else if cfg!(ruby_3_2) {
+                "3.2"
             } else {
                 "unsupported"
             };
 
             assert_eq!(version, cfg_version, "Ruby version cfg flag mismatch");
-            assert_eq!(cfg!(ruby_gte_2_6), version.as_str() >= "2.6");
-            assert_eq!(cfg!(ruby_gte_2_7), version.as_str() >= "2.7");
+            assert!(cfg!(ruby_gte_3_0));
+            assert_eq!(cfg!(ruby_gte_3_1), version.as_str() >= "3.1");
+            assert_eq!(cfg!(ruby_gte_3_2), version.as_str() >= "3.2");
         });
     }
 }

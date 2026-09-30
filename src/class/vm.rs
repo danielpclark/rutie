@@ -1206,13 +1206,7 @@ impl VM {
     }
 
     /// Sets the script name, `$0` and `$PROGRAM_NAME` (`ruby_script`).
-    ///
-    /// Assigning `$0` from Ruby afterwards still raises
-    /// `RuntimeError: $0 not initialized` in a program that embeds Ruby
-    /// without [`VM::run_file`](#method.run_file), because Ruby has no
-    /// process arguments to rewrite. On Windows, where
-    /// [`VM::init`](#method.init) gives Ruby the process's command line,
-    /// the assignment works.
+    /// [`VM::init`](#method.init) sets it to the program's name.
     ///
     /// # Panics
     ///
@@ -1229,35 +1223,26 @@ impl VM {
     /// let name = unsafe { VM::eval_str("$0") }.try_convert_to::<RString>().unwrap();
     /// assert_eq!(name.to_str(), "my_tool");
     ///
-    /// assert_eq!(VM::eval("$0 = 'renamed'").is_err(), !cfg!(windows));
+    /// // Ruby code may assign it too.
+    /// VM::eval("$0 = 'renamed'").unwrap();
     /// ```
     pub fn set_script_name(name: &str) {
         vm::set_script_name(name)
     }
 
     /// Runs the Ruby script at `path` as the main program, with `arguments`
-    /// in `ARGV`, like `ruby path arguments...` would (`ruby_options` and
-    /// `ruby_exec_node`): `$0` is `path`, `__FILE__ == $0` holds, `DATA`
-    /// reads what follows `__END__`, and RubyGems is loaded unless disabled
-    /// in `RUBYOPT`.
+    /// in `ARGV`: `$0` is set to `path` (so `__FILE__ == $0` holds) and the
+    /// file is loaded at the top level (`rb_load_protect`).
     ///
-    /// Ruby processes its command line only once per process, so this works
-    /// once, in a program that embeds Ruby; later calls, and calls from an
-    /// extension loaded by the `ruby` command, return a `RuntimeError`
-    /// without running anything. Use [`VM::load`](#method.load) or
-    /// [`VM::require`](#method.require) for further files.
-    ///
-    /// Returns the exception the script raised or failed with (a
+    /// Returns the exception the script raised or failed with: a
     /// `SystemExit` for `exit`, a `LoadError` for a missing file, a
-    /// `SyntaxError`). Ruby prints errors that happen before the script
-    /// starts, such as the last two, to standard error itself.
+    /// `SyntaxError`. It can be called more than once; each run replaces
+    /// `$0` and `ARGV`. Unlike the `ruby` command it does not define `DATA`
+    /// (what follows `__END__`) or process command line options.
     ///
-    /// Like the `ruby` command, it also sets process-wide state: the load
-    /// path, the default external encoding (from the locale), `$0`, `ARGV`,
-    /// and the process title. The argument strings are kept until the
-    /// process exits, since Ruby rewrites them when `$0` is assigned. Call
-    /// it from the thread that started the VM; it does not shut the VM
-    /// down (see [`VM::cleanup`](#method.cleanup)).
+    /// Before 0.11 this processed the command line with `ruby_options` and
+    /// worked once per process; `VM::init` now does that itself on Ruby 3
+    /// (to load the Ruby-defined parts of the core library).
     ///
     /// # Panics
     ///
@@ -1266,7 +1251,7 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Exception, Fixnum, Object, VM};
+    /// use rutie::{Class, Exception, Fixnum, Object, VM};
     /// # VM::init();
     ///
     /// let path = std::env::temp_dir().join(format!("rutie_run_file_{}.rb", std::process::id()));
@@ -1278,47 +1263,18 @@ impl VM {
     /// let answer = VM::global_get("$answer").try_convert_to::<Fixnum>().unwrap();
     /// assert_eq!(answer.to_i64(), 42);
     ///
-    /// // Only the first call runs a script.
+    /// // The script's exception is returned.
+    /// std::fs::write(path, "exit 3").unwrap();
     /// let error = VM::run_file(path, &[]).unwrap_err();
-    /// assert!(error.message().contains("once"));
-    ///
-    /// std::fs::remove_file(path).unwrap();
-    /// ```
-    ///
-    /// The script's exception is returned:
-    ///
-    /// ```
-    /// use rutie::{Class, Exception, Object, VM};
-    /// # VM::init();
-    ///
-    /// let path = std::env::temp_dir().join(format!("rutie_run_file_exit_{}.rb", std::process::id()));
-    /// std::fs::write(&path, "exit 3").unwrap();
-    ///
-    /// let error = VM::run_file(path.to_str().unwrap(), &[]).unwrap_err();
     /// assert!(error.is_kind_of(&Class::system_exit()));
     ///
     /// std::fs::remove_file(path).unwrap();
     /// ```
     pub fn run_file(path: &str, arguments: &[&str]) -> Result<(), AnyException> {
-        if vm::has_run_options() {
-            return Err(AnyException::new(
-                "RuntimeError",
-                Some("Ruby's command line was already processed; VM::run_file works once per process"),
-            ));
-        }
+        vm::set_script_name(path);
+        vm::set_argv(arguments);
 
-        // `--` keeps a path that starts with `-` from being read as an option.
-        let mut options = vec!["ruby", "--", path];
-        options.extend_from_slice(arguments);
-
-        match vm::run_options(&options) {
-            Ok(_) => Ok(()),
-            Err(Ok(exception)) => Err(AnyException::from(exception)),
-            Err(Err(status)) => Err(AnyException::new(
-                "RuntimeError",
-                Some(&format!("ruby exited with status {}", status)),
-            )),
-        }
+        Self::load(path, false)
     }
 
     /// Returns whether the Ruby VM has been started in this process, by
@@ -1792,10 +1748,8 @@ impl VM {
     /// # VM::init();
     ///
     /// // Not inside a method called with keywords.
-    /// # #[cfg(ruby_gte_2_7)]
     /// assert!(!VM::is_keyword_given());
     /// ```
-    #[cfg(ruby_gte_2_7)]
     pub fn is_keyword_given() -> bool {
         vm::is_keyword_given()
     }
@@ -2108,6 +2062,44 @@ impl VM {
     /// assert_eq!(error.message(), "bad scan arg format: bogus");
     /// ```
     pub fn scan_args(arguments: &[AnyObject], format: &str) -> Result<ScannedArgs, AnyException> {
+        Self::scan_args_kw(arguments, format, class::SCAN_ARGS_PASS_CALLED_KEYWORDS)
+    }
+
+    /// Like [`VM::scan_args`](#method.scan_args), but a trailing `Hash`
+    /// argument is taken as the keywords (the `:` part of `format`) however
+    /// the method was called (`rb_scan_args_kw` with
+    /// `RB_SCAN_ARGS_LAST_HASH_KEYWORDS`). That is how Ruby 2 treated it, and
+    /// what an explicit list of arguments usually means.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{AnyObject, Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut options = Hash::new();
+    /// options.store(Symbol::new("mode"), Symbol::new("fast"));
+    /// let arguments = [Fixnum::new(1).to_any_object(), options.to_any_object()];
+    ///
+    /// let args = VM::scan_args_with_keywords(&arguments, "1:").unwrap();
+    /// assert_eq!(args.keywords.unwrap().at(&Symbol::new("mode")), Symbol::new("fast").into());
+    ///
+    /// // `scan_args` follows Ruby 3: this call had no keywords, so the hash
+    /// // is a second positional argument.
+    /// assert!(VM::scan_args(&arguments, "1:").is_err());
+    /// ```
+    pub fn scan_args_with_keywords(
+        arguments: &[AnyObject],
+        format: &str,
+    ) -> Result<ScannedArgs, AnyException> {
+        Self::scan_args_kw(arguments, format, class::SCAN_ARGS_LAST_HASH_KEYWORDS)
+    }
+
+    fn scan_args_kw(
+        arguments: &[AnyObject],
+        format: &str,
+        kw_flag: i32,
+    ) -> Result<ScannedArgs, AnyException> {
         let spec = ScanArgsFormat::parse(format)
             .map_err(|message| AnyException::new("ArgumentError", Some(&message)))?;
 
@@ -2117,7 +2109,7 @@ impl VM {
         let mut positional = 0;
 
         vm::protect_value(|| {
-            positional = class::scan_args(&arguments, &format, &mut out);
+            positional = class::scan_args(&arguments, &format, &mut out, kw_flag);
 
             NilClass::new().value()
         })
@@ -3127,8 +3119,12 @@ mod tests {
             let mut keywords = Hash::new();
             keywords.store(Symbol::new("mode"), Symbol::new("fast"));
 
-            let args =
-                VM::scan_args(&[arguments[0].clone(), keywords.to_any_object()], "1:").unwrap();
+            let with_keywords = [arguments[0].clone(), keywords.to_any_object()];
+
+            // Ruby 3: not called with keywords, so the hash is positional.
+            assert!(VM::scan_args(&with_keywords, "1:").is_err());
+
+            let args = VM::scan_args_with_keywords(&with_keywords, "1:").unwrap();
             assert_eq!(args.required, vec![arguments[0].clone()]);
             assert_eq!(
                 args.keywords.unwrap().at(&Symbol::new("mode")),
@@ -3183,7 +3179,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_2_7)]
     #[test]
     fn test_is_keyword_given() {
         crate::on_ruby_thread(|| {
@@ -3420,9 +3415,10 @@ mod tests {
                 .unwrap();
             assert_eq!(name.to_str(), "rutie_unit_test");
 
-            // Without process arguments Ruby refuses to rewrite `$0`. On
-            // Windows `VM::init` gives Ruby the process's command line.
-            assert_eq!(VM::eval("$0 = 'renamed'").is_ok(), cfg!(windows));
+            // `VM::init` processed a command line, so `$0` can be assigned.
+            VM::eval("$0 = 'renamed'").unwrap();
+            let name = VM::eval("$0").unwrap().try_convert_to::<RString>().unwrap();
+            assert_eq!(name.to_str(), "renamed");
         });
     }
 

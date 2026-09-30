@@ -33,9 +33,6 @@ extern "C" {
 
 // typedef struct { VALUE begin; VALUE end; VALUE step; int exclude_end; }
 // rb_arithmetic_sequence_components_t
-//
-// Ruby 2.6 and later only.
-#[cfg(ruby_gte_2_6)]
 #[repr(C)]
 pub struct ArithmeticSequenceComponents {
     pub begin: Value,
@@ -44,7 +41,6 @@ pub struct ArithmeticSequenceComponents {
     pub exclude_end: c_int,
 }
 
-#[cfg(ruby_gte_2_6)]
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // int
