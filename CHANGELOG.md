@@ -8,6 +8,46 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+### Added
+ - `build.rs` sets `ruby_2_5`/`ruby_2_6`/`ruby_2_7` and cumulative
+   `ruby_gte_2_5`/`ruby_gte_2_6`/`ruby_gte_2_7` cfg flags for the Ruby it builds
+   against, exports the version to dependent crates as `DEP_RUBY_VERSION_MAJOR`
+   and `DEP_RUBY_VERSION_MINOR`, and warns when that Ruby is not 2.5–2.7,
+   thanks to @danielpclark
+ - Exception control flow: `VM::ensure`, `VM::rescue`, `VM::rescue_from`,
+   `VM::catch`, `VM::throw`, `VM::iter_break`, `VM::iter_break_value` and
+   `VM::jump_tag`. Rust panics inside these closures, blocks and `at_exit`
+   handlers are raised as a Ruby `RuntimeError` instead of unwinding into
+   Ruby, thanks to @danielpclark
+ - `Object::send_with_block` and `Object::protect_send_with_block` call a
+   method with a Rust closure as its block, thanks to @danielpclark
+ - Argument and state checks: `VM::check_arity`, `VM::raise_arity_error`,
+   `VM::raise_zero_division`, `VM::not_implemented`, `VM::sys_fail`,
+   `VM::warn`, `VM::warning`, `Object::check_frozen` and `Object::check_type`,
+   thanks to @danielpclark
+ - Variable-arity methods: `VM::scan_args` (`rb_scan_args` formats such as
+   `"21*1:&"`, returning `ScannedArgs`), `VM::get_kwargs` (returning
+   `KeywordArgs`) and, on Ruby 2.7, `VM::is_keyword_given`, thanks to @danielpclark
+ - `Class::define_alias`, `Class::undef_method`, `Class::define_alloc_func`,
+   `Class::undef_alloc_func`, `Module::define_alias`, `Module::undef_method`
+   and `Object::call_init`, thanks to @danielpclark
+ - `VM::cleanup` shuts the VM down (`ruby_cleanup`), running `at_exit`
+   handlers, thanks to @danielpclark
+ - `VM::call_protected`, the previous (immediate) behaviour of `VM::at_exit`,
+   thanks to @danielpclark
+
+### Changed
+ - **Breaking:** `VM::at_exit` now registers a real end proc
+   (`rb_set_end_proc`) that runs when the VM shuts down, instead of calling
+   the closure immediately. The closure must be `FnOnce(VmPointer) + 'static`,
+   thanks to @danielpclark
+ - Unit tests run on a single dedicated Ruby thread (`on_ruby_thread`), since
+   Ruby 2 must be used from the thread that started it, thanks to @danielpclark
+
+### Fixed
+ - `VM::raise` passed its message to `rb_raise` as a printf format, so a
+   message containing `%` read arbitrary memory; the message is now always
+   used as plain text, thanks to @danielpclark
 
 ## [0.10.0] - 2026-09-30
 ### Changed

@@ -1,5 +1,8 @@
 use crate::rubysys::types::{c_char, c_int, Argc, CallbackPtr, Id, Value};
 
+// VALUE (*)(VALUE klass)
+pub type AllocFunction = extern "C" fn(klass: Value) -> Value;
+
 extern "C" {
     // VALUE
     // rb_class_new_instance(int argc, const VALUE *argv, VALUE klass)
@@ -97,4 +100,31 @@ extern "C" {
     // int
     // rb_scan_args(int argc, const VALUE *argv, const char *fmt, ...)
     pub fn rb_scan_args(argc: Argc, argv: *const Value, fmt: *const c_char, ...) -> c_int;
+    // void
+    // rb_define_alias(VALUE klass, const char *name1, const char *name2)
+    pub fn rb_define_alias(klass: Value, new_name: *const c_char, old_name: *const c_char);
+    // void
+    // rb_define_alloc_func(VALUE klass, rb_alloc_func_t func)
+    pub fn rb_define_alloc_func(klass: Value, func: AllocFunction);
+    // void
+    // rb_define_method_id(VALUE klass, ID mid, VALUE (*func)(ANYARGS), int argc)
+    pub fn rb_define_method_id(klass: Value, name: Id, callback: CallbackPtr, argc: Argc);
+    // int
+    // rb_get_kwargs(VALUE keyword_hash, const ID *table, int required, int optional, VALUE *values)
+    pub fn rb_get_kwargs(
+        keyword_hash: Value,
+        table: *const Id,
+        required: c_int,
+        optional: c_int,
+        values: *mut Value,
+    ) -> c_int;
+    // VALUE
+    // rb_obj_is_kind_of(VALUE obj, VALUE c)
+    pub fn rb_obj_is_kind_of(object: Value, klass: Value) -> Value;
+    // void
+    // rb_undef_alloc_func(VALUE klass)
+    pub fn rb_undef_alloc_func(klass: Value);
+    // void
+    // rb_undef_method(VALUE klass, const char *name)
+    pub fn rb_undef_method(klass: Value, name: *const c_char);
 }

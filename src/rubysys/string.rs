@@ -72,6 +72,9 @@ extern "C" {
     // VALUE
     // rb_str_new_frozen(VALUE orig)
     pub fn rb_str_new_frozen(orig: Value) -> Value;
+    // VALUE
+    // rb_str_freeze(VALUE str)
+    pub fn rb_str_freeze(string: Value) -> Value;
 }
 
 // #[link_name = "ruby_rstring_flags"]

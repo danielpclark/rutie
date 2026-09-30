@@ -238,138 +238,133 @@ mod tests {
     #[cfg(target_os = "darwin")]
     #[test]
     fn test_github_issue_113_darwin_os() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
+        crate::on_ruby_thread(|| {
+            let num: Integer = Integer::new(std::i64::MIN);
+            assert_eq!(num.to_i64(), ::std::i64::MIN);
 
-        let num: Integer = Integer::new(std::i64::MIN);
-        assert_eq!(num.to_i64(), ::std::i64::MIN);
+            let num: Integer = Integer::new(std::i64::MAX);
+            assert_eq!(num.to_i64(), ::std::i64::MAX);
 
-        let num: Integer = Integer::new(std::i64::MAX);
-        assert_eq!(num.to_i64(), ::std::i64::MAX);
+            let num: i64 = std::i64::MIN + std::u32::MAX as i64;
+            assert_eq!(Integer::new(num).to_i64(), -9223372032559808513);
 
-        let num: i64 = std::i64::MIN + std::u32::MAX as i64;
-        assert_eq!(Integer::new(num).to_i64(), -9223372032559808513);
+            let num: Integer = Integer::new((std::i32::MIN as i64).pow(2));
+            assert_eq!(num.to_i64(), 4611686018427387904);
 
-        let num: Integer = Integer::new((std::i32::MIN as i64).pow(2));
-        assert_eq!(num.to_i64(), 4611686018427387904);
-
-        let num: Integer = Integer::new((std::i32::MIN as i64).pow(2) * -1 - 1);
-        assert_eq!(num.to_i64(), -4611686018427387905)
+            let num: Integer = Integer::new((std::i32::MIN as i64).pow(2) * -1 - 1);
+            assert_eq!(num.to_i64(), -4611686018427387905)
+        });
     }
 
     #[test]
     fn test_i32() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
+        crate::on_ruby_thread(|| {
+            let nil = NilClass::new();
 
-        let nil = NilClass::new();
+            let num = str_to_num("1").unwrap();
+            assert_eq!(1, num.to_i32());
 
-        let num = str_to_num("1").unwrap();
-        assert_eq!(1, num.to_i32());
+            let num = str_to_num("-1").unwrap();
+            assert_eq!(-1, num.to_i32());
 
-        let num = str_to_num("-1").unwrap();
-        assert_eq!(-1, num.to_i32());
+            let num = str_to_num("2 ** 31 - 1").unwrap();
+            assert_eq!(::std::i32::MAX, num.to_i32());
 
-        let num = str_to_num("2 ** 31 - 1").unwrap();
-        assert_eq!(::std::i32::MAX, num.to_i32());
+            let num = str_to_num("2 ** 31").unwrap();
+            let result = VM::protect(|| {
+                num.to_i32();
+                nil.into()
+            });
+            assert!(result.is_err());
 
-        let num = str_to_num("2 ** 31").unwrap();
-        let result = VM::protect(|| {
-            num.to_i32();
-            nil.into()
+            let num = str_to_num("-1 * 2 ** 31").unwrap();
+            assert_eq!(::std::i32::MIN, num.to_i32());
+
+            let num = str_to_num("-1 * 2 ** 31 - 1").unwrap();
+            let result = VM::protect(|| {
+                num.to_i32();
+                nil.into()
+            });
+            assert!(result.is_err());
         });
-        assert!(result.is_err());
-
-        let num = str_to_num("-1 * 2 ** 31").unwrap();
-        assert_eq!(::std::i32::MIN, num.to_i32());
-
-        let num = str_to_num("-1 * 2 ** 31 - 1").unwrap();
-        let result = VM::protect(|| {
-            num.to_i32();
-            nil.into()
-        });
-        assert!(result.is_err());
     }
 
     #[test]
     fn test_u32() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
+        crate::on_ruby_thread(|| {
+            let nil = NilClass::new();
 
-        let nil = NilClass::new();
+            let num = str_to_num("1").unwrap();
+            assert_eq!(1, num.to_u32());
 
-        let num = str_to_num("1").unwrap();
-        assert_eq!(1, num.to_u32());
+            let num = str_to_num("-1").unwrap();
+            assert_eq!(::std::u32::MAX, num.to_u32());
 
-        let num = str_to_num("-1").unwrap();
-        assert_eq!(::std::u32::MAX, num.to_u32());
+            let num = str_to_num("2 ** 32 - 1").unwrap();
+            assert_eq!(::std::u32::MAX, num.to_u32());
 
-        let num = str_to_num("2 ** 32 - 1").unwrap();
-        assert_eq!(::std::u32::MAX, num.to_u32());
+            let num = str_to_num("2 ** 32").unwrap();
+            let result = VM::protect(|| {
+                num.to_u32();
+                nil.into()
+            });
+            assert!(result.is_err());
 
-        let num = str_to_num("2 ** 32").unwrap();
-        let result = VM::protect(|| {
-            num.to_u32();
-            nil.into()
+            let num = str_to_num("0").unwrap();
+            assert_eq!(::std::u32::MIN, num.to_u32());
         });
-        assert!(result.is_err());
-
-        let num = str_to_num("0").unwrap();
-        assert_eq!(::std::u32::MIN, num.to_u32());
     }
 
     #[test]
     fn test_i64() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
+        crate::on_ruby_thread(|| {
+            let nil = NilClass::new();
 
-        let nil = NilClass::new();
+            let num = str_to_num("2 ** 63 - 1").unwrap();
+            assert_eq!(::std::i64::MAX, num.to_i64());
 
-        let num = str_to_num("2 ** 63 - 1").unwrap();
-        assert_eq!(::std::i64::MAX, num.to_i64());
+            let num = str_to_num("2 ** 63").unwrap();
+            let result = VM::protect(|| {
+                num.to_i64();
+                nil.into()
+            });
+            assert!(result.is_err());
 
-        let num = str_to_num("2 ** 63").unwrap();
-        let result = VM::protect(|| {
-            num.to_i64();
-            nil.into()
+            let num = str_to_num("-1 * 2 ** 63").unwrap();
+            assert_eq!(::std::i64::MIN, num.to_i64());
+
+            let num = str_to_num("-1 * 2 ** 63 - 1").unwrap();
+            let result = VM::protect(|| {
+                num.to_i64();
+                nil.into()
+            });
+            assert!(result.is_err());
         });
-        assert!(result.is_err());
-
-        let num = str_to_num("-1 * 2 ** 63").unwrap();
-        assert_eq!(::std::i64::MIN, num.to_i64());
-
-        let num = str_to_num("-1 * 2 ** 63 - 1").unwrap();
-        let result = VM::protect(|| {
-            num.to_i64();
-            nil.into()
-        });
-        assert!(result.is_err());
     }
 
     #[test]
     fn test_u64() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
+        crate::on_ruby_thread(|| {
+            let nil = NilClass::new();
 
-        let nil = NilClass::new();
+            let num = str_to_num("2 ** 64 - 1").unwrap();
+            assert_eq!(::std::u64::MAX, num.to_u64());
 
-        let num = str_to_num("2 ** 64 - 1").unwrap();
-        assert_eq!(::std::u64::MAX, num.to_u64());
+            let num = str_to_num("2 ** 64").unwrap();
+            let result = VM::protect(|| {
+                num.to_u64();
+                nil.into()
+            });
+            assert!(result.is_err());
 
-        let num = str_to_num("2 ** 64").unwrap();
-        let result = VM::protect(|| {
-            num.to_u64();
-            nil.into()
+            let num = str_to_num("0").unwrap();
+            assert_eq!(::std::u64::MIN, num.to_u64());
+
+            // // Current Ruby implementation does not raise an exception
+            // let num = str_to_num("-1").unwrap();
+            // let result = VM::protect(|| { num.to_u64(); nil.into() });
+            // assert!(result.is_err());
         });
-        assert!(result.is_err());
-
-        let num = str_to_num("0").unwrap();
-        assert_eq!(::std::u64::MIN, num.to_u64());
-
-        // // Current Ruby implementation does not raise an exception
-        // let num = str_to_num("-1").unwrap();
-        // let result = VM::protect(|| { num.to_u64(); nil.into() });
-        // assert!(result.is_err());
     }
 
     fn str_to_num(code: &str) -> Result<Integer, AnyException> {

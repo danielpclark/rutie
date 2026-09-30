@@ -14,6 +14,9 @@ extern "C" {
     // rb_ary_dup(VALUE ary)
     pub fn rb_ary_dup(array: Value) -> Value;
     // VALUE
+    // rb_ary_freeze(VALUE ary)
+    pub fn rb_ary_freeze(array: Value) -> Value;
+    // VALUE
     // rb_ary_entry(VALUE ary, long offset)
     pub fn rb_ary_entry(array: Value, offset: c_long) -> Value;
     // VALUE

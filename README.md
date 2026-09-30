@@ -368,6 +368,14 @@ discontinued. Its `link-ruby` and `ruby-static` cargo features do not exist in
 0.10; use the `no-link` feature (or `NO_LINK_RUTIE`) and the `RUBY_STATIC`
 environment variable as documented below, and expect Ruby 2, not Ruby 3.
 
+#### Unreleased (0.11)
+
+`VM::at_exit` now does what its name says: the closure runs when the Ruby VM shuts
+down (Ruby's `at_exit`), not immediately. It must be `'static` (move captured
+values into it). Programs embedding Ruby run these handlers by calling
+`unsafe { VM::cleanup() }` at the end. If you relied on the old immediate call,
+use `VM::call_protected`, which keeps that behaviour.
+
 
 ## Safety — The Rutie Philosophy vs The Rust Philosophy on Safety
 

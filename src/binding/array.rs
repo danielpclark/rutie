@@ -66,3 +66,7 @@ pub fn sort(array: Value) -> Value {
 pub fn sort_bang(array: Value) -> Value {
     unsafe { array::rb_ary_sort_bang(array) }
 }
+
+pub fn freeze(array: Value) -> Value {
+    unsafe { array::rb_ary_freeze(array) }
+}

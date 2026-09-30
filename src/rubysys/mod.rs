@@ -4,6 +4,7 @@ pub mod array;
 pub mod class;
 pub mod constant;
 pub mod encoding;
+pub mod exception;
 pub mod fixnum;
 pub mod float;
 pub mod gc;

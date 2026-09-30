@@ -25,4 +25,7 @@ extern "C" {
     // VALUE
     // rb_hash_size(VALUE hash)
     pub fn rb_hash_size(hash: Value) -> Value;
+    // VALUE
+    // rb_hash_freeze(VALUE hash)
+    pub fn rb_hash_freeze(hash: Value) -> Value;
 }

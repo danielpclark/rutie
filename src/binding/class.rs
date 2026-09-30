@@ -1,8 +1,11 @@
+use std::ffi::CStr;
+
 use crate::{
     binding::symbol,
+    helpers::scan_args::ScanArgsFormat,
     rubysys::{class, typed_data},
     typed_data::DataTypeWrapper,
-    types::{c_void, Callback, CallbackPtr, Value},
+    types::{c_int, c_void, Callback, CallbackPtr, Id, Value},
     util, Object,
 };
 
@@ -132,4 +135,121 @@ pub fn is_eql(object1: Value, object2: Value) -> Value {
 
 pub fn equals(object1: Value, object2: Value) -> Value {
     unsafe { class::rb_equal(object1, object2) }
+}
+
+pub fn is_kind_of(object: Value, klass: Value) -> bool {
+    unsafe { class::rb_obj_is_kind_of(object, klass) }.is_true()
+}
+
+pub fn define_alias(klass: Value, new_name: &str, old_name: &str) {
+    let new_name = util::str_to_cstring(new_name);
+    let old_name = util::str_to_cstring(old_name);
+
+    unsafe { class::rb_define_alias(klass, new_name.as_ptr(), old_name.as_ptr()) };
+}
+
+pub fn undef_method(klass: Value, name: &str) {
+    let name = util::str_to_cstring(name);
+
+    unsafe { class::rb_undef_method(klass, name.as_ptr()) };
+}
+
+pub fn define_alloc_func(klass: Value, func: class::AllocFunction) {
+    unsafe { class::rb_define_alloc_func(klass, func) };
+}
+
+pub fn undef_alloc_func(klass: Value) {
+    unsafe { class::rb_undef_alloc_func(klass) };
+}
+
+// Looks up the keywords in `table` (required ones first) in `keyword_hash`
+// (an empty hash when it is `nil`), writing them to `values`. Found keys are
+// removed from `keyword_hash`; missing optional keywords are left `Qundef`.
+// Raises `ArgumentError` for missing required or (unless `allow_extra`)
+// unknown keywords, so the caller owns `table` and `values`.
+pub fn get_kwargs(
+    keyword_hash: Value,
+    table: &[Id],
+    required: usize,
+    allow_extra: bool,
+    values: &mut [Value],
+) {
+    assert!(required <= table.len() && values.len() >= table.len());
+
+    let optional = (table.len() - required) as c_int;
+    let optional = if allow_extra { -1 - optional } else { optional };
+
+    unsafe {
+        class::rb_get_kwargs(
+            keyword_hash,
+            table.as_ptr(),
+            required as c_int,
+            optional,
+            values.as_mut_ptr(),
+        )
+    };
+}
+
+// The most `VALUE *` outputs any `rb_scan_args` format can have:
+// 9 required + 9 optional + splat + 9 post + keywords + block.
+pub const SCAN_ARGS_MAX_VARIABLES: usize = 30;
+
+// `rb_scan_args` takes one `VALUE *` per variable in `format`. C ignores
+// surplus variadic arguments, so all `SCAN_ARGS_MAX_VARIABLES` slots of
+// `out` are always passed and `rb_scan_args` fills as many as it needs.
+//
+// Raises `ArgumentError` on an arity mismatch, so the caller owns `format`
+// and `out`.
+pub fn scan_args(
+    arguments: &[Value],
+    format: &CStr,
+    out: &mut [Value; SCAN_ARGS_MAX_VARIABLES],
+) -> c_int {
+    // `rb_scan_args` aborts the process on a format it cannot parse.
+    let valid = format
+        .to_str()
+        .map(|format| ScanArgsFormat::parse(format).is_ok())
+        .unwrap_or(false);
+    assert!(valid, "invalid scan args format");
+
+    let (argc, argv) = util::process_arguments(arguments);
+    let o = out.as_mut_ptr();
+
+    unsafe {
+        class::rb_scan_args(
+            argc,
+            argv,
+            format.as_ptr(),
+            o,
+            o.add(1),
+            o.add(2),
+            o.add(3),
+            o.add(4),
+            o.add(5),
+            o.add(6),
+            o.add(7),
+            o.add(8),
+            o.add(9),
+            o.add(10),
+            o.add(11),
+            o.add(12),
+            o.add(13),
+            o.add(14),
+            o.add(15),
+            o.add(16),
+            o.add(17),
+            o.add(18),
+            o.add(19),
+            o.add(20),
+            o.add(21),
+            o.add(22),
+            o.add(23),
+            o.add(24),
+            o.add(25),
+            o.add(26),
+            o.add(27),
+            o.add(28),
+            o.add(29),
+        )
+    }
 }

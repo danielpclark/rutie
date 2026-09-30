@@ -1,7 +1,7 @@
 use std::convert::From;
 
 use crate::{
-    binding::{class, global::ValueType, vm},
+    binding::{class, exception, global::ValueType, vm},
     typed_data::DataTypeWrapper,
     types::{Callback, Value},
     util,
@@ -975,6 +975,209 @@ pub trait Object: From<Value> {
 
             output
         })
+    }
+
+    /// Calls a given method on an object with a Rust closure as its block,
+    /// like Ruby's `object.method(*arguments) { |*values| ... }`
+    /// (`rb_block_call`).
+    ///
+    /// The closure receives the values yielded to the block and its result
+    /// is the block's value. Inside the closure [`VM::iter_break`] and
+    /// [`VM::iter_break_value`] work like Ruby's `break`. A panic in the
+    /// closure is raised as a Ruby `RuntimeError`.
+    ///
+    /// [`VM::iter_break`]: struct.VM.html#method.iter_break
+    /// [`VM::iter_break_value`]: struct.VM.html#method.iter_break_value
+    ///
+    /// # Safety
+    ///
+    /// Like `send`, an exception raised by the method or the block is not
+    /// caught; see
+    /// [`protect_send_with_block`](#method.protect_send_with_block).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let array: Array = (1..=3).map(|i| Fixnum::new(i).to_any_object()).collect();
+    ///
+    /// // [1, 2, 3].map { |x| x * 2 }
+    /// let doubled = unsafe {
+    ///     array.send_with_block("map", &[], |values| {
+    ///         let x = values[0].try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///
+    ///         Fixnum::new(x * 2).into()
+    ///     })
+    /// };
+    ///
+    /// let doubled = doubled.try_convert_to::<Array>().unwrap();
+    ///
+    /// assert_eq!(doubled.at(2).try_convert_to::<Fixnum>(), Ok(Fixnum::new(6)));
+    ///
+    /// // All yielded values are passed: [[:a, 1]].each_with_index { |pair, index| ... }
+    /// let mut count = 0;
+    ///
+    /// unsafe {
+    ///     array.send_with_block("each_with_index", &[], |values| {
+    ///         assert_eq!(values.len(), 2);
+    ///         count += 1;
+    ///
+    ///         values[1].clone()
+    ///     })
+    /// };
+    ///
+    /// assert_eq!(count, 3);
+    /// ```
+    unsafe fn send_with_block<F>(
+        &self,
+        method: &str,
+        arguments: &[AnyObject],
+        mut block: F,
+    ) -> AnyObject
+    where
+        F: FnMut(&[AnyObject]) -> AnyObject,
+    {
+        let arguments = util::arguments_to_values(arguments);
+        let result = vm::call_method_with_block(self.value(), method, &arguments, |values| {
+            // `AnyObject` is a `#[repr(C)]` wrapper around a single `Value`.
+            let values =
+                std::slice::from_raw_parts(values.as_ptr() as *const AnyObject, values.len());
+
+            block(values).value()
+        });
+
+        AnyObject::from(result)
+    }
+
+    /// Like [`send_with_block`](#method.send_with_block), but an exception
+    /// raised by the method or the block is returned as `Err` instead of
+    /// propagating.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Exception, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let array: Array = (1..=3).map(|i| Fixnum::new(i).to_any_object()).collect();
+    ///
+    /// let sum = array.protect_send_with_block("sum", &[], |values| values[0].clone());
+    ///
+    /// assert_eq!(sum.unwrap().try_convert_to::<Fixnum>(), Ok(Fixnum::new(6)));
+    ///
+    /// let result = array.protect_send_with_block("each", &[], |_values| {
+    ///     unsafe { VM::eval_str("raise 'stop'") }
+    /// });
+    ///
+    /// assert_eq!(result.unwrap_err().message(), "stop");
+    ///
+    /// // Panics are turned into Ruby exceptions too.
+    /// let result = array.protect_send_with_block("each", &[], |_values| panic!("boom"));
+    ///
+    /// assert_eq!(result.unwrap_err().message(), "Rust panic: boom");
+    /// ```
+    fn protect_send_with_block<F>(
+        &self,
+        method: &str,
+        arguments: &[AnyObject],
+        block: F,
+    ) -> Result<AnyObject, AnyException>
+    where
+        F: FnMut(&[AnyObject]) -> AnyObject,
+    {
+        vm::protect_value(|| unsafe { self.send_with_block(method, arguments, block) }.value())
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Calls the object's `initialize` method with `arguments`, passing on
+    /// the block of the current method call, if any (`rb_obj_call_init`).
+    ///
+    /// Used by custom allocating constructors, see
+    /// [`Class::define_alloc_func`](struct.Class.html#method.define_alloc_func).
+    ///
+    /// # Safety
+    ///
+    /// Like `send`, an exception raised by `initialize` is not caught.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{AnyObject, Class, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Point; attr_reader :x; def initialize(x); @x = x; end; end").unwrap();
+    ///
+    /// let point = unsafe { Class::from_existing("Point").send("allocate", &[]) };
+    ///
+    /// unsafe { point.call_init(&[Fixnum::new(3).into()]) };
+    ///
+    /// let x = unsafe { point.send("x", &[]) };
+    ///
+    /// assert_eq!(x.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+    /// ```
+    unsafe fn call_init(&self, arguments: &[AnyObject]) {
+        let arguments = util::arguments_to_values(arguments);
+
+        vm::call_init(self.value(), &arguments)
+    }
+
+    /// Raises `FrozenError` if the object is frozen (`rb_check_frozen`).
+    ///
+    /// Call it at the start of a Rust method that modifies its receiver.
+    /// To check without raising, use [`is_frozen`](#method.is_frozen).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_utf8("mutable");
+    /// string.check_frozen(); // does nothing
+    ///
+    /// let frozen = RString::new_utf8("frozen").freeze();
+    ///
+    /// let result = VM::protect(|| {
+    ///     frozen.check_frozen();
+    ///     frozen.to_any_object()
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// assert!(Class::from_existing("FrozenError").case_equals(&VM::error_pop().unwrap()));
+    /// ```
+    fn check_frozen(&self) {
+        exception::check_frozen(self.value())
+    }
+
+    /// Raises `TypeError` unless the object has the given built-in type
+    /// (`rb_check_type`, C's `Check_Type`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{AnyException, Exception, Fixnum, Object, RString, VM};
+    /// use rutie::types::ValueType;
+    /// # VM::init();
+    ///
+    /// let string = RString::new_utf8("text");
+    /// string.check_type(ValueType::RString); // does nothing
+    ///
+    /// let result = VM::protect(|| {
+    ///     Fixnum::new(1).check_type(ValueType::RString);
+    ///     string.to_any_object()
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// assert_eq!(
+    ///     VM::error_pop().unwrap().message(),
+    ///     "wrong argument type Integer (expected String)"
+    /// );
+    /// ```
+    fn check_type(&self, value_type: ValueType) {
+        exception::check_type(self.value(), value_type)
     }
 
     /// Checks whether the object is `nil`

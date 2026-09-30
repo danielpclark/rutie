@@ -639,6 +639,65 @@ impl Module {
         class::define_attribute(self.value(), name, true, true);
     }
 
+    /// Makes `new_name` a copy of the method `old_name` (`rb_define_alias`,
+    /// Ruby's `alias_method`).
+    ///
+    /// Raises `NameError` if `old_name` is not defined.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Aliased; def hello; 'hello'; end; end").unwrap();
+    ///
+    /// Module::from_existing("Aliased").define_alias("greet", "hello");
+    ///
+    /// let greeting = VM::eval("Class.new { include Aliased }.new.greet").unwrap();
+    ///
+    /// assert_eq!(greeting.try_convert_to::<RString>().unwrap().to_str(), "hello");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// module Aliased
+    ///   alias_method :greet, :hello
+    /// end
+    /// ```
+    pub fn define_alias(&mut self, new_name: &str, old_name: &str) {
+        class::define_alias(self.value(), new_name, old_name);
+    }
+
+    /// Prevents instances from responding to the method `name`, including
+    /// one inherited from an ancestor (`rb_undef_method`, Ruby's
+    /// `undef_method`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Undefined; def to_s; 'custom'; end; end").unwrap();
+    ///
+    /// Module::from_existing("Undefined").undef_method("to_s");
+    ///
+    /// assert!(VM::eval("Class.new { include Undefined }.new.to_s").is_err());
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// module Undefined
+    ///   undef_method :to_s
+    /// end
+    /// ```
+    pub fn undef_method(&mut self, name: &str) {
+        class::undef_method(self.value(), name);
+    }
+
     /// Wraps Rust structure into a new Ruby object of the current module.
     ///
     /// See the documentation for `wrappable_struct!` macro for more information.

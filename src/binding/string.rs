@@ -102,3 +102,7 @@ pub fn locktmp(str: Value) -> Value {
 pub fn unlocktmp(str: Value) -> Value {
     unsafe { string::rb_str_unlocktmp(str) }
 }
+
+pub fn freeze(value: Value) -> Value {
+    unsafe { string::rb_str_freeze(value) }
+}

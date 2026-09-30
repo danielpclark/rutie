@@ -362,6 +362,10 @@ impl RString {
 
     /// Appends a given string slice onto the end of this String.
     ///
+    /// Ruby raises `FrozenError` if the string is frozen; check
+    /// [`is_frozen`](trait.Object.html#method.is_frozen) first or call it inside
+    /// [`VM::protect`](struct.VM.html#method.protect) when that is possible.
+    ///
     /// # Examples
     ///
     /// ```

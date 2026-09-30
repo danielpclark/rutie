@@ -2,6 +2,7 @@ use std::convert::From;
 
 use crate::{
     binding::{class, global::rb_cObject, module},
+    rubysys::class::AllocFunction,
     typed_data::DataTypeWrapper,
     types::{Value, ValueType},
     util, AnyObject, Array, Module, Object, VerifiedObject,
@@ -602,6 +603,144 @@ impl Class {
     /// ```
     pub fn attr_accessor(&mut self, name: &str) {
         class::define_attribute(self.value(), name, true, true);
+    }
+
+    /// Makes `new_name` a copy of the method `old_name` (`rb_define_alias`,
+    /// Ruby's `alias_method`).
+    ///
+    /// Raises `NameError` if `old_name` is not defined.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Aliased; def hello; 'hello'; end; end").unwrap();
+    ///
+    /// Class::from_existing("Aliased").define_alias("greet", "hello");
+    ///
+    /// let greeting = VM::eval("Aliased.new.greet").unwrap();
+    ///
+    /// assert_eq!(greeting.try_convert_to::<RString>().unwrap().to_str(), "hello");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// class Aliased
+    ///   alias_method :greet, :hello
+    /// end
+    /// ```
+    pub fn define_alias(&mut self, new_name: &str, old_name: &str) {
+        class::define_alias(self.value(), new_name, old_name);
+    }
+
+    /// Prevents instances from responding to the method `name`, including
+    /// one inherited from an ancestor (`rb_undef_method`, Ruby's
+    /// `undef_method`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Undefined; def to_s; 'custom'; end; end").unwrap();
+    ///
+    /// Class::from_existing("Undefined").undef_method("to_s");
+    ///
+    /// assert!(VM::eval("Undefined.new.to_s").is_err());
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// class Undefined
+    ///   undef_method :to_s
+    /// end
+    /// ```
+    pub fn undef_method(&mut self, name: &str) {
+        class::undef_method(self.value(), name);
+    }
+
+    /// Sets the function Ruby calls to allocate instances of this class
+    /// (`rb_define_alloc_func`); `new` calls it and then `initialize`.
+    ///
+    /// Use it to make every instance wrap Rust data (see
+    /// `wrappable_struct!`) so that `Class#new`, `allocate`, `dup` and
+    /// subclasses work as usual. The function must not panic.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    /// #[macro_use] extern crate lazy_static;
+    ///
+    /// use rutie::{AnyObject, Class, Fixnum, NilClass, Object, VM};
+    ///
+    /// pub struct Counter {
+    ///     count: i64,
+    /// }
+    ///
+    /// wrappable_struct!(Counter, CounterWrapper, COUNTER_WRAPPER);
+    ///
+    /// class!(RubyCounter);
+    ///
+    /// extern "C" fn counter_alloc(klass: Class) -> AnyObject {
+    ///     klass.wrap_data(Counter { count: 0 }, &*COUNTER_WRAPPER)
+    /// }
+    ///
+    /// methods!(
+    ///     RubyCounter,
+    ///     rtself,
+    ///
+    ///     fn counter_increment() -> Fixnum {
+    ///         let counter = rtself.get_data_mut(&*COUNTER_WRAPPER);
+    ///         counter.count += 1;
+    ///
+    ///         Fixnum::new(counter.count)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("RubyCounter", None).define(|klass| {
+    ///         klass.define_alloc_func(counter_alloc);
+    ///         klass.def("increment", counter_increment);
+    ///     });
+    ///
+    ///     let count = VM::eval("c = RubyCounter.new; c.increment; c.increment").unwrap();
+    ///
+    ///     assert_eq!(count.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+    /// }
+    /// ```
+    pub fn define_alloc_func(&mut self, func: extern "C" fn(Class) -> AnyObject) {
+        // `Class` and `AnyObject` are `#[repr(C)]` wrappers around a `Value`.
+        let func: AllocFunction = unsafe { ::std::mem::transmute(func) };
+
+        class::define_alloc_func(self.value(), func);
+    }
+
+    /// Removes the allocator of this class (`rb_undef_alloc_func`), so
+    /// `new` and `allocate` raise `TypeError`.
+    ///
+    /// Use it for classes whose instances can only be made from Rust, such
+    /// as ones wrapping Rust data with a custom constructor.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, VM};
+    /// # VM::init();
+    ///
+    /// Class::new("NoAllocate", None).undef_alloc_func();
+    ///
+    /// assert!(VM::eval("NoAllocate.new").is_err());
+    /// assert!(VM::eval("NoAllocate.allocate").is_err());
+    /// ```
+    pub fn undef_alloc_func(&mut self) {
+        class::undef_alloc_func(self.value());
     }
 
     /// Wraps Rust structure into a new Ruby object of the current class.

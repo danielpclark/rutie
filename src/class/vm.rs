@@ -1,9 +1,14 @@
 use crate::{
-    binding::vm,
-    types::{Argc, Value, VmPointer},
+    binding::{class, exception, hash, symbol, vm},
+    helpers::scan_args::{KeywordArgs, ScanArgsFormat, ScannedArgs},
+    rubysys::{exception::rb_eStandardError, rproc},
+    types::{Argc, Id, Value, VmPointer},
 };
 
-use crate::{util, AnyException, AnyObject, Array, Class, NilClass, Object, Proc, TryConvert};
+use crate::{
+    util, AnyException, AnyObject, Array, Class, Exception, Hash, NilClass, Object, Proc,
+    TryConvert,
+};
 
 /// Virtual Machine and helpers
 pub struct VM;
@@ -754,26 +759,913 @@ impl VM {
         Class::from_existing("Signal").protect_send("trap", arguments)
     }
 
-    /// `at_exit` is run AFTER the VM is shut down
+    /// Registers `func` to be called when the Ruby VM runs its `at_exit` handlers.
+    ///
+    /// This is Ruby's `Kernel#at_exit` for Rust closures (`rb_set_end_proc`).
+    /// Handlers run in reverse order of registration, together with the ones
+    /// registered from Ruby, when the interpreter shuts down: at the end of a
+    /// `ruby` process that loaded your extension, or when an embedding
+    /// program calls [`VM::cleanup`](#method.cleanup).
+    ///
+    /// The closure is kept alive until it runs, so it must be `'static`. A
+    /// panic inside it does not cross into Ruby; it is reported as a
+    /// `RuntimeError` in the `at_exit` handler, like an exception raised from
+    /// a Ruby `at_exit` block.
+    ///
+    /// The `VmPointer` argument is always null; it is kept for compatibility.
+    ///
+    /// Before 0.11 this method called `func` immediately; that behaviour is
+    /// still available as [`VM::call_protected`](#method.call_protected).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    ///
+    /// static CALLS: AtomicUsize = AtomicUsize::new(0);
+    ///
+    /// # VM::init();
+    /// VM::at_exit(|_vm| {
+    ///     // Handlers run last-in, first-out: this one runs second.
+    ///     assert_eq!(CALLS.fetch_add(1, Ordering::SeqCst), 1);
+    /// });
+    /// VM::at_exit(|_vm| {
+    ///     assert_eq!(CALLS.fetch_add(1, Ordering::SeqCst), 0);
+    /// });
+    ///
+    /// // Nothing runs until the VM shuts down.
+    /// assert_eq!(CALLS.load(Ordering::SeqCst), 0);
+    ///
+    /// unsafe { VM::cleanup() };
+    ///
+    /// assert_eq!(CALLS.load(Ordering::SeqCst), 2);
+    /// ```
+    ///
+    /// A panicking handler does not stop the others from running:
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// use std::sync::atomic::{AtomicBool, Ordering};
+    ///
+    /// static RAN: AtomicBool = AtomicBool::new(false);
+    ///
+    /// # VM::init();
+    /// VM::at_exit(|_vm| RAN.store(true, Ordering::SeqCst));
+    /// VM::at_exit(|_vm| panic!("handler failed"));
+    ///
+    /// unsafe { VM::cleanup() };
+    ///
+    /// assert!(RAN.load(Ordering::SeqCst));
+    /// ```
+    pub fn at_exit<F>(func: F)
+    where
+        F: FnOnce(VmPointer) + 'static,
+    {
+        vm::at_exit(func)
+    }
+
+    /// Calls `func` immediately inside `rb_protect`, ignoring any exception
+    /// it raises (the error info is left set).
+    ///
+    /// This is what `VM::at_exit` did before 0.11. To run code when the VM
+    /// shuts down use [`VM::at_exit`](#method.at_exit); to handle exceptions
+    /// use [`VM::protect`](#method.protect).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// let mut calls = 0;
+    ///
+    /// VM::call_protected(|_vm| calls += 1);
+    ///
+    /// assert_eq!(calls, 1);
+    /// ```
+    pub fn call_protected<F>(func: F)
+    where
+        F: FnMut(VmPointer),
+    {
+        vm::call_protected(func)
+    }
+
+    /// Shuts down the Ruby VM (`ruby_cleanup`) and returns the exit status
+    /// Ruby would have exited with.
+    ///
+    /// This runs the `at_exit` handlers (both [`VM::at_exit`](#method.at_exit)
+    /// ones and Ruby's), terminates the other Ruby threads, runs finalizers
+    /// and frees the VM. Call it once, at the end of a program that started
+    /// the VM with [`VM::init`](#method.init). Libraries loaded into a
+    /// running Ruby must not call it.
+    ///
+    /// # Safety
+    ///
+    /// After this returns no Ruby object or Rutie API may be used again, and
+    /// `VM::init` must not be called again in the same process.
     ///
     /// # Examples
     ///
     /// ```
     /// use rutie::VM;
     ///
+    /// VM::init();
+    ///
+    /// // ... use Ruby ...
+    ///
+    /// let status = unsafe { VM::cleanup() };
+    ///
+    /// assert_eq!(status, 0);
+    /// ```
+    pub unsafe fn cleanup() -> i32 {
+        vm::cleanup(0)
+    }
+
+    /// Calls `body`, then always calls `ensure`, even when `body` raises a
+    /// Ruby exception (Ruby's `begin`/`ensure`, `rb_ensure`).
+    ///
+    /// Returns the result of `body`. When `body` raises, `ensure` runs and
+    /// the exception keeps propagating, so this raises too; wrap the call in
+    /// [`VM::protect`](#method.protect) or [`VM::rescue`](#method.rescue) to
+    /// handle it. A panic in either closure is raised as a `RuntimeError`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// use std::cell::Cell;
     /// # VM::init();
     ///
-    /// let closure = |_vm| {
-    ///     println!("at_exit worked!");
+    /// let ensured = Cell::new(false);
+    ///
+    /// let result = VM::ensure(|| Fixnum::new(1).into(), || ensured.set(true));
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+    /// assert!(ensured.get());
+    ///
+    /// // The ensure closure also runs when the body raises.
+    /// ensured.set(false);
+    ///
+    /// let result = VM::protect(|| {
+    ///     VM::ensure(|| unsafe { VM::eval_str("raise 'oops'") }, || ensured.set(true))
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// assert!(ensured.get());
+    /// assert_eq!(VM::error_pop().unwrap().to_string(), "#<RuntimeError: oops>");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// begin
+    ///   raise 'oops'
+    /// ensure
+    ///   ensured = true
+    /// end
+    /// ```
+    pub fn ensure<B, E>(body: B, ensure: E) -> AnyObject
+    where
+        B: FnOnce() -> AnyObject,
+        E: FnOnce(),
+    {
+        AnyObject::from(vm::ensure(|| body().value(), ensure))
+    }
+
+    /// Calls `body`; if it raises a `StandardError`, calls `handler` with the
+    /// exception and returns its result instead (Ruby's `begin`/`rescue`,
+    /// `rb_rescue`).
+    ///
+    /// Exceptions that are not a `StandardError` (such as `SystemExit` or
+    /// `Interrupt`) keep propagating. To rescue other classes use
+    /// [`VM::rescue_from`](#method.rescue_from). A panic in `body` is raised
+    /// as a `RuntimeError`, so it is rescued too.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::rescue(
+    ///     || unsafe { VM::eval_str("raise ArgumentError, 'bad'") },
+    ///     |exception| RString::new_utf8(&exception.message()).into(),
+    /// );
+    ///
+    /// assert_eq!(result.try_convert_to::<RString>().unwrap().to_str(), "bad");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// begin
+    ///   raise ArgumentError, 'bad'
+    /// rescue => exception
+    ///   exception.message
+    /// end
+    /// ```
+    pub fn rescue<B, R>(body: B, handler: R) -> AnyObject
+    where
+        B: FnOnce() -> AnyObject,
+        R: FnOnce(AnyException) -> AnyObject,
+    {
+        let standard_error = unsafe { rb_eStandardError };
+
+        VM::rescue_values(body, handler, &[standard_error])
+    }
+
+    /// Calls `body`; if it raises an exception that is kind of one of
+    /// `classes`, calls `handler` with the exception and returns its result
+    /// instead (Ruby's `rescue ClassA, ClassB => e`, `rb_rescue2`).
+    ///
+    /// Any other exception keeps propagating.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let classes = [Class::from_existing("KeyError"), Class::from_existing("IndexError")];
+    ///
+    /// let result = VM::rescue_from(
+    ///     &classes,
+    ///     || unsafe { VM::eval_str("{}.fetch(:missing)") },
+    ///     |_exception| Fixnum::new(0).into(),
+    /// );
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(0)));
+    ///
+    /// // A `TypeError` is not in `classes`, so it propagates.
+    /// let result = VM::protect(|| {
+    ///     VM::rescue_from(
+    ///         &classes,
+    ///         || unsafe { VM::eval_str("Integer([])") },
+    ///         |_exception| Fixnum::new(0).into(),
+    ///     )
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// assert!(Class::from_existing("TypeError").case_equals(&VM::error_pop().unwrap()));
+    /// ```
+    pub fn rescue_from<B, R>(classes: &[Class], body: B, handler: R) -> AnyObject
+    where
+        B: FnOnce() -> AnyObject,
+        R: FnOnce(AnyException) -> AnyObject,
+    {
+        let classes: Vec<Value> = classes.iter().map(Object::value).collect();
+
+        VM::rescue_values(body, handler, &classes)
+    }
+
+    fn rescue_values<B, R>(body: B, handler: R, classes: &[Value]) -> AnyObject
+    where
+        B: FnOnce() -> AnyObject,
+        R: FnOnce(AnyException) -> AnyObject,
+    {
+        let result = vm::rescue(
+            || body().value(),
+            |exception| handler(AnyException::from(exception)).value(),
+            classes,
+        );
+
+        AnyObject::from(result)
+    }
+
+    /// Calls `body` with `tag`; a [`VM::throw`](#method.throw) of the same
+    /// tag from inside `body` (or anything it calls) returns the thrown
+    /// value from `catch` (Ruby's `catch`/`throw`, `rb_catch_obj`).
+    ///
+    /// Returns the result of `body` when nothing is thrown.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::catch(Symbol::new("done"), |tag| {
+    ///     VM::throw(tag, Fixnum::new(42));
+    /// });
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    ///
+    /// let result = VM::catch(Symbol::new("done"), |_tag| Fixnum::new(1).into());
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// catch(:done) do |tag|
+    ///   throw tag, 42
+    /// end
+    /// ```
+    pub fn catch<T, F>(tag: T, body: F) -> AnyObject
+    where
+        T: Object,
+        F: FnOnce(AnyObject) -> AnyObject,
+    {
+        let result = vm::catch(tag.value(), |tag| body(AnyObject::from(tag)).value());
+
+        AnyObject::from(result)
+    }
+
+    /// Transfers control to the end of the active [`VM::catch`](#method.catch)
+    /// block waiting for `tag`, which returns `value` (Ruby's `throw`,
+    /// `rb_throw_obj`).
+    ///
+    /// Raises `UncaughtThrowError` (an `ArgumentError`) when there is no
+    /// matching `catch`. Rust values alive in the frames being unwound are
+    /// not dropped.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, NilClass, Object, RString, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::catch(Symbol::new("found"), |_tag| {
+    ///     for name in &["a", "b", "c"] {
+    ///         if *name == "b" {
+    ///             VM::throw(Symbol::new("found"), RString::new_utf8(name));
+    ///         }
+    ///     }
+    ///
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// assert_eq!(result.try_convert_to::<RString>().unwrap().to_str(), "b");
+    ///
+    /// // Without a matching `catch`:
+    /// let result = VM::protect(|| VM::throw(Symbol::new("nowhere"), NilClass::new()));
+    ///
+    /// assert!(result.is_err());
+    /// assert!(Class::from_existing("ArgumentError").case_equals(&VM::error_pop().unwrap()));
+    /// ```
+    pub fn throw<T, V>(tag: T, value: V) -> !
+    where
+        T: Object,
+        V: Object,
+    {
+        vm::throw(tag.value(), value.value())
+    }
+
+    /// Breaks out of the method that yielded to the current block, making it
+    /// return `nil` (Ruby's `break` inside a block, `rb_iter_break`).
+    ///
+    /// # Safety
+    ///
+    /// Must only be called from inside a block, such as the closure given to
+    /// [`Object::send_with_block`](trait.Object.html#method.send_with_block);
+    /// anywhere else Ruby may abort the process. Rust values alive in the
+    /// frames being unwound are not dropped.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, NilClass, Object, VM};
+    /// # VM::init();
+    ///
+    /// let array: Array = (1..=5).map(|i| Fixnum::new(i).to_any_object()).collect();
+    /// let mut seen = 0;
+    ///
+    /// let result = unsafe {
+    ///     array.send_with_block("each", &[], |_values| {
+    ///         seen += 1;
+    ///
+    ///         if seen == 2 {
+    ///             VM::iter_break();
+    ///         }
+    ///
+    ///         NilClass::new().into()
+    ///     })
     /// };
     ///
-    /// VM::at_exit(closure);
+    /// assert!(result.is_nil());
+    /// assert_eq!(seen, 2);
     /// ```
-    pub fn at_exit<F>(func: F)
-    where
-        F: FnMut(VmPointer) -> (),
-    {
-        vm::at_exit(func)
+    pub unsafe fn iter_break() -> ! {
+        vm::iter_break()
+    }
+
+    /// Breaks out of the method that yielded to the current block, making it
+    /// return `value` (Ruby's `break value` inside a block,
+    /// `rb_iter_break_value`).
+    ///
+    /// # Safety
+    ///
+    /// The same as [`VM::iter_break`](#method.iter_break).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, NilClass, Object, VM};
+    /// # VM::init();
+    ///
+    /// let array: Array = (1..=5).map(|i| Fixnum::new(i).to_any_object()).collect();
+    ///
+    /// // Like `[1, 2, 3, 4, 5].each { |x| break x * 10 if x == 3 }`
+    /// let result = unsafe {
+    ///     array.send_with_block("each", &[], |values| {
+    ///         let x = values[0].try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///
+    ///         if x == 3 {
+    ///             VM::iter_break_value(Fixnum::new(x * 10));
+    ///         }
+    ///
+    ///         NilClass::new().into()
+    ///     })
+    /// };
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(30)));
+    /// ```
+    pub unsafe fn iter_break_value<T: Object>(value: T) -> ! {
+        vm::iter_break_value(value.value())
+    }
+
+    /// Resumes a non-local jump (usually a raised exception) that
+    /// [`VM::protect`](#method.protect) stopped, given the state it returned
+    /// (`rb_jump_tag`).
+    ///
+    /// # Safety
+    ///
+    /// `state` must be a non-zero state returned by `VM::protect`, and for a
+    /// raised exception the error info must not have been cleared (for
+    /// example by `VM::error_pop`). Rust values alive in the frames being
+    /// unwound are not dropped.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, NilClass, Object, VM};
+    /// # VM::init();
+    ///
+    /// let outer = VM::protect(|| {
+    ///     let inner = VM::protect(|| unsafe { VM::eval_str("raise 'again'") });
+    ///
+    ///     if let Err(state) = inner {
+    ///         // Clean up, then let the exception continue.
+    ///         unsafe { VM::jump_tag(state) };
+    ///     }
+    ///
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// assert!(outer.is_err());
+    /// assert_eq!(VM::error_pop().unwrap().message(), "again");
+    /// ```
+    pub unsafe fn jump_tag(state: i32) -> ! {
+        vm::jump_tag(state)
+    }
+
+    /// Returns `true` when the Ruby method currently running was called with
+    /// keyword arguments (`rb_keyword_given_p`).
+    ///
+    /// Only available on Ruby 2.7, where it is needed to tell keywords from
+    /// a trailing positional `Hash`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// // Not inside a method called with keywords.
+    /// # #[cfg(ruby_gte_2_7)]
+    /// assert!(!VM::is_keyword_given());
+    /// ```
+    #[cfg(ruby_gte_2_7)]
+    pub fn is_keyword_given() -> bool {
+        vm::is_keyword_given()
+    }
+
+    /// Emits a Ruby warning (`rb_warn`), printed to `$stderr` as
+    /// `warning: message` unless warnings are disabled (`$VERBOSE` is `nil`).
+    ///
+    /// `message` is never interpreted as a format string. It is cut at its
+    /// first NUL byte, if any.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// // Collect warnings instead of printing them.
+    /// VM::eval("$warnings = []; def Warning.warn(message); $warnings << message; end").unwrap();
+    ///
+    /// VM::warn("100% deprecated");
+    ///
+    /// let warnings = VM::eval("$warnings.join").unwrap().try_convert_to::<RString>().unwrap();
+    ///
+    /// assert!(warnings.to_str().ends_with("warning: 100% deprecated\n"));
+    /// ```
+    pub fn warn(message: &str) {
+        exception::warn(message)
+    }
+
+    /// Emits a Ruby warning only in verbose mode (`$VERBOSE` is `true`,
+    /// `rb_warning`), printed to `$stderr` as `warning: message`.
+    ///
+    /// `message` is never interpreted as a format string. It is cut at its
+    /// first NUL byte, if any.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("$warnings = []; def Warning.warn(message); $warnings << message; end").unwrap();
+    ///
+    /// VM::eval("$VERBOSE = false").unwrap();
+    /// VM::warning("quiet");
+    ///
+    /// VM::eval("$VERBOSE = true").unwrap();
+    /// VM::warning("loud");
+    ///
+    /// let warnings = VM::eval("$warnings.join").unwrap().try_convert_to::<RString>().unwrap();
+    ///
+    /// assert!(!warnings.to_str().contains("quiet"));
+    /// assert!(warnings.to_str().ends_with("warning: loud\n"));
+    /// ```
+    pub fn warning(message: &str) {
+        exception::warning(message)
+    }
+
+    /// Checks that `argc` arguments fit a method taking `min` to `max`
+    /// arguments (`max` of `-1` means no upper limit), like `rb_check_arity`.
+    ///
+    /// Returns `argc`, or an `ArgumentError` with Ruby's usual message
+    /// without raising it. To raise it, see
+    /// [`VM::raise_arity_error`](#method.raise_arity_error).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(VM::check_arity(2, 1, 3), Ok(2));
+    /// assert_eq!(VM::check_arity(5, 1, -1), Ok(5));
+    ///
+    /// let error = VM::check_arity(0, 1, 2).unwrap_err();
+    ///
+    /// assert_eq!(error.message(), "wrong number of arguments (given 0, expected 1..2)");
+    /// ```
+    pub fn check_arity(argc: i32, min: i32, max: i32) -> Result<i32, AnyException> {
+        rproc::check_arity(argc, min, max)
+    }
+
+    /// Raises an `ArgumentError` for a call with `argc` arguments to a
+    /// method taking `min` to `max` arguments (`max` of `-1` means no upper
+    /// limit), with Ruby's usual message (`rb_error_arity`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| VM::raise_arity_error(3, 1, 2));
+    ///
+    /// assert!(result.is_err());
+    /// assert_eq!(
+    ///     VM::error_pop().unwrap().message(),
+    ///     "wrong number of arguments (given 3, expected 1..2)"
+    /// );
+    /// ```
+    pub fn raise_arity_error(argc: i32, min: i32, max: i32) -> ! {
+        exception::error_arity(argc, min, max)
+    }
+
+    /// Raises `ZeroDivisionError` with Ruby's usual message (`rb_num_zerodiv`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| VM::raise_zero_division());
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    ///
+    /// assert!(Class::from_existing("ZeroDivisionError").case_equals(&error));
+    /// assert_eq!(error.message(), "divided by 0");
+    /// ```
+    pub fn raise_zero_division() -> ! {
+        exception::num_zerodiv()
+    }
+
+    /// Raises `NotImplementedError` for the Ruby method currently running
+    /// (`rb_notimplement`), for features the platform does not support.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, NilClass, Object, VM};
+    ///
+    /// class!(Forker);
+    ///
+    /// methods!(
+    ///     Forker,
+    ///     rtself,
+    ///
+    ///     fn forker_fork() -> NilClass {
+    ///         VM::not_implemented()
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Forker", None).define(|klass| {
+    ///         klass.def("fork", forker_fork);
+    ///     });
+    ///
+    ///     let error = VM::eval("Forker.new.fork").unwrap_err();
+    ///
+    ///     assert!(Class::from_existing("NotImplementedError").case_equals(&error));
+    /// }
+    /// ```
+    pub fn not_implemented() -> ! {
+        exception::not_implemented()
+    }
+
+    /// Raises the `SystemCallError` subclass (`Errno::*`) for the current
+    /// OS error (`errno`), with `message` added to its message, like
+    /// `rb_sys_fail`.
+    ///
+    /// Unlike `rb_sys_fail`, which aborts the process when `errno` is `0`,
+    /// this raises a plain `SystemCallError` in that case.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, VM};
+    /// use std::fs::File;
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| {
+    ///     match File::open("/this/path/does/not/exist") {
+    ///         Ok(_) => unreachable!(),
+    ///         Err(_) => VM::sys_fail("/this/path/does/not/exist"),
+    ///     }
+    /// });
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    ///
+    /// assert!(Class::from_existing("Errno").get_nested_class("ENOENT").case_equals(&error));
+    /// assert!(error.message().contains("/this/path/does/not/exist"));
+    /// ```
+    pub fn sys_fail(message: &str) -> ! {
+        let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
+
+        exception::syserr_fail(errno, message)
+    }
+
+    /// Splits the `arguments` of a Ruby method call according to an
+    /// `rb_scan_args` format, checking the number of arguments.
+    ///
+    /// The format is `[required[optional]][*][post][:][&]`:
+    ///
+    ///  - `required` — number of leading mandatory arguments (one digit)
+    ///  - `optional` — number of optional arguments (one digit, only after `required`)
+    ///  - `*` — collect the remaining arguments in an `Array`
+    ///  - `post` — number of trailing mandatory arguments (one digit)
+    ///  - `:` — take keyword arguments as a `Hash`
+    ///  - `&` — take the block as a `Proc`
+    ///
+    /// For example `"12"` is one required and two optional arguments, and
+    /// `"1*:&"` is one required argument, a splat, keywords and a block.
+    ///
+    /// Keywords follow the running Ruby's rules for `rb_scan_args`: a
+    /// trailing `Hash` is taken as keywords on Ruby 2.5 and 2.6, and Ruby 2.7
+    /// applies its keyword-argument transition rules (and warnings).
+    ///
+    /// Returns an `ArgumentError`, without raising it, when the format is
+    /// invalid or the arguments do not fit it.
+    ///
+    /// This is meant for methods that take a variable number of arguments,
+    /// defined with a plain `extern` function (see the example) since
+    /// `methods!` gives each argument its own parameter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{AnyObject, Class, Exception, Fixnum, Object, RString, VM};
+    /// use rutie::types::Argc;
+    ///
+    /// // def greet(name, greeting = "Hello", *rest)
+    /// pub extern "C" fn greet(argc: Argc, argv: *const AnyObject, _rtself: AnyObject) -> RString {
+    ///     let arguments = rutie::util::parse_arguments(argc, argv);
+    ///
+    ///     let args = VM::scan_args(&arguments, "11*");
+    ///
+    ///     if let Err(ref error) = args {
+    ///         VM::raise(error.class(), &error.message());
+    ///     }
+    ///
+    ///     // We can safely unwrap here
+    ///     let args = args.unwrap();
+    ///
+    ///     let name = args.required[0].try_convert_to::<RString>().unwrap();
+    ///     let greeting = args.optional[0]
+    ///         .as_ref()
+    ///         .map(|greeting| greeting.try_convert_to::<RString>().unwrap().to_string())
+    ///         .unwrap_or_else(|| "Hello".to_string());
+    ///     let rest = args.splat.unwrap().length();
+    ///
+    ///     RString::new_utf8(&format!("{} {} (+{})", greeting, name.to_str(), rest))
+    /// }
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::from_existing("Object").define(|klass| {
+    ///         klass.def("greet", greet);
+    ///     });
+    ///
+    ///     let greeting = |code| VM::eval(code).unwrap().try_convert_to::<RString>().unwrap().to_string();
+    ///
+    ///     assert_eq!(greeting("greet('Ruby')"), "Hello Ruby (+0)");
+    ///     assert_eq!(greeting("greet('Ruby', 'Hi', 1, 2)"), "Hi Ruby (+2)");
+    ///
+    ///     let error = VM::eval("greet").unwrap_err();
+    ///     assert_eq!(error.message(), "wrong number of arguments (given 0, expected 1+)");
+    /// }
+    /// ```
+    ///
+    /// Scanning keywords and a block:
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, Symbol, VM, Exception};
+    /// # VM::init();
+    ///
+    /// let mut options = Hash::new();
+    /// options.store(Symbol::new("verbose"), Fixnum::new(1));
+    ///
+    /// let arguments = [Fixnum::new(1).into(), options.into()];
+    /// let args = VM::scan_args(&arguments, "1:&").unwrap();
+    ///
+    /// assert_eq!(args.required.len(), 1);
+    /// assert_eq!(args.keywords.unwrap().at(&Symbol::new("verbose")), Fixnum::new(1).into());
+    /// assert!(args.block.is_none());
+    ///
+    /// let error = VM::scan_args(&arguments, "bogus").unwrap_err();
+    /// assert_eq!(error.message(), "bad scan arg format: bogus");
+    /// ```
+    pub fn scan_args(arguments: &[AnyObject], format: &str) -> Result<ScannedArgs, AnyException> {
+        let spec = ScanArgsFormat::parse(format)
+            .map_err(|message| AnyException::new("ArgumentError", Some(&message)))?;
+
+        let arguments = util::arguments_to_values(arguments);
+        let format = util::str_to_cstring(format);
+        let mut out = [NilClass::new().value(); class::SCAN_ARGS_MAX_VARIABLES];
+        let mut positional = 0;
+
+        vm::protect_value(|| {
+            positional = class::scan_args(&arguments, &format, &mut out);
+
+            NilClass::new().value()
+        })
+        .map_err(AnyException::from)?;
+
+        let mut values = out.iter().map(|value| AnyObject::from(*value));
+        let mut take = |count: usize| -> Vec<AnyObject> { values.by_ref().take(count).collect() };
+
+        let required = take(spec.required);
+        let given_optional = (positional as usize)
+            .saturating_sub(spec.required + spec.post)
+            .min(spec.optional);
+        let optional = take(spec.optional)
+            .into_iter()
+            .enumerate()
+            .map(|(i, value)| {
+                if i < given_optional {
+                    Some(value)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let splat = take(spec.splat as usize)
+            .pop()
+            .map(|value| Array::from(value.value()));
+        let post = take(spec.post);
+        let keywords = take(spec.keywords as usize)
+            .pop()
+            .filter(|value| !value.is_nil())
+            .map(|value| Hash::from(value.value()));
+        let block = take(spec.block as usize)
+            .pop()
+            .filter(|value| !value.is_nil())
+            .map(|value| Proc::from(value.value()));
+
+        Ok(ScannedArgs {
+            required,
+            optional,
+            splat,
+            post,
+            keywords,
+            block,
+        })
+    }
+
+    /// Looks up keyword arguments by name in `keywords` (the `Hash` from
+    /// [`VM::scan_args`](#method.scan_args), or `None` when no keywords were
+    /// passed), like `rb_get_kwargs`.
+    ///
+    /// `keywords` is not modified. When `allow_extra` is `true`, keywords
+    /// that are neither `required` nor `optional` are returned in `rest`;
+    /// otherwise they are an error.
+    ///
+    /// Returns an `ArgumentError`, without raising it, when a required
+    /// keyword is missing or an unknown keyword is given.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut keywords = Hash::new();
+    /// keywords.store(Symbol::new("host"), Fixnum::new(1));
+    /// keywords.store(Symbol::new("extra"), Fixnum::new(2));
+    ///
+    /// let kwargs = VM::get_kwargs(Some(&keywords), &["host"], &["port"], true).unwrap();
+    ///
+    /// assert_eq!(kwargs.required, vec![Fixnum::new(1).into()]);
+    /// assert_eq!(kwargs.optional, vec![None]);
+    /// assert_eq!(kwargs.rest.unwrap().length(), 1);
+    ///
+    /// // Unknown keywords are an error unless `allow_extra` is set.
+    /// let error = VM::get_kwargs(Some(&keywords), &["host"], &["port"], false).unwrap_err();
+    /// assert!(error.message().starts_with("unknown keyword"));
+    ///
+    /// let error = VM::get_kwargs(None, &["host"], &[], false).unwrap_err();
+    /// assert!(error.message().starts_with("missing keyword"));
+    ///
+    /// // The original hash is left alone.
+    /// assert_eq!(keywords.length(), 2);
+    /// ```
+    pub fn get_kwargs(
+        keywords: Option<&Hash>,
+        required: &[&str],
+        optional: &[&str],
+        allow_extra: bool,
+    ) -> Result<KeywordArgs, AnyException> {
+        let hash = match keywords {
+            Some(keywords) => Hash::from(hash::dup(keywords.value())),
+            None => Hash::new(),
+        };
+        let table: Vec<Id> = required
+            .iter()
+            .chain(optional.iter())
+            .map(|name| symbol::internal_id(name))
+            .collect();
+        let mut values = vec![NilClass::new().value(); table.len()];
+
+        vm::protect_value(|| {
+            class::get_kwargs(
+                hash.value(),
+                &table,
+                required.len(),
+                allow_extra,
+                &mut values,
+            );
+
+            NilClass::new().value()
+        })
+        .map_err(AnyException::from)?;
+
+        let optional_values = values
+            .split_off(required.len())
+            .into_iter()
+            .map(|value| {
+                if value.is_undef() {
+                    None
+                } else {
+                    Some(AnyObject::from(value))
+                }
+            })
+            .collect();
+
+        Ok(KeywordArgs {
+            required: values.into_iter().map(AnyObject::from).collect(),
+            optional: optional_values,
+            rest: if allow_extra { Some(hash) } else { None },
+        })
     }
 
     /// Call super
@@ -877,29 +1769,545 @@ impl VM {
 
 #[cfg(test)]
 mod tests {
-    use crate::{LOCK_FOR_TEST, VM};
+    use crate::{
+        types::ValueType, AnyObject, Array, Class, Exception, Fixnum, Hash, NilClass, Object,
+        RString, Symbol, LOCK_FOR_TEST, VM,
+    };
+    use std::{
+        cell::Cell,
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
+    };
+
+    fn eval_raising(code: &str) -> AnyObject {
+        unsafe { VM::eval_str(code) }
+    }
+
+    fn fixnums(values: &[i64]) -> Array {
+        values
+            .iter()
+            .map(|&value| Fixnum::new(value).to_any_object())
+            .collect()
+    }
 
     // cargo test at_exit -- --nocapture
     #[test]
     fn test_at_exit() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
+        crate::on_ruby_thread(|| {
+            let closure = |_vm| {
+                println!("test class::vm::tests::test_at_exit worked!");
+            };
 
-        let closure = |_vm| {
-            println!("test class::vm::tests::test_at_exit worked!");
-        };
-
-        VM::at_exit(closure);
+            VM::at_exit(closure);
+        });
     }
 
     #[test]
-    fn test_at_exit_calls_capturing_closure() {
-        let _guard = LOCK_FOR_TEST.write().unwrap();
-        VM::init();
+    fn test_at_exit_does_not_run_closure_immediately() {
+        crate::on_ruby_thread(|| {
+            let calls = Arc::new(AtomicUsize::new(0));
+            let counter = calls.clone();
 
-        let mut calls = 0;
-        VM::at_exit(|_vm| calls += 1);
+            VM::at_exit(move |_vm| {
+                counter.fetch_add(1, Ordering::SeqCst);
+            });
 
-        assert_eq!(calls, 1);
+            // The closure runs when the VM shuts down, not now.
+            assert_eq!(calls.load(Ordering::SeqCst), 0);
+        });
+    }
+
+    #[test]
+    fn test_call_protected_calls_capturing_closure() {
+        crate::on_ruby_thread(|| {
+            let mut calls = 0;
+            VM::call_protected(|_vm| calls += 1);
+
+            assert_eq!(calls, 1);
+        });
+    }
+
+    #[test]
+    fn test_raise_does_not_use_message_as_format() {
+        crate::on_ruby_thread(|| {
+            let result = VM::protect(|| {
+                VM::raise(Class::from_existing("RuntimeError"), "100%s %d %n done");
+
+                NilClass::new().into()
+            });
+
+            assert!(result.is_err());
+            assert_eq!(VM::error_pop().unwrap().message(), "100%s %d %n done");
+        });
+    }
+
+    #[test]
+    fn test_ensure_runs_on_success_and_on_raise() {
+        crate::on_ruby_thread(|| {
+            let ensured = Cell::new(0);
+
+            let result = VM::ensure(|| Fixnum::new(7).into(), || ensured.set(ensured.get() + 1));
+            assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(7)));
+
+            let result = VM::protect(|| {
+                VM::ensure(
+                    || eval_raising("raise IOError, 'closed'"),
+                    || ensured.set(ensured.get() + 1),
+                )
+            });
+            assert!(result.is_err());
+            assert_eq!(ensured.get(), 2);
+
+            let error = VM::error_pop().unwrap();
+            assert!(Class::from_existing("IOError").case_equals(&error));
+        });
+    }
+
+    #[test]
+    fn test_rescue_standard_error_only() {
+        crate::on_ruby_thread(|| {
+            let result = VM::rescue(
+                || eval_raising("raise 'rescued'"),
+                |error| RString::new_utf8(&error.message()).into(),
+            );
+            assert_eq!(
+                result.try_convert_to::<RString>().unwrap().to_str(),
+                "rescued"
+            );
+
+            // Nothing raised: the handler is not called.
+            let result = VM::rescue(|| Fixnum::new(1).into(), |_| unreachable!());
+            assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+
+            // `Exception` is not a `StandardError`, so it propagates.
+            let result = VM::protect(|| {
+                VM::rescue(
+                    || eval_raising("raise Exception, 'not standard'"),
+                    |_| NilClass::new().into(),
+                )
+            });
+            assert!(result.is_err());
+            assert_eq!(VM::error_pop().unwrap().message(), "not standard");
+
+            // A panic in the body becomes a `RuntimeError` that can be rescued.
+            let result = VM::rescue(
+                || panic!("in body"),
+                |error| RString::new_utf8(&error.message()).into(),
+            );
+            assert_eq!(
+                result.try_convert_to::<RString>().unwrap().to_str(),
+                "Rust panic: in body"
+            );
+        });
+    }
+
+    #[test]
+    fn test_rescue_from_classes() {
+        crate::on_ruby_thread(|| {
+            let classes = [Class::from_existing("ZeroDivisionError")];
+
+            let result = VM::rescue_from(
+                &classes,
+                || eval_raising("1 / 0"),
+                |_| Fixnum::new(-1).into(),
+            );
+            assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(-1)));
+
+            // Subclasses match too.
+            let result = VM::rescue_from(
+                &[Class::from_existing("StandardError")],
+                || eval_raising("1 / 0"),
+                |_| Fixnum::new(-2).into(),
+            );
+            assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(-2)));
+
+            let result = VM::protect(|| {
+                VM::rescue_from(
+                    &classes,
+                    || eval_raising("raise 'other'"),
+                    |_| unreachable!(),
+                )
+            });
+            assert!(result.is_err());
+            assert_eq!(VM::error_pop().unwrap().message(), "other");
+        });
+    }
+
+    #[test]
+    fn test_catch_and_throw() {
+        crate::on_ruby_thread(|| {
+            // An inner catch does not stop a throw to an outer tag.
+            let result = VM::catch(Symbol::new("outer"), |_| {
+                VM::catch(Symbol::new("inner"), |_| {
+                    VM::throw(Symbol::new("outer"), Fixnum::new(1));
+                });
+
+                Fixnum::new(2).into()
+            });
+            assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+
+            // Ruby code can throw to a catch made in Rust.
+            let result = VM::catch(Symbol::new("from_ruby"), |_| {
+                eval_raising("throw :from_ruby, 'thrown'")
+            });
+            assert_eq!(
+                result.try_convert_to::<RString>().unwrap().to_str(),
+                "thrown"
+            );
+
+            let result = VM::protect(|| VM::throw(Symbol::new("missing"), NilClass::new()));
+            assert!(result.is_err());
+            assert!(
+                Class::from_existing("UncaughtThrowError").case_equals(&VM::error_pop().unwrap())
+            );
+        });
+    }
+
+    #[test]
+    fn test_send_with_block_and_iter_break() {
+        crate::on_ruby_thread(|| {
+            let array = fixnums(&[1, 2, 3, 4]);
+
+            let evens = unsafe {
+                array.send_with_block("select", &[], |values| {
+                    let x = values[0].try_convert_to::<Fixnum>().unwrap().to_i64();
+
+                    crate::Boolean::new(x % 2 == 0).into()
+                })
+            };
+            assert_eq!(evens.try_convert_to::<Array>().unwrap(), fixnums(&[2, 4]));
+
+            // Arguments are passed on: [1, 2, 3, 4].inject(10) { |sum, x| sum + x }
+            let sum = unsafe {
+                array.send_with_block("inject", &[Fixnum::new(10).into()], |values| {
+                    let sum = values[0].try_convert_to::<Fixnum>().unwrap().to_i64();
+                    let x = values[1].try_convert_to::<Fixnum>().unwrap().to_i64();
+
+                    Fixnum::new(sum + x).into()
+                })
+            };
+            assert_eq!(sum.try_convert_to::<Fixnum>(), Ok(Fixnum::new(20)));
+
+            let found = unsafe {
+                array.send_with_block("each", &[], |values| {
+                    if values[0].try_convert_to::<Fixnum>().unwrap().to_i64() == 3 {
+                        VM::iter_break_value(RString::new_utf8("three"));
+                    }
+
+                    NilClass::new().into()
+                })
+            };
+            assert_eq!(found.try_convert_to::<RString>().unwrap().to_str(), "three");
+
+            let result = array.protect_send_with_block("each", &[], |_| panic!("in block"));
+            assert_eq!(result.unwrap_err().message(), "Rust panic: in block");
+        });
+    }
+
+    #[test]
+    fn test_jump_tag_resumes_exception() {
+        crate::on_ruby_thread(|| {
+            let result = VM::protect(|| {
+                if let Err(state) = VM::protect(|| eval_raising("raise KeyError, 'resumed'")) {
+                    unsafe { VM::jump_tag(state) };
+                }
+
+                NilClass::new().into()
+            });
+
+            assert!(result.is_err());
+
+            let error = VM::error_pop().unwrap();
+            assert!(Class::from_existing("KeyError").case_equals(&error));
+            assert_eq!(error.message(), "resumed");
+        });
+    }
+
+    #[test]
+    fn test_warn_and_warning() {
+        crate::on_ruby_thread(|| {
+            VM::eval(
+                "$rutie_warnings = []
+                 $rutie_verbose = $VERBOSE
+                 Warning.singleton_class.send(:alias_method, :rutie_original_warn, :warn)
+                 def Warning.warn(message); $rutie_warnings << message; end",
+            )
+            .unwrap();
+
+            let warnings = || {
+                VM::eval("$rutie_warnings.join")
+                    .unwrap()
+                    .try_convert_to::<RString>()
+                    .unwrap()
+                    .to_string()
+            };
+
+            VM::eval("$VERBOSE = nil").unwrap();
+            VM::warn("silenced");
+            VM::warning("silenced");
+            assert_eq!(warnings(), "");
+
+            VM::eval("$VERBOSE = false").unwrap();
+            VM::warn("%s %d warn\0 after NUL");
+            VM::warning("not verbose");
+            assert!(
+                warnings().ends_with("warning: %s %d warn\n"),
+                "{}",
+                warnings()
+            );
+
+            VM::eval("$VERBOSE = true").unwrap();
+            VM::warning("verbose");
+            assert!(warnings().ends_with("warning: verbose\n"), "{}", warnings());
+
+            VM::eval(
+                "Warning.singleton_class.send(:alias_method, :warn, :rutie_original_warn)
+                 $VERBOSE = $rutie_verbose",
+            )
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_arity_helpers() {
+        crate::on_ruby_thread(|| {
+            assert_eq!(VM::check_arity(1, 1, 1), Ok(1));
+            assert_eq!(
+                VM::check_arity(3, 0, 2).unwrap_err().message(),
+                "wrong number of arguments (given 3, expected 0..2)"
+            );
+
+            assert!(VM::protect(|| VM::raise_arity_error(0, 2, -1)).is_err());
+            assert_eq!(
+                VM::error_pop().unwrap().message(),
+                "wrong number of arguments (given 0, expected 2+)"
+            );
+        });
+    }
+
+    #[test]
+    fn test_raising_helpers() {
+        crate::on_ruby_thread(|| {
+            assert!(VM::protect(|| VM::raise_zero_division()).is_err());
+            assert!(
+                Class::from_existing("ZeroDivisionError").case_equals(&VM::error_pop().unwrap())
+            );
+
+            assert!(VM::protect(|| VM::not_implemented()).is_err());
+            assert!(
+                Class::from_existing("NotImplementedError").case_equals(&VM::error_pop().unwrap())
+            );
+        });
+    }
+
+    #[test]
+    fn test_check_frozen_and_check_type() {
+        crate::on_ruby_thread(|| {
+            let array = fixnums(&[1]);
+            array.check_frozen();
+            array.check_type(ValueType::Array);
+
+            let frozen = fixnums(&[1]).freeze();
+            assert!(VM::protect(|| {
+                frozen.check_frozen();
+                NilClass::new().into()
+            })
+            .is_err());
+
+            let error = VM::error_pop().unwrap();
+            assert!(Class::from_existing("FrozenError").case_equals(&error));
+
+            assert!(VM::protect(|| {
+                array.check_type(ValueType::Hash);
+                NilClass::new().into()
+            })
+            .is_err());
+            assert_eq!(
+                VM::error_pop().unwrap().message(),
+                "wrong argument type Array (expected Hash)"
+            );
+        });
+    }
+
+    #[test]
+    fn test_scan_args() {
+        crate::on_ruby_thread(|| {
+            let arguments: Vec<AnyObject> = (1..=5).map(|i| Fixnum::new(i).into()).collect();
+
+            let args = VM::scan_args(&arguments, "21*1").unwrap();
+            assert_eq!(args.required, arguments[0..2].to_vec());
+            assert_eq!(args.optional, vec![Some(arguments[2].clone())]);
+            assert_eq!(args.splat.unwrap(), fixnums(&[4]));
+            assert_eq!(args.post, vec![arguments[4].clone()]);
+            assert!(args.keywords.is_none());
+            assert!(args.block.is_none());
+
+            // Missing optional arguments are `None`, not `Some(nil)`.
+            let args = VM::scan_args(&arguments[0..3], "12*1").unwrap();
+            assert_eq!(args.optional, vec![Some(arguments[1].clone()), None]);
+            assert_eq!(args.splat.unwrap().length(), 0);
+            assert_eq!(args.post, vec![arguments[2].clone()]);
+
+            let args = VM::scan_args(&[NilClass::new().into()], "02").unwrap();
+            assert_eq!(args.optional, vec![Some(NilClass::new().into()), None]);
+
+            assert_eq!(
+                VM::scan_args(&arguments, "2").unwrap_err().message(),
+                "wrong number of arguments (given 5, expected 2)"
+            );
+            assert_eq!(
+                VM::scan_args(&arguments, "9").unwrap_err().message(),
+                "wrong number of arguments (given 5, expected 9)"
+            );
+            assert_eq!(
+                VM::scan_args(&arguments, "1:*").unwrap_err().message(),
+                "bad scan arg format: 1:*"
+            );
+
+            let mut keywords = Hash::new();
+            keywords.store(Symbol::new("mode"), Symbol::new("fast"));
+
+            let args =
+                VM::scan_args(&[arguments[0].clone(), keywords.to_any_object()], "1:").unwrap();
+            assert_eq!(args.required, vec![arguments[0].clone()]);
+            assert_eq!(
+                args.keywords.unwrap().at(&Symbol::new("mode")),
+                Symbol::new("fast").into()
+            );
+
+            let args = VM::scan_args(&arguments[0..1], "1:").unwrap();
+            assert!(args.keywords.is_none());
+        });
+    }
+
+    #[test]
+    fn test_scan_args_in_method_with_block() {
+        crate::on_ruby_thread(|| {
+            extern "C" fn rutie_scan_block(
+                argc: crate::types::Argc,
+                argv: *const AnyObject,
+                _rtself: AnyObject,
+            ) -> AnyObject {
+                let arguments = crate::util::parse_arguments(argc, argv);
+                let args = VM::scan_args(&arguments, "1&");
+
+                if let Err(ref error) = args {
+                    VM::raise(error.class(), &error.message());
+                }
+
+                let args = args.unwrap();
+
+                match args.block {
+                    Some(block) => block.call(&args.required),
+                    None => Symbol::new("no_block").into(),
+                }
+            }
+
+            Class::from_existing("Object").define(|klass| {
+                klass.def_private("rutie_scan_block", rutie_scan_block);
+            });
+
+            let result = VM::eval("rutie_scan_block(20) { |x| x + 1 }").unwrap();
+            assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(21)));
+
+            let result = VM::eval("rutie_scan_block(20)").unwrap();
+            assert_eq!(
+                result.try_convert_to::<Symbol>(),
+                Ok(Symbol::new("no_block"))
+            );
+
+            let error = VM::eval("rutie_scan_block").unwrap_err();
+            assert!(Class::from_existing("ArgumentError").case_equals(&error));
+        });
+    }
+
+    #[cfg(ruby_gte_2_7)]
+    #[test]
+    fn test_is_keyword_given() {
+        crate::on_ruby_thread(|| {
+            extern "C" fn rutie_keyword_given(
+                _argc: crate::types::Argc,
+                _argv: *const AnyObject,
+                _rtself: AnyObject,
+            ) -> crate::Boolean {
+                crate::Boolean::new(VM::is_keyword_given())
+            }
+
+            Class::from_existing("Object").define(|klass| {
+                klass.def_private("rutie_keyword_given", rutie_keyword_given);
+            });
+
+            let given = |code| {
+                VM::eval(code)
+                    .unwrap()
+                    .try_convert_to::<crate::Boolean>()
+                    .unwrap()
+                    .to_bool()
+            };
+
+            assert!(given("rutie_keyword_given(a: 1)"));
+            assert!(!given("rutie_keyword_given({ a: 1 })"));
+            assert!(!given("rutie_keyword_given(1)"));
+        });
+    }
+
+    #[test]
+    fn test_get_kwargs() {
+        crate::on_ruby_thread(|| {
+            let mut keywords = Hash::new();
+            keywords.store(Symbol::new("a"), Fixnum::new(1));
+            keywords.store(Symbol::new("c"), Fixnum::new(3));
+
+            let kwargs = VM::get_kwargs(Some(&keywords), &["a"], &["b", "c"], false).unwrap();
+            assert_eq!(kwargs.required, vec![Fixnum::new(1).into()]);
+            assert_eq!(kwargs.optional, vec![None, Some(Fixnum::new(3).into())]);
+            assert!(kwargs.rest.is_none());
+
+            let kwargs = VM::get_kwargs(Some(&keywords), &[], &["a"], true).unwrap();
+            assert_eq!(kwargs.optional, vec![Some(Fixnum::new(1).into())]);
+            assert_eq!(
+                kwargs.rest.unwrap().at(&Symbol::new("c")),
+                Fixnum::new(3).into()
+            );
+
+            let kwargs = VM::get_kwargs(None, &[], &["a"], false).unwrap();
+            assert_eq!(kwargs.optional, vec![None]);
+
+            // Ruby 2.7 formats the names as symbols (`:z`), 2.5 and 2.6 do not.
+            let message = VM::get_kwargs(Some(&keywords), &["a", "z"], &[], true)
+                .unwrap_err()
+                .message();
+            assert!(message.starts_with("missing keyword: ") && message.ends_with("z"));
+
+            // A frozen hash is fine: it is never modified.
+            let frozen = keywords.freeze();
+            assert!(VM::get_kwargs(Some(&frozen), &["a"], &["c"], false).is_ok());
+            assert_eq!(frozen.length(), 2);
+        });
+    }
+
+    #[test]
+    fn test_define_alias_undef_method_and_alloc_func() {
+        crate::on_ruby_thread(|| {
+            let mut klass = Class::new("RutieVmTestAliases", None);
+            VM::eval("class RutieVmTestAliases; def original; :original; end; end").unwrap();
+
+            klass.define_alias("copy", "original");
+            let result = VM::eval("RutieVmTestAliases.new.copy").unwrap();
+            assert_eq!(
+                result.try_convert_to::<Symbol>(),
+                Ok(Symbol::new("original"))
+            );
+
+            klass.undef_method("original");
+            assert!(VM::eval("RutieVmTestAliases.new.original").is_err());
+            assert!(VM::eval("RutieVmTestAliases.new.copy").is_ok());
+
+            klass.undef_alloc_func();
+            let error = VM::eval("RutieVmTestAliases.new").unwrap_err();
+            assert!(Class::from_existing("TypeError").case_equals(&error));
+        });
     }
 }

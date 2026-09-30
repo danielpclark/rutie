@@ -53,3 +53,7 @@ where
         );
     }
 }
+
+pub fn freeze(hash: Value) -> Value {
+    unsafe { hash::rb_hash_freeze(hash) }
+}

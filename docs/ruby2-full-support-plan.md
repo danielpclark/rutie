@@ -23,9 +23,12 @@ Rutie 0.10.0 (the revert of the `rb-sys` integration, PR #172) is the baseline.
    public calls `rubysys` directly.
 3. **Every public item ships with a doctest** that runs (not `ignore`,
    `no_run` only when the example must not execute), and the doctest starts
-   with the hidden `# VM::init();` line the existing ones use. Unit tests take
-   `LOCK_FOR_TEST` (see `src/lib.rs`); the Ruby VM is not thread-safe across
-   tests.
+   with the hidden `# VM::init();` line the existing ones use. Unit tests run
+   their body through `crate::on_ruby_thread(|| { ... })` (see `src/lib.rs`):
+   Ruby 2 is bound to the native thread that called `ruby_init` (the GC scans
+   that thread's stack), while the test harness gives every test its own
+   thread, so all unit tests share one long-lived Ruby thread, serialized by
+   `LOCK_FOR_TEST`. Never call `VM::init` from a unit test directly.
 4. **Verify on all three Rubies before pushing.** Locally: one Ruby per
    prefix (e.g. `/opt/rb/2.5.9`, `/opt/rb/2.6.10`, `/opt/rb/2.7.8`), put its
    `bin` first on `PATH`, `cargo clean`, `cargo test`. `build.rs` links
@@ -33,6 +36,16 @@ Rutie 0.10.0 (the revert of the `rb-sys` integration, PR #172) is the baseline.
    another Ruby segfaults at test time, so always `cargo clean` when switching.
    Use release tarballs (or RVM) to build Rubies: git-tag checkouts of 2.5/2.6
    need patching of bison-generated `parse.c` under modern bison.
+   Where `cache.ruby-lang.org` is unreachable (sandboxed agents): RVM's
+   prebuilt, relocatable binaries at `https://rvm.io/binaries/` cover 2.5.9
+   (`ubuntu/20.04/x86_64`) and 2.6.10 (`debian/11/x86_64`); 2.7.8 builds from
+   the `v2_7_8` git tag after copying `config.guess`/`config.sub` into `tool/`,
+   with `--enable-shared --with-baseruby=<any ruby> --without-openssl`
+   (`make install` then stops at the default gems, after libruby, headers and
+   stdlib are installed; that is enough). Linking needs `libgmp-dev`.
+   Instead of `cargo clean`, a separate `CARGO_TARGET_DIR` per Ruby works too,
+   as long as its path ends in `/target` (`build.rs` splits `OUT_DIR` on it),
+   e.g. `CARGO_TARGET_DIR=$HOME/rt-2.7.8/target`.
 5. **CI is the arbiter** (`.github/workflows/ci.yml`): 3 OS × {stable, beta}
    × {2.5.9, 2.6.10, 2.7.8} × {dynamic, static}. Dynamic Linux and macOS must
    be green. Static and Windows rows are best-effort (`continue-on-error`).
@@ -47,6 +60,13 @@ Rutie 0.10.0 (the revert of the `rb-sys` integration, PR #172) is the baseline.
 7. **CHANGELOG.md is updated in the same commit as the change**, Keep a
    Changelog format, with `thanks to @user` credit. Bump `Cargo.toml` per
    SemVer for the public API.
+8. **Add safe methods beside existing ones; don't change existing ones.**
+   Following the README's "Safety" section, the fast, raising methods (`send`,
+   `unsafe_methods!`, …) keep their behaviour and cost. When a safe variant is
+   needed, write a new method (usually `protect`-based and returning
+   `Result<_, AnyException>`, like `protect_send` and `Enumerator`) instead
+   of adding checks to the existing one. Fixing genuine memory-safety bugs in
+   an existing method is the exception.
 
 ---
 
@@ -80,14 +100,12 @@ macros `class!`, `module!`, `methods!`, `unsafe_methods!`,
 
 ### Known debts carried into 0.10.0
 
-- `VM::at_exit` runs the closure **immediately** (it is `rb_protect`, not a
-  real end proc). The docs claim it runs at VM shutdown. See §4, P0-2.
+- ~~`VM::at_exit` runs the closure **immediately**~~ — fixed by P0-2.
 - README "Ruby 2 Notes" said Ruby 2 was supported "up through 0.8" — fixed in
   0.10.0 (now a support table plus the OpenSSL 1.1 recipe).
 - Three doctests in `src/dsl.rs` (`wrappable_struct!`) are `ignore`d doc
   fragments, not tests. Make them runnable.
-- No `cfg` flags for the Ruby minor version exist; `build.rs` knows
-  `RbConfig::CONFIG['MAJOR'/'MINOR']` but does not export them.
+- ~~No `cfg` flags for the Ruby minor version exist~~ — added by P0-1.
 - `examples/` are not built in CI.
 
 ---
@@ -132,9 +150,19 @@ Check these before touching anything that reads Ruby structs directly
 - Taint/trust (`rb_obj_taint`, `rb_obj_untrust`) are no-ops in 2.7 and
   removed in 3.0 — **do not bind them**.
 - `rb_gc_force_recycle` is deprecated from 2.7; keep it but mark deprecated.
-- Recommended plumbing (P0-1): `build.rs` emits `cargo:rustc-cfg=ruby_2_5` /
-  `ruby_2_6` / `ruby_2_7` (and `ruby_gte_2_6`, `ruby_gte_2_7`) so bindings can
-  be gated with `#[cfg(ruby_gte_2_7)]` instead of runtime version sniffing.
+- Plumbing (P0-1, done): `build.rs` emits `ruby_2_5` / `ruby_2_6` / `ruby_2_7`
+  for the exact version and `ruby_gte_2_5` / `ruby_gte_2_6` / `ruby_gte_2_7`
+  cumulatively, so bindings are gated with `#[cfg(ruby_gte_2_7)]` instead of
+  runtime version sniffing. The cfgs also reach doctests.
+- Found while doing P0 (verified with `nm -D` on each libruby):
+  `rb_exec_end_proc` is exported by 2.5 and 2.6 but **not 2.7** — use
+  `ruby_cleanup` to run end procs. `rb_frozen_error_raise`,
+  `rb_keyword_given_p`, `rb_funcallv_kw` and `rb_scan_args_kw` are 2.7-only.
+  `rb_get_kwargs` error messages differ (`missing keyword: z` on 2.5/2.6,
+  `missing keyword: :z` on 2.7); don't assert on the exact text.
+- `rb_scan_args` calls `rb_fatal` (process abort) on a malformed format and
+  `rb_sys_fail` calls `rb_bug` when `errno` is 0; the safe wrappers validate
+  the format and use `rb_syserr_fail` instead.
 
 ---
 
@@ -145,33 +173,72 @@ as they land; keep this file current.
 
 ### P0 — plumbing and correctness (do first; everything else builds on it)
 
-- [ ] **P0-1 Version cfg flags** from `build.rs` (§3). Add `--print cfg`
-      check to CI so the flag matches the linked Ruby.
-- [ ] **P0-2 Real `VM::at_exit`.** Bind `rb_set_end_proc(void (*)(VALUE),
+- [x] **P0-1 Version cfg flags** from `build.rs` (§3). The check that the
+      flags match the linked Ruby is the unit test
+      `current_ruby::cfg_flags_match_linked_ruby`, which runs in every CI row.
+      Also exported downstream as `DEP_RUBY_VERSION_MAJOR`/`_MINOR`, and a
+      `cargo:warning` is printed when the Ruby found is not 2.5–2.7.
+- [x] **P0-2 Real `VM::at_exit`.** Bind `rb_set_end_proc(void (*)(VALUE),
       VALUE)`; box the closure (`Box<Box<dyn FnMut(VmPointer) + 'static>>`),
       leak it intentionally (it must outlive `main`), and call it from an
       `extern "C"` trampoline. Requires `F: 'static`; document the breaking
       change and keep the old immediate-call behaviour available under a
       clearly named method if anyone relied on it.
-- [ ] **P0-3 Exception control flow.** `rb_ensure`, `rb_rescue`, `rb_rescue2`,
+      Done: `F: FnOnce(VmPointer) + 'static`; `rb_set_end_proc` passes its
+      data to `rb_gc_mark`, so the box pointer is tagged as a Fixnum. Old
+      behaviour is `VM::call_protected`. `VM::cleanup` (`ruby_cleanup`, from
+      P5) was added so embedders can run end procs and so it can be tested.
+- [x] **P0-3 Exception control flow.** `rb_ensure`, `rb_rescue`, `rb_rescue2`,
       `rb_catch`, `rb_throw`, `rb_iter_break`, `rb_iter_break_value`,
       `rb_jump_tag`. Rust surface: `VM::ensure(body, ensure)`,
       `VM::rescue(body, handler)`, `VM::catch_throw`. Panics must never cross
       into Ruby: wrap every trampoline in `catch_unwind` and convert to a Ruby
       exception (`rb_raise` with a `RuntimeError`).
-- [ ] **P0-4 Argument checking helpers.** `rb_check_type`, `rb_check_frozen`,
+      Done: `VM::ensure`, `VM::rescue`, `VM::rescue_from(&[Class], ..)`,
+      `VM::catch`/`VM::throw`, `VM::iter_break(_value)`, `VM::jump_tag`, plus
+      `Object::send_with_block`/`protect_send_with_block` (`rb_block_call`)
+      so Rust closures can be blocks. `rb_catch`/`rb_throw`/`rb_rescue` are
+      bound in `rubysys` only (the `_obj`/`rescue2` forms cover them).
+- [x] **P0-4 Argument checking helpers.** `rb_check_type`, `rb_check_frozen`,
       `rb_error_arity`, `rb_check_arity`, `rb_num_zerodiv`, `rb_notimplement`,
       `rb_sys_fail`, `rb_warn`, `rb_warning`. Surface: `VM::warn`,
       `Object::check_frozen`, arity errors from `methods!`.
-- [ ] **P0-5 `methods!`/`unsafe_methods!` completeness.** Variable arity
+      Done: `VM::warn`/`warning`, `VM::check_arity` (returns the error),
+      `VM::raise_arity_error`, `VM::raise_zero_division`,
+      `VM::not_implemented`, `VM::sys_fail`, `Object::check_frozen`,
+      `Object::check_type`. Existing macros keep their behaviour: `methods!`
+      passes `Err` for a missing argument (its documented contract) and
+      `unsafe_methods!` stays check-free for speed (README "Safety"); callers
+      that want arity errors use `VM::check_arity`/`VM::raise_arity_error`.
+      `VM::raise` no longer passes the message to `rb_raise` as a printf
+      format (it did: `%s` in a message read garbage); its signature is
+      unchanged.
+      **Rule followed here and for the rest of the plan:** never change the
+      behaviour or cost of an existing public method to make it safe; add a
+      new (usually `protect`-based, `Result`-returning) method beside it, as
+      `Enumerator` and `protect_send` do.
+- [x] **P0-5 `methods!`/`unsafe_methods!` completeness.** Variable arity
       (`argc = -1` with `rb_scan_args` specs including optional, splat, block
       and — gated — keyword args via `rb_get_kwargs`), `rb_define_method_id`,
       `rb_define_alias`, `rb_undef_method`, `rb_define_alloc_func` /
       `rb_undef_alloc_func`, `rb_define_attr` exposure, `rb_obj_call_init`.
-- [ ] **P0-6 Frozen semantics.** `rb_obj_freeze` exists; add `rb_str_freeze`,
+      Done: `VM::scan_args(&args, "21*1:&") -> ScannedArgs` (real
+      `rb_scan_args`, so keyword rules are the running Ruby's),
+      `VM::get_kwargs -> KeywordArgs`, `VM::is_keyword_given` (2.7 only),
+      `Class`/`Module::define_alias`/`undef_method`,
+      `Class::define_alloc_func`/`undef_alloc_func`, `Object::call_init`.
+      Variable-arity methods are plain `extern "C" fn(Argc, *const AnyObject,
+      T)` functions using `VM::scan_args` (documented); the `methods!` macro
+      grammar is unchanged. `rb_define_method_id` is bound in `rubysys` only;
+      `rb_define_attr` was already exposed as `attr_reader`/`writer`/`accessor`.
+- [x] **P0-6 Frozen semantics.** `rb_obj_freeze` exists; add `rb_str_freeze`,
       `rb_ary_freeze`, `rb_hash_freeze`, `rb_frozen_error_raise` (2.5+), and
       make mutating wrappers (`Array::push`, `RString::concat`, …) return
       `Result` or document that Ruby raises.
+      Done: freeze functions bound in `rubysys`/`binding` (`Object::freeze`
+      stays the public route); `rb_frozen_error_raise` is 2.7-only, so
+      `rb_error_frozen_object` backs the raising path. The mutating `Array`,
+      `Hash` and `RString` wrappers document that they raise `FrozenError`.
 
 ### P1 — core object model
 
@@ -313,7 +380,7 @@ as they land; keep this file current.
       `VM::cleanup() -> i32`, `VM::run_file`, and make `VM::init` idempotent
       (it is not today: calling twice is UB).
 - [ ] `rb_set_end_proc` proper `at_exit` (P0-2) and `ruby_vm_at_exit` semantics
-      documented side by side.
+      documented side by side. (`VM::cleanup` exists since P0-2.)
 - [ ] Signals: `rb_f_trap`-equivalents are not public C API; document that
       `VM::trap` (exists via `Signal.trap`) is the supported route.
 
@@ -331,8 +398,9 @@ as they land; keep this file current.
 - [x] README: "Ruby 2 Notes" rewritten for 0.10 (support table, OpenSSL 1.1
       recipe). Still to do: add the local multi-Ruby testing recipe from §0.4.
 - [ ] `build.rs`: honour `$RUBY` consistently (it does for `rbconfig`; check
-      `is_linked_ruby` test uses the same), emit the version cfgs (P0-1),
-      and print a clear error when the linked Ruby's major version ≠ 2.
+      `is_linked_ruby` test uses the same), emit the version cfgs (P0-1, done),
+      and print a clear error when the linked Ruby's major version ≠ 2 (a
+      `cargo:warning` is printed since P0-1; decide whether it should fail).
 - [ ] Release cadence: 0.10.0 = this baseline; 0.11 = P0 + P1; 0.12 = P2;
       0.13 = P3 + P4; 0.14 = P5 + P6; then declare "Ruby 2 complete" (1.0 is
       a maintainer call) and only then branch for Ruby 3.

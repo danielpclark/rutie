@@ -155,6 +155,10 @@ impl Array {
 
     /// Pushes an object to `Array`.
     ///
+    /// Ruby raises `FrozenError` if the array is frozen; check
+    /// [`is_frozen`](trait.Object.html#method.is_frozen) first or call it inside
+    /// [`VM::protect`](struct.VM.html#method.protect) when that is possible.
+    ///
     /// # Examples
     ///
     /// ```
@@ -184,6 +188,10 @@ impl Array {
 
     /// Stores an object at `index` position.
     ///
+    /// Ruby raises `FrozenError` if the array is frozen; check
+    /// [`is_frozen`](trait.Object.html#method.is_frozen) first or call it inside
+    /// [`VM::protect`](struct.VM.html#method.protect) when that is possible.
+    ///
     /// # Examples
     ///
     /// ```
@@ -211,6 +219,10 @@ impl Array {
 
     /// Removes and returns the last element of the array.
     ///
+    /// Ruby raises `FrozenError` if the array is frozen; check
+    /// [`is_frozen`](trait.Object.html#method.is_frozen) first or call it inside
+    /// [`VM::protect`](struct.VM.html#method.protect) when that is possible.
+    ///
     /// # Examples
     ///
     /// ```
@@ -236,6 +248,10 @@ impl Array {
     }
 
     /// Inserts `item` at the beginning of the array.
+    ///
+    /// Ruby raises `FrozenError` if the array is frozen; check
+    /// [`is_frozen`](trait.Object.html#method.is_frozen) first or call it inside
+    /// [`VM::protect`](struct.VM.html#method.protect) when that is possible.
     ///
     /// # Examples
     ///
@@ -265,6 +281,10 @@ impl Array {
     }
 
     /// Removes the first item of the array and returns it.
+    ///
+    /// Ruby raises `FrozenError` if the array is frozen; check
+    /// [`is_frozen`](trait.Object.html#method.is_frozen) first or call it inside
+    /// [`VM::protect`](struct.VM.html#method.protect) when that is possible.
     ///
     /// # Examples
     ///
@@ -382,6 +402,10 @@ impl Array {
 
     /// Reverses `self` in place.
     ///
+    /// Ruby raises `FrozenError` if the array is frozen; check
+    /// [`is_frozen`](trait.Object.html#method.is_frozen) first or call it inside
+    /// [`VM::protect`](struct.VM.html#method.protect) when that is possible.
+    ///
     /// # Examples
     ///
     /// ```
@@ -413,6 +437,10 @@ impl Array {
     }
 
     /// Appends the elements of `other` array to `self`.
+    ///
+    /// Ruby raises `FrozenError` if the array is frozen; check
+    /// [`is_frozen`](trait.Object.html#method.is_frozen) first or call it inside
+    /// [`VM::protect`](struct.VM.html#method.protect) when that is possible.
     ///
     /// # Examples
     ///
@@ -478,6 +506,10 @@ impl Array {
     }
 
     /// Sorts the array in place.
+    ///
+    /// Ruby raises `FrozenError` if the array is frozen; check
+    /// [`is_frozen`](trait.Object.html#method.is_frozen) first or call it inside
+    /// [`VM::protect`](struct.VM.html#method.protect) when that is possible.
     ///
     /// # Examples
     ///
