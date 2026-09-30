@@ -1,5 +1,6 @@
 use crate::rubysys::types::{c_char, c_int, c_long, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // Ruby's built-in exception classes (`RUBY_EXTERN VALUE` in `ruby.h`).
     pub static rb_eArgError: Value;
@@ -104,4 +105,14 @@ extern "C" {
     // void
     // rb_warning(const char *fmt, ...)
     pub fn rb_warning(fmt: *const c_char, ...);
+}
+
+// Win32 error codes (`GetLastError`) are not `errno` values; Ruby maps them
+// for its own system calls with this.
+#[cfg(windows)]
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // int
+    // rb_w32_map_errno(DWORD winerr)
+    pub fn rb_w32_map_errno(winerr: crate::rubysys::libc::c_ulong) -> c_int;
 }

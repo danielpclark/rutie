@@ -3,10 +3,12 @@ use crate::rubysys::{
     types::{c_int, c_long, Value},
 };
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     pub static rb_cTime: Value;
 }
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // struct timeval
     // rb_time_interval(VALUE num)

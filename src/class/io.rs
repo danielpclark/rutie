@@ -107,7 +107,9 @@ impl IO {
     /// file.puts(&[RString::new_utf8("a").into(), Fixnum::new(1).into()]).unwrap();
     /// file.close().unwrap();
     ///
-    /// assert_eq!(std::fs::read_to_string(&path).unwrap(), "a\n1\n");
+    /// // Lines end in "\r\n" on Windows, where "w" is text mode.
+    /// let contents = std::fs::read_to_string(&path).unwrap();
+    /// assert_eq!(contents.lines().collect::<Vec<_>>(), ["a", "1"]);
     /// # std::fs::remove_file(path).unwrap();
     /// ```
     pub fn puts(&self, objects: &[AnyObject]) -> Result<(), AnyException> {
@@ -402,7 +404,10 @@ impl File {
     /// use rutie::{File, VM};
     /// # VM::init();
     ///
-    /// assert_eq!(File::expand_path("../b", Some("/tmp/a")).unwrap().to_str(), "/tmp/b");
+    /// let path = File::expand_path("../b", Some("/tmp/a")).unwrap();
+    ///
+    /// // "/tmp/b" ("C:/tmp/b" on Windows, which adds the current drive).
+    /// assert!(path.to_str().ends_with("/tmp/b"));
     /// assert!(File::expand_path("~no_such_rutie_user/x", None).is_err());
     /// ```
     pub fn expand_path(path: &str, directory: Option<&str>) -> Result<RString, AnyException> {
@@ -422,7 +427,10 @@ impl File {
     /// use rutie::{File, VM};
     /// # VM::init();
     ///
-    /// assert_eq!(File::absolute_path("~/x", Some("/tmp")).unwrap().to_str(), "/tmp/~/x");
+    /// let path = File::absolute_path("~/x", Some("/tmp")).unwrap();
+    ///
+    /// // "/tmp/~/x" ("C:/tmp/~/x" on Windows, which adds the current drive).
+    /// assert!(path.to_str().ends_with("/tmp/~/x"));
     /// ```
     pub fn absolute_path(path: &str, directory: Option<&str>) -> Result<RString, AnyException> {
         let path = RString::new_utf8(path);
@@ -459,7 +467,10 @@ impl File {
     ///
     /// let cwd = File::current_directory().unwrap();
     ///
-    /// assert_eq!(cwd.to_str(), std::env::current_dir().unwrap().to_str().unwrap());
+    /// // Ruby separates path components with "/", on Windows too.
+    /// let expected = std::env::current_dir().unwrap().to_str().unwrap().replace('\\', "/");
+    ///
+    /// assert_eq!(cwd.to_str(), expected);
     /// ```
     pub fn current_directory() -> Result<RString, AnyException> {
         protect(io::getwd).map(RString::from)
@@ -526,7 +537,8 @@ mod tests {
             let path = std::env::temp_dir().join("rutie_io_unit_test.txt");
             let path_str = path.to_str().unwrap();
 
-            let file = File::open(path_str, "w").unwrap();
+            // Binary mode: in text mode Ruby on Windows writes "\r\n".
+            let file = File::open(path_str, "wb").unwrap();
             file.write(&RString::new_utf8("first\n")).unwrap();
             file.puts(&[Fixnum::new(2).into()]).unwrap();
             file.print(&[RString::new_utf8("three").into()]).unwrap();
@@ -534,7 +546,7 @@ mod tests {
             assert!(file.is_eof().is_err()); // not open for reading
             file.close().unwrap();
 
-            let file = File::open(path_str, "r").unwrap();
+            let file = File::open(path_str, "rb").unwrap();
             assert!(file.write(&RString::new_utf8("x")).is_err()); // not open for writing
             assert_eq!(file.gets().unwrap().unwrap().to_str(), "first\n");
             assert_eq!(file.gets().unwrap().unwrap().to_str(), "2\n");
@@ -553,7 +565,12 @@ mod tests {
             std::fs::remove_file(path).unwrap();
 
             assert_eq!(File::dirname("/a/b/c.rb").to_str(), "/a/b");
-            assert_eq!(File::expand_path("x", Some("/y")).unwrap().to_str(), "/y/x");
+            // An absolute directory on Windows has a drive.
+            let base = if cfg!(windows) { "C:/y" } else { "/y" };
+            assert_eq!(
+                File::expand_path("x", Some(base)).unwrap().to_str(),
+                format!("{}/x", base)
+            );
             assert!(File::open("/definitely/missing/rutie", "r").is_err());
             assert!(File::open("x", "bad\0mode").is_err());
             assert!(!File::current_directory().unwrap().to_str().is_empty());
@@ -591,11 +608,13 @@ mod tests {
             assert!(file.binmode().is_err());
             std::fs::remove_file(&path).unwrap();
 
-            let absolute = File::absolute_path("child", Some("/base")).unwrap();
-            assert_eq!(absolute.to_str(), "/base/child");
+            // An absolute directory on Windows has a drive.
+            let base = if cfg!(windows) { "C:/base" } else { "/base" };
+            let absolute = File::absolute_path("child", Some(base)).unwrap();
+            assert_eq!(absolute.to_str(), format!("{}/child", base));
             // Unlike expand_path, `~` is not expanded.
-            let tilde = File::absolute_path("~", Some("/base")).unwrap();
-            assert_eq!(tilde.to_str(), "/base/~");
+            let tilde = File::absolute_path("~", Some(base)).unwrap();
+            assert_eq!(tilde.to_str(), format!("{}/~", base));
         });
     }
 }

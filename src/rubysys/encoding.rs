@@ -16,6 +16,7 @@ pub const ENC_CODERANGE_BROKEN: isize = FL_USER_8 | FL_USER_9;
 pub const ENC_CODERANGE_MASK: isize =
     ENC_CODERANGE_7BIT | ENC_CODERANGE_VALID | ENC_CODERANGE_BROKEN;
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_enc_associate(VALUE obj, rb_encoding *enc)

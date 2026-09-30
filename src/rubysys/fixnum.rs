@@ -1,5 +1,6 @@
 use crate::rubysys::{libc, types::Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_int2inum(intptr_t n)
@@ -25,6 +26,10 @@ extern "C" {
     pub fn rb_num2int(num: Value) -> libc::c_long;
     // unsigned long
     // rb_num2uint(VALUE val)
+    //
+    // Only defined where `int` is smaller than `long`; elsewhere (Windows,
+    // 32-bit platforms) `NUM2UINT` is `rb_num2ulong`.
+    #[cfg(not(any(windows, target_pointer_width = "32")))]
     pub fn rb_num2uint(num: Value) -> libc::c_ulong;
     // long
     // rb_num2long(VALUE val)

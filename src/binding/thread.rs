@@ -6,7 +6,7 @@ use crate::{
     util, Object,
 };
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use crate::types::RawFd;
 
 pub fn create<F, R>(func: F) -> Value
@@ -21,7 +21,7 @@ where
     unsafe { thread::rb_thread_create(thread_create_callbox::<R>, closure_ptr) }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub fn wait_fd(fd: RawFd) {
     unsafe { thread::rb_thread_wait_fd(fd) };
 }
@@ -125,10 +125,24 @@ pub fn schedule() {
     unsafe { thread::rb_thread_schedule() }
 }
 
+// Windows' `struct timeval` is Winsock's: both fields are a 32-bit `long`.
+#[cfg(windows)]
+type TimevalSeconds = libc::c_long;
+#[cfg(windows)]
+type TimevalMicros = libc::c_long;
+
+#[cfg(not(windows))]
+type TimevalSeconds = libc::time_t;
+#[cfg(not(windows))]
+type TimevalMicros = libc::suseconds_t;
+
 pub fn sleep_for(duration: std::time::Duration) {
+    use std::convert::TryFrom;
+
     let time = libc::timeval {
-        tv_sec: duration.as_secs() as libc::time_t,
-        tv_usec: duration.subsec_micros() as libc::suseconds_t,
+        // Saturate rather than wrap to a negative (or short) sleep.
+        tv_sec: TimevalSeconds::try_from(duration.as_secs()).unwrap_or(TimevalSeconds::MAX),
+        tv_usec: duration.subsec_micros() as TimevalMicros,
     };
 
     unsafe { thread::rb_thread_wait_for(time) }
@@ -160,7 +174,7 @@ pub fn local_set(thread: Value, name: &str, value: Value) -> Value {
     }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub fn wait_fd_writable(fd: RawFd) {
     unsafe { thread::rb_thread_fd_writable(fd) };
 }

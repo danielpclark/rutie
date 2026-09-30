@@ -6,6 +6,7 @@ use crate::{
     AnyException, Exception,
 };
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_proc_call_with_block(VALUE self, int argc, const VALUE *argv, VALUE passed_procval)

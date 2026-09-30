@@ -9,6 +9,7 @@ pub type GlobalGetter = extern "C" fn(id: Id, data: *mut Value) -> Value;
 // void setter(VALUE value, ID id, VALUE *data)
 pub type GlobalSetter = extern "C" fn(value: Value, id: Id, data: *mut Value);
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // void
     // rb_define_hooked_variable(const char *name, VALUE *var,

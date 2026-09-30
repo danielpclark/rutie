@@ -1,10 +1,12 @@
 use crate::rubysys::types::{c_char, c_int, c_long, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     pub static rb_cMatch: Value;
     pub static rb_cRegexp: Value;
 }
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_backref_get(void)

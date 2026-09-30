@@ -983,11 +983,14 @@ impl VM {
     /// use rutie::{Object, RString, VM};
     /// # VM::init();
     ///
-    /// let previous = VM::trap(&[RString::new_utf8("USR2").into(), RString::new_utf8("IGNORE").into()])
+    /// // Windows only has INT, ILL, ABRT, FPE, SEGV, TERM and EXIT.
+    /// let signal = if cfg!(windows) { "TERM" } else { "USR2" };
+    ///
+    /// let previous = VM::trap(&[RString::new_utf8(signal).into(), RString::new_utf8("IGNORE").into()])
     ///     .unwrap();
     ///
     /// // Restoring the previous handler returns the one just installed.
-    /// let installed = VM::trap(&[RString::new_utf8("USR2").into(), previous]).unwrap();
+    /// let installed = VM::trap(&[RString::new_utf8(signal).into(), previous]).unwrap();
     /// assert_eq!(installed.try_convert_to::<RString>().unwrap().to_str(), "IGNORE");
     ///
     /// // Unknown signals are errors.
@@ -1207,7 +1210,9 @@ impl VM {
     /// Assigning `$0` from Ruby afterwards still raises
     /// `RuntimeError: $0 not initialized` in a program that embeds Ruby
     /// without [`VM::run_file`](#method.run_file), because Ruby has no
-    /// process arguments to rewrite.
+    /// process arguments to rewrite. On Windows, where
+    /// [`VM::init`](#method.init) gives Ruby the process's command line,
+    /// the assignment works.
     ///
     /// # Panics
     ///
@@ -1224,7 +1229,7 @@ impl VM {
     /// let name = unsafe { VM::eval_str("$0") }.try_convert_to::<RString>().unwrap();
     /// assert_eq!(name.to_str(), "my_tool");
     ///
-    /// assert!(VM::eval("$0 = 'renamed'").is_err());
+    /// assert_eq!(VM::eval("$0 = 'renamed'").is_err(), !cfg!(windows));
     /// ```
     pub fn set_script_name(name: &str) {
         vm::set_script_name(name)
@@ -1973,6 +1978,10 @@ impl VM {
     /// OS error (`errno`), with `message` added to its message, like
     /// `rb_sys_fail`.
     ///
+    /// The OS error is the one Rust's `std::io::Error::last_os_error` sees; on
+    /// Windows that is `GetLastError`, mapped to an `errno` the way Ruby maps
+    /// it (`ERROR_PATH_NOT_FOUND` raises `Errno::ENOENT`).
+    ///
     /// Unlike `rb_sys_fail`, which aborts the process when `errno` is `0`,
     /// this raises a plain `SystemCallError` in that case.
     ///
@@ -1998,9 +2007,9 @@ impl VM {
     /// assert!(error.message().contains("/this/path/does/not/exist"));
     /// ```
     pub fn sys_fail(message: &str) -> ! {
-        let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
+        let code = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
 
-        exception::syserr_fail(errno, message)
+        exception::syserr_fail(exception::os_error_to_errno(code), message)
     }
 
     /// Splits the `arguments` of a Ruby method call according to an
@@ -3404,8 +3413,9 @@ mod tests {
                 .unwrap();
             assert_eq!(name.to_str(), "rutie_unit_test");
 
-            // Without process arguments Ruby refuses to rewrite `$0`.
-            assert!(VM::eval("$0 = 'renamed'").is_err());
+            // Without process arguments Ruby refuses to rewrite `$0`. On
+            // Windows `VM::init` gives Ruby the process's command line.
+            assert_eq!(VM::eval("$0 = 'renamed'").is_ok(), cfg!(windows));
         });
     }
 
@@ -3533,12 +3543,14 @@ mod tests {
             let abort = VM::error_pop().unwrap();
             assert_eq!(abort.message(), "rutie abort test (expected)");
 
+            // Windows has no SIGUSR2.
+            let signal = if cfg!(windows) { "TERM" } else { "USR2" };
             let previous = VM::trap(&[
-                RString::new_utf8("USR2").into(),
+                RString::new_utf8(signal).into(),
                 RString::new_utf8("IGNORE").into(),
             ])
             .unwrap();
-            assert!(VM::trap(&[RString::new_utf8("USR2").into(), previous]).is_ok());
+            assert!(VM::trap(&[RString::new_utf8(signal).into(), previous]).is_ok());
 
             VM::init_with_args(&["from", "init"]);
             let argv = VM::eval("ARGV.join(' ')").unwrap();

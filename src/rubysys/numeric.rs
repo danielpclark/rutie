@@ -9,6 +9,7 @@ pub const INTEGER_PACK_2COMP: c_int = 0x80;
 pub const INTEGER_PACK_FORCE_BIGNUM: c_int = 0x100;
 pub const INTEGER_PACK_NEGATIVE: c_int = 0x200;
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // size_t
     // rb_absint_size(VALUE val, int *nlz_bits_ret)

@@ -6,7 +6,7 @@ pub use crate::rubysys::types::{
     RbDataTypeFunction as DataTypeFunction, SignedValue, Value, ValueType, VmPointer,
 };
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 pub use crate::rubysys::types::RawFd;
 
 pub type Callback<I, O> = extern "C" fn(Argc, *const AnyObject, I) -> O;

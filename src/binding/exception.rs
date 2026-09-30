@@ -47,6 +47,19 @@ pub fn not_implemented() -> ! {
     unsafe { exception::rb_notimplement() }
 }
 
+// The `errno` for an OS error code from Rust (`std::io::Error::raw_os_error`).
+// On Windows that code is a Win32 error (`GetLastError`), which is mapped the
+// way Ruby maps its own (`ERROR_FILE_NOT_FOUND` is `ENOENT`, ...).
+#[cfg(windows)]
+pub fn os_error_to_errno(code: c_int) -> c_int {
+    unsafe { exception::rb_w32_map_errno(code as u32 as libc::c_ulong) }
+}
+
+#[cfg(not(windows))]
+pub fn os_error_to_errno(code: c_int) -> c_int {
+    code
+}
+
 pub fn syserr_new(errno: c_int, message: &str) -> Value {
     let message = message_to_cstring(message);
 

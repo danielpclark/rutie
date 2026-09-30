@@ -1,9 +1,11 @@
 use crate::rubysys::types::{c_int, c_long, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     pub static rb_cRange: Value;
 }
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_range_beg_len(VALUE range, long *begp, long *lenp, long len, int err)
@@ -43,6 +45,7 @@ pub struct ArithmeticSequenceComponents {
 }
 
 #[cfg(ruby_gte_2_6)]
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // int
     // rb_arithmetic_sequence_extract(VALUE obj, rb_arithmetic_sequence_components_t *component)

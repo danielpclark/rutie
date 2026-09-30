@@ -6,6 +6,7 @@ use crate::rubysys::{
 
 use std::mem;
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_ary_concat(VALUE x, VALUE y)

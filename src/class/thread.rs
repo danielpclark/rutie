@@ -5,7 +5,7 @@ use crate::{
     types::Value,
 };
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use crate::types::RawFd;
 
 use crate::{AnyException, AnyObject, Class, Object, VerifiedObject};
@@ -58,9 +58,30 @@ impl Thread {
     /// Tells scheduler to switch to other threads while current thread is waiting for a
     /// readable event on the given file descriptor.
     ///
+    /// On Unix this is any file descriptor. On Windows it is a descriptor of
+    /// Ruby's C runtime, as Ruby's `IO#fileno` returns it (not a `HANDLE` or
+    /// `SOCKET`).
+    ///
     /// # Examples
     ///
     /// ```
+    /// use rutie::{Fixnum, Object, Thread, VM};
+    /// # VM::init();
+    ///
+    /// let reader = VM::eval("reader, $writer = IO.pipe; $writer.write('ready'); reader").unwrap();
+    /// let fd = unsafe { reader.send("fileno", &[]) }.try_convert_to::<Fixnum>().unwrap();
+    ///
+    /// // Returns once the pipe has data (other Ruby threads run meanwhile).
+    /// Thread::wait_fd(fd.to_i32());
+    ///
+    /// let data = unsafe { reader.send("readpartial", &[Fixnum::new(5).into()]) };
+    /// assert_eq!(data.try_convert_to::<rutie::RString>().unwrap().to_str(), "ready");
+    /// ```
+    ///
+    /// On Unix a descriptor from Rust works too:
+    ///
+    /// ```
+    /// # #[cfg(unix)] {
     /// use std::io::{Read, Write};
     /// use std::os::unix::io::AsRawFd;
     /// use std::os::unix::net::UnixStream;
@@ -77,8 +98,9 @@ impl Thread {
     /// let mut buffer = [0; 5];
     /// reader.read_exact(&mut buffer).unwrap();
     /// assert_eq!(&buffer, b"ready");
+    /// # }
     /// ```
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     pub fn wait_fd(fd: RawFd) {
         thread::wait_fd(fd);
     }
@@ -337,9 +359,25 @@ impl Thread {
     /// Tells the scheduler to switch to other threads until the file
     /// descriptor is writable (`rb_thread_fd_writable`).
     ///
+    /// The descriptor is as for [`Thread::wait_fd`](#method.wait_fd).
+    ///
     /// # Examples
     ///
     /// ```
+    /// use rutie::{Fixnum, Object, Thread, VM};
+    /// # VM::init();
+    ///
+    /// let writer = VM::eval("$reader, writer = IO.pipe; writer").unwrap();
+    /// let fd = unsafe { writer.send("fileno", &[]) }.try_convert_to::<Fixnum>().unwrap();
+    ///
+    /// // An empty pipe has buffer space, so this returns right away.
+    /// Thread::wait_fd_writable(fd.to_i32());
+    /// ```
+    ///
+    /// On Unix a descriptor from Rust works too:
+    ///
+    /// ```
+    /// # #[cfg(unix)] {
     /// use std::io::{Read, Write};
     /// use std::os::unix::io::AsRawFd;
     /// use std::os::unix::net::UnixStream;
@@ -356,8 +394,9 @@ impl Thread {
     /// let mut buffer = [0; 2];
     /// reader.read_exact(&mut buffer).unwrap();
     /// assert_eq!(&buffer, b"ok");
+    /// # }
     /// ```
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     pub fn wait_fd_writable(fd: RawFd) {
         thread::wait_fd_writable(fd);
     }
@@ -627,6 +666,23 @@ mod tests {
                 None::<fn()>,
             );
             assert_eq!(text, "with gvl");
+
+            // Ruby's own descriptors, on every platform.
+            let fds = VM::eval("r, w = IO.pipe; $rutie_fd_pipe = [r, w]; [r.fileno, w.fileno]")
+                .unwrap()
+                .try_convert_to::<crate::Array>()
+                .unwrap();
+            let fd = |i| {
+                fds.at(i)
+                    .try_convert_to::<crate::Fixnum>()
+                    .unwrap()
+                    .to_i32()
+            };
+            Thread::wait_fd_writable(fd(1));
+            VM::eval("$rutie_fd_pipe[1].write('x')").unwrap();
+            // Returns once the reader has data.
+            Thread::wait_fd(fd(0));
+            VM::eval("$rutie_fd_pipe.each(&:close); $rutie_fd_pipe = nil").unwrap();
 
             #[cfg(unix)]
             {

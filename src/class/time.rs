@@ -184,9 +184,10 @@ impl Time {
 /// use std::time::{Duration, UNIX_EPOCH};
 /// # VM::init();
 ///
-/// let time = Time::from(UNIX_EPOCH + Duration::new(5, 7));
+/// // (Windows keeps `SystemTime` in steps of 100 nanoseconds.)
+/// let time = Time::from(UNIX_EPOCH + Duration::new(5, 700));
 ///
-/// assert_eq!(time.to_unix(), (5, 7));
+/// assert_eq!(time.to_unix(), (5, 700));
 /// ```
 impl From<SystemTime> for Time {
     fn from(system_time: SystemTime) -> Self {

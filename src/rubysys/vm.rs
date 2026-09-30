@@ -3,6 +3,7 @@ use crate::rubysys::types::{
     VmPointer,
 };
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // RUBY_EXTERN VALUE rb_argv0;
     //
@@ -235,7 +236,9 @@ extern "C" {
     // void
     // ruby_sysinit(int *argc, char ***argv)
     //
-    // Keeps `argv` like `ruby_options` does.
+    // Keeps `argv` like `ruby_options` does. On Windows it also sets up the
+    // Win32 layer (standard handles, environment, Winsock) and must run
+    // before `ruby_init`.
     pub fn ruby_sysinit(argc: *mut c_int, argv: *mut *mut *mut c_char);
     // int
     // ruby_native_thread_p(void)

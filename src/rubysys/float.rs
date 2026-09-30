@@ -1,5 +1,6 @@
 use crate::rubysys::types::{c_double, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_float_new(double d)
