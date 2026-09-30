@@ -35,6 +35,30 @@ API and may have breaking changes during a teeny version change.
    handlers, thanks to @danielpclark
  - `VM::call_protected`, the previous (immediate) behaviour of `VM::at_exit`,
    thanks to @danielpclark
+ - `Object` methods: `dup`, `clone_object`, `object_id`, `inspect_object`,
+   `as_string`, `is_kind_of`, `is_instance_of`, `method`, `check_send`,
+   `send_with_proc`, `send_with_keywords` (Ruby 2.7), `instance_variables`,
+   `is_instance_variable_defined`, `remove_instance_variable`, `hash_value`
+   and `instance_eval`, thanks to @danielpclark
+ - `Class` and `Module` methods: `name`, `path`, `from_path` (nested paths,
+   returns an error instead of raising), `is_method_defined`, `inherits`,
+   `includes_module`, `module_eval`, `instance_methods`, `class_variable_get`,
+   `class_variable_set`, `is_class_variable_defined`, `is_const_defined`,
+   `is_const_defined_at` and `const_remove`, thanks to @danielpclark
+ - Global variables: `VM::global_get`, `VM::global_set`,
+   `VM::protect_global_set`, `VM::define_variable` and
+   `VM::define_readonly_variable` (returning a `GlobalVariable` handle) and
+   `VM::define_virtual_variable` (Rust closures as getter and setter), plus
+   `VM::define_global_const`, thanks to @danielpclark
+ - `Symbol::find` (looks a symbol up without creating it), `Symbol::from_rstring`,
+   `Symbol::to_rstring`, `Symbol::is_const_name`,
+   `Symbol::is_instance_variable_name` and `Symbol::is_class_variable_name`,
+   thanks to @danielpclark
+ - Kernel conversions returning `Result`: `RString::convert`, `Array::convert`,
+   `Integer::convert`, `Float::convert` and `Hash::convert`; `VM::format`
+   (Ruby's `format`) and `VM::p`, thanks to @danielpclark
+ - `ScannedArgs`, `KeywordArgs` and `GlobalVariable` are exported from the
+   crate root, thanks to @danielpclark
 
 ### Changed
  - **Breaking:** `VM::at_exit` now registers a real end proc

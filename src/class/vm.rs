@@ -1,13 +1,13 @@
 use crate::{
-    binding::{class, exception, hash, symbol, vm},
+    binding::{class, exception, hash, object, symbol, variable, vm},
     helpers::scan_args::{KeywordArgs, ScanArgsFormat, ScannedArgs},
     rubysys::{exception::rb_eStandardError, rproc},
     types::{Argc, Id, Value, VmPointer},
 };
 
 use crate::{
-    util, AnyException, AnyObject, Array, Class, Exception, Hash, NilClass, Object, Proc,
-    TryConvert,
+    util, AnyException, AnyObject, Array, Class, Exception, GlobalVariable, Hash, NilClass, Object,
+    Proc, RString, TryConvert,
 };
 
 /// Virtual Machine and helpers
@@ -1668,6 +1668,227 @@ impl VM {
         })
     }
 
+    /// Returns the value of the global variable `name`, such as `"$stdout"`
+    /// (`rb_gv_get`). An undefined global is `nil`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("$rutie_answer = 42").unwrap();
+    ///
+    /// assert_eq!(VM::global_get("$rutie_answer").try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    /// assert!(VM::global_get("$rutie_undefined").is_nil());
+    /// ```
+    pub fn global_get(name: &str) -> AnyObject {
+        AnyObject::from(variable::global_get(name))
+    }
+
+    /// Sets the global variable `name`, such as `"$verbose_mode"`, to `value`
+    /// and returns it (`rb_gv_set`).
+    ///
+    /// Raises `NameError` for a read-only global such as `"$$"`; see
+    /// [`VM::protect_global_set`](#method.protect_global_set).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::global_set("$rutie_answer", Fixnum::new(42));
+    ///
+    /// let answer = VM::eval("$rutie_answer").unwrap();
+    ///
+    /// assert_eq!(answer.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    /// ```
+    pub fn global_set<T: Object>(name: &str, value: T) -> AnyObject {
+        AnyObject::from(variable::global_set(name, value.value()))
+    }
+
+    /// Like [`VM::global_set`](#method.global_set), but returns the
+    /// exception (such as the `NameError` for a read-only global) instead of
+    /// raising it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// assert!(VM::protect_global_set("$rutie_answer", Fixnum::new(42)).is_ok());
+    /// assert!(VM::protect_global_set("$$", Fixnum::new(1)).is_err());
+    /// ```
+    pub fn protect_global_set<T: Object>(name: &str, value: T) -> Result<AnyObject, AnyException> {
+        let value = value.value();
+
+        vm::protect_value(|| variable::global_set(name, value))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Defines the global variable `name` (such as `"$counter"`) stored in
+    /// memory owned by Rust, starting as `initial` (`rb_define_variable`).
+    ///
+    /// The returned [`GlobalVariable`](struct.GlobalVariable.html) reads and
+    /// writes the value directly. Ruby code can read and assign it as usual.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let counter = VM::define_variable("$rutie_counter", Fixnum::new(0));
+    ///
+    /// VM::eval("$rutie_counter += 5").unwrap();
+    ///
+    /// assert_eq!(counter.get().try_convert_to::<Fixnum>(), Ok(Fixnum::new(5)));
+    /// ```
+    pub fn define_variable<T: Object>(name: &str, initial: T) -> GlobalVariable {
+        GlobalVariable::new(variable::define_variable(name, initial.value(), false))
+    }
+
+    /// Like [`VM::define_variable`](#method.define_variable), but Ruby code
+    /// cannot assign it (`rb_define_readonly_variable`); only Rust can,
+    /// through the returned [`GlobalVariable`](struct.GlobalVariable.html).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let version = VM::define_readonly_variable("$rutie_version", Fixnum::new(1));
+    ///
+    /// assert!(VM::eval("$rutie_version = 2").is_err());
+    ///
+    /// version.set(Fixnum::new(2));
+    ///
+    /// let value = VM::eval("$rutie_version").unwrap();
+    ///
+    /// assert_eq!(value.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+    /// ```
+    pub fn define_readonly_variable<T: Object>(name: &str, initial: T) -> GlobalVariable {
+        GlobalVariable::new(variable::define_variable(name, initial.value(), true))
+    }
+
+    /// Defines the global variable `name` (such as `"$now"`) whose value is
+    /// computed by `getter` each time it is read, and whose assignment calls
+    /// `setter` (`rb_define_hooked_variable`). Without a setter the variable
+    /// is read-only and assigning it raises `NameError`.
+    ///
+    /// The closures are kept for the life of the process. A panic in either
+    /// is raised as a Ruby `RuntimeError`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{AnyObject, Fixnum, Object, VM};
+    /// use std::{cell::Cell, rc::Rc};
+    /// # VM::init();
+    ///
+    /// let stored = Rc::new(Cell::new(10));
+    /// let (read, write) = (stored.clone(), stored.clone());
+    ///
+    /// VM::define_virtual_variable(
+    ///     "$rutie_virtual",
+    ///     move || Fixnum::new(read.get()).into(),
+    ///     Some(move |value: AnyObject| {
+    ///         write.set(value.try_convert_to::<Fixnum>().unwrap().to_i64() * 2);
+    ///     }),
+    /// );
+    ///
+    /// VM::eval("$rutie_virtual = 21").unwrap();
+    ///
+    /// assert_eq!(stored.get(), 42);
+    ///
+    /// let value = VM::eval("$rutie_virtual").unwrap();
+    ///
+    /// assert_eq!(value.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    ///
+    /// // Read-only without a setter:
+    /// VM::define_virtual_variable("$rutie_constant", || Fixnum::new(1).into(), None::<fn(AnyObject)>);
+    ///
+    /// assert!(VM::eval("$rutie_constant = 2").is_err());
+    /// ```
+    pub fn define_virtual_variable<G, S>(name: &str, mut getter: G, setter: Option<S>)
+    where
+        G: FnMut() -> AnyObject + 'static,
+        S: FnMut(AnyObject) + 'static,
+    {
+        let setter = setter.map(|mut setter| move |value: Value| setter(AnyObject::from(value)));
+
+        variable::define_virtual_variable(name, move || getter().value(), setter)
+    }
+
+    /// Defines the constant `name` on `Object`, making it visible
+    /// everywhere (`rb_define_global_const`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::define_global_const("RUTIE_LIMIT", Fixnum::new(100));
+    ///
+    /// let limit = VM::eval("RUTIE_LIMIT").unwrap();
+    ///
+    /// assert_eq!(limit.try_convert_to::<Fixnum>(), Ok(Fixnum::new(100)));
+    /// ```
+    pub fn define_global_const<T: Object>(name: &str, value: T) {
+        class::define_global_const(name, value.value())
+    }
+
+    /// Formats `arguments` with the Ruby format string `format` (Ruby's
+    /// `format`/`sprintf`, `rb_str_format`), returning the string or the
+    /// `ArgumentError` for a bad format.
+    ///
+    /// This is Ruby-level formatting: the format is never passed to C's
+    /// `printf`, so untrusted formats are fine.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Float, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let formatted = VM::format(
+    ///     "%s has %03d items costing %.2f",
+    ///     &[RString::new_utf8("cart").into(), Fixnum::new(7).into(), Float::new(9.5).into()],
+    /// );
+    ///
+    /// assert_eq!(formatted.unwrap().to_str(), "cart has 007 items costing 9.50");
+    ///
+    /// assert!(VM::format("%d", &[]).is_err());
+    /// ```
+    pub fn format(format: &str, arguments: &[AnyObject]) -> Result<RString, AnyException> {
+        let format = RString::new_utf8(format);
+        let arguments = util::arguments_to_values(arguments);
+
+        vm::protect_value(|| object::format(format.value(), &arguments))
+            .map(RString::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Prints the `inspect` form of `object` and a newline to `$stdout`
+    /// (Ruby's `p`, `rb_p`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::p(&Fixnum::new(42)); // prints "42"
+    /// ```
+    pub fn p<T: Object>(object: &T) {
+        object::p(object.value())
+    }
+
     /// Call super
     ///
     /// # Examples
@@ -2285,6 +2506,77 @@ mod tests {
             let frozen = keywords.freeze();
             assert!(VM::get_kwargs(Some(&frozen), &["a"], &["c"], false).is_ok());
             assert_eq!(frozen.length(), 2);
+        });
+    }
+
+    #[test]
+    fn test_global_variables() {
+        crate::on_ruby_thread(|| {
+            VM::global_set("$rutie_test_global", Fixnum::new(1));
+            let value = VM::eval("$rutie_test_global").unwrap();
+            assert_eq!(value.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+            assert!(VM::global_get("$rutie_test_undefined_global").is_nil());
+
+            assert!(VM::protect_global_set("$$", Fixnum::new(1)).is_err());
+
+            let variable = VM::define_variable("$rutie_test_defined", RString::new_utf8("a"));
+            VM::eval("$rutie_test_defined += 'b'").unwrap();
+            // Survives a full GC: the storage is a GC root.
+            crate::GC::start();
+            assert_eq!(
+                variable.get().try_convert_to::<RString>().unwrap().to_str(),
+                "ab"
+            );
+
+            let readonly = VM::define_readonly_variable("$rutie_test_readonly", Fixnum::new(1));
+            assert!(VM::eval("$rutie_test_readonly = 2").is_err());
+            readonly.set(Fixnum::new(3));
+            assert_eq!(
+                VM::global_get("$rutie_test_readonly").try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(3))
+            );
+
+            let reads = Arc::new(AtomicUsize::new(0));
+            let counter = reads.clone();
+            VM::define_virtual_variable(
+                "$rutie_test_virtual",
+                move || Fixnum::new(counter.fetch_add(1, Ordering::SeqCst) as i64).into(),
+                None::<fn(AnyObject)>,
+            );
+            VM::eval("$rutie_test_virtual; $rutie_test_virtual").unwrap();
+            assert_eq!(reads.load(Ordering::SeqCst), 2);
+
+            let error = VM::eval("$rutie_test_virtual = 1").unwrap_err();
+            assert_eq!(
+                error.message(),
+                "$rutie_test_virtual is a read-only variable"
+            );
+
+            VM::define_virtual_variable(
+                "$rutie_test_panicking",
+                || panic!("getter failed"),
+                None::<fn(AnyObject)>,
+            );
+            let error = VM::eval("$rutie_test_panicking").unwrap_err();
+            assert_eq!(error.message(), "Rust panic: getter failed");
+        });
+    }
+
+    #[test]
+    fn test_format_and_global_const() {
+        crate::on_ruby_thread(|| {
+            let formatted = VM::format(
+                "%-5s|%+d",
+                &[Symbol::new("ab").into(), Fixnum::new(3).into()],
+            );
+            assert_eq!(formatted.unwrap().to_str(), "ab   |+3");
+
+            // Formats with C conversions are handled by Ruby, not printf.
+            assert!(VM::format("%n %s", &[Fixnum::new(1).into()]).is_err());
+
+            VM::define_global_const("RUTIE_TEST_CONST", Fixnum::new(8));
+            let value = VM::eval("RUTIE_TEST_CONST").unwrap();
+            assert_eq!(value.try_convert_to::<Fixnum>(), Ok(Fixnum::new(8)));
         });
     }
 

@@ -253,3 +253,79 @@ pub fn scan_args(
         )
     }
 }
+
+pub fn is_method_defined(klass: Value, name: &str, include_private: bool) -> bool {
+    // `ex` bit 0x01 leaves out private methods.
+    let ex = if include_private { 0 } else { 1 };
+
+    unsafe { class::rb_method_boundp(klass, symbol::internal_id(name), ex) != 0 }
+}
+
+pub fn class_name(klass: Value) -> Value {
+    unsafe { class::rb_class_name(klass) }
+}
+
+pub fn class_path(klass: Value) -> Value {
+    unsafe { class::rb_class_path(klass) }
+}
+
+pub fn module_name(module: Value) -> Value {
+    unsafe { class::rb_mod_name(module) }
+}
+
+pub fn inherited_p(module: Value, other: Value) -> Value {
+    unsafe { class::rb_class_inherited_p(module, other) }
+}
+
+pub fn include_p(module: Value, other: Value) -> bool {
+    unsafe { class::rb_mod_include_p(module, other) }.is_true()
+}
+
+pub fn module_eval(module: Value, code: &str) -> Value {
+    let arguments = [crate::binding::string::new_utf8(code)];
+    let (argc, argv) = util::process_arguments(&arguments);
+
+    unsafe { class::rb_mod_module_eval(argc, argv, module) }
+}
+
+pub fn instance_methods(module: Value, include_inherited: bool) -> Value {
+    let arguments = [util::bool_to_value(include_inherited)];
+    let (argc, argv) = util::process_arguments(&arguments);
+
+    unsafe { class::rb_class_instance_methods(argc, argv, module) }
+}
+
+pub fn is_class_variable_defined(klass: Value, name: &str) -> bool {
+    unsafe { class::rb_cvar_defined(klass, symbol::internal_id(name)) }.is_true()
+}
+
+pub fn class_variable_get(klass: Value, name: &str) -> Value {
+    unsafe { class::rb_cvar_get(klass, symbol::internal_id(name)) }
+}
+
+pub fn class_variable_set(klass: Value, name: &str, value: Value) {
+    unsafe { class::rb_cvar_set(klass, symbol::internal_id(name), value) }
+}
+
+pub fn is_const_defined(klass: Value, name: &str) -> bool {
+    util::c_int_to_bool(unsafe { class::rb_const_defined(klass, symbol::internal_id(name)) })
+}
+
+pub fn is_const_defined_at(klass: Value, name: &str) -> bool {
+    util::c_int_to_bool(unsafe { class::rb_const_defined_at(klass, symbol::internal_id(name)) })
+}
+
+pub fn const_remove(module: Value, name: &str) -> Value {
+    unsafe { class::rb_const_remove(module, symbol::internal_id(name)) }
+}
+
+// Raises `ArgumentError` for an unknown path, so the caller owns `path`.
+pub fn path_to_class(path: &CStr) -> Value {
+    unsafe { class::rb_path2class(path.as_ptr()) }
+}
+
+pub fn define_global_const(name: &str, value: Value) {
+    let name = util::str_to_cstring(name);
+
+    unsafe { class::rb_define_global_const(name.as_ptr(), value) }
+}

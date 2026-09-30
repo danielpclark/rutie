@@ -7,7 +7,7 @@ use std::{
 use crate::{
     binding::array,
     types::{Value, ValueType},
-    AnyObject, Enumerator, Object, RString, VerifiedObject,
+    AnyException, AnyObject, Enumerator, Object, RString, VerifiedObject,
 };
 
 /// `Array`
@@ -18,6 +18,33 @@ pub struct Array {
 }
 
 impl Array {
+    /// Converts `object` to a `Array` the way Ruby's `Array(object)`
+    /// (`Kernel#Array`, `rb_Array`) does, calling `to_ary` or `to_a`, wrapping anything else in a one-element array (`nil` becomes `[]`). Returns the exception when
+    /// it cannot be converted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, NilClass, Object, VM};
+    /// # VM::init();
+    ///
+    /// let wrapped = Array::convert(&Fixnum::new(1)).unwrap();
+    /// assert_eq!(wrapped.length(), 1);
+    ///
+    /// let empty = Array::convert(&NilClass::new()).unwrap();
+    /// assert_eq!(empty.length(), 0);
+    ///
+    /// let range = Array::convert(&VM::eval("1..3").unwrap()).unwrap();
+    /// assert_eq!(range.length(), 3);
+    /// ```
+    pub fn convert<T: Object>(object: &T) -> Result<Self, AnyException> {
+        let object = object.value();
+
+        crate::binding::vm::protect_value(|| crate::binding::object::to_array(object))
+            .map(Self::from)
+            .map_err(AnyException::from)
+    }
+
     /// Creates a new instance of empty `Array`.
     ///
     /// # Examples

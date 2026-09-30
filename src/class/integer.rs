@@ -3,7 +3,7 @@ use std::convert::From;
 use crate::{
     binding::fixnum,
     types::{Value, ValueType},
-    AnyObject, Fixnum, Object, VerifiedObject,
+    AnyException, AnyObject, Fixnum, Object, VerifiedObject,
 };
 
 /// `Integer`
@@ -14,6 +14,33 @@ pub struct Integer {
 }
 
 impl Integer {
+    /// Converts `object` to a `Integer` the way Ruby's `Integer(object)`
+    /// (`Kernel#Integer`, `rb_Integer`) does, parsing strings strictly (with `0x`/`0b`/`0o` prefixes) and calling `to_int` or `to_i`. Returns the exception when
+    /// it cannot be converted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Float, Integer, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let parsed = Integer::convert(&RString::new_utf8("0x1A")).unwrap();
+    /// assert_eq!(parsed.to_i64(), 26);
+    ///
+    /// let truncated = Integer::convert(&Float::new(3.99)).unwrap();
+    /// assert_eq!(truncated.to_i64(), 3);
+    ///
+    /// let error = Integer::convert(&RString::new_utf8("12abc")).unwrap_err();
+    /// assert!(error.message().contains("invalid value for Integer"));
+    /// ```
+    pub fn convert<T: Object>(object: &T) -> Result<Self, AnyException> {
+        let object = object.value();
+
+        crate::binding::vm::protect_value(|| crate::binding::object::to_integer(object))
+            .map(Self::from)
+            .map_err(AnyException::from)
+    }
+
     /// Creates a new `Integer`.
     ///
     /// # Examples

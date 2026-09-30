@@ -107,6 +107,18 @@ extern "C" {
         argv: *const Value,
         procval: Value,
     ) -> Value;
+    // VALUE
+    // rb_funcallv_kw(VALUE recv, ID mid, int argc, const VALUE *argv, int kw_splat)
+    //
+    // Ruby 2.7 and later only.
+    #[cfg(ruby_gte_2_7)]
+    pub fn rb_funcallv_kw(
+        receiver: Value,
+        method: Id,
+        argc: Argc,
+        argv: *const Value,
+        kw_splat: c_int,
+    ) -> Value;
     // void
     // rb_iter_break(void)
     pub fn rb_iter_break() -> !;

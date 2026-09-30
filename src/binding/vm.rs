@@ -234,7 +234,7 @@ pub fn panic_to_exception(payload: Box<dyn Any + Send>) -> Value {
 // Every `extern "C"` function that Ruby calls into goes through this: a panic
 // must never unwind into Ruby's C frames, so it is caught and re-raised as a
 // Ruby `RuntimeError` once the panic payload has been dropped.
-fn call_catching_panic<F, R>(func: F) -> R
+pub(crate) fn call_catching_panic<F, R>(func: F) -> R
 where
     F: FnOnce() -> R,
 {
@@ -517,4 +517,23 @@ pub fn call_init(object: Value, arguments: &[Value]) {
     let (argc, argv) = util::process_arguments(arguments);
 
     unsafe { vm::rb_obj_call_init(object, argc, argv) }
+}
+
+pub fn call_method_with_proc(
+    receiver: Value,
+    method: &str,
+    arguments: &[Value],
+    block: Value,
+) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { vm::rb_funcall_with_block(receiver, internal_id(method), argc, argv, block) }
+}
+
+// The last argument must be a `Hash`; it is passed as keywords.
+#[cfg(ruby_gte_2_7)]
+pub fn call_method_with_keywords(receiver: Value, method: &str, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { vm::rb_funcallv_kw(receiver, internal_id(method), argc, argv, 1) }
 }

@@ -3,7 +3,7 @@ use std::{convert::From, default::Default};
 use crate::{
     binding::hash,
     types::{Value, ValueType},
-    AnyObject, Object, VerifiedObject,
+    AnyException, AnyObject, Object, VerifiedObject,
 };
 
 /// `Hash`
@@ -14,6 +14,35 @@ pub struct Hash {
 }
 
 impl Hash {
+    /// Converts `object` to a `Hash` the way Ruby's `Hash(object)`
+    /// (`Kernel#Hash`, `rb_Hash`) does, calling `to_hash`; `nil` and `[]` become an empty hash. Returns the exception when
+    /// it cannot be converted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, NilClass, Object, VM};
+    /// # VM::init();
+    ///
+    /// let empty = Hash::convert(&NilClass::new()).unwrap();
+    /// assert_eq!(empty.length(), 0);
+    ///
+    /// let hash = VM::eval("{ a: 1 }").unwrap();
+    /// assert_eq!(Hash::convert(&hash).unwrap().length(), 1);
+    ///
+    /// // Only `to_hash` is used, so an array of pairs is not converted.
+    /// assert!(Hash::convert(&VM::eval("[[:a, 1]]").unwrap()).is_err());
+    ///
+    /// assert!(Hash::convert(&Fixnum::new(1)).is_err());
+    /// ```
+    pub fn convert<T: Object>(object: &T) -> Result<Self, AnyException> {
+        let object = object.value();
+
+        crate::binding::vm::protect_value(|| crate::binding::object::to_hash(object))
+            .map(Self::from)
+            .map_err(AnyException::from)
+    }
+
     /// Creates a new instance of empty `Hash`.
     ///
     /// # Examples

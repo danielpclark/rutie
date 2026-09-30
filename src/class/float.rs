@@ -14,6 +14,32 @@ pub struct Float {
 }
 
 impl Float {
+    /// Converts `object` to a `Float` the way Ruby's `Float(object)`
+    /// (`Kernel#Float`, `rb_Float`) does, parsing strings strictly and calling `to_f`. Returns the exception when
+    /// it cannot be converted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Float, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let parsed = Float::convert(&RString::new_utf8("2.5")).unwrap();
+    /// assert_eq!(parsed.to_f64(), 2.5);
+    ///
+    /// let widened = Float::convert(&Fixnum::new(3)).unwrap();
+    /// assert_eq!(widened.to_f64(), 3.0);
+    ///
+    /// assert!(Float::convert(&RString::new_utf8("2.5x")).is_err());
+    /// ```
+    pub fn convert<T: Object>(object: &T) -> Result<Self, AnyException> {
+        let object = object.value();
+
+        crate::binding::vm::protect_value(|| crate::binding::object::to_float(object))
+            .map(Self::from)
+            .map_err(AnyException::from)
+    }
+
     /// Creates a new `Float`.
     ///
     /// # Examples

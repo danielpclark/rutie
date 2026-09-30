@@ -1,13 +1,16 @@
 use std::convert::From;
 
 use crate::{
-    binding::{class, exception, global::ValueType, vm},
+    binding::{class, exception, global::ValueType, object, vm},
     typed_data::DataTypeWrapper,
     types::{Callback, Value},
     util,
 };
 
-use crate::{AnyException, AnyObject, Boolean, Class, Exception, NilClass, VerifiedObject, VM};
+use crate::{
+    AnyException, AnyObject, Array, Boolean, Class, Exception, Integer, NilClass, Proc, RString,
+    VerifiedObject, VM,
+};
 
 /// `Object`
 ///
@@ -1180,6 +1183,409 @@ pub trait Object: From<Value> {
         exception::check_type(self.value(), value_type)
     }
 
+    /// Returns a shallow copy of the object, without its singleton class or
+    /// frozen state (Ruby's `dup`, `rb_obj_dup`).
+    ///
+    /// Raises `TypeError` for objects that cannot be copied.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let original = RString::new_utf8("text").freeze();
+    /// let copy = original.dup();
+    ///
+    /// assert!(copy.equals(&original));
+    /// assert!(!copy.is_equal(&original));
+    /// assert!(!copy.is_frozen());
+    /// ```
+    fn dup(&self) -> Self {
+        Self::from(object::dup(self.value()))
+    }
+
+    /// Returns a shallow copy of the object, including its singleton class
+    /// and frozen state (Ruby's `clone`, `rb_obj_clone`).
+    ///
+    /// Named `clone_object` so it does not clash with `Clone::clone`.
+    /// Raises `TypeError` for objects that cannot be copied.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let original = RString::new_utf8("text").freeze();
+    /// let copy = original.clone_object();
+    ///
+    /// assert!(copy.equals(&original));
+    /// assert!(!copy.is_equal(&original));
+    /// assert!(copy.is_frozen());
+    /// ```
+    fn clone_object(&self) -> Self {
+        Self::from(object::clone(self.value()))
+    }
+
+    /// Returns the object's `object_id` (`rb_obj_id`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_utf8("text");
+    /// let same = string.to_any_object();
+    ///
+    /// assert_eq!(string.object_id(), same.object_id());
+    /// assert_ne!(string.object_id(), RString::new_utf8("text").object_id());
+    /// ```
+    fn object_id(&self) -> Integer {
+        Integer::from(object::id(self.value()))
+    }
+
+    /// Returns the result of the object's `inspect` method as a string
+    /// (`rb_inspect`).
+    ///
+    /// Named `inspect_object` so it does not clash with `Exception::inspect`.
+    /// Raises whatever `inspect` raises.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, RString, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let array = Array::new().push(Fixnum::new(1)).push(Symbol::new("a")).push(RString::new_utf8("b"));
+    ///
+    /// assert_eq!(array.inspect_object().to_str(), r#"[1, :a, "b"]"#);
+    /// ```
+    fn inspect_object(&self) -> RString {
+        RString::from(object::inspect(self.value()))
+    }
+
+    /// Returns the object's `to_s` as a string, falling back to the default
+    /// `#<Class:0x...>` form when `to_s` does not return a `String`
+    /// (`rb_obj_as_string`, what string interpolation uses).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Fixnum::new(42).as_string().to_str(), "42");
+    /// assert_eq!(Symbol::new("name").as_string().to_str(), "name");
+    /// ```
+    fn as_string(&self) -> RString {
+        RString::from(object::as_string(self.value()))
+    }
+
+    /// Returns `true` if `klass` (a class or module) is the object's class,
+    /// one of its ancestors or a module included in them (Ruby's `kind_of?`,
+    /// `rb_obj_is_kind_of`).
+    ///
+    /// Raises `TypeError` if `klass` is not a class or module.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// let number = Fixnum::new(1);
+    ///
+    /// assert!(number.is_kind_of(&Class::from_existing("Integer")));
+    /// assert!(number.is_kind_of(&Class::from_existing("Numeric")));
+    /// assert!(number.is_kind_of(&Module::from_existing("Comparable")));
+    /// assert!(!number.is_kind_of(&Class::from_existing("String")));
+    /// ```
+    fn is_kind_of<T: Object>(&self, klass: &T) -> bool {
+        class::is_kind_of(self.value(), klass.value())
+    }
+
+    /// Returns `true` if the object's class is exactly `klass` (Ruby's
+    /// `instance_of?`, `rb_obj_is_instance_of`).
+    ///
+    /// Raises `TypeError` if `klass` is not a class or module.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let number = Fixnum::new(1);
+    ///
+    /// assert!(number.is_instance_of(&Class::from_existing("Integer")));
+    /// assert!(!number.is_instance_of(&Class::from_existing("Numeric")));
+    /// ```
+    fn is_instance_of<T: Object>(&self, klass: &T) -> bool {
+        object::is_instance_of(self.value(), klass.value())
+    }
+
+    /// Returns the object's method `name` as a Ruby `Method` object
+    /// (Ruby's `method`, `rb_obj_method`), or the `NameError` if there is no
+    /// such method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let method = Fixnum::new(20).method("+").unwrap();
+    /// let result = unsafe { method.send("call", &[Fixnum::new(22).into()]) };
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    ///
+    /// let error = Fixnum::new(1).method("no_such_method").unwrap_err();
+    ///
+    /// assert!(error.message().contains("no_such_method"));
+    /// ```
+    fn method(&self, name: &str) -> Result<AnyObject, AnyException> {
+        let object = self.value();
+
+        vm::protect_value(|| object::method(object, name))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Calls `method` if the object responds to it, returning `None` when
+    /// it does not (`rb_check_funcall`). A `respond_to_missing?` or
+    /// `method_missing` defined by the object is respected.
+    ///
+    /// # Safety
+    ///
+    /// Like `send`, an exception raised by the method is not caught.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_utf8("abc");
+    ///
+    /// let length = unsafe { string.check_send("length", &[]) };
+    /// assert_eq!(length.unwrap().try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+    ///
+    /// let missing = unsafe { string.check_send("no_such_method", &[]) };
+    /// assert!(missing.is_none());
+    /// ```
+    unsafe fn check_send(&self, method: &str, arguments: &[AnyObject]) -> Option<AnyObject> {
+        let arguments = util::arguments_to_values(arguments);
+
+        object::check_funcall(self.value(), method, &arguments).map(AnyObject::from)
+    }
+
+    /// Calls a given method on an object, passing `block` as its block
+    /// (Ruby's `object.method(*arguments, &block)`, `rb_funcall_with_block`).
+    ///
+    /// # Safety
+    ///
+    /// Like `send`, an exception raised by the method is not caught.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, Proc, VM};
+    /// # VM::init();
+    ///
+    /// let array: Array = (1..=3).map(|i| Fixnum::new(i).to_any_object()).collect();
+    /// let double = VM::eval("proc { |x| x * 2 }").unwrap().try_convert_to::<Proc>().unwrap();
+    ///
+    /// let doubled = unsafe { array.send_with_proc("map", &[], &double) };
+    /// let doubled = doubled.try_convert_to::<Array>().unwrap();
+    ///
+    /// assert_eq!(doubled.at(2).try_convert_to::<Fixnum>(), Ok(Fixnum::new(6)));
+    /// ```
+    unsafe fn send_with_proc(
+        &self,
+        method: &str,
+        arguments: &[AnyObject],
+        block: &Proc,
+    ) -> AnyObject {
+        let arguments = util::arguments_to_values(arguments);
+
+        AnyObject::from(vm::call_method_with_proc(
+            self.value(),
+            method,
+            &arguments,
+            block.value(),
+        ))
+    }
+
+    /// Calls a given method on an object with `keywords` passed as keyword
+    /// arguments (`rb_funcallv_kw`), like Ruby's
+    /// `object.method(*arguments, **keywords)`.
+    ///
+    /// Only available on Ruby 2.7. On Ruby 2.5 and 2.6 a trailing `Hash`
+    /// argument given to `send` is taken as keywords.
+    ///
+    /// # Safety
+    ///
+    /// Like `send`, an exception raised by the method is not caught.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// # #[cfg(ruby_gte_2_7)]
+    /// # {
+    /// VM::eval("def rutie_kw(a, b: 0); a + b; end").unwrap();
+    ///
+    /// let mut keywords = Hash::new();
+    /// keywords.store(Symbol::new("b"), Fixnum::new(2));
+    ///
+    /// let object = VM::eval("self").unwrap();
+    /// let result = unsafe { object.send_with_keywords("rutie_kw", &[Fixnum::new(40).into()], keywords) };
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    /// # }
+    /// ```
+    #[cfg(ruby_gte_2_7)]
+    unsafe fn send_with_keywords(
+        &self,
+        method: &str,
+        arguments: &[AnyObject],
+        keywords: crate::Hash,
+    ) -> AnyObject {
+        let mut arguments = util::arguments_to_values(arguments);
+        arguments.push(keywords.value());
+
+        AnyObject::from(vm::call_method_with_keywords(
+            self.value(),
+            method,
+            &arguments,
+        ))
+    }
+
+    /// Returns the names of the object's instance variables as an `Array`
+    /// of `Symbol`s (`rb_obj_instance_variables`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut object = VM::eval("Object.new").unwrap();
+    /// object.instance_variable_set("@count", Fixnum::new(1));
+    ///
+    /// let names = object.instance_variables();
+    ///
+    /// assert_eq!(names.length(), 1);
+    /// assert_eq!(names.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("@count")));
+    /// ```
+    fn instance_variables(&self) -> Array {
+        Array::from(object::instance_variables(self.value()))
+    }
+
+    /// Returns `true` if the instance variable `name` (such as `"@count"`)
+    /// is set on the object (`rb_ivar_defined`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let mut object = VM::eval("Object.new").unwrap();
+    ///
+    /// assert!(!object.is_instance_variable_defined("@count"));
+    ///
+    /// object.instance_variable_set("@count", Fixnum::new(1));
+    ///
+    /// assert!(object.is_instance_variable_defined("@count"));
+    /// ```
+    fn is_instance_variable_defined(&self, name: &str) -> bool {
+        object::is_instance_variable_defined(self.value(), name)
+    }
+
+    /// Removes the instance variable `name` (such as `"@count"`) from the
+    /// object and returns its value, or `None` if it was not set
+    /// (`rb_obj_remove_instance_variable`).
+    ///
+    /// Raises `FrozenError` if the object is frozen and the variable is set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let mut object = VM::eval("Object.new").unwrap();
+    /// object.instance_variable_set("@count", Fixnum::new(1));
+    ///
+    /// let removed = object.remove_instance_variable("@count");
+    ///
+    /// assert_eq!(removed.unwrap().try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+    /// assert!(object.remove_instance_variable("@count").is_none());
+    /// ```
+    fn remove_instance_variable(&mut self, name: &str) -> Option<AnyObject> {
+        if !self.is_instance_variable_defined(name) {
+            return None;
+        }
+
+        Some(AnyObject::from(object::remove_instance_variable(
+            self.value(),
+            name,
+        )))
+    }
+
+    /// Returns the object's `hash` value, the one `Hash` keys use (`rb_hash`).
+    ///
+    /// Named `hash_value` so it does not clash with `std::hash::Hash::hash`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let a = RString::new_utf8("same");
+    /// let b = RString::new_utf8("same");
+    ///
+    /// assert!(a.hash_value().equals(&b.hash_value()));
+    /// assert!(!a.hash_value().equals(&RString::new_utf8("other").hash_value()));
+    /// ```
+    fn hash_value(&self) -> Integer {
+        Integer::from(object::hash(self.value()))
+    }
+
+    /// Evaluates `code` with the object as `self` (Ruby's `instance_eval`,
+    /// `rb_obj_instance_eval`), returning the result or the exception raised.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let mut object = VM::eval("Object.new").unwrap();
+    /// object.instance_variable_set("@secret", Fixnum::new(42));
+    ///
+    /// let secret = object.instance_eval("@secret").unwrap();
+    ///
+    /// assert_eq!(secret.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    ///
+    /// let error = object.instance_eval("raise 'no'").unwrap_err();
+    ///
+    /// assert_eq!(error.message(), "no");
+    /// ```
+    fn instance_eval(&self, code: &str) -> Result<AnyObject, AnyException> {
+        let object = self.value();
+
+        vm::protect_value(|| object::instance_eval(object, code))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
     /// Checks whether the object is `nil`
     ///
     /// # Examples
@@ -1616,5 +2022,160 @@ where
             Some(val) => val.value(),
             None => NilClass::new().into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        AnyObject, Array, Class, Exception, Fixnum, Float, Hash, Integer, Module, NilClass, Object,
+        Proc, RString, Symbol, VM,
+    };
+
+    #[test]
+    fn test_copies_identity_and_strings() {
+        crate::on_ruby_thread(|| {
+            let object =
+                VM::eval("o = Object.new; def o.extra; :singleton; end; o.freeze").unwrap();
+
+            let dup = object.dup();
+            assert!(!dup.is_frozen());
+            assert!(!dup.respond_to("extra"));
+            assert_ne!(dup.object_id().to_i64(), object.object_id().to_i64());
+
+            let clone = object.clone_object();
+            assert!(clone.is_frozen());
+            assert!(clone.respond_to("extra"));
+
+            let hash = VM::eval("{ a: 1 }").unwrap();
+            assert_eq!(hash.inspect_object().to_str(), "{:a=>1}");
+            assert_eq!(Fixnum::new(7).as_string().to_str(), "7");
+
+            // `as_string` falls back to the default form when `to_s` is not a String.
+            let odd = VM::eval("o = Object.new; def o.to_s; 1; end; o").unwrap();
+            assert!(odd.as_string().to_str().starts_with("#<Object:"));
+
+            let a = RString::new_utf8("key");
+            let b = RString::new_utf8("key");
+            assert!(a.hash_value().equals(&b.hash_value()));
+        });
+    }
+
+    #[test]
+    fn test_kind_of_and_instance_of() {
+        crate::on_ruby_thread(|| {
+            let array = Array::new();
+            let enumerable = Module::from_existing("Enumerable");
+            let object = Class::from_existing("Object");
+
+            assert!(array.is_kind_of(&enumerable));
+            assert!(array.is_kind_of(&object));
+            assert!(!array.is_instance_of(&object));
+            assert!(array.is_instance_of(&Class::from_existing("Array")));
+        });
+    }
+
+    #[test]
+    fn test_method_check_send_and_send_with_proc() {
+        crate::on_ruby_thread(|| {
+            let string = RString::new_utf8("abc");
+
+            let upcase = string.method("upcase").unwrap();
+            let result = unsafe { upcase.send("call", &[]) };
+            assert_eq!(result.try_convert_to::<RString>().unwrap().to_str(), "ABC");
+            assert!(string.method("nope").is_err());
+
+            // `respond_to_missing?` and `method_missing` are honoured.
+            let ghost = VM::eval(
+                "o = Object.new
+                 def o.respond_to_missing?(name, _ = false); name == :ghost; end
+                 def o.method_missing(name, *args); name == :ghost ? :boo : super; end
+                 o",
+            )
+            .unwrap();
+            let boo = unsafe { ghost.check_send("ghost", &[]) }.unwrap();
+            assert_eq!(boo.try_convert_to::<Symbol>(), Ok(Symbol::new("boo")));
+            assert!(unsafe { ghost.check_send("other", &[]) }.is_none());
+
+            let add = VM::eval("proc { |sum, x| sum + x }")
+                .unwrap()
+                .try_convert_to::<Proc>()
+                .unwrap();
+            let array: Array = (1..=4).map(|i| Fixnum::new(i).to_any_object()).collect();
+            let sum = unsafe { array.send_with_proc("inject", &[Fixnum::new(0).into()], &add) };
+            assert_eq!(sum.try_convert_to::<Fixnum>(), Ok(Fixnum::new(10)));
+        });
+    }
+
+    #[cfg(ruby_gte_2_7)]
+    #[test]
+    fn test_send_with_keywords() {
+        crate::on_ruby_thread(|| {
+            VM::eval("def rutie_kw_test(*args, **kw); [args.size, kw[:x]]; end").unwrap();
+
+            let mut keywords = Hash::new();
+            keywords.store(Symbol::new("x"), Fixnum::new(9));
+
+            let object = VM::eval("self").unwrap();
+            let result = unsafe {
+                object.send_with_keywords("rutie_kw_test", &[Fixnum::new(1).into()], keywords)
+            };
+            let result = result.try_convert_to::<Array>().unwrap();
+
+            assert_eq!(result.at(0).try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+            assert_eq!(result.at(1).try_convert_to::<Fixnum>(), Ok(Fixnum::new(9)));
+        });
+    }
+
+    #[test]
+    fn test_instance_variables_and_instance_eval() {
+        crate::on_ruby_thread(|| {
+            let mut object = VM::eval("Object.new").unwrap();
+
+            object.instance_variable_set("@a", Fixnum::new(1));
+            object.instance_variable_set("@b", Fixnum::new(2));
+            assert_eq!(object.instance_variables().length(), 2);
+            assert!(object.is_instance_variable_defined("@a"));
+
+            let sum = object.instance_eval("@a + @b").unwrap();
+            assert_eq!(sum.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+
+            let removed = object.remove_instance_variable("@a").unwrap();
+            assert_eq!(removed.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+            assert!(object.remove_instance_variable("@a").is_none());
+            assert!(!object.is_instance_variable_defined("@a"));
+
+            let error = object.instance_eval("undefined_thing").unwrap_err();
+            assert!(Class::from_existing("NameError").case_equals(&error));
+        });
+    }
+
+    #[test]
+    fn test_kernel_conversions() {
+        crate::on_ruby_thread(|| {
+            assert_eq!(RString::convert(&Float::new(1.5)).unwrap().to_str(), "1.5");
+            assert_eq!(Array::convert(&NilClass::new()).unwrap().length(), 0);
+            assert_eq!(
+                Integer::convert(&RString::new_utf8("0b101"))
+                    .unwrap()
+                    .to_i64(),
+                5
+            );
+            assert!(Integer::convert(&NilClass::new()).is_err());
+            assert_eq!(
+                Float::convert(&RString::new_utf8("1e3")).unwrap().to_f64(),
+                1000.0
+            );
+            assert!(Float::convert(&RString::new_utf8("")).is_err());
+            assert_eq!(Hash::convert(&Array::new()).unwrap().length(), 0);
+            assert!(Hash::convert(&RString::new_utf8("x")).is_err());
+
+            let unconvertible: AnyObject = VM::eval("BasicObject.new").unwrap();
+            assert!(RString::convert(&unconvertible).is_err());
+            assert!(Integer::convert(&unconvertible)
+                .unwrap_err()
+                .message()
+                .contains("BasicObject"));
+        });
     }
 }

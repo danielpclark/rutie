@@ -17,8 +17,9 @@ pub mod util;
 pub use crate::class::{
     any_exception::AnyException, any_object::AnyObject, array::Array, binding::Binding,
     boolean::Boolean, class::Class, encoding::Encoding, enumerator::Enumerator, fixnum::Fixnum,
-    float::Float, gc::GC, hash::Hash, integer::Integer, module::Module, nil_class::NilClass,
-    rproc::Proc, string::RString, symbol::Symbol, thread::Thread, vm::VM,
+    float::Float, gc::GC, global_variable::GlobalVariable, hash::Hash, integer::Integer,
+    module::Module, nil_class::NilClass, rproc::Proc, string::RString, symbol::Symbol,
+    thread::Thread, vm::VM,
 };
 
 pub use crate::class::traits::{
@@ -26,7 +27,10 @@ pub use crate::class::traits::{
     try_convert::TryConvert, verified_object::VerifiedObject,
 };
 
-pub use crate::helpers::codepoint_iterator::CodepointIterator;
+pub use crate::helpers::{
+    codepoint_iterator::CodepointIterator,
+    scan_args::{KeywordArgs, ScannedArgs},
+};
 
 use std::sync::{Arc, RwLock};
 

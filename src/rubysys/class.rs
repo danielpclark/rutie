@@ -127,4 +127,59 @@ extern "C" {
     // void
     // rb_undef_method(VALUE klass, const char *name)
     pub fn rb_undef_method(klass: Value, name: *const c_char);
+    // VALUE
+    // rb_class_inherited_p(VALUE mod, VALUE arg)
+    //
+    // `Qtrue` if `mod <= arg`, `Qfalse` if `arg < mod`, `Qnil` if unrelated.
+    pub fn rb_class_inherited_p(module: Value, other: Value) -> Value;
+    // VALUE
+    // rb_class_instance_methods(int argc, const VALUE *argv, VALUE mod)
+    pub fn rb_class_instance_methods(argc: Argc, argv: *const Value, module: Value) -> Value;
+    // VALUE
+    // rb_class_name(VALUE klass)
+    pub fn rb_class_name(klass: Value) -> Value;
+    // VALUE
+    // rb_class_path(VALUE klass)
+    pub fn rb_class_path(klass: Value) -> Value;
+    // int
+    // rb_const_defined(VALUE klass, ID id)
+    pub fn rb_const_defined(klass: Value, name: Id) -> c_int;
+    // int
+    // rb_const_defined_at(VALUE klass, ID id)
+    pub fn rb_const_defined_at(klass: Value, name: Id) -> c_int;
+    // VALUE
+    // rb_const_remove(VALUE mod, ID id)
+    pub fn rb_const_remove(module: Value, name: Id) -> Value;
+    // void
+    // rb_const_set(VALUE klass, ID id, VALUE val)
+    pub fn rb_const_set(klass: Value, name: Id, value: Value);
+    // VALUE
+    // rb_cvar_defined(VALUE klass, ID id)
+    pub fn rb_cvar_defined(klass: Value, name: Id) -> Value;
+    // VALUE
+    // rb_cvar_get(VALUE klass, ID id)
+    pub fn rb_cvar_get(klass: Value, name: Id) -> Value;
+    // void
+    // rb_cvar_set(VALUE klass, ID id, VALUE val)
+    pub fn rb_cvar_set(klass: Value, name: Id, value: Value);
+    // void
+    // rb_define_global_const(const char *name, VALUE val)
+    pub fn rb_define_global_const(name: *const c_char, value: Value);
+    // int
+    // rb_method_boundp(VALUE klass, ID id, int ex)
+    //
+    // `ex` bits: 0x01 excludes private (and, with 0x02, protected) methods.
+    pub fn rb_method_boundp(klass: Value, name: Id, ex: c_int) -> c_int;
+    // VALUE
+    // rb_mod_include_p(VALUE mod, VALUE mod2)
+    pub fn rb_mod_include_p(module: Value, other: Value) -> Value;
+    // VALUE
+    // rb_mod_module_eval(int argc, const VALUE *argv, VALUE mod)
+    pub fn rb_mod_module_eval(argc: Argc, argv: *const Value, module: Value) -> Value;
+    // VALUE
+    // rb_mod_name(VALUE mod)
+    pub fn rb_mod_name(module: Value) -> Value;
+    // VALUE
+    // rb_path2class(const char *path)
+    pub fn rb_path2class(path: *const c_char) -> Value;
 }

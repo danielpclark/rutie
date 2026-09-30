@@ -9,6 +9,7 @@ pub mod enumerator;
 pub mod fixnum;
 pub mod float;
 pub mod gc;
+pub mod global_variable;
 pub mod hash;
 pub mod integer;
 pub mod module;

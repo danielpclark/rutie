@@ -5,6 +5,7 @@ extern "C" {
     pub static rb_eException: Value;
     pub static rb_eFrozenError: Value;
     pub static rb_eLocalJumpError: Value;
+    pub static rb_eNameError: Value;
     pub static rb_eNotImpError: Value;
     pub static rb_eRuntimeError: Value;
     pub static rb_eStandardError: Value;

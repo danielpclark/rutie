@@ -15,6 +15,34 @@ pub struct RString {
 }
 
 impl RString {
+    /// Converts `object` to a `String` the way Ruby's `String(object)`
+    /// (`Kernel#String`, `rb_String`) does, calling `to_str` or `to_s`. Returns the exception when
+    /// it cannot be converted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, RString, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let number = RString::convert(&Fixnum::new(42)).unwrap();
+    /// assert_eq!(number.to_str(), "42");
+    ///
+    /// let symbol = RString::convert(&Symbol::new("name")).unwrap();
+    /// assert_eq!(symbol.to_str(), "name");
+    ///
+    /// // `BasicObject` has no `to_s`:
+    /// let basic = VM::eval("BasicObject.new").unwrap();
+    /// assert!(RString::convert(&basic).is_err());
+    /// ```
+    pub fn convert<T: Object>(object: &T) -> Result<Self, AnyException> {
+        let object = object.value();
+
+        crate::binding::vm::protect_value(|| crate::binding::object::to_string(object))
+            .map(Self::from)
+            .map_err(AnyException::from)
+    }
+
     /// Creates a new instance of Ruby `String` containing given `string`.
     ///
     /// # Examples

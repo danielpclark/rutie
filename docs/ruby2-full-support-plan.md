@@ -242,23 +242,47 @@ as they land; keep this file current.
 
 ### P1 — core object model
 
-- [ ] **Object:** `rb_obj_dup`, `rb_obj_clone`, `rb_obj_id`, `rb_inspect`,
+- [x] **Object:** `rb_obj_dup`, `rb_obj_clone`, `rb_obj_id`, `rb_inspect`,
       `rb_obj_as_string`, `rb_obj_is_kind_of`, `rb_obj_is_instance_of`,
       `rb_obj_method`, `rb_method_boundp`, `rb_check_funcall`,
       `rb_funcall_with_block`, `rb_funcallv_kw` (2.7, gated), `rb_obj_instance_variables`,
       `rb_ivar_defined`, `rb_obj_remove_instance_variable`, `rb_hash` (object hash).
-- [ ] **Class/Module:** `rb_class_name`, `rb_class_path`, `rb_mod_name`,
+      Done as `Object` trait methods. Names avoid clashing with other traits
+      the types implement: `clone_object` (not `Clone::clone`),
+      `inspect_object`/`as_string` (not `Exception::inspect`/`to_s`),
+      `hash_value` (not `std::hash::Hash::hash`). `method`,
+      `instance_eval` return `Result`; `remove_instance_variable` returns
+      `Option`; `send_with_keywords` is 2.7-only.
+- [x] **Class/Module:** `rb_class_name`, `rb_class_path`, `rb_mod_name`,
       `rb_class_inherited_p`, `rb_mod_include_p`, `rb_mod_module_eval`,
       `rb_obj_instance_eval`, `rb_class_instance_methods`, `rb_cvar_get/set/defined`,
       `rb_const_defined(_at)`, `rb_const_set`, `rb_const_remove`, `rb_path2class`,
       `rb_define_global_const`, `rb_class_of` (immediates too), `rb_define_alias`.
-- [ ] **Global variables:** `rb_gv_get`, `rb_gv_set`, `rb_define_variable`,
+      Done on both `Class` and `Module` (`name`, `path`, `from_path`,
+      `is_method_defined`, `inherits`, `includes_module`, `module_eval`,
+      `instance_methods`, class variables, constants); `VM::define_global_const`.
+      `rb_class_of` is a `static inline` in `ruby.h`, not an exported
+      function; `Object::class`/`singleton_class` cover it. `rb_const_set` is
+      bound; `const_set` keeps using `rb_define_const`.
+- [x] **Global variables:** `rb_gv_get`, `rb_gv_set`, `rb_define_variable`,
       `rb_define_readonly_variable`, `rb_define_virtual_variable`,
       `rb_define_hooked_variable`. Surface: `VM::global("$x")` get/set.
-- [ ] **Symbols/IDs:** `rb_sym2str`, `rb_check_id`, `rb_to_id`, `rb_to_symbol`,
+      Done: `VM::global_get`/`global_set`/`protect_global_set`,
+      `VM::define_variable`/`define_readonly_variable` -> `GlobalVariable`,
+      `VM::define_virtual_variable` (closures, via a hooked variable whose
+      data pointer starts with a `VALUE` because Ruby `rb_gc_mark_maybe`s it).
+      Getter/setter ABI differs (2.7 drops the trailing `gvar` argument);
+      callbacks take only the shared leading arguments.
+- [x] **Symbols/IDs:** `rb_sym2str`, `rb_check_id`, `rb_to_id`, `rb_to_symbol`,
       `rb_is_const_id`, `rb_is_instance_id`, `rb_is_class_id`, `rb_intern_str`.
-- [ ] **Kernel formatting:** `rb_sprintf`/`rb_str_format`, `rb_p`, `rb_String`,
+      Done: `Symbol::find` (never creates a symbol), `from_rstring`,
+      `to_rstring`, `is_const_name`, `is_instance_variable_name`,
+      `is_class_variable_name`. `rb_to_id`/`rb_intern_str` bound in `rubysys`.
+- [x] **Kernel formatting:** `rb_sprintf`/`rb_str_format`, `rb_p`, `rb_String`,
       `rb_Array`, `rb_Integer`, `rb_Float`, `rb_Hash`.
+      Done: `VM::format` (`rb_str_format`; `rb_sprintf` is C printf and is
+      not exposed), `VM::p`, and `RString`/`Array`/`Integer`/`Float`/`Hash::convert`
+      returning `Result`. Ruby 2's `Kernel#Hash` only uses `to_hash`.
 
 ### P2 — core types to parity with the C API
 
