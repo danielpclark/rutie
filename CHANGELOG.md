@@ -70,6 +70,12 @@ from Ruru to Rutie → 0.11" in the README.
  - A static Ruby's archive is no longer linked whole: with YJIT (Ruby 3.2)
    it contains YJIT's Rust runtime, whose allocator symbols clashed with the
    program's (`duplicate symbol: __rust_alloc`), thanks to @danielpclark
+ - A static Ruby 3.2 built with YJIT can still fail to link with newer Rust
+   toolchains (`duplicate symbol: rust_eh_personality`, from YJIT's copy of
+   the standard library): `build.rs` now warns about it, the README says to
+   build a static Ruby with `--disable-yjit`, and CI does, thanks to @danielpclark
+ - CI prints the end of `ruby-build`'s log when building a static Ruby
+   fails, thanks to @danielpclark
  - Windows, macOS and static-Ruby support from 0.10.2 carry over to Ruby 3.
    Fibers always use native coroutines there, so the Ruby 2.5/2.6 arm64 macOS
    stack-copying workaround (`rutie_copy_stack_fibers`) is gone, and

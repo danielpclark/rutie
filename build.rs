@@ -300,6 +300,19 @@ fn static_linker_args() {
     // for the `ruby` executable, and a Ruby built with YJIT has YJIT's Rust
     // runtime in the archive, whose allocator symbols would then clash with
     // the program's.
+    //
+    // Even so, YJIT's copy of the Rust standard library can clash with the
+    // program's (`duplicate symbol: rust_eh_personality`), depending on the
+    // Rust toolchain and linker, so say why before the linker fails.
+    if rbconfig("YJIT_SUPPORT") == "yes" {
+        println!(
+            "cargo:warning=This static Ruby was built with YJIT, whose Rust \
+             runtime in {} may clash with this program's when linking \
+             (`duplicate symbol: rust_eh_personality`). A static Ruby \
+             configured with --disable-yjit links reliably.",
+            archive.display()
+        );
+    }
     let name = archive.file_name().unwrap().to_string_lossy();
     let name = name.trim_start_matches("lib").trim_end_matches(".a");
     println!("cargo:rustc-link-lib=static={}", name);
