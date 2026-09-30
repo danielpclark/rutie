@@ -196,7 +196,7 @@ struct RString {
 }
 
 unsafe fn rstring_and_flags(value: Value) -> (*const RString, InternalValue) {
-    let rstring: *const RString = mem::transmute(value.value);
+    let rstring: *const RString = value.value as *const RString;
     let flags = (*rstring).basic.flags;
 
     (rstring, flags)

@@ -7,6 +7,14 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.10.1] - 2026-09-30
+### Fixed
+ - Build warnings on current Rust: `Object::get_data` and `Object::get_data_mut`
+   name the `'a` lifetime on their return types (`mismatched_lifetime_syntaxes`),
+   and `rubysys` casts `VALUE`s to `RBasic`/`RArray`/`RString` pointers with
+   `as` instead of `mem::transmute` (`integer_to_ptr_transmutes`),
+   thanks to @danielpclark
+
 ## [0.10.0] - 2026-09-30
 ### Added
  - `build.rs` sets `ruby_2_5`/`ruby_2_6`/`ruby_2_7` and cumulative
