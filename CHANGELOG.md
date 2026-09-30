@@ -132,6 +132,9 @@ API and may have breaking changes during a teeny version change.
    thanks to @danielpclark
  - New `Fiber` type (`new` from a Rust closure, `resume`, `yield_values`,
    `current`, `is_alive`), thanks to @danielpclark
+ - `VM::raise_message` raises with a plain-text message; `VM::raise` passes
+   its message to `rb_raise` as a printf format (unchanged, now documented),
+   so `%` must be written `%%` there, thanks to @danielpclark
  - `methods!` accepts a trailing splat parameter (`fn log(level: RString, *parts)`)
    that receives the remaining arguments as an `Array`, thanks to @danielpclark
  - `wrappable_struct!` accepts an optional `size(data) { .. }` clause (Ruby's
@@ -152,6 +155,9 @@ API and may have breaking changes during a teeny version change.
    Ruby 2 must be used from the thread that started it, thanks to @danielpclark
 
 ### Fixed
+ - `RString::encode` with options aborted Ruby (`[BUG] rb_econv_open_opts
+   called with invalid opthash`): the prepared options Ruby writes back were
+   discarded and the raw hash passed on instead, thanks to @danielpclark
  - `GC::register` registered the address of a temporary copy of the object
    with `rb_gc_register_address`, so the object was not protected and the GC
    kept reading a stale stack slot; `GC::unregister` never removed it.
@@ -159,15 +165,9 @@ API and may have breaking changes during a teeny version change.
    (counted, so each `register` needs one `unregister`), thanks to @danielpclark
  - `RString::new_usascii_unchecked` is documented as creating an
    `ASCII-8BIT` string, which is what it has always done, thanks to @danielpclark
- - `unsafe_methods!` callbacks called with too few arguments panicked inside
-   an `extern fn` (aborting the process); they now raise `ArgumentError`
-   (`rb_error_arity`), thanks to @danielpclark
  - `wrappable_struct!` and `methods!` can be called by path
    (`rutie::wrappable_struct!`) without importing the macro,
    thanks to @danielpclark
- - `VM::raise` passed its message to `rb_raise` as a printf format, so a
-   message containing `%` read arbitrary memory; the message is now always
-   used as plain text, thanks to @danielpclark
  - `Enumerator::next`, `next_values`, `peek`, `peek_values` and `feed` could
    fail with `FiberError: fiber called across stack rewinding barrier` when
    called from different stack depths (for example the first and later

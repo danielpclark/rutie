@@ -63,7 +63,7 @@ where
         None => {
             let message = format!("{} is a read-only variable", symbol::id_to_string(id));
 
-            vm::raise(unsafe { rb_eNameError }, &message)
+            vm::raise_message(unsafe { rb_eNameError }, &message)
         }
     }
 }

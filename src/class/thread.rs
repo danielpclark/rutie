@@ -539,4 +539,36 @@ mod tests {
             assert_eq!(Thread::call_without_gvl_io(|| 2 + 2), 4);
         });
     }
+
+    #[test]
+    fn test_gvl_release_and_fd_waits() {
+        crate::on_ruby_thread(|| {
+            // Rust-only work without the GVL.
+            let sum = Thread::call_without_gvl(|| (1..=10u64).sum::<u64>(), Some(|| {}));
+            assert_eq!(sum, 55);
+
+            let product = Thread::call_without_gvl2(|| 6 * 7, None::<fn()>);
+            assert_eq!(product, 42);
+
+            // Back inside Ruby from a GVL-free section.
+            let text = Thread::call_without_gvl(
+                || Thread::call_with_gvl(|| RString::new_utf8("with gvl").to_string()),
+                None::<fn()>,
+            );
+            assert_eq!(text, "with gvl");
+
+            #[cfg(unix)]
+            {
+                use std::io::Write;
+                use std::os::unix::io::AsRawFd;
+                use std::os::unix::net::UnixStream;
+
+                let (mut writer, reader) = UnixStream::pair().unwrap();
+                Thread::wait_fd_writable(writer.as_raw_fd());
+                writer.write_all(b"x").unwrap();
+                // Returns once the reader has data.
+                Thread::wait_fd(reader.as_raw_fd());
+            }
+        });
+    }
 }

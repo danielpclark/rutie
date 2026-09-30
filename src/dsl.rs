@@ -172,10 +172,9 @@ macro_rules! module {
 ///
 ///  - it uses automatic unsafe conversions for arguments
 ///     (no guarantee that Ruby objects match the types which you expect);
-///  - arguments are not checked one by one: extra arguments are ignored, and
-///     too few raise an `ArgumentError` (`rb_error_arity`) before the method
-///     body runs, instead of the `Result` per argument that `methods!` gives.
-///     Before 0.11 too few arguments made the callback panic.
+///  - no bound checks for the array of provided arguments
+///     (no guarantee that all the expected arguments are provided);
+///     `methods!` is the checked version, giving each argument as a `Result`.
 ///
 /// That is why creating callbacks in unsafe way may cause panics.
 ///
@@ -194,7 +193,7 @@ macro_rules! module {
 /// #[macro_use]
 /// extern crate rutie;
 ///
-/// use rutie::{Boolean, Class, Exception, Fixnum, Object, RString, VM};
+/// use rutie::{Boolean, Class, Fixnum, Object, RString, VM};
 ///
 /// // Creates `string_length_equals` functions
 /// unsafe_methods!(
@@ -216,10 +215,6 @@ macro_rules! module {
 ///
 ///     let result = VM::eval("'abc'.length_equals?(3)").unwrap();
 ///     assert!(result.try_convert_to::<Boolean>().unwrap().to_bool());
-///
-///     // A missing argument raises instead of reading past the arguments.
-///     let error = VM::eval("'abc'.length_equals?").unwrap_err();
-///     assert_eq!(error.message(), "wrong number of arguments (given 0, expected 1)");
 /// }
 /// ```
 ///
@@ -253,14 +248,6 @@ macro_rules! unsafe_methods {
                                        #[allow(unused_mut)]
                                        #[allow(unused_variables)]
                                        mut $rtself_name: $rtself_class) -> $return_type {
-                // Checked before anything is allocated, since raising skips
-                // Rust destructors. Extra arguments are ignored.
-                let _required: $crate::types::Argc = 0 $(+ { let _ = stringify!($arg_name); 1 })*;
-
-                if argc < _required {
-                    $crate::VM::raise_arity_error(argc as i32, _required as i32, _required as i32);
-                }
-
                 let _arguments = $crate::util::parse_arguments(argc, argv);
                 let mut _i = 0;
 
@@ -1139,7 +1126,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unsafe_methods_arity() {
+    fn test_unsafe_methods() {
         crate::on_ruby_thread(|| {
             Class::new("RutieDslSplat", None).define(|klass| {
                 klass.def("unsafe_two", dsl_unsafe_two);
@@ -1148,16 +1135,10 @@ mod tests {
             let product = VM::eval("RutieDslSplat.new.unsafe_two(6, 7)").unwrap();
             assert_eq!(product.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
 
-            // Extra arguments are ignored.
+            // Extra arguments are ignored. (Too few is the caller's
+            // responsibility with `unsafe_methods!`; `methods!` checks.)
             let product = VM::eval("RutieDslSplat.new.unsafe_two(6, 7, 8)").unwrap();
             assert_eq!(product.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
-
-            let error = VM::eval("RutieDslSplat.new.unsafe_two(6)").unwrap_err();
-            assert!(Class::argument_error().case_equals(&error));
-            assert_eq!(
-                error.message(),
-                "wrong number of arguments (given 1, expected 2)"
-            );
         });
     }
 

@@ -2227,4 +2227,118 @@ mod tests {
                 .contains("BasicObject"));
         });
     }
+
+    crate::class!(RutieObjectDefs);
+
+    crate::methods!(
+        RutieObjectDefs,
+        rtself,
+        fn rutie_obj_public() -> Symbol {
+            Symbol::new("public")
+        },
+        fn rutie_obj_private() -> Symbol {
+            Symbol::new("private")
+        },
+        fn rutie_obj_singleton() -> Symbol {
+            Symbol::new("singleton")
+        },
+        fn rutie_obj_initialize(value: Fixnum) -> NilClass {
+            rtself.instance_variable_set("@value", value.unwrap());
+            NilClass::new()
+        }
+    );
+
+    pub struct RutieObjectBox {
+        count: i64,
+    }
+
+    crate::wrappable_struct!(RutieObjectBox, RutieObjectBoxWrapper, RUTIE_OBJECT_BOX);
+
+    #[test]
+    fn test_method_definition_and_dispatch() {
+        crate::on_ruby_thread(|| {
+            let mut class = Class::new("RutieObjectDefs", None);
+            class.define_method("public_one", rutie_obj_public);
+            class.define_private_method("private_one", rutie_obj_private);
+            class.def_self("class_one", rutie_obj_singleton);
+            class.define_method("initialize", rutie_obj_initialize);
+
+            let mut instance = class.new_instance(&[Fixnum::new(5).into()]);
+            instance.define_singleton_method("only_me", rutie_obj_singleton);
+
+            let public = instance.protect_public_send("public_one", &[]).unwrap();
+            assert_eq!(
+                public.try_convert_to::<Symbol>().unwrap().to_str(),
+                "public"
+            );
+
+            // Private methods are only reachable with `send`.
+            let error = instance
+                .protect_public_send("private_one", &[])
+                .unwrap_err();
+            assert!(Class::no_method_error().case_equals(&error));
+            let private = instance.protect_send("private_one", &[]).unwrap();
+            assert_eq!(
+                private.try_convert_to::<Symbol>().unwrap().to_str(),
+                "private"
+            );
+
+            let class_one = class.protect_public_send("class_one", &[]).unwrap();
+            assert_eq!(
+                class_one.try_convert_to::<Symbol>().unwrap().to_str(),
+                "singleton"
+            );
+            assert!(instance.protect_public_send("only_me", &[]).is_ok());
+            let other = class.new_instance(&[Fixnum::new(1).into()]);
+            assert!(other.protect_public_send("only_me", &[]).is_err());
+
+            assert_eq!(
+                instance
+                    .instance_variable_get("@value")
+                    .try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(5))
+            );
+
+            // `call_init` runs `initialize` on an allocated object.
+            let allocated = class.allocate();
+            unsafe { allocated.call_init(&[Fixnum::new(9).into()]) };
+            assert_eq!(
+                allocated
+                    .instance_variable_get("@value")
+                    .try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(9))
+            );
+        });
+    }
+
+    #[test]
+    fn test_types_equality_and_data() {
+        crate::on_ruby_thread(|| {
+            use crate::types::ValueType;
+
+            assert_eq!(RString::new_utf8("a").ty(), ValueType::RString);
+            assert_eq!(Fixnum::new(1).ty(), ValueType::Fixnum);
+            assert_eq!(Array::new().ty(), ValueType::Array);
+            assert_eq!(Hash::new().ty(), ValueType::Hash);
+            assert_eq!(NilClass::new().ty(), ValueType::Nil);
+            assert_eq!(Float::new(1.5).ty(), ValueType::Float);
+            assert_eq!(Class::object().ty(), ValueType::Class);
+            assert_eq!(Module::kernel().ty(), ValueType::Module);
+            assert_eq!(Symbol::new("s").ty(), ValueType::Symbol);
+
+            assert!(Fixnum::new(1).is_eql(&Fixnum::new(1)));
+            assert!(!Fixnum::new(1).is_eql(&Float::new(1.0)));
+            assert!(RString::new_utf8("a").is_eql(&RString::new_utf8("a")));
+
+            let any = RString::new_utf8("cast").to_any_object();
+            let string: RString = unsafe { any.to::<RString>() };
+            assert_eq!(string.to_str(), "cast");
+
+            let mut boxed: AnyObject = Class::new("RutieObjectBoxClass", None)
+                .wrap_data(RutieObjectBox { count: 1 }, &*RUTIE_OBJECT_BOX);
+            boxed.get_data_mut(&*RUTIE_OBJECT_BOX).count += 41;
+            crate::GC::start();
+            assert_eq!(boxed.get_data(&*RUTIE_OBJECT_BOX).count, 42);
+        });
+    }
 }

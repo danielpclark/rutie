@@ -62,7 +62,9 @@ pub fn encode(str: Value, to: Value, ecflags: c_int, ecopts: Value) -> Value {
     unsafe { encoding::rb_str_encode(str, to, ecflags, ecopts) }
 }
 
-pub fn econv_prepare_opts(opthash: Value, opts: *const Value) -> c_int {
+// Ruby writes the prepared options (what `rb_str_encode` expects as
+// `ecopts`) through `opts`.
+pub fn econv_prepare_opts(opthash: Value, opts: &mut Value) -> c_int {
     unsafe { encoding::rb_econv_prepare_opts(opthash, opts) }
 }
 

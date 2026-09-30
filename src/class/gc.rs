@@ -553,4 +553,20 @@ mod tests {
             GC::undefine_finalizer(&object);
         });
     }
+
+    #[test]
+    fn test_write_barriers() {
+        crate::on_ruby_thread(|| {
+            let parent = crate::Array::new();
+            let child = crate::RString::new_utf8("child");
+
+            // Required when a Rust-managed parent starts referencing a child.
+            unsafe { GC::write_barrier(&parent, &child) };
+            // Opting an object out of generational GC is always allowed.
+            unsafe { GC::write_barrier_unprotect(&parent) };
+
+            GC::start();
+            assert_eq!(child.to_str(), "child");
+        });
+    }
 }

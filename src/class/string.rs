@@ -1007,6 +1007,24 @@ impl EncodingSupport for RString {
     /// assert_eq!(result.encoding().name(), "US-ASCII");
     /// ```
     ///
+    /// Options are Ruby's `String#encode` options:
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, Hash, RString, Symbol, VM};
+    /// # VM::init();
+    /// VM::init_loadpath();
+    /// VM::require("enc/encdb");
+    /// VM::require("enc/trans/transdb");
+    ///
+    /// let mut options = Hash::new();
+    /// options.store(Symbol::new("undef"), Symbol::new("replace"));
+    /// options.store(Symbol::new("replace"), RString::new_utf8("*"));
+    ///
+    /// let result = RString::new_utf8("héllo").encode(Encoding::us_ascii(), Some(options));
+    ///
+    /// assert_eq!(result.to_str(), "h*llo");
+    /// ```
+    ///
     /// Ruby:
     ///
     /// ```ruby
@@ -1020,9 +1038,10 @@ impl EncodingSupport for RString {
 
         let value = match opts {
             Some(options) => {
-                let ecflags = encoding::econv_prepare_opts(options.value(), &nil);
+                let mut ecopts = nil;
+                let ecflags = encoding::econv_prepare_opts(options.value(), &mut ecopts);
 
-                encoding::encode(self.value(), enc.value(), ecflags, options.value())
+                encoding::encode(self.value(), enc.value(), ecflags, ecopts)
             }
             None => encoding::encode(self.value(), enc.value(), 0, nil),
         };

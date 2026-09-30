@@ -141,8 +141,39 @@ impl VM {
     ///
     /// raise CustomException, 'Something went wrong'
     /// ```
+    ///
+    /// # Message format
+    ///
+    /// The message is passed to `rb_raise` as its printf format, as in C:
+    /// `%` starts a conversion, so write `%%` for a literal `%`, and never
+    /// pass text you did not write (a stray `%s` reads memory it shouldn't).
+    /// [`VM::raise_message`](#method.raise_message) takes the message as
+    /// plain text instead.
     pub fn raise(exception: Class, message: &str) {
         vm::raise(exception.value(), message);
+    }
+
+    /// Raises `exception` with `message` as plain text: unlike
+    /// [`VM::raise`](#method.raise), `%` has no special meaning, so any
+    /// string (such as one containing user input) is safe to pass. The
+    /// exception is built before raising, so no Rust allocation is leaked
+    /// by the jump.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| {
+    ///     VM::raise_message(Class::argument_error(), "100% of 5%s");
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// assert_eq!(VM::error_pop().unwrap().message(), "100% of 5%s");
+    /// ```
+    pub fn raise_message(exception: Class, message: &str) -> ! {
+        vm::raise_message(exception.value(), message)
     }
 
     /// Raises an exception from a native `AnyException` object.
@@ -1901,7 +1932,7 @@ impl VM {
     ///     let args = VM::scan_args(&arguments, "11*");
     ///
     ///     if let Err(ref error) = args {
-    ///         VM::raise(error.class(), &error.message());
+    ///         VM::raise_message(error.class(), &error.message());
     ///     }
     ///
     ///     // We can safely unwrap here
@@ -2471,10 +2502,10 @@ impl VM {
     ///
     ///     fn adder_add(a: Fixnum, b: Fixnum) -> Fixnum {
     ///         if let Err(ref error) = a {
-    ///             VM::raise(error.class(), &error.message());
+    ///             VM::raise_message(error.class(), &error.message());
     ///         }
     ///         if let Err(ref error) = b {
-    ///             VM::raise(error.class(), &error.message());
+    ///             VM::raise_message(error.class(), &error.message());
     ///         }
     ///
     ///         // We can safely unwrap here
@@ -2494,10 +2525,10 @@ impl VM {
     ///
     ///     fn do_adder_add(a: Fixnum, b: Fixnum) -> Fixnum {
     ///         if let Err(ref error) = a {
-    ///             VM::raise(error.class(), &error.message());
+    ///             VM::raise_message(error.class(), &error.message());
     ///         }
     ///         if let Err(ref error) = b {
-    ///             VM::raise(error.class(), &error.message());
+    ///             VM::raise_message(error.class(), &error.message());
     ///         }
     ///
     ///         unsafe {
@@ -2616,16 +2647,24 @@ mod tests {
     }
 
     #[test]
-    fn test_raise_does_not_use_message_as_format() {
+    fn test_raise_message_and_raise_format() {
         crate::on_ruby_thread(|| {
             let result = VM::protect(|| {
-                VM::raise(Class::from_existing("RuntimeError"), "100%s %d %n done");
+                VM::raise_message(Class::from_existing("RuntimeError"), "100%s %d %n done");
+            });
+
+            assert!(result.is_err());
+            assert_eq!(VM::error_pop().unwrap().message(), "100%s %d %n done");
+
+            // `raise` keeps C's printf semantics: `%%` is a literal `%`.
+            let result = VM::protect(|| {
+                VM::raise(Class::from_existing("RuntimeError"), "100%% done");
 
                 NilClass::new().into()
             });
 
             assert!(result.is_err());
-            assert_eq!(VM::error_pop().unwrap().message(), "100%s %d %n done");
+            assert_eq!(VM::error_pop().unwrap().message(), "100% done");
         });
     }
 
@@ -2980,7 +3019,7 @@ mod tests {
                 let args = VM::scan_args(&arguments, "1&");
 
                 if let Err(ref error) = args {
-                    VM::raise(error.class(), &error.message());
+                    VM::raise_message(error.class(), &error.message());
                 }
 
                 let args = args.unwrap();
@@ -3246,6 +3285,150 @@ mod tests {
 
             // Without process arguments Ruby refuses to rewrite `$0`.
             assert!(VM::eval("$0 = 'renamed'").is_err());
+        });
+    }
+
+    crate::class!(RutieVmBlocks);
+
+    crate::methods!(
+        RutieVmBlocks,
+        rtself,
+        fn rutie_vm_block_given() -> crate::Boolean {
+            crate::Boolean::new(VM::is_block_given())
+        },
+        fn rutie_vm_yield_one(value: Fixnum) -> AnyObject {
+            VM::yield_object(value.unwrap())
+        },
+        fn rutie_vm_yield_splat(values: Array) -> AnyObject {
+            VM::yield_splat(values.unwrap())
+        },
+        fn rutie_vm_block_proc() -> crate::Proc {
+            VM::block_proc()
+        },
+        fn rutie_vm_need_block() -> NilClass {
+            VM::need_block();
+            NilClass::new()
+        },
+        fn rutie_vm_super_greet(name: RString) -> RString {
+            let from_parent = unsafe { VM::call_super(&[name.unwrap().into()]) };
+            let text = from_parent.try_convert_to::<RString>().unwrap().to_string();
+            RString::new_utf8(&format!("{}!", text))
+        }
+    );
+
+    #[test]
+    fn test_blocks_yield_and_super() {
+        crate::on_ruby_thread(|| {
+            VM::eval("class RutieVmBlocksParent; def greet(name); \"hi #{name}\"; end; end")
+                .unwrap();
+            let parent = Class::from_existing("RutieVmBlocksParent");
+            let mut class = Class::new("RutieVmBlocks", Some(&parent));
+            class.define_method("given?", rutie_vm_block_given);
+            class.define_method("yield_one", rutie_vm_yield_one);
+            class.define_method("yield_splat", rutie_vm_yield_splat);
+            class.define_method("capture", rutie_vm_block_proc);
+            class.define_method("need_block", rutie_vm_need_block);
+            class.define_method("greet", rutie_vm_super_greet);
+
+            let eval = |code: &str| VM::eval(code).unwrap();
+
+            assert!(eval("RutieVmBlocks.new.given? { }").value().is_true());
+            assert!(eval("RutieVmBlocks.new.given?").value().is_false());
+
+            let doubled = eval("RutieVmBlocks.new.yield_one(21) { |x| x * 2 }");
+            assert_eq!(doubled.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+
+            let summed = eval("RutieVmBlocks.new.yield_splat([1, 2, 3]) { |a, b, c| a + b + c }");
+            assert_eq!(summed.try_convert_to::<Fixnum>(), Ok(Fixnum::new(6)));
+
+            let called = eval("RutieVmBlocks.new.capture { |x| x + 1 }.call(1)");
+            assert_eq!(called.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+
+            let error = VM::eval("RutieVmBlocks.new.need_block").unwrap_err();
+            assert!(Class::from_existing("LocalJumpError").case_equals(&error));
+            assert!(VM::eval("RutieVmBlocks.new.need_block { }").is_ok());
+
+            let greeting = eval("RutieVmBlocks.new.greet('bob')");
+            assert_eq!(
+                greeting.try_convert_to::<RString>().unwrap().to_str(),
+                "hi bob!"
+            );
+
+            // `iter_break` leaves the iterating method, which returns nil.
+            let array: Array = (1..=5).map(|n| Fixnum::new(n).to_any_object()).collect();
+            let seen = Cell::new(0);
+            let result = array
+                .protect_send_with_block("each", &[], |values| {
+                    seen.set(seen.get() + 1);
+                    if values[0].try_convert_to::<Fixnum>().unwrap().to_i64() == 2 {
+                        unsafe { VM::iter_break() }
+                    }
+                    NilClass::new().into()
+                })
+                .unwrap();
+            assert!(result.is_nil());
+            assert_eq!(seen.get(), 2);
+        });
+    }
+
+    #[test]
+    fn test_errors_exit_and_process_state() {
+        crate::on_ruby_thread(|| {
+            // `protect` leaves `$!` set until it is cleared or popped.
+            assert!(VM::protect(|| unsafe { VM::eval_str("raise 'kept'") }).is_err());
+            assert_eq!(VM::error_info().unwrap().message(), "kept");
+            VM::clear_error_info();
+            assert!(VM::error_info().is_err());
+
+            let result = VM::protect(|| VM::raise_interrupt());
+            assert!(result.is_err());
+            assert!(Class::interrupt().case_equals(&VM::error_pop().unwrap()));
+
+            let result = VM::protect(|| {
+                let _ = std::fs::File::open("/rutie/does/not/exist");
+                VM::sys_fail("opening");
+            });
+            assert!(result.is_err());
+            let error = VM::error_pop().unwrap();
+            assert!(Class::from_existing("SystemCallError").case_equals(&error));
+            assert!(error.message().contains("opening"));
+
+            // Inside `protect`, `exit` and `abort` raise SystemExit.
+            let result = VM::protect(|| {
+                VM::exit(3);
+                NilClass::new().into()
+            });
+            assert!(result.is_err());
+            let exit = VM::error_pop().unwrap();
+            assert!(Class::system_exit().case_equals(&exit));
+            let status = unsafe { exit.send("status", &[]) };
+            assert_eq!(status.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+
+            let result = VM::protect(|| {
+                unsafe { VM::abort(&[RString::new_utf8("rutie abort test (expected)").into()]) };
+                NilClass::new().into()
+            });
+            assert!(result.is_err());
+            let abort = VM::error_pop().unwrap();
+            assert_eq!(abort.message(), "rutie abort test (expected)");
+
+            let previous = VM::trap(&[
+                RString::new_utf8("USR2").into(),
+                RString::new_utf8("IGNORE").into(),
+            ])
+            .unwrap();
+            assert!(VM::trap(&[RString::new_utf8("USR2").into(), previous]).is_ok());
+
+            VM::init_with_args(&["from", "init"]);
+            let argv = VM::eval("ARGV.join(' ')").unwrap();
+            assert_eq!(
+                argv.try_convert_to::<RString>().unwrap().to_str(),
+                "from init"
+            );
+            VM::set_argv(&[]);
+
+            // `p` returns nothing; it prints the inspected object.
+            VM::p(&Symbol::new("rutie_vm_p_test"));
         });
     }
 }

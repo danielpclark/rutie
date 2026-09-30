@@ -119,6 +119,16 @@ where
         .expect("the Ruby test thread has stopped");
 
     if let Err(payload) = receiver.recv().expect("the Ruby test thread has stopped") {
+        // The Ruby thread's panic message went to the output capture of the
+        // test that started the thread, so repeat it here, where the harness
+        // shows it with this test's failure.
+        let message = payload
+            .downcast_ref::<&str>()
+            .map(|message| message.to_string())
+            .or_else(|| payload.downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "(non-string panic payload)".to_string());
+        eprintln!("panicked on the Ruby test thread: {}", message);
+
         panic::resume_unwind(payload);
     }
 }

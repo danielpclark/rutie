@@ -161,7 +161,7 @@ extern "C" {
     pub fn rb_str_encode(str: Value, to: Value, ecflags: c_int, ecopts: Value) -> Value;
     // int
     // rb_econv_prepare_opts(VALUE opthash, VALUE *opts)
-    pub fn rb_econv_prepare_opts(opthash: Value, opts: *const Value) -> c_int;
+    pub fn rb_econv_prepare_opts(opthash: Value, opts: *mut Value) -> c_int;
     // unsigned int
     // rb_enc_codepoint_len(const char *p, const char *e, int *len_p, rb_encoding *enc)
     pub fn rb_enc_codepoint_len(

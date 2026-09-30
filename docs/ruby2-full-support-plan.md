@@ -66,7 +66,13 @@ Rutie 0.10.0 (the revert of the `rb-sys` integration, PR #172) is the baseline.
    needed, write a new method (usually `protect`-based and returning
    `Result<_, AnyException>`, like `protect_send` and `Enumerator`) instead
    of adding checks to the existing one. Fixing genuine memory-safety bugs in
-   an existing method is the exception.
+   an existing method is the exception, and only when the method breaks no
+   matter how carefully it is called (e.g. `GC::register` registering a dead
+   stack address, `RString::encode` with options aborting Ruby). If a caller
+   can protect themselves (checking bounds or arity, escaping `%`, passing
+   only valid input), the existing method keeps its behaviour and cost, and
+   the checked behaviour goes in a second, safer method (`VM::raise` /
+   `VM::raise_message`, `unsafe_methods!` / `methods!`).
 
 ---
 
@@ -210,9 +216,10 @@ as they land; keep this file current.
       passes `Err` for a missing argument (its documented contract) and
       `unsafe_methods!` stays check-free for speed (README "Safety"); callers
       that want arity errors use `VM::check_arity`/`VM::raise_arity_error`.
-      `VM::raise` no longer passes the message to `rb_raise` as a printf
-      format (it did: `%s` in a message read garbage); its signature is
-      unchanged.
+      `VM::raise` keeps passing its message to `rb_raise` as a printf format
+      (callers can escape `%`, so per rule 8 it is unchanged and documented);
+      `VM::raise_message` is the plain-text variant, and Rutie's own code
+      uses it.
       **Rule followed here and for the rest of the plan:** never change the
       behaviour or cost of an existing public method to make it safe; add a
       new (usually `protect`-based, `Result`-returning) method beside it, as
@@ -567,9 +574,9 @@ as they land; keep this file current.
       `VM::scan_args` in a plain `extern fn` (P0-5, documented from
       `methods!`); keeping the rest of the grammar unchanged keeps existing
       code compiling. `methods!` never panicked on missing arguments (each
-      one is a `Result`). `unsafe_methods!` indexed past `argv`, which
-      panicked inside an `extern fn`; it now raises `rb_error_arity` before
-      allocating anything (extra arguments are still ignored).
+      one is a `Result`). `unsafe_methods!` stays unchecked: its contract is
+      that the caller guarantees the arguments, so per rule 8 the checked
+      version is `methods!`, not a change to `unsafe_methods!`.
 - [x] Build all `examples/` in CI (they exercise `rutie_ruby_example`,
       `rutie_ruby_gvl_example`, `rutie_rust_example` end to end), on the same
       matrix as the crate.
@@ -603,19 +610,80 @@ through `crate::on_ruby_thread` (§0.3). P7 backfills the API that existed
 before this plan, so that **every public item has at least one unit test that
 round-trips through Ruby**, not only a doctest.
 
-- [ ] Inventory: list every public item (`src/class/**`, `src/helpers/**`,
+- [x] Inventory: list every public item (`src/class/**`, `src/helpers/**`,
       `src/dsl.rs`, `src/util.rs` public fns, `typed_data`) and the unit tests
       covering it; keep the table in this section current.
-- [ ] Backfill a bottom-of-file test module for each file that lacks one
+      Done: public functions per file that a unit test calls (counted by a
+      script over the `mod tests` blocks; trait impls such as `From` and
+      `VerifiedObject` are exercised by the same tests):
+
+      | File | Covered |
+      |---|---|
+      | `class/any_exception.rs` | 3/3 |
+      | `class/array.rs` | 31/31 |
+      | `class/binding.rs` | 7/7 |
+      | `class/boolean.rs` | 2/2 |
+      | `class/class.rs` | 37/37 |
+      | `class/complex.rs` | 8/8 |
+      | `class/encoding.rs` | 15/15 |
+      | `class/enumerator.rs` | 8/8 |
+      | `class/fiber.rs` | 5/5 |
+      | `class/fixnum.rs` | 5/5 |
+      | `class/float.rs` | 5/5 |
+      | `class/gc.rs` | 19/19 |
+      | `class/global_variable.rs` | 2/2 |
+      | `class/hash.rs` | 16/16 |
+      | `class/integer.rs` | 19/19 |
+      | `class/io.rs` | 18/18 |
+      | `class/marshal.rs` | 2/2 |
+      | `class/method.rs` | 4/4 |
+      | `class/module.rs` | 34/34 |
+      | `class/mutex.rs` | 6/6 |
+      | `class/nil_class.rs` | 1/1 |
+      | `class/range.rs` | 6/6 |
+      | `class/rational.rs` | 6/6 |
+      | `class/regexp.rs` | 12/12 |
+      | `class/rproc.rs` | 5/5 |
+      | `class/rstruct.rs` | 9/9 |
+      | `class/string.rs` | 34/34 |
+      | `class/symbol.rs` | 10/10 |
+      | `class/thread.rs` | 20/20 |
+      | `class/time.rs` | 7/7 |
+      | `class/traits/encoding_support.rs` | 6/6 |
+      | `class/traits/exception.rs` | 9/9 |
+      | `class/traits/object.rs` | 52/52 |
+      | `class/traits/try_convert.rs` | 1/1 |
+      | `class/traits/verified_object.rs` | 2/2 |
+      | `class/vm.rs` | 66/70 |
+      | `helpers/codepoint_iterator.rs` | 1/1 |
+      | `helpers/scan_args.rs` | 2/2 |
+      | `util.rs` | 17/18 |
+
+      The five not counted are doctest-only on purpose: `VM::cleanup`,
+      `VM::run_file`, `VM::at_vm_exit` and `VM::exit_bang` end the process or
+      its VM, and `util::ptr_to_data` is called through a turbofish the
+      script does not match. The `dsl` macros are tested in `dsl.rs`.
+- [x] Backfill a bottom-of-file test module for each file that lacks one
       (today: `any_exception`, `any_object`, `binding`, `boolean`, `encoding`,
       `enumerator`, `fixnum`, `float`, `gc`, `module`, `nil_class`, `rproc`,
       `thread`, `traits/*`, `helpers/codepoint_iterator`, `typed_data`,
       `dsl` macros), covering success paths, error paths (`Err`/raised
       exceptions via `VM::protect`), frozen receivers and GC survival
       (`GC::start` between creating and using objects) where relevant.
-- [ ] Version-specific behaviour gets version-specific tests under
+      Done: every file with public items has one. Two bugs found and fixed
+      under rule 8 (they broke however they were called): `GC::register`
+      registered a dead stack address, and `RString::encode` with options
+      aborted Ruby (`rb_econv_prepare_opts`'s output was ignored).
+      `on_ruby_thread` now repeats a failing test's panic message on the
+      test's own thread (the Ruby thread's output went to whichever test
+      started it).
+- [x] Version-specific behaviour gets version-specific tests under
       `#[cfg(ruby_2_5)]`/`#[cfg(ruby_gte_2_6)]`/`#[cfg(ruby_gte_2_7)]`.
-- [ ] `cargo test --lib` green on 2.5.9, 2.6.10 and 2.7.8, stable and beta.
+      Done: the gated APIs (`Range::arithmetic_sequence`,
+      `Object::send_with_keywords`, `VM::is_keyword_given`) have gated tests,
+      and `cfg_flags_match_linked_ruby` checks the flags against the running
+      Ruby.
+- [x] `cargo test --lib` green on 2.5.9, 2.6.10 and 2.7.8, stable and beta.
 
 ### P8 — doctest audit
 

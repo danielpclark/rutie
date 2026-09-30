@@ -149,3 +149,113 @@ pub mod callback_call {
         st_retval::Continue
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{types::CallbackMutPtr, Class, Fixnum, NilClass, Proc, VM};
+
+    #[test]
+    fn test_conversions() {
+        crate::on_ruby_thread(|| {
+            let owned = CString::new("héllo").unwrap();
+            assert_eq!(unsafe { cstr_to_string(owned.as_ptr()) }, "héllo");
+            assert_eq!(unsafe { cstr_to_str(owned.as_ptr()) }, "héllo");
+            assert_eq!(str_to_cstring("abc").as_bytes(), b"abc");
+
+            assert!(bool_to_value(true).is_true());
+            assert!(bool_to_value(false).is_false());
+            assert!(c_int_to_bool(2));
+            assert!(!c_int_to_bool(0));
+            assert_eq!(bool_to_c_int(true), 1);
+            assert_eq!(bool_to_c_int(false), 0);
+
+            let arguments = [
+                Fixnum::new(1).to_any_object(),
+                NilClass::new().to_any_object(),
+            ];
+            let values = arguments_to_values(&arguments);
+            assert_eq!(values, vec![arguments[0].value(), arguments[1].value()]);
+
+            let (argc, argv) = process_arguments(&values);
+            assert_eq!(argc, 2);
+            assert_eq!(argv, values.as_ptr());
+            assert_eq!(
+                parse_arguments(argc, arguments.as_ptr()),
+                arguments.to_vec()
+            );
+
+            assert_eq!(option_to_slice(&Some(5)), &[5]);
+            assert_eq!(option_to_slice::<i32>(&None), &[] as &[i32]);
+        });
+    }
+
+    #[test]
+    fn test_closure_pointers_and_callbacks() {
+        crate::on_ruby_thread(|| {
+            let mut calls = 0;
+            let ptr = closure_to_ptr(|| {
+                calls += 1;
+                41 + calls
+            });
+            // The pointer is to a boxed closure returning a boxed result.
+            let result = unsafe {
+                let closure = &mut *(ptr as *mut Box<dyn FnMut() -> *const c_void>);
+                let value = ptr_to_data::<i32>(closure() as *mut c_void);
+                drop(Box::from_raw(ptr as *mut Box<dyn FnMut() -> *const c_void>));
+                value
+            };
+            assert_eq!(result, 42);
+
+            fn call0<F: FnMut() -> R, R>(f: &mut F) -> R {
+                callback_call::no_parameters::<F, R>(f as *mut F as CallbackMutPtr)
+            }
+            fn call1<F: FnMut(A) -> R, A, R>(f: &mut F, a: A) -> R {
+                callback_call::one_parameter::<F, A, R>(a, f as *mut F as CallbackMutPtr)
+            }
+            fn call2<F: FnMut(A, B), A, B>(f: &mut F, a: A, b: B) {
+                let _ = callback_call::hash_foreach_callback::<F, A, B>(
+                    a,
+                    b,
+                    f as *mut F as CallbackMutPtr,
+                );
+            }
+
+            let mut counter = 0;
+            let mut increment = || {
+                counter += 1;
+                counter
+            };
+            assert_eq!(call0(&mut increment), 1);
+
+            let mut add = |n: i32| n + 10;
+            assert_eq!(call1(&mut add, 5), 15);
+
+            let mut pairs = Vec::new();
+            let mut collect = |a: i32, b: i32| pairs.push((a, b));
+            call2(&mut collect, 1, 2);
+            assert_eq!(pairs, vec![(1, 2)]);
+        });
+    }
+
+    #[test]
+    fn test_ruby_object_helpers() {
+        crate::on_ruby_thread(|| {
+            let lambda = Proc::new(|_| NilClass::new().into());
+            assert!(is_proc(lambda.value()));
+            assert!(!is_proc(Fixnum::new(1).value()));
+
+            let method = VM::eval("1.method(:succ)").unwrap();
+            assert!(is_method(method.value()));
+            assert!(!is_method(lambda.value()));
+
+            VM::eval("module RutieUtilOuter; class Inner; end; end").unwrap();
+            let inner = inmost_rb_object("RutieUtilOuter::Inner");
+            assert_eq!(
+                Class::from(inner).name().unwrap().to_str(),
+                "RutieUtilOuter::Inner"
+            );
+            assert_eq!(inmost_rb_object("String"), Class::string().value());
+        });
+    }
+}

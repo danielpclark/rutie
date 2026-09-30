@@ -93,9 +93,19 @@ pub fn eval_string_protect(string: &str) -> Result<Value, c_int> {
     }
 }
 
+// `rb_raise` takes a printf format, so `%` in `message` is interpreted as
+// in C (use `%%` for a literal `%`); see `raise_message` for plain text.
+pub fn raise(exception: Value, message: &str) {
+    let message = util::str_to_cstring(message);
+
+    unsafe {
+        vm::rb_raise(exception, message.as_ptr());
+    }
+}
+
 // The message is never used as a printf format, and the exception is
 // built before raising so no Rust allocation is alive during the longjmp.
-pub fn raise(exception: Value, message: &str) -> ! {
+pub fn raise_message(exception: Value, message: &str) -> ! {
     let exception = exception::new(exception, message);
 
     raise_ex(exception)
