@@ -19,8 +19,9 @@ impl Enumerator {
     // fiber under a different `rb_protect` than the one it was created
     // under ("fiber called across stack rewinding barrier"). `protect_send`
     // opens a new `rb_protect` on every call, which only worked when every
-    // call came from the same stack depth, so the enumeration methods rescue
-    // exceptions with `rb_rescue2` instead, which leaves that alone.
+    // call came from the same stack depth, so the enumeration methods go
+    // through `vm::fiber_call` (`rb_rescue2`; `rb_protect` only on Rubies
+    // whose fibers copy the machine stack, which need it).
     fn rescue_send(
         &self,
         method: &str,
@@ -28,22 +29,10 @@ impl Enumerator {
     ) -> Result<AnyObject, AnyException> {
         let enumerator = self.value();
         let arguments = crate::util::arguments_to_values(arguments);
-        let mut error = None;
 
-        let result = vm::rescue(
-            || vm::call_method(enumerator, method, &arguments),
-            |exception| {
-                error = Some(exception);
-
-                exception
-            },
-            &[unsafe { rb_eException }],
-        );
-
-        match error {
-            Some(exception) => Err(AnyException::from(exception)),
-            None => Ok(AnyObject::from(result)),
-        }
+        vm::fiber_call(|| vm::call_method(enumerator, method, &arguments))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
     }
 
     /// Creates an enumerator over what `object.method(*arguments)` yields,
@@ -412,8 +401,13 @@ mod tests {
             hash.store(Symbol::new("a"), Fixnum::new(1));
             hash.store(Symbol::new("b"), Fixnum::new(2));
 
+            // One loop, so every `next` comes from the same place, as Ruby 2.5
+            // and 2.6 on arm64 macOS need (see `Fiber::new`).
             let pairs = Enumerator::new(&hash, "each_pair", &[]);
-            let collected: Vec<_> = pairs.iter().map(|pair| pair.unwrap()).collect();
+            let mut collected = Vec::new();
+            for pair in pairs.iter() {
+                collected.push(pair.unwrap());
+            }
             assert_eq!(collected.len(), 2);
             assert_eq!(
                 collected[1]
@@ -423,6 +417,11 @@ mod tests {
                     .try_convert_to::<Symbol>(),
                 Ok(Symbol::new("b"))
             );
+
+            // The rest resumes one enumerator from several places.
+            if cfg!(rutie_copy_stack_fibers) {
+                return;
+            }
 
             // Iteration continues from the enumerator's position.
             let mut numbers = VM::eval("[1, 2, 3].each")
@@ -471,6 +470,16 @@ mod tests {
                 .unwrap()
                 .try_convert_to::<Enumerator>()
                 .unwrap();
+
+            // Ruby 2.5 and 2.6 on arm64 macOS copy the fiber's stack and
+            // resume it only from the `rb_protect` it started under (see
+            // `Fiber::new`): another stack depth is a `FiberError`, not a crash.
+            if cfg!(rutie_copy_stack_fibers) {
+                assert_eq!(deeper(&mut enumerator, 0), 1);
+                assert!(enumerator.next().is_err());
+
+                return;
+            }
 
             assert_eq!(deeper(&mut enumerator, 0), 1);
             assert_eq!(deeper(&mut enumerator, 5), 2);
