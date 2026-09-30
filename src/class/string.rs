@@ -1061,12 +1061,7 @@ impl EncodingSupport for RString {
     ///
     /// assert!(string.is_valid_encoding(), "not valid encoding!");
     ///
-    /// # VM::init_loadpath();
-    /// VM::require("enc/encdb");
-    /// VM::require("enc/trans/transdb");
-    ///
-    /// let result = VM::eval("'Hello'.force_encoding('UTF-32')").unwrap().
-    ///   try_convert_to::<RString>().unwrap();
+    /// let result = RString::from_bytes(&[0xff], &Encoding::utf8());
     ///
     /// assert!(!result.is_valid_encoding(), "is valid encoding!");
     /// ```
@@ -1078,7 +1073,7 @@ impl EncodingSupport for RString {
     ///
     /// string.valid_encoding? == true
     ///
-    /// result = string.encode(Encoding::UTF_32)
+    /// result = "\xff".force_encoding(Encoding::UTF_8)
     ///
     /// result.valid_encoding? == false
     /// ```

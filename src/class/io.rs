@@ -294,8 +294,8 @@ impl IO {
         .map(|_| eof)
     }
 
-    /// Switches the stream to binary mode (Ruby's `binmode`,
-    /// `rb_io_binmode`).
+    /// Switches the stream to binary mode and sets its external encoding
+    /// to ASCII-8BIT (Ruby's `binmode`, `rb_io_ascii8bit_binmode`).
     ///
     /// # Examples
     ///

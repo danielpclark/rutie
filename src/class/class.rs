@@ -39,7 +39,7 @@ use crate::{
 ///
 /// fn main() {
 ///     # VM::init();
-///     Class::from_existing("Fixnum").define(|klass| {
+///     Class::from_existing("Integer").define(|klass| {
 ///         klass.def("pow", pow);
 ///     });
 /// }
@@ -48,9 +48,9 @@ use crate::{
 /// Ruby:
 ///
 /// ```ruby
-/// class Fixnum
+/// class Integer
 ///   def pow(exp)
-///     raise TypeError unless exp.is_a?(Fixnum)
+///     raise TypeError unless exp.is_a?(Integer)
 ///
 ///     self ** exp
 ///   end

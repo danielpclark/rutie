@@ -58,7 +58,7 @@ pub fn is_eof(io: Value) -> bool {
 }
 
 pub fn binmode(io: Value) -> Value {
-    unsafe { io::rb_io_binmode(io) }
+    unsafe { io::rb_io_ascii8bit_binmode(io) }
 }
 
 // Raises (usually `Errno::*`) when the file cannot be opened, so the caller
