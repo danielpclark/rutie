@@ -37,7 +37,6 @@ builtins! {
     binding => rb_cBinding, "Binding";
     class_class => rb_cClass, "Class";
     complex => rb_cComplex, "Complex";
-    data => rb_cData, "Data";
     dir => rb_cDir, "Dir";
     encoding => rb_cEncoding, "Encoding";
     enumerator => rb_cEnumerator, "Enumerator";

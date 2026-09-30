@@ -227,14 +227,20 @@ impl GC {
 
     /// Forcibly GC object.
     ///
-    /// # Examples
+    /// The object must not be used afterwards.
     ///
-    /// The object must not be used afterwards. (From Ruby 3.1 this is a no-op,
-    /// and Ruby 3.4 removes it; see `docs/ruby3-upgrade-plan.md`.)
+    /// Ruby 3.0 frees the object at once. From Ruby 3.1 `rb_gc_force_recycle`
+    /// does nothing, so the object is freed by a later GC like any other.
+    /// Ruby 3.4 removes the function; Rutie 0.12 deprecates this method and
+    /// 0.13 removes it (see `docs/ruby3-upgrade-plan.md`).
+    ///
+    /// # Examples
     ///
     /// ```
     /// use rutie::{Fixnum, Hash, Module, Object, RString, Symbol, GC, VM};
     /// # VM::init();
+    ///
+    /// let recycles_now = VM::eval("RUBY_VERSION < '3.1'").unwrap().value().is_true();
     ///
     /// let live_strings = || {
     ///     let counts = unsafe { Module::from_existing("ObjectSpace").send("count_objects", &[]) };
@@ -249,7 +255,9 @@ impl GC {
     /// live_strings(); // the first call allocates while looking names up
     /// let before = live_strings();
     /// GC::force_recycle(obj);
-    /// assert_eq!(live_strings(), before - 1);
+    ///
+    /// let expected = if recycles_now { before - 1 } else { before };
+    /// assert_eq!(live_strings(), expected);
     /// GC::enable();
     /// ```
     pub fn force_recycle(object: impl Object) {

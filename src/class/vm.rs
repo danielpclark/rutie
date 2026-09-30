@@ -1974,9 +1974,12 @@ impl VM {
     /// For example `"12"` is one required and two optional arguments, and
     /// `"1*:&"` is one required argument, a splat, keywords and a block.
     ///
-    /// Keywords follow the running Ruby's rules for `rb_scan_args`: a
-    /// trailing `Hash` is taken as keywords on Ruby 2.5 and 2.6, and Ruby 2.7
-    /// applies its keyword-argument transition rules (and warnings).
+    /// Keywords follow Ruby 3's rules (`rb_scan_args_kw` with
+    /// `RB_SCAN_ARGS_PASS_CALLED_KEYWORDS`): the `:` part is filled only when
+    /// the method being run was called with keywords, and a trailing `Hash`
+    /// is otherwise a positional argument. To take a trailing `Hash` as the
+    /// keywords regardless, as Ruby 2 did, use
+    /// [`VM::scan_args_with_keywords`](#method.scan_args_with_keywords).
     ///
     /// Returns an `ArgumentError`, without raising it, when the format is
     /// invalid or the arguments do not fit it.
@@ -2035,21 +2038,46 @@ impl VM {
     /// Scanning keywords and a block:
     ///
     /// ```
-    /// use rutie::{Fixnum, Hash, Object, Symbol, VM, Exception};
-    /// # VM::init();
+    /// use rutie::{AnyObject, Class, Exception, Fixnum, Object, Symbol, VM};
+    /// use rutie::types::Argc;
     ///
-    /// let mut options = Hash::new();
-    /// options.store(Symbol::new("verbose"), Fixnum::new(1));
+    /// // def describe(count, **options, &block)
+    /// pub extern "C" fn describe(argc: Argc, argv: *const AnyObject, _rtself: AnyObject) -> Fixnum {
+    ///     let arguments = rutie::util::parse_arguments(argc, argv);
+    ///     let args = match VM::scan_args(&arguments, "1:&") {
+    ///         Ok(args) => args,
+    ///         Err(error) => VM::raise_message(error.class(), &error.message()),
+    ///     };
     ///
-    /// let arguments = [Fixnum::new(1).into(), options.into()];
-    /// let args = VM::scan_args(&arguments, "1:&").unwrap();
+    ///     let verbose = args
+    ///         .keywords
+    ///         .map(|options| options.at(&Symbol::new("verbose")))
+    ///         .map(|value| value.try_convert_to::<Fixnum>().unwrap().to_i64())
+    ///         .unwrap_or(0);
+    ///     let block = if args.block.is_some() { 100 } else { 0 };
     ///
-    /// assert_eq!(args.required.len(), 1);
-    /// assert_eq!(args.keywords.unwrap().at(&Symbol::new("verbose")), Fixnum::new(1).into());
-    /// assert!(args.block.is_none());
+    ///     Fixnum::new(args.required.len() as i64 + verbose * 10 + block)
+    /// }
     ///
-    /// let error = VM::scan_args(&arguments, "bogus").unwrap_err();
-    /// assert_eq!(error.message(), "bad scan arg format: bogus");
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::from_existing("Object").define(|klass| {
+    ///         klass.def("describe", describe);
+    ///     });
+    ///
+    ///     let describe = |code| VM::eval(code).unwrap().try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///
+    ///     assert_eq!(describe("describe(1)"), 1);
+    ///     assert_eq!(describe("describe(1, verbose: 2)"), 21);
+    ///     assert_eq!(describe("describe(1, verbose: 2) {}"), 121);
+    ///
+    ///     // Without keywords at the call site a `Hash` is positional.
+    ///     let error = VM::eval("describe(1, { verbose: 2 })").unwrap_err();
+    ///     assert_eq!(error.message(), "wrong number of arguments (given 2, expected 1)");
+    ///
+    ///     let error = VM::scan_args(&[], "bogus").unwrap_err();
+    ///     assert_eq!(error.message(), "bad scan arg format: bogus");
+    /// }
     /// ```
     pub fn scan_args(arguments: &[AnyObject], format: &str) -> Result<ScannedArgs, AnyException> {
         Self::scan_args_kw(arguments, format, class::SCAN_ARGS_PASS_CALLED_KEYWORDS)
