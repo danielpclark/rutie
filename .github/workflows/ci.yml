@@ -49,6 +49,11 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
 
+    # Every rubysys declaration against this Ruby's headers and exports.
+    - name: Check rubysys declarations
+      if: runner.os == 'Linux'
+      run: python3 ci/check_rubysys.py
+
     - name: Build and Test
       run: |
         ruby --version

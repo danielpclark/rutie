@@ -78,7 +78,10 @@ pub fn next_codepoint(
     len_p: *mut c_int,
     enc: Value,
 ) -> usize {
-    unsafe { encoding::rb_enc_codepoint_len(ptr, end, len_p, encoding::rb_to_encoding(enc)) }
+    // `rb_enc_codepoint_len` returns an `unsigned int`.
+    unsafe {
+        encoding::rb_enc_codepoint_len(ptr, end, len_p, encoding::rb_to_encoding(enc)) as usize
+    }
 }
 
 pub fn ascii_8bit_encoding() -> Value {

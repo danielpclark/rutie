@@ -45,6 +45,8 @@ extern "C" {
     pub fn rb_gc_unregister_address(addr: CallbackPtr);
     // int
     // rb_objspace_marked_object_p(VALUE obj)
+    //
+    // NOT IN PUBLIC HEADERS: exported for the `objspace` extension.
     pub fn rb_objspace_marked_object_p(obj: Value) -> c_int;
     // VALUE
     // rb_define_finalizer(VALUE obj, VALUE block)

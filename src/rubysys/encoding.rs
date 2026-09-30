@@ -1,7 +1,7 @@
 use crate::rubysys::{
     constant::{FL_USER_8, FL_USER_9},
     types::{
-        c_char, c_int, c_long, size_t, CallbackPtr, EncodingIndex, EncodingType, InternalValue,
+        c_char, c_int, c_long, c_uint, CallbackPtr, EncodingIndex, EncodingType, InternalValue,
         RBasic, Value,
     },
 };
@@ -169,7 +169,7 @@ extern "C" {
         end: *const c_char,
         len_p: *mut c_int,
         enc: EncodingType,
-    ) -> size_t;
+    ) -> c_uint;
 }
 
 pub unsafe fn coderange_set(obj: Value, code_range: InternalValue) {

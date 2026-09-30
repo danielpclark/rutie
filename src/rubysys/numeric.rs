@@ -70,8 +70,10 @@ extern "C" {
     // rb_complex_new(VALUE x, VALUE y)
     pub fn rb_complex_new(real: Value, imaginary: Value) -> Value;
     // VALUE
-    // rb_complex_polar(VALUE x, VALUE y)
-    pub fn rb_complex_polar(abs: Value, arg: Value) -> Value;
+    // rb_complex_new_polar(VALUE abs, VALUE arg)
+    //
+    // `rb_complex_polar` is the same function, deprecated since Ruby 3.0.
+    pub fn rb_complex_new_polar(abs: Value, arg: Value) -> Value;
     // VALUE
     // rb_complex_raw(VALUE x, VALUE y)
     pub fn rb_complex_raw(real: Value, imaginary: Value) -> Value;
