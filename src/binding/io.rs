@@ -1,5 +1,5 @@
 use crate::{
-    binding::global::RubySpecialConsts,
+    binding::{fixnum, global::RubySpecialConsts},
     rubysys::io,
     types::{c_int, InternalValue, Value},
     util,
@@ -55,6 +55,14 @@ pub fn close(io: Value) -> Value {
 
 pub fn is_eof(io: Value) -> bool {
     unsafe { io::rb_io_eof(io) }.is_true()
+}
+
+pub use crate::rubysys::io::{RUBY_IO_READABLE, RUBY_IO_WRITABLE};
+
+/// `timeout` is `nil` to wait without a limit (Ruby 3.2+: the IO's
+/// `#timeout`, which is `nil` unless set).
+pub fn wait(io: Value, events: c_int, timeout: Value) -> Value {
+    unsafe { io::rb_io_wait(io, fixnum::i32_to_num(events), timeout) }
 }
 
 pub fn binmode(io: Value) -> Value {

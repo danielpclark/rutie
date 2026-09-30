@@ -446,7 +446,10 @@ macro_rules! unsafe_methods {
 /// For optional, keyword and block parameters, write a plain
 /// `fn(Argc, *const AnyObject, Self)` function with
 /// [`rutie_callback!`](macro.rutie_callback.html) and use
-/// [`VM::scan_args`](struct.VM.html#method.scan_args).
+/// [`VM::scan_args`](struct.VM.html#method.scan_args). Ruby 3 separates
+/// keywords from positional arguments: a method defined with `methods!`
+/// receives keywords as a trailing `Hash` argument, but `VM::scan_args`
+/// only fills its keywords when the caller passed keywords.
 #[macro_export]
 macro_rules! methods {
     // A trailing `*name` collects the remaining arguments into an `Array`.
@@ -1137,6 +1140,11 @@ mod tests {
 
             let sum = VM::eval("RutieDslSplat.new.plain(2, 3)").unwrap();
             assert_eq!(sum.try_convert_to::<Fixnum>(), Ok(Fixnum::new(5)));
+
+            // Keywords arrive as a trailing `Hash`, as the docs say.
+            let result = eval_array("RutieDslSplat.new.rest_only(1, mode: :fast)");
+            assert_eq!(result.length(), 2);
+            assert!(result.at(1).try_convert_to::<crate::Hash>().is_ok());
         });
     }
 

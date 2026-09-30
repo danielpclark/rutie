@@ -1,14 +1,14 @@
 use std::{convert::From, time::Duration};
 
 use crate::{
-    binding::{thread, vm},
+    binding::{io, thread, vm},
     types::Value,
 };
 
 #[cfg(any(unix, windows))]
 use crate::types::RawFd;
 
-use crate::{AnyException, AnyObject, Class, Object, VerifiedObject};
+use crate::{AnyException, AnyObject, Class, Float, NilClass, Object, VerifiedObject, IO};
 
 /// `Thread`
 #[derive(Debug)]
@@ -61,6 +61,9 @@ impl Thread {
     /// On Unix this is any file descriptor. On Windows it is a descriptor of
     /// Ruby's C runtime, as Ruby's `IO#fileno` returns it (not a `HANDLE` or
     /// `SOCKET`).
+    ///
+    /// Ruby deprecates `rb_thread_wait_fd` from 3.1; prefer
+    /// [`Thread::wait_readable`](#method.wait_readable).
     ///
     /// # Examples
     ///
@@ -361,6 +364,9 @@ impl Thread {
     ///
     /// The descriptor is as for [`Thread::wait_fd`](#method.wait_fd).
     ///
+    /// Ruby deprecates `rb_thread_fd_writable` from 3.1; prefer
+    /// [`Thread::wait_writable`](#method.wait_writable).
+    ///
     /// # Examples
     ///
     /// ```
@@ -399,6 +405,85 @@ impl Thread {
     #[cfg(any(unix, windows))]
     pub fn wait_fd_writable(fd: RawFd) {
         thread::wait_fd_writable(fd);
+    }
+
+    /// Waits, letting other Ruby threads run, until `io` is readable or
+    /// `timeout` passes (`rb_io_wait` with `RUBY_IO_READABLE`).
+    ///
+    /// Returns `Ok(true)` when `io` is readable and `Ok(false)` on timeout.
+    /// `None` waits without a limit (on Ruby 3.2+, up to the IO's
+    /// `#timeout`, if one is set). Unlike
+    /// [`Thread::wait_fd`](#method.wait_fd), which Ruby deprecates from 3.1,
+    /// it works with a Fiber scheduler and reports errors, such as a closed
+    /// `io`, as `Err`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    ///
+    /// use rutie::{Object, Thread, IO, VM};
+    /// # VM::init();
+    ///
+    /// let pipe = VM::eval("IO.pipe").unwrap().try_convert_to::<rutie::Array>().unwrap();
+    /// let reader = pipe.at(0).try_convert_to::<IO>().unwrap();
+    /// let writer = pipe.at(1).try_convert_to::<IO>().unwrap();
+    ///
+    /// // Nothing written yet.
+    /// assert_eq!(Thread::wait_readable(&reader, Some(Duration::from_millis(10))), Ok(false));
+    ///
+    /// writer.write(&rutie::RString::new_utf8("ready")).unwrap();
+    /// assert_eq!(Thread::wait_readable(&reader, None), Ok(true));
+    ///
+    /// reader.close().unwrap();
+    /// assert!(Thread::wait_readable(&reader, None).is_err());
+    /// # writer.close().unwrap();
+    /// ```
+    pub fn wait_readable(io: &IO, timeout: Option<Duration>) -> Result<bool, AnyException> {
+        Self::wait_io(io, io::RUBY_IO_READABLE, timeout)
+    }
+
+    /// Waits, letting other Ruby threads run, until `io` is writable or
+    /// `timeout` passes (`rb_io_wait` with `RUBY_IO_WRITABLE`).
+    ///
+    /// Returns `Ok(true)` when `io` is writable and `Ok(false)` on timeout;
+    /// see [`Thread::wait_readable`](#method.wait_readable). This replaces
+    /// [`Thread::wait_fd_writable`](#method.wait_fd_writable), which Ruby
+    /// deprecates from 3.1.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    ///
+    /// use rutie::{Object, Thread, IO, VM};
+    /// # VM::init();
+    ///
+    /// let pipe = VM::eval("IO.pipe").unwrap().try_convert_to::<rutie::Array>().unwrap();
+    /// let reader = pipe.at(0).try_convert_to::<IO>().unwrap();
+    /// let writer = pipe.at(1).try_convert_to::<IO>().unwrap();
+    ///
+    /// // An empty pipe has buffer space.
+    /// assert_eq!(Thread::wait_writable(&writer, Some(Duration::from_secs(1))), Ok(true));
+    ///
+    /// writer.close().unwrap();
+    /// assert!(Thread::wait_writable(&writer, None).is_err());
+    /// # reader.close().unwrap();
+    /// ```
+    pub fn wait_writable(io: &IO, timeout: Option<Duration>) -> Result<bool, AnyException> {
+        Self::wait_io(io, io::RUBY_IO_WRITABLE, timeout)
+    }
+
+    fn wait_io(io: &IO, events: i32, timeout: Option<Duration>) -> Result<bool, AnyException> {
+        let io_value = io.value();
+        let timeout = match timeout {
+            Some(timeout) => Float::new(timeout.as_secs_f64()).value(),
+            None => NilClass::new().value(),
+        };
+
+        vm::protect_value(|| io::wait(io_value, events, timeout))
+            .map(|ready| !ready.is_false())
+            .map_err(AnyException::from)
     }
 
     /// Waits for the thread to finish and returns it, or returns the
@@ -594,7 +679,7 @@ impl PartialEq for Thread {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Exception, Fixnum, Object, RString, Thread, VM};
+    use crate::{Array, Exception, Fixnum, Object, RString, Thread, IO, VM};
     use std::time::{Duration, Instant};
 
     #[test]
@@ -696,6 +781,30 @@ mod tests {
                 // Returns once the reader has data.
                 Thread::wait_fd(reader.as_raw_fd());
             }
+        });
+    }
+
+    #[test]
+    fn test_wait_readable_and_writable() {
+        crate::on_ruby_thread(|| {
+            let pipe = Array::from(VM::eval("IO.pipe").unwrap().value());
+            let reader = pipe.at(0).try_convert_to::<IO>().unwrap();
+            let writer = pipe.at(1).try_convert_to::<IO>().unwrap();
+            let short = Some(Duration::from_millis(5));
+
+            assert_eq!(Thread::wait_readable(&reader, short), Ok(false));
+            assert_eq!(Thread::wait_writable(&writer, short), Ok(true));
+
+            writer.write(&RString::new_utf8("x")).unwrap();
+            assert_eq!(Thread::wait_readable(&reader, short), Ok(true));
+            assert_eq!(Thread::wait_readable(&reader, None), Ok(true));
+
+            // Waiting on a closed stream is an `IOError`, not a crash.
+            reader.close().unwrap();
+            writer.close().unwrap();
+            let error = Thread::wait_readable(&reader, None).unwrap_err();
+            assert_eq!(error.class().name().unwrap().to_string(), "IOError");
+            assert!(Thread::wait_writable(&writer, short).is_err());
         });
     }
 }
