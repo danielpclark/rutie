@@ -123,6 +123,15 @@ API and may have breaking changes during a teeny version change.
    thanks to @danielpclark
  - `VM::load`, `VM::protect_require`, `VM::provide`, `VM::is_provided`,
    `VM::add_load_path` and `VM::find_file`, thanks to @danielpclark
+ - `Thread` methods: `current`, `main`, `is_alone`, `pass`, `sleep`,
+   `check_interrupts`, `wait_fd_writable`, `join`, `join_value`, `is_alive`,
+   `kill`, `wakeup`, `local_get`, `local_set`, and `call_without_gvl_io`
+   (Ruby's `RUBY_UBF_IO` unblocking function), thanks to @danielpclark
+ - New `Mutex` type (`new`, `lock`, `try_lock`, `is_locked`, `synchronize`)
+   with a `MutexGuard` that unlocks on drop and can `sleep`,
+   thanks to @danielpclark
+ - New `Fiber` type (`new` from a Rust closure, `resume`, `yield_values`,
+   `current`, `is_alive`), thanks to @danielpclark
 
 ### Changed
  - **Breaking:** `VM::at_exit` now registers a real end proc

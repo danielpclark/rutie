@@ -51,7 +51,7 @@ lazy_static! {
     };
 }
 
-extern "C" fn proc_callback(
+pub(crate) extern "C" fn proc_callback(
     _yielded: Value,
     data: Value,
     argc: c_int,
@@ -70,19 +70,25 @@ extern "C" fn proc_callback(
     vm::call_catching_panic(move || (closure.0)(arguments))
 }
 
-pub fn new<F>(func: F) -> Value
+// A hidden typed-data object owning `func`, to pass as the data argument of
+// `proc_callback` (for `rb_proc_new` and `rb_fiber_new`).
+pub(crate) fn closure_data<F>(func: F) -> Value
 where
     F: FnMut(&[Value]) -> Value + 'static,
 {
     let closure = Box::into_raw(Box::new(ProcClosure(Box::new(func)))) as *mut c_void;
 
-    unsafe {
-        // `klass` 0 makes a hidden object that Ruby code cannot reach.
-        let data =
-            typed_data::rb_data_typed_object_wrap(Value::from(0), closure, &*PROC_CLOSURE_TYPE);
+    // `klass` 0 makes a hidden object that Ruby code cannot reach.
+    unsafe { typed_data::rb_data_typed_object_wrap(Value::from(0), closure, &*PROC_CLOSURE_TYPE) }
+}
 
-        rproc::rb_proc_new(proc_callback, data)
-    }
+pub fn new<F>(func: F) -> Value
+where
+    F: FnMut(&[Value]) -> Value + 'static,
+{
+    let data = closure_data(func);
+
+    unsafe { rproc::rb_proc_new(proc_callback, data) }
 }
 
 pub fn arity(rproc: Value) -> i32 {

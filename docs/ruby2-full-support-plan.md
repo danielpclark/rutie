@@ -470,21 +470,46 @@ as they land; keep this file current.
 
 ### P4 — concurrency
 
-- [ ] **Threads:** `rb_thread_current`, `rb_thread_main`, `rb_thread_alone`,
+- [x] **Threads:** `rb_thread_current`, `rb_thread_main`, `rb_thread_alone`,
       `rb_thread_schedule`, `rb_thread_sleep`, `rb_thread_sleep_forever`,
       `rb_thread_wait_for`, `rb_thread_wakeup`, `rb_thread_run`, `rb_thread_kill`,
       `rb_thread_local_aref/aset`, `rb_thread_check_ints`, `rb_thread_atfork`,
       `rb_thread_fd_writable`, `rb_thread_fd_select`? (avoid), `rb_thread_wait_fd`
       (exists). `Thread` gets `join`, `value`, `alive`, `kill`, `current`.
-- [ ] **Mutex / Queue:** `rb_mutex_new`, `rb_mutex_lock`, `rb_mutex_unlock`,
+      Done: `Thread::current`, `main`, `is_alone`, `pass`, `sleep`
+      (`rb_thread_wait_for`), `check_interrupts`, `wait_fd_writable`, and
+      instance `join`, `join_value` (not `value`, which would shadow
+      `Object::value`), `is_alive`, `kill`, `wakeup` (`Result`: waking a dead
+      thread raises), `local_get`/`local_set`. `rb_thread_sleep_forever`,
+      `rb_thread_run`, `rb_thread_atfork` are bound in `rubysys` only;
+      `rb_thread_fd_select` is not bound.
+- [x] **Mutex / Queue:** `rb_mutex_new`, `rb_mutex_lock`, `rb_mutex_unlock`,
       `rb_mutex_trylock`, `rb_mutex_locked_p`, `rb_mutex_synchronize`,
       `rb_mutex_sleep`. New type `Mutex` with an RAII guard that unlocks on drop
       (and on Ruby exceptions via `rb_ensure`).
-- [ ] **Fiber:** `rb_fiber_new`, `rb_fiber_resume`, `rb_fiber_yield`,
+      Done: `Mutex` (`new`, `lock` → `MutexGuard`, `try_lock`, `is_locked`,
+      `synchronize`) and `MutexGuard::sleep`; the guard is `!Send` and
+      unlocks on drop. Ruby exceptions skip Rust destructors, so
+      `synchronize` (`rb_mutex_synchronize`, which unlocks with `rb_ensure`,
+      under `rb_protect`) is the documented choice when the locked code may
+      raise. `Queue` has no C API in 2.x; use `Class::from_existing("Queue")`
+      and `send`.
+- [x] **Fiber:** `rb_fiber_new`, `rb_fiber_resume`, `rb_fiber_yield`,
       `rb_fiber_current`, `rb_fiber_alive_p`. New type `Fiber`.
-- [ ] **GVL helpers:** `Thread::call_without_gvl` exists; add an unblocking
+      Done: `Fiber::new` (Rust closure, owned by the fiber's proc like
+      `Proc::new`), `resume`, `yield_values`, `current`, `is_alive`. Ruby
+      creates and switches fibers only while the thread has an active tag,
+      and resumes a fiber only under the `rb_protect` tag it was created
+      under, so these use `rb_rescue2` (like the enumerator fix in P2d); a
+      fiber made inside `VM::eval`/`VM::protect` cannot be resumed from Rust,
+      and `eval` refuses to run directly on top of a fiber.
+- [x] **GVL helpers:** `Thread::call_without_gvl` exists; add an unblocking
       function argument (`rb_thread_call_without_gvl` UBF, `RUBY_UBF_IO` /
       `RUBY_UBF_PROCESS` constants) and document Send/Sync expectations.
+      Done: `call_without_gvl` already takes a Rust unblocking closure;
+      `Thread::call_without_gvl_io` passes `RUBY_UBF_IO` and documents that
+      the closure must not touch Ruby and must share only `Send`/`Sync`
+      data. `RUBY_UBF_PROCESS` is the same function in 2.x.
 
 ### P5 — VM lifecycle and embedding
 
