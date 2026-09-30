@@ -7,6 +7,37 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.13.0] - 2026-10-01
+Supports Ruby 3.2, 3.3 and 3.4 on Linux, macOS and Windows; Ruby 3.1 stays on
+0.11.x/0.12.x.
+
+Ruby 3.4 changes some output programs may compare: `Hash#inspect` prints
+`{a: 1}`, error messages quote with `'` and name the class (`undefined method
+'foo' for an instance of Integer`), and an explicit `GC::start` collects even
+while the GC is disabled. Ruby 3.4 also needs `ruby_init_stack` before the VM
+boots, or the GC scans no machine stack; `VM::init` and `VM::try_init` call it
+(since 0.11.1), so only programs that start Ruby some other way must call it
+themselves.
+
+### Added
+ - Ruby 3.4 support: `ruby_3_4`/`ruby_gte_3_4` cfg flags; every `rubysys`
+   declaration checked against Ruby 3.4's headers and `libruby` exports,
+   thanks to @danielpclark
+
+### Changed
+ - `Fiber::with_storage` is available on every supported Ruby, and
+   `Hash::with_capacity` always passes the capacity to Ruby,
+   thanks to @danielpclark
+ - CI tests Ruby 3.2.9, 3.3.12 and 3.4.11 on Linux, macOS and Windows,
+   thanks to @danielpclark
+
+### Removed
+ - Ruby 3.1 support, and the `ruby_3_1`/`ruby_gte_3_1` cfg flags,
+   thanks to @danielpclark
+ - `GC::force_recycle` and `GC::is_marked` (deprecated in 0.12): Ruby 3.4
+   removes `rb_gc_force_recycle` and no longer exports
+   `rb_objspace_marked_object_p`, thanks to @danielpclark
+
 ## [0.12.0] - 2026-10-01
 Supports Ruby 3.1, 3.2 and 3.3 on Linux, macOS and Windows; Ruby 3.0 stays
 on 0.11.x.

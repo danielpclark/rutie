@@ -1,9 +1,9 @@
 ## Rutie
 
-### Ruby 3.1, 3.2 and 3.3 (Ruby 3.0: use 0.11; Ruby 2: use 0.10)
+### Ruby 3.2, 3.3 and 3.4 (older Rubies: see the version table)
 
 [![GitHub Actions Status](https://github.com/danielpclark/rutie/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/danielpclark/rutie/actions/workflows/ci.yml)
-[![Ruby 3.1–3.3 Compatible](https://img.shields.io/badge/Supports-Ruby%203.1%20%7C%203.2%20%7C%203.3-brightgreen)](https://github.com/danielpclark/rutie#ruby-version-support)
+[![Ruby 3.2–3.4 Compatible](https://img.shields.io/badge/Supports-Ruby%203.2%20%7C%203.3%20%7C%203.4-brightgreen)](https://github.com/danielpclark/rutie#ruby-version-support)
 [![Maintenance](https://img.shields.io/maintenance/yes/2026.svg)](https://github.com/danielpclark/rutie/commits/master)
 [![GitHub contributors](https://img.shields.io/github/contributors/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/graphs/contributors)
 [![license](https://img.shields.io/github/license/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/blob/master/LICENSE)
@@ -50,7 +50,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.12.0"
+rutie = "0.13.0"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
@@ -433,7 +433,8 @@ Everything is tested against 64 bit operating systems (Linux, macOS and Windows)
 
 | Rutie | Ruby | Notes |
 |---|---|---|
-| 0.12.x | 3.1, 3.2, 3.3 | current; Linux, macOS and Windows, with dynamic/static linking |
+| 0.13.x | 3.2, 3.3, 3.4 | current; Linux, macOS and Windows, with dynamic/static linking |
+| 0.12.x | 3.1, 3.2, 3.3 | the Ruby 3.1 line; Linux, macOS and Windows, with dynamic/static linking |
 | 0.11.x | 3.0, 3.1, 3.2 | the Ruby 3.0 line; Linux, plus macOS and Windows from 0.11.1, with dynamic/static linking |
 | 0.10.x | 2.5, 2.6, 2.7 | the Ruby 2 line; Linux, macOS and Windows (from 0.10.2) |
 | 0.9.x | 2.5, 2.6, 2.7 | still works on Ruby 2, but superseded by 0.10.0 (`VM::at_exit` crash fix, current-Cargo build fix) |
@@ -447,8 +448,8 @@ Each Rutie minor version supports exactly three Ruby minor versions:
 |---|---|---|
 | 0.10 | 2.5, 2.6, 2.7 | released: Ruby 2 |
 | 0.11 | 3.0, 3.1, 3.2 | released: first Ruby 3 release, drops Ruby 2 |
-| 0.12 | 3.1, 3.2, 3.3 | current: drops 3.0, adds 3.3 |
-| 0.13 | 3.2, 3.3, 3.4 | planned: drops 3.1, adds 3.4 |
+| 0.12 | 3.1, 3.2, 3.3 | released: drops 3.0, adds 3.3 |
+| 0.13 | 3.2, 3.3, 3.4 | current: drops 3.1, adds 3.4 |
 
 The Ruby 3 work is planned in `docs/ruby3-upgrade-plan.md`.
 
@@ -464,15 +465,15 @@ are the easiest way to get each version.
 #### Linux & Mac
 
 - A current stable Rust (CI tests stable and beta)
-- Ruby (64 bit) 3.1, 3.2 or 3.3, built with `--enable-shared` (see "Ruby version support")
+- Ruby (64 bit) 3.2, 3.3 or 3.4, built with `--enable-shared` (see "Ruby version support")
 
 #### Windows
 
 - Rust 1.71 or later with the MSVC toolchain (`x86_64-pc-windows-msvc`, the
   default) and the Visual Studio C++ Build Tools, or the GNU toolchain
   (`x86_64-pc-windows-gnu`)
-- Ruby (64 bit) 3.1, 3.2 or 3.3 from [RubyInstaller](https://rubyinstaller.org/)
-  (without the Devkit); CI tests 3.1.7, 3.2.9 and 3.3.12. A Ruby built with
+- Ruby (64 bit) 3.2, 3.3 or 3.4 from [RubyInstaller](https://rubyinstaller.org/)
+  (without the Devkit); CI tests 3.2.9, 3.3.12 and 3.4.11. A Ruby built with
   MSVC (mswin) works too.
 - `ruby` on your `PATH` (RubyInstaller's default), or `RUBY` set to the
   `ruby.exe` to build against
@@ -487,7 +488,7 @@ that DLL needs the DLLs in `bin\ruby_builtin_dlls`. `cargo run` and
 both directories on `PATH`:
 
 ```bat
-set PATH=C:\Ruby33-x64\bin;C:\Ruby33-x64\bin\ruby_builtin_dlls;%PATH%
+set PATH=C:\Ruby34-x64\bin;C:\Ruby34-x64\bin\ruby_builtin_dlls;%PATH%
 ```
 
 Ruby extensions (like `examples/rutie_ruby_example`) need nothing extra:
@@ -505,7 +506,7 @@ Ruby needs to be compiled with the `--enable-shared` option for dynamic linking,
 
 If using RBENV then the following is recommended:
 
-    CONFIGURE_OPTS=--enable-shared rbenv install 3.3.6
+    CONFIGURE_OPTS=--enable-shared rbenv install 3.4.7
 
 You can check if your Ruby is compiled to be dynamically linked to by running the following and getting a `"yes"` response.
 
@@ -527,7 +528,7 @@ static Ruby needs the same flag
 macOS, or a `rustc-link-arg` in its build script). Static linking is tested on
 Linux and macOS.
 
-Build a static Ruby 3.2 or 3.3 with `--disable-yjit`. Ruby enables YJIT when `rustc`
+Build a static Ruby 3.2, 3.3 or 3.4 with `--disable-yjit`. Ruby enables YJIT when `rustc`
 is on `PATH`, and YJIT puts its own copy of the Rust standard library in the
 archive, which can clash with your program's when linking
 (`duplicate symbol: rust_eh_personality`); `build.rs` warns when it sees one.
@@ -548,13 +549,13 @@ Ruby's helper gem is in the submodule folder `gem`.
 
 ### Testing against several Rubies
 
-Changes must pass on Ruby 3.1, 3.2 and 3.3. `build.rs` links against the `ruby`
+Changes must pass on Ruby 3.2, 3.3 and 3.4. `build.rs` links against the `ruby`
 first on your `PATH` (or the one named by `$RUBY`), so install each version under
 its own prefix and give each its own Cargo target directory, so switching does
 not rebuild everything.
 
 ```sh
-for version in 3.1.7 3.2.9 3.3.12; do
+for version in 3.2.9 3.3.12 3.4.11; do
   PATH="/opt/rb/$version/bin:$PATH" \
   CARGO_TARGET_DIR="$HOME/rt-$version/target" \
   cargo test
@@ -572,7 +573,7 @@ On Windows, unpack the RubyInstaller archives (`rubyinstaller-3.2.9-1-x64.7z`,
 can have any name:
 
 ```sh
-for version in 3.1.7-1 3.2.9-1 3.3.12-1; do
+for version in 3.2.9-1 3.3.12-1 3.4.11-1; do
   PATH="/c/rubies/rubyinstaller-$version-x64/bin:$PATH" \
   CARGO_TARGET_DIR="/c/rt-$version" \
   cargo test

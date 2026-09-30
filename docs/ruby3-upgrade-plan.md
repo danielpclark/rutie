@@ -289,15 +289,23 @@ still need the R1 check: presence doesn't mean the signature is unchanged.
 
 ## 8. 0.13 — Ruby 3.2, 3.3, 3.4
 
-- [ ] Drop 3.1: `Qnil`/`Qundef` become one set of values (`0x04`/`0x24`);
-      `RString` has two layouts (3.2 and 3.3+).
-- [ ] Remove `GC::force_recycle` (`rb_gc_force_recycle` is gone in 3.4) and
-      `GC::is_marked` (`rb_objspace_marked_object_p` is gone in 3.4).
-- [ ] Check the 3.4 prototypes and exports with the R1 script against a real
-      3.4 `libruby` (only headers were checked for this plan).
-- [ ] 3.4 behaviour: message quoting and class names, `Hash#inspect`,
-      chilled strings, Prism `SyntaxError` messages (§5).
-- [ ] Tests, doctests, README, CHANGELOG, release 0.13.0.
+- [x] Drop 3.1: `Qnil`/`Qundef` are one set of values (`0x04`/`0x24`),
+      `RString` has two layouts (3.2 and 3.3+), the `RArray` mask one, and
+      every `ruby_gte_3_2` gate is gone (`Fiber::with_storage`,
+      `Hash::with_capacity`).
+- [x] Remove `GC::force_recycle` and `GC::is_marked`.
+- [x] `ci/check_rubysys.py` against a real 3.4 `libruby` (built from
+      `v3_4_11`): 0 problems once those two are gone.
+- [x] 3.4 behaviour: `Hash#inspect` (one unit test gated on `ruby_gte_3_4`)
+      and `GC::start` collecting while disabled (`GC::disable`'s doctest no
+      longer relies on it). Message quoting, chilled strings and Prism
+      broke nothing: no test asserts those messages or mutates a literal
+      with deprecation warnings on.
+- [x] **Found in testing:** Ruby 3.4 takes the machine-stack address for GC
+      only from `ruby_init_stack` (called by `RUBY_INIT_STACK` in Ruby's
+      own `main`); without it the GC scans no stack and frees objects held
+      in Rust locals. `VM::init`/`VM::try_init` now call it first.
+- [x] Tests, doctests, README, CHANGELOG, version 0.13.0.
 
 ## 9. How to work a package
 
