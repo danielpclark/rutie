@@ -815,12 +815,16 @@ mod tests {
             GC::adjust_memory_usage(4096);
             GC::adjust_memory_usage(-4096);
 
+            // The string is only in the `Vec` (on the Rust heap, which the GC
+            // does not scan) until `wrap_data` returns.
+            GC::disable();
             let holder = crate::Class::new("RutieGcHolderClass", None).wrap_data(
                 RutieGcHolder {
                     objects: vec![crate::RString::new_utf8("held").to_any_object()],
                 },
                 &*RUTIE_GC_HOLDER,
             );
+            GC::enable();
             let holder: crate::AnyObject = holder;
             GC::start();
             let held = holder.get_data(&*RUTIE_GC_HOLDER).objects[0].clone();
