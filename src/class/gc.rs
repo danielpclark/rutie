@@ -1,9 +1,143 @@
-use crate::{binding::gc, AnyObject, Object, Symbol};
+use crate::{
+    binding::{gc, vm},
+    AnyException, AnyObject, Hash, Object, Symbol,
+};
 
 /// Garbage collection
 pub struct GC;
 
 impl GC {
+    /// Registers `finalizer` to be called with the object's id after
+    /// `object` is garbage collected (Ruby's `ObjectSpace.define_finalizer`,
+    /// `rb_define_finalizer`), or returns the error: an `ArgumentError` if
+    /// `finalizer` is not callable, a `FrozenError` for a frozen object.
+    ///
+    /// The finalizer must not refer to `object`, or it is never collected.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, NilClass, Object, Proc, VM};
+    /// # VM::init();
+    ///
+    /// let object = VM::eval("Object.new").unwrap();
+    /// let finalizer = Proc::new(|_| NilClass::new().into());
+    ///
+    /// assert!(GC::define_finalizer(&object, &finalizer).is_ok());
+    /// assert!(GC::define_finalizer(&object, &NilClass::new()).is_err());
+    ///
+    /// GC::undefine_finalizer(&object);
+    /// ```
+    pub fn define_finalizer<T: Object, F: Object>(
+        object: &T,
+        finalizer: &F,
+    ) -> Result<(), AnyException> {
+        let (object, finalizer) = (object.value(), finalizer.value());
+
+        vm::protect_value(|| gc::define_finalizer(object, finalizer))
+            .map(|_| ())
+            .map_err(AnyException::from)
+    }
+
+    /// Removes the finalizers of `object` (Ruby's
+    /// `ObjectSpace.undefine_finalizer`, `rb_undefine_finalizer`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, NilClass, Object, Proc, VM};
+    /// use std::sync::atomic::{AtomicBool, Ordering};
+    ///
+    /// static FINALIZED: AtomicBool = AtomicBool::new(false);
+    ///
+    /// # VM::init();
+    /// let object = VM::eval("Object.new").unwrap();
+    /// let finalizer = Proc::new(|_| {
+    ///     FINALIZED.store(true, Ordering::SeqCst);
+    ///     NilClass::new().into()
+    /// });
+    /// GC::define_finalizer(&object, &finalizer).unwrap();
+    /// GC::undefine_finalizer(&object);
+    ///
+    /// // Shutting the VM down runs the finalizers still defined; this one is gone.
+    /// unsafe { VM::cleanup() };
+    /// assert!(!FINALIZED.load(Ordering::SeqCst));
+    /// ```
+    pub fn undefine_finalizer<T: Object>(object: &T) {
+        gc::undefine_finalizer(object.value());
+    }
+
+    /// Returns information about the latest garbage collection, such as
+    /// `:major_by` and `:gc_by` (Ruby's `GC.latest_gc_info`,
+    /// `rb_gc_latest_gc_info`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// GC::start();
+    ///
+    /// assert!(GC::latest_info().has_key(&Symbol::new("gc_by")));
+    /// ```
+    pub fn latest_info() -> Hash {
+        let info = Hash::new();
+
+        Hash::from(gc::latest_gc_info(info.value()))
+    }
+
+    /// Tells the generational GC that `parent` now references `child`
+    /// (`rb_gc_writebarrier`, C's `RB_OBJ_WRITTEN`).
+    ///
+    /// Only needed for objects created as write-barrier protected, which
+    /// Rutie's `wrappable_struct!` data objects are not.
+    ///
+    /// # Safety
+    ///
+    /// `parent` must be a heap object (not an immediate like a `Fixnum`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, GC, RString, VM};
+    /// # VM::init();
+    ///
+    /// let parent = Array::new();
+    /// let child = RString::new_utf8("child");
+    ///
+    /// unsafe { GC::write_barrier(&parent, &child) };
+    ///
+    /// GC::start();
+    /// assert_eq!(child.to_str(), "child");
+    /// ```
+    pub unsafe fn write_barrier<P: Object, C: Object>(parent: &P, child: &C) {
+        gc::writebarrier(parent.value(), child.value());
+    }
+
+    /// Marks `object` as not write-barrier protected, so the generational GC
+    /// always rescans it (`rb_gc_writebarrier_unprotect`).
+    ///
+    /// # Safety
+    ///
+    /// `object` must be a heap object (not an immediate like a `Fixnum`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, GC, VM};
+    /// # VM::init();
+    ///
+    /// let array = Array::new();
+    /// unsafe { GC::write_barrier_unprotect(&array) };
+    ///
+    /// GC::start();
+    /// assert_eq!(array.length(), 0);
+    /// ```
+    pub unsafe fn write_barrier_unprotect<T: Object>(object: &T) {
+        gc::writebarrier_unprotect(object.value());
+    }
+
     /// Notify memory usage to the GC engine by extension libraries, to trigger GC
     /// This is useful when you wrap large rust objects using wrap_data,
     /// when you do so, ruby is unaware of the allocated memory and might not run GC
@@ -15,8 +149,17 @@ impl GC {
     /// # VM::init();
     ///
     ///
+    /// let collections = GC::count();
+    /// let before = GC::stat("malloc_increase_bytes");
+    ///
     /// GC::adjust_memory_usage(25_000); // Tell ruby that we somehow allocated 25_000 bytes of mem
-    /// GC::adjust_memory_usage(-15_000); // Tell ruby that freed 15_000 bytes of mem
+    ///
+    /// // Ruby counts it towards its next collection (unless one just ran).
+    /// if GC::count() == collections {
+    ///     assert!(GC::stat("malloc_increase_bytes") >= before + 25_000);
+    /// }
+    ///
+    /// GC::adjust_memory_usage(-25_000); // Tell ruby that freed 25_000 bytes of mem
     /// ```
     pub fn adjust_memory_usage(diff: isize) {
         gc::adjust_memory_usage(diff)
@@ -32,7 +175,10 @@ impl GC {
     /// use rutie::{GC, VM};
     /// # VM::init();
     ///
-    /// GC::count();
+    /// let before = GC::count();
+    /// GC::start();
+    ///
+    /// assert_eq!(GC::count(), before + 1);
     /// ```
     pub fn count() -> usize {
         gc::count()
@@ -46,7 +192,16 @@ impl GC {
     /// use rutie::{GC, VM};
     /// # VM::init();
     ///
-    /// let _ = GC::disable();
+    /// // Returns whether it was already disabled.
+    /// assert!(!GC::disable());
+    /// assert!(GC::disable());
+    ///
+    /// // While disabled, not even an explicit start collects.
+    /// let before = GC::count();
+    /// GC::start();
+    /// assert_eq!(GC::count(), before);
+    ///
+    /// GC::enable();
     /// ```
     pub fn disable() -> bool {
         gc::disable().is_true()
@@ -60,7 +215,11 @@ impl GC {
     /// use rutie::{GC, VM};
     /// # VM::init();
     ///
-    /// let _ = GC::enable();
+    /// // Returns whether it was disabled.
+    /// assert!(!GC::enable());
+    ///
+    /// GC::disable();
+    /// assert!(GC::enable());
     /// ```
     pub fn enable() -> bool {
         gc::enable().is_true()
@@ -70,13 +229,28 @@ impl GC {
     ///
     /// # Examples
     ///
+    /// The object must not be used afterwards. (From Ruby 3.1 this is a no-op,
+    /// and Ruby 3.4 removes it; see `docs/ruby3-upgrade-plan.md`.)
+    ///
     /// ```
-    /// use rutie::{RString, GC, VM};
+    /// use rutie::{Fixnum, Hash, Module, Object, RString, Symbol, GC, VM};
     /// # VM::init();
+    ///
+    /// let live_strings = || {
+    ///     let counts = unsafe { Module::from_existing("ObjectSpace").send("count_objects", &[]) };
+    ///     let counts = counts.try_convert_to::<Hash>().unwrap();
+    ///
+    ///     counts.at(&Symbol::new("T_STRING")).try_convert_to::<Fixnum>().unwrap().to_i64()
+    /// };
     ///
     /// let obj = RString::new_utf8("asdf");
     ///
+    /// GC::disable();
+    /// live_strings(); // the first call allocates while looking names up
+    /// let before = live_strings();
     /// GC::force_recycle(obj);
+    /// assert_eq!(live_strings(), before - 1);
+    /// GC::enable();
     /// ```
     pub fn force_recycle(object: impl Object) {
         gc::force_recycle(object.value())
@@ -89,14 +263,43 @@ impl GC {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use rutie::{RString, GC, VM};
-    /// # VM::init();
+    /// Use it from a `wrappable_struct!` mark function, while the GC is
+    /// marking. A panic there aborts the process, so record the result instead:
     ///
-    /// let obj = RString::new_utf8("asdf");
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    /// #[macro_use] extern crate lazy_static;
     ///
-    /// GC::mark(&obj);
-    /// assert!(unsafe {GC::is_marked(&obj) }, "Object was not marked");
+    /// use rutie::{AnyObject, Class, Object, RString, GC, VM};
+    /// use std::sync::atomic::{AtomicBool, Ordering};
+    ///
+    /// static MARKED: AtomicBool = AtomicBool::new(false);
+    ///
+    /// pub struct Holder {
+    ///     name: RString,
+    /// }
+    ///
+    /// wrappable_struct! {
+    ///     Holder,
+    ///     HolderWrapper,
+    ///     HOLDER_WRAPPER,
+    ///
+    ///     mark(data) {
+    ///         GC::mark(&data.name);
+    ///         MARKED.store(unsafe { GC::is_marked(&data.name) }, Ordering::SeqCst);
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     let holder: AnyObject = Class::new("Holder", None)
+    ///         .wrap_data(Holder { name: RString::new_utf8("held") }, &*HOLDER_WRAPPER);
+    ///
+    ///     GC::start();
+    ///
+    ///     assert!(MARKED.load(Ordering::SeqCst), "Object was not marked");
+    ///     assert_eq!(holder.get_data(&*HOLDER_WRAPPER).name.to_str(), "held");
+    /// }
     /// ```
     pub unsafe fn is_marked(object: &impl Object) -> bool {
         gc::is_marked(object.value())
@@ -111,12 +314,38 @@ impl GC {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, GC, VM};
-    /// # VM::init();
+    /// #[macro_use] extern crate rutie;
+    /// #[macro_use] extern crate lazy_static;
     ///
-    /// let object = RString::new_utf8("1");
+    /// use rutie::{AnyObject, Class, Object, RString, GC, VM};
     ///
-    /// GC::mark(&object);
+    /// pub struct Names {
+    ///     names: Vec<RString>,
+    /// }
+    ///
+    /// wrappable_struct! {
+    ///     Names,
+    ///     NamesWrapper,
+    ///     NAMES_WRAPPER,
+    ///
+    ///     // Called by the GC; the Rust heap is not scanned, so these objects
+    ///     // are only kept alive by being marked here.
+    ///     mark(data) {
+    ///         for name in &data.names { GC::mark(name); }
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     let names = (0..4).map(|i| RString::new_utf8(&i.to_string())).collect();
+    ///     let object: AnyObject = Class::new("Names", None)
+    ///         .wrap_data(Names { names }, &*NAMES_WRAPPER);
+    ///
+    ///     GC::start();
+    ///
+    ///     let names = &object.get_data(&*NAMES_WRAPPER).names;
+    ///     assert_eq!(names[3].to_str(), "3");
+    /// }
     /// ```
     pub fn mark(object: &impl Object) {
         gc::mark(object.value());
@@ -127,17 +356,38 @@ impl GC {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, GC, VM, AnyObject};
-    /// # VM::init();
+    /// #[macro_use] extern crate rutie;
+    /// #[macro_use] extern crate lazy_static;
     ///
-    /// let arr = [
-    ///     RString::new_utf8("1"),
-    ///     RString::new_utf8("2"),
-    ///     RString::new_utf8("3"),
-    ///     RString::new_utf8("4"),
-    /// ];
+    /// use rutie::{AnyObject, Class, Object, RString, GC, VM};
     ///
-    /// GC::mark_locations(&arr);
+    /// pub struct Names {
+    ///     names: Vec<RString>,
+    /// }
+    ///
+    /// wrappable_struct! {
+    ///     Names,
+    ///     NamesWrapper,
+    ///     NAMES_WRAPPER,
+    ///
+    ///     // Called by the GC; the Rust heap is not scanned, so these objects
+    ///     // are only kept alive by being marked here.
+    ///     mark(data) {
+    ///         GC::mark_locations(&data.names);
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     let names = (0..4).map(|i| RString::new_utf8(&i.to_string())).collect();
+    ///     let object: AnyObject = Class::new("Names", None)
+    ///         .wrap_data(Names { names }, &*NAMES_WRAPPER);
+    ///
+    ///     GC::start();
+    ///
+    ///     let names = &object.get_data(&*NAMES_WRAPPER).names;
+    ///     assert_eq!(names[3].to_str(), "3");
+    /// }
     /// ```
     pub fn mark_locations(range: &[impl Object]) {
         for object in range {
@@ -154,28 +404,72 @@ impl GC {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, GC, VM};
-    /// # VM::init();
+    /// #[macro_use] extern crate rutie;
+    /// #[macro_use] extern crate lazy_static;
     ///
-    /// let object = RString::new_utf8("1");
+    /// use rutie::{AnyObject, Class, Object, RString, GC, VM};
     ///
-    /// GC::mark_maybe(&object);
+    /// pub struct Names {
+    ///     names: Vec<RString>,
+    /// }
+    ///
+    /// wrappable_struct! {
+    ///     Names,
+    ///     NamesWrapper,
+    ///     NAMES_WRAPPER,
+    ///
+    ///     // Called by the GC; the Rust heap is not scanned, so these objects
+    ///     // are only kept alive by being marked here.
+    ///     mark(data) {
+    ///         for name in &data.names { GC::mark_maybe(name); }
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     let names = (0..4).map(|i| RString::new_utf8(&i.to_string())).collect();
+    ///     let object: AnyObject = Class::new("Names", None)
+    ///         .wrap_data(Names { names }, &*NAMES_WRAPPER);
+    ///
+    ///     GC::start();
+    ///
+    ///     let names = &object.get_data(&*NAMES_WRAPPER).names;
+    ///     assert_eq!(names[3].to_str(), "3");
+    /// }
     /// ```
     pub fn mark_maybe(object: &impl Object) {
         gc::mark_maybe(object.value());
     }
 
-    /// Registers the objects address with the GC
+    /// Keeps `object` alive until a matching [`GC::unregister`](#method.unregister),
+    /// even when nothing else references it (for example when only a raw
+    /// `Value` is kept in Rust heap memory, which the GC does not scan).
+    ///
+    /// Registrations are counted: an object registered twice needs two
+    /// `unregister` calls. (Before 0.10 this registered the address of a
+    /// temporary copy with `rb_gc_register_address`, which did not protect
+    /// the object and left the GC reading a stale stack slot.)
     ///
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, GC, VM};
+    /// use rutie::{Fixnum, Object, RString, GC, VM};
     /// # VM::init();
     ///
-    /// let object = RString::new_utf8("1");
+    /// let id = {
+    ///     let object = RString::new_utf8("kept");
+    ///     GC::register(&object);
     ///
-    /// GC::register(&object);
+    ///     unsafe { object.send("object_id", &[]) }
+    /// };
+    ///
+    /// GC::start();
+    ///
+    /// let object_space = rutie::Module::from_existing("ObjectSpace");
+    /// let found = object_space.protect_send("_id2ref", &[id]).unwrap();
+    /// assert_eq!(found.try_convert_to::<RString>().unwrap().to_str(), "kept");
+    ///
+    /// GC::unregister(&found);
     /// ```
     pub fn register(object: &impl Object) {
         gc::register(object.value())
@@ -189,13 +483,24 @@ impl GC {
     ///
     /// # Examples
     ///
+    /// Unlike [`GC::register`](#method.register) this is permanent: the
+    /// object lives until the process exits.
+    ///
     /// ```
-    /// use rutie::{RString, GC, VM};
+    /// use rutie::{Module, Object, RString, GC, VM};
     /// # VM::init();
     ///
-    /// let object = RString::new_utf8("1");
+    /// let id = {
+    ///     let object = RString::new_utf8("permanent");
+    ///     GC::register_mark(&object);
     ///
-    /// GC::register_mark(&object);
+    ///     unsafe { object.send("object_id", &[]) }
+    /// };
+    ///
+    /// GC::start();
+    ///
+    /// let found = Module::from_existing("ObjectSpace").protect_send("_id2ref", &[id]).unwrap();
+    /// assert_eq!(found.try_convert_to::<RString>().unwrap().to_str(), "permanent");
     /// ```
     pub fn register_mark(object: &impl Object) {
         gc::register_mark(object.value());
@@ -209,7 +514,11 @@ impl GC {
     /// use rutie::{GC, VM};
     /// # VM::init();
     ///
+    /// let before = GC::count();
+    ///
     /// GC::start();
+    ///
+    /// assert_eq!(GC::count(), before + 1);
     /// ```
     pub fn start() {
         gc::start()
@@ -225,7 +534,8 @@ impl GC {
     /// use rutie::{GC, VM};
     /// # VM::init();
     ///
-    /// let result = GC::stat("heap_allocated_pages");
+    /// assert!(GC::stat("heap_allocated_pages") > 0);
+    /// assert_eq!(GC::stat("count"), GC::count());
     /// ```
     pub fn stat(key: &str) -> usize {
         let key = Symbol::new(key);
@@ -233,7 +543,9 @@ impl GC {
         gc::stat(key.value())
     }
 
-    /// Unregisters the objects address with the GC
+    /// Undoes one [`GC::register`](#method.register) of `object`; once every
+    /// registration is undone, the GC may collect it again. Unregistering an
+    /// object that is not registered does nothing.
     ///
     /// # Examples
     ///
@@ -243,9 +555,201 @@ impl GC {
     ///
     /// let object = RString::new_utf8("1");
     ///
+    /// GC::register(&object);
+    /// GC::register(&object);
     /// GC::unregister(&object);
+    /// GC::unregister(&object);
+    ///
+    /// // Extra calls are harmless.
+    /// GC::unregister(&object);
+    ///
+    /// // Unregistering only lets the GC collect it once nothing references
+    /// // it; `object` is still in use here.
+    /// GC::start();
+    /// assert_eq!(object.to_str(), "1");
     /// ```
     pub fn unregister(object: &impl Object) {
         gc::unregister(object.value())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Fixnum, NilClass, Object, Proc, Symbol, GC, VM};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+
+    #[test]
+    fn test_finalizers_run_after_collection() {
+        crate::on_ruby_thread(|| {
+            let finalized = Arc::new(AtomicUsize::new(0));
+
+            for _ in 0..20 {
+                let object = VM::eval("Object.new").unwrap();
+                let counter = finalized.clone();
+                let finalizer = Proc::new(move |_| {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                    NilClass::new().into()
+                });
+
+                GC::define_finalizer(&object, &finalizer).unwrap();
+            }
+
+            GC::start();
+            GC::start();
+            VM::eval("20.times { Object.new }").unwrap();
+
+            assert!(finalized.load(Ordering::SeqCst) > 0, "no finalizer ran");
+
+            let frozen = VM::eval("Object.new.freeze").unwrap();
+            assert!(GC::define_finalizer(&frozen, &Proc::new(|_| NilClass::new().into())).is_err());
+            assert!(
+                GC::define_finalizer(&VM::eval("Object.new").unwrap(), &Fixnum::new(1)).is_err()
+            );
+        });
+    }
+
+    #[test]
+    fn test_latest_info() {
+        crate::on_ruby_thread(|| {
+            GC::start();
+
+            let info = GC::latest_info();
+            assert!(info.has_key(&Symbol::new("major_by")));
+            assert!(info.length() > 2);
+        });
+    }
+
+    pub struct RutieGcHolder {
+        objects: Vec<crate::AnyObject>,
+    }
+
+    crate::wrappable_struct! {
+        RutieGcHolder,
+        RutieGcHolderWrapper,
+        RUTIE_GC_HOLDER,
+
+        mark(data) {
+            // `mark_locations` and `mark_maybe` are for mark functions.
+            GC::mark_locations(&data.objects);
+            for object in &data.objects {
+                GC::mark_maybe(object);
+            }
+            // `is_marked` only means something during marking. A panic here
+            // would abort, so the result is recorded instead.
+            let marked = data.objects.iter().all(|object| unsafe { GC::is_marked(object) });
+            HOLDER_CONTENTS_MARKED.store(marked, Ordering::SeqCst);
+        }
+    }
+
+    static HOLDER_CONTENTS_MARKED: std::sync::atomic::AtomicBool =
+        std::sync::atomic::AtomicBool::new(false);
+
+    fn id2ref(id: &crate::AnyObject) -> Result<crate::AnyObject, crate::AnyException> {
+        crate::Module::from_existing("ObjectSpace").protect_send("_id2ref", &[id.clone()])
+    }
+
+    #[test]
+    fn test_gc_register_keeps_objects_alive() {
+        crate::on_ruby_thread(|| {
+            // Only a raw value in Rust heap memory, which the GC does not scan.
+            let raw: Box<crate::types::Value> =
+                Box::new(crate::RString::new_utf8("registered").value());
+            let object = crate::RString::from(*raw);
+            GC::register(&object);
+            GC::register(&object);
+            assert_eq!(crate::binding::gc::registered_count(*raw), 2);
+
+            let id = unsafe { object.send("object_id", &[]) };
+            drop(object);
+
+            for _ in 0..3 {
+                GC::start();
+            }
+
+            let found = id2ref(&id).unwrap();
+            assert_eq!(
+                found.try_convert_to::<crate::RString>().unwrap().to_str(),
+                "registered"
+            );
+
+            GC::unregister(&found);
+            assert_eq!(crate::binding::gc::registered_count(*raw), 1);
+            GC::unregister(&found);
+            assert_eq!(crate::binding::gc::registered_count(*raw), 0);
+            GC::unregister(&found);
+            assert_eq!(crate::binding::gc::registered_count(*raw), 0);
+
+            let permanent = crate::RString::new_utf8("permanent");
+            GC::register_mark(&permanent);
+            GC::start();
+            assert_eq!(permanent.to_str(), "permanent");
+        });
+    }
+
+    #[test]
+    fn test_gc_controls_and_marking() {
+        crate::on_ruby_thread(|| {
+            let was_disabled = GC::disable();
+            assert!(
+                GC::disable(),
+                "second disable reports it was already disabled"
+            );
+            assert!(GC::enable(), "enable reports it was disabled");
+            assert!(!GC::enable());
+            if was_disabled {
+                GC::disable();
+            }
+
+            let before = GC::count();
+            GC::start();
+            assert!(GC::count() > before);
+            assert_eq!(GC::stat("count"), GC::count());
+
+            GC::adjust_memory_usage(4096);
+            GC::adjust_memory_usage(-4096);
+
+            let holder = crate::Class::new("RutieGcHolderClass", None).wrap_data(
+                RutieGcHolder {
+                    objects: vec![crate::RString::new_utf8("held").to_any_object()],
+                },
+                &*RUTIE_GC_HOLDER,
+            );
+            let holder: crate::AnyObject = holder;
+            GC::start();
+            let held = holder.get_data(&*RUTIE_GC_HOLDER).objects[0].clone();
+            assert_eq!(
+                held.try_convert_to::<crate::RString>().unwrap().to_str(),
+                "held"
+            );
+            assert!(HOLDER_CONTENTS_MARKED.load(Ordering::SeqCst));
+
+            // `force_recycle` frees an object immediately; it must not be used again.
+            let garbage = crate::RString::new_utf8("recycled");
+            GC::force_recycle(garbage);
+
+            let object = crate::RString::new_utf8("finalizable");
+            let finalizer = Proc::new(|_| NilClass::new().into());
+            GC::define_finalizer(&object, &finalizer).unwrap();
+            GC::undefine_finalizer(&object);
+        });
+    }
+
+    #[test]
+    fn test_write_barriers() {
+        crate::on_ruby_thread(|| {
+            let parent = crate::Array::new();
+            let child = crate::RString::new_utf8("child");
+
+            // Required when a Rust-managed parent starts referencing a child.
+            unsafe { GC::write_barrier(&parent, &child) };
+            // Opting an object out of generational GC is always allowed.
+            unsafe { GC::write_barrier_unprotect(&parent) };
+
+            GC::start();
+            assert_eq!(child.to_str(), "child");
+        });
     }
 }

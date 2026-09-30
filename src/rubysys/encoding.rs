@@ -1,8 +1,8 @@
 use crate::rubysys::{
     constant::{FL_USER_8, FL_USER_9},
     types::{
-        c_char, c_int, size_t, CallbackPtr, EncodingIndex, EncodingType, InternalValue, RBasic,
-        Value,
+        c_char, c_int, c_long, size_t, CallbackPtr, EncodingIndex, EncodingType, InternalValue,
+        RBasic, Value,
     },
 };
 use std::mem;
@@ -80,6 +80,79 @@ extern "C" {
     // int
     // rb_utf8_encindex(void)
     pub fn rb_utf8_encindex() -> EncodingIndex;
+    // rb_encoding *
+    // rb_ascii8bit_encoding(void)
+    pub fn rb_ascii8bit_encoding() -> EncodingType;
+    // int
+    // rb_enc_ascget(const char *p, const char *e, int *len, rb_encoding *enc)
+    pub fn rb_enc_ascget(
+        p: *const c_char,
+        e: *const c_char,
+        len: *mut c_int,
+        enc: EncodingType,
+    ) -> c_int;
+    // rb_encoding *
+    // rb_enc_check(VALUE str1, VALUE str2)
+    pub fn rb_enc_check(str1: Value, str2: Value) -> EncodingType;
+    // int
+    // rb_enc_codelen(int code, rb_encoding *enc)
+    pub fn rb_enc_codelen(code: c_int, enc: EncodingType) -> c_int;
+    // void
+    // rb_enc_copy(VALUE obj1, VALUE obj2)
+    pub fn rb_enc_copy(destination: Value, source: Value);
+    // rb_encoding *
+    // rb_enc_find(const char *name)
+    pub fn rb_enc_find(name: *const c_char) -> EncodingType;
+    // rb_encoding *
+    // rb_enc_get(VALUE obj)
+    //
+    // Null for objects without an encoding.
+    pub fn rb_enc_get(object: Value) -> EncodingType;
+    // int
+    // rb_enc_precise_mbclen(const char *p, const char *e, rb_encoding *enc)
+    pub fn rb_enc_precise_mbclen(p: *const c_char, e: *const c_char, enc: EncodingType) -> c_int;
+    // VALUE
+    // rb_enc_str_buf_cat(VALUE str, const char *ptr, long len, rb_encoding *ptr_enc)
+    pub fn rb_enc_str_buf_cat(
+        string: Value,
+        ptr: *const c_char,
+        len: c_long,
+        encoding: EncodingType,
+    ) -> Value;
+    // int
+    // rb_enc_to_index(rb_encoding *enc)
+    pub fn rb_enc_to_index(encoding: EncodingType) -> c_int;
+    // VALUE
+    // rb_enc_uint_chr(unsigned int code, rb_encoding *enc)
+    pub fn rb_enc_uint_chr(code: u32, encoding: EncodingType) -> Value;
+    // rb_encoding *
+    // rb_filesystem_encoding(void)
+    pub fn rb_filesystem_encoding() -> EncodingType;
+    // rb_encoding *
+    // rb_locale_encoding(void)
+    pub fn rb_locale_encoding() -> EncodingType;
+    // rb_encoding *
+    // rb_usascii_encoding(void)
+    pub fn rb_usascii_encoding() -> EncodingType;
+    // rb_encoding *
+    // rb_utf8_encoding(void)
+    pub fn rb_utf8_encoding() -> EncodingType;
+    // int
+    // rb_enc_mbclen(const char *p, const char *e, rb_encoding *enc)
+    pub fn rb_enc_mbclen(p: *const c_char, e: *const c_char, enc: EncodingType) -> c_int;
+    // char *
+    // rb_enc_nth(const char *p, const char *e, long nth, rb_encoding *enc)
+    pub fn rb_enc_nth(
+        p: *const c_char,
+        e: *const c_char,
+        nth: c_long,
+        enc: EncodingType,
+    ) -> *const c_char;
+    // int
+    // rb_enc_str_coderange(VALUE str)
+    //
+    // Computes and caches the coderange; returns one of `ENC_CODERANGE_*`.
+    pub fn rb_enc_str_coderange(string: Value) -> c_int;
     // VALUE
     // rb_str_export_to_enc(VALUE str, rb_encoding *enc)
     pub fn rb_str_export_to_enc(str: Value, enc: EncodingType) -> Value;
@@ -88,7 +161,7 @@ extern "C" {
     pub fn rb_str_encode(str: Value, to: Value, ecflags: c_int, ecopts: Value) -> Value;
     // int
     // rb_econv_prepare_opts(VALUE opthash, VALUE *opts)
-    pub fn rb_econv_prepare_opts(opthash: Value, opts: *const Value) -> c_int;
+    pub fn rb_econv_prepare_opts(opthash: Value, opts: *mut Value) -> c_int;
     // unsigned int
     // rb_enc_codepoint_len(const char *p, const char *e, int *len_p, rb_encoding *enc)
     pub fn rb_enc_codepoint_len(

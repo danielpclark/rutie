@@ -7,10 +7,154 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
-## [Unreleased]
-
 ## [0.10.0] - 2026-09-30
+### Added
+ - `build.rs` sets `ruby_2_5`/`ruby_2_6`/`ruby_2_7` and cumulative
+   `ruby_gte_2_5`/`ruby_gte_2_6`/`ruby_gte_2_7` cfg flags for the Ruby it builds
+   against, exports the version to dependent crates as `DEP_RUBY_VERSION_MAJOR`
+   and `DEP_RUBY_VERSION_MINOR`, and warns when that Ruby is not 2.5–2.7,
+   thanks to @danielpclark
+ - Exception control flow: `VM::ensure`, `VM::rescue`, `VM::rescue_from`,
+   `VM::catch`, `VM::throw`, `VM::iter_break`, `VM::iter_break_value` and
+   `VM::jump_tag`. Rust panics inside these closures, blocks and `at_exit`
+   handlers are raised as a Ruby `RuntimeError` instead of unwinding into
+   Ruby, thanks to @danielpclark
+ - `Object::send_with_block` and `Object::protect_send_with_block` call a
+   method with a Rust closure as its block, thanks to @danielpclark
+ - Argument and state checks: `VM::check_arity`, `VM::raise_arity_error`,
+   `VM::raise_zero_division`, `VM::not_implemented`, `VM::sys_fail`,
+   `VM::warn`, `VM::warning`, `Object::check_frozen` and `Object::check_type`,
+   thanks to @danielpclark
+ - Variable-arity methods: `VM::scan_args` (`rb_scan_args` formats such as
+   `"21*1:&"`, returning `ScannedArgs`), `VM::get_kwargs` (returning
+   `KeywordArgs`) and, on Ruby 2.7, `VM::is_keyword_given`, thanks to @danielpclark
+ - `Class::define_alias`, `Class::undef_method`, `Class::define_alloc_func`,
+   `Class::undef_alloc_func`, `Module::define_alias`, `Module::undef_method`
+   and `Object::call_init`, thanks to @danielpclark
+ - `VM::cleanup` shuts the VM down (`ruby_cleanup`), running `at_exit`
+   handlers, thanks to @danielpclark
+ - `VM::call_protected`, the previous (immediate) behaviour of `VM::at_exit`,
+   thanks to @danielpclark
+ - `Object` methods: `dup`, `clone_object`, `object_id`, `inspect_object`,
+   `as_string`, `is_kind_of`, `is_instance_of`, `method`, `check_send`,
+   `send_with_proc`, `send_with_keywords` (Ruby 2.7), `instance_variables`,
+   `is_instance_variable_defined`, `remove_instance_variable`, `hash_value`
+   and `instance_eval`, thanks to @danielpclark
+ - `Class` and `Module` methods: `name`, `path`, `from_path` (nested paths,
+   returns an error instead of raising), `is_method_defined`, `inherits`,
+   `includes_module`, `module_eval`, `instance_methods`, `class_variable_get`,
+   `class_variable_set`, `is_class_variable_defined`, `is_const_defined`,
+   `is_const_defined_at` and `const_remove`, thanks to @danielpclark
+ - Global variables: `VM::global_get`, `VM::global_set`,
+   `VM::protect_global_set`, `VM::define_variable` and
+   `VM::define_readonly_variable` (returning a `GlobalVariable` handle) and
+   `VM::define_virtual_variable` (Rust closures as getter and setter), plus
+   `VM::define_global_const`, thanks to @danielpclark
+ - `Symbol::find` (looks a symbol up without creating it), `Symbol::from_rstring`,
+   `Symbol::to_rstring`, `Symbol::is_const_name`,
+   `Symbol::is_instance_variable_name` and `Symbol::is_class_variable_name`,
+   thanks to @danielpclark
+ - Kernel conversions returning `Result`: `RString::convert`, `Array::convert`,
+   `Integer::convert`, `Float::convert` and `Hash::convert`; `VM::format`
+   (Ruby's `format`) and `VM::p`, thanks to @danielpclark
+ - `ScannedArgs`, `KeywordArgs` and `GlobalVariable` are exported from the
+   crate root, thanks to @danielpclark
+ - `RString` methods: `with_capacity`, `capacity`, `compare` (and
+   `PartialOrd`), `ellipsize`, `plus`, `replace`, `truncate`, `scrub`, `split`,
+   `byte_slice` (bounds-checked), `substr`, `times`, `to_i`, `parse_integer`,
+   `to_f`, `parse_float`, `coderange` (with the new `CodeRange` enum) and
+   `with_locked_bytes` (borrows the bytes while Ruby can't modify the string),
+   thanks to @danielpclark
+ - `Array` methods: `delete`, `delete_at`, `includes`, `clear`, `slice`,
+   `plus`, `compare`, `replace`, `resize`, `rotate_bang`, `assoc`, `rassoc`,
+   and `TryConvert` (`Array.try_convert`), thanks to @danielpclark
+ - `Hash` methods: `lookup` (ignores the default), `has_key`, `fetch`, `keys`,
+   `values`, `update`, `set_default`, `iter` (with `HashIterator`) and
+   `TryConvert` (`Hash.try_convert`), thanks to @danielpclark
+ - `Integer`: `from_str_radix`, `to_s_radix`, `is_bignum`, `to_i128`,
+   `to_u128`, `to_f64`, `add`, `sub`, `mul`, `div`, `modulo`, `pow`,
+   `compare` (and `PartialOrd`); `From<i128>`, `From<u128>`,
+   `TryFrom<f64>`, and `TryFrom<Integer>` for `i128` and `u128`,
+   thanks to @danielpclark
+ - New `Rational` and `Complex` types, and `Float::rationalize`,
+   thanks to @danielpclark
+ - New `Range` type (`new`, `begin`, `end`, `excludes_end`,
+   `offset_and_length`, and on Ruby 2.6+ `arithmetic_sequence`),
+   thanks to @danielpclark
+ - New `Regexp` (`new`, `source`, `options`, `find`, `match_data`) and
+   `MatchData` (`nth`, `named`, `matched`, `pre_match`, `post_match`, `last`,
+   `set_last`) types, thanks to @danielpclark
+ - New `Time` type (`now`, `from_unix`, `at`, `to_unix`, `to_system_time`,
+   `utc_offset`, `interval`, `From<SystemTime>`), thanks to @danielpclark
+ - New `Struct` type (`define`, `define_under`, `new_instance`, `members_of`,
+   `get`, `at`, `set`, `members`, `size`), thanks to @danielpclark
+ - `Proc::new` (a Ruby `Proc` backed by a Rust closure, freed with the proc),
+   `Proc::arity` and `Proc::protect_call`; new `Method` type (`call`,
+   `protect_call`, `arity`, `to_proc`) returned by `Object::method`;
+   `Object::method_arity` and `Class`/`Module::instance_method_arity`,
+   thanks to @danielpclark
+ - `Enumerator::new` (`to_enum`) and Rust iteration over enumerators
+   (`Enumerator::iter`, `IntoIterator`, `EnumeratorIterator`);
+   `Object::try_compare` (`<=>` with Ruby's comparison error),
+   thanks to @danielpclark
+ - `VM::yield_values` and `VM::need_block`, thanks to @danielpclark
+ - `Binding` methods: `local_variable_get`, `local_variable_set`,
+   `is_local_variable_defined`, `local_variables`, `receiver` and `eval`,
+   thanks to @danielpclark
+ - `Encoding` methods: `ascii_8bit`, `locale`, `filesystem`, `of`, `index`,
+   `chr`, `is_ascii_compatible` and `is_dummy`; `RString::concat_bytes`,
+   thanks to @danielpclark
+ - Typed accessors for Ruby's built-in classes (`Class::array()`,
+   `Class::string()`, `Class::struct_class()`, ...), exception classes
+   (`Class::standard_error()`, `Class::argument_error()`, ...) and modules
+   (`Module::kernel()`, `Module::enumerable()`, ...), read from Ruby's
+   `rb_c*`/`rb_e*`/`rb_m*` globals, thanks to @danielpclark
+ - `AnyException::from_class`, `AnyException::from_errno`,
+   `AnyException::from_io_error` and `VM::raise_interrupt`,
+   thanks to @danielpclark
+ - New `IO` type (`stdin`, `stdout`, `stderr`, `write`, `puts`, `print`,
+   `gets`, `getbyte`, `flush`, `close`, `is_closed`, `is_eof`, `binmode`) and
+   `File` type (`open`, `expand_path`, `absolute_path`, `dirname`,
+   `current_directory`, and the `IO` methods through `Deref`); operations
+   that can raise return `Result`, thanks to @danielpclark
+ - `Marshal::dump` and `Marshal::load`, thanks to @danielpclark
+ - `GC::define_finalizer`, `GC::undefine_finalizer`, `GC::latest_info`,
+   `GC::write_barrier` and `GC::write_barrier_unprotect`,
+   thanks to @danielpclark
+ - `VM::load`, `VM::protect_require`, `VM::provide`, `VM::is_provided`,
+   `VM::add_load_path` and `VM::find_file`, thanks to @danielpclark
+ - `Thread` methods: `current`, `main`, `is_alone`, `pass`, `sleep`,
+   `check_interrupts`, `wait_fd_writable`, `join`, `join_value`, `is_alive`,
+   `kill`, `wakeup`, `local_get`, `local_set`, and `call_without_gvl_io`
+   (Ruby's `RUBY_UBF_IO` unblocking function), thanks to @danielpclark
+ - New `Mutex` type (`new`, `lock`, `try_lock`, `is_locked`, `synchronize`)
+   with a `MutexGuard` that unlocks on drop and can `sleep`,
+   thanks to @danielpclark
+ - New `Fiber` type (`new` from a Rust closure, `resume`, `yield_values`,
+   `current`, `is_alive`), thanks to @danielpclark
+ - `VM::raise_message` raises with a plain-text message; `VM::raise` passes
+   its message to `rb_raise` as a printf format (unchanged, now documented),
+   so `%` must be written `%%` there, thanks to @danielpclark
+ - `methods!` accepts a trailing splat parameter (`fn log(level: RString, *parts)`)
+   that receives the remaining arguments as an `Array`, thanks to @danielpclark
+ - `wrappable_struct!` accepts an optional `size(data) { .. }` clause (Ruby's
+   `dsize`, reported by `ObjectSpace.memsize_of`), thanks to @danielpclark
+ - VM lifecycle: `VM::try_init` (returns the error instead of exiting),
+   `VM::init_with_args`, `VM::set_argv`, `VM::set_script_name`,
+   `VM::run_file` (runs a script as the main program, once per process),
+   `VM::is_initialized`, `VM::is_ruby_thread`, `VM::is_stack_near_limit`,
+   `VM::stack_length` and `VM::at_vm_exit` (`ruby_vm_at_exit`),
+   thanks to @danielpclark
+
 ### Changed
+ - Every public item's documentation example now runs and asserts its
+   result (no more `ignore`/`no_run` examples), thanks to @danielpclark
+ - **Breaking:** `VM::at_exit` now registers a real end proc
+   (`rb_set_end_proc`) that runs when the VM shuts down, instead of calling
+   the closure immediately. The closure must be `FnOnce(VmPointer) + 'static`,
+   thanks to @danielpclark
+ - Unit tests run on a single dedicated Ruby thread (`on_ruby_thread`), since
+   Ruby 2 must be used from the thread that started it, thanks to @danielpclark
  - Reverted the `rb-sys` integration (PR #172) and returned to Rutie's own
    hand-maintained FFI bindings (`rubysys`). Rutie targets Ruby 2 (2.5, 2.6
    and 2.7) again; Ruby 3 support will be revisited once Ruby 2 support is
@@ -19,15 +163,38 @@ API and may have breaking changes during a teeny version change.
    workflow, thanks to @danielpclark
 
 ### Removed
+ - The `rubysys` declaration of `rb_str_valid_encoding_p`, a `static` function
+   Ruby never exports (unused; `rubysys` is a private API), thanks to @danielpclark
  - The unpublished `rb-sys`-based tree that lived on `master` from February
    2025 (self-labelled 0.10.0, tested only against Ruby 2.7 and 3.0-3.4). It
    was never released to crates.io and is not supported; users of it via a git
    dependency should pin their commit or move to 0.10.x, thanks to @danielpclark
 
 ### Fixed
+ - `RString::encode` with options aborted Ruby (`[BUG] rb_econv_open_opts
+   called with invalid opthash`): the prepared options Ruby writes back were
+   discarded and the raw hash passed on instead, thanks to @danielpclark
+ - `GC::register` registered the address of a temporary copy of the object
+   with `rb_gc_register_address`, so the object was not protected and the GC
+   kept reading a stale stack slot; `GC::unregister` never removed it.
+   Registered objects are now kept alive in a GC-rooted identity table
+   (counted, so each `register` needs one `unregister`), thanks to @danielpclark
+ - `RString::new_usascii_unchecked` is documented as creating an
+   `ASCII-8BIT` string, which is what it has always done, thanks to @danielpclark
+ - `wrappable_struct!` and `methods!` can be called by path
+   (`rutie::wrappable_struct!`) without importing the macro,
+   thanks to @danielpclark
+ - `Enumerator::next`, `next_values`, `peek`, `peek_values` and `feed` could
+   fail with `FiberError: fiber called across stack rewinding barrier` when
+   called from different stack depths (for example the first and later
+   `next` calls made by `Iterator::collect`); they now rescue exceptions
+   without `rb_protect`, thanks to @danielpclark
+ - `try_convert_to::<Encoding>()` always failed, because `Encoding` objects
+   were expected to be classes, thanks to @danielpclark
  - `VM::at_exit` called its closure through the wrong argument, which crashed
-   on aarch64 macOS and with capturing closures on every platform; it now uses
-   a proper single-argument `rb_protect` callback and has a regression test,
+   on aarch64 macOS and with capturing closures on every platform; that
+   immediate call (now `VM::call_protected`, see Changed) uses a proper
+   single-argument `rb_protect` callback and has a regression test,
    thanks to @danielpclark
  - `build.rs` now works with current Cargo, which no longer puts
    `target/<profile>/deps` on the library path when running test binaries and

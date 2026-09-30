@@ -1,7 +1,9 @@
+use std::ptr;
+
 use crate::{
-    binding::fixnum,
+    binding::{fixnum, global::RubySpecialConsts},
     rubysys::hash,
-    types::{CallbackMutPtr, CallbackPtr, Value},
+    types::{CallbackMutPtr, CallbackPtr, InternalValue, Value},
     AnyObject,
 };
 
@@ -52,4 +54,33 @@ where
             closure_ptr,
         );
     }
+}
+
+pub fn freeze(hash: Value) -> Value {
+    unsafe { hash::rb_hash_freeze(hash) }
+}
+
+// `None` when `key` is missing; the hash's default value or proc is not used.
+pub fn lookup(hash: Value, key: Value) -> Option<Value> {
+    let undef = Value::from(RubySpecialConsts::Undef as InternalValue);
+    let result = unsafe { hash::rb_hash_lookup2(hash, key, undef) };
+
+    if result.is_undef() {
+        None
+    } else {
+        Some(result)
+    }
+}
+
+pub fn fetch(hash: Value, key: Value) -> Value {
+    unsafe { hash::rb_hash_fetch(hash, key) }
+}
+
+// Values from `other` overwrite (Ruby's `update`/`merge!`).
+pub fn update(hash: Value, other: Value) -> Value {
+    unsafe { hash::rb_hash_update_by(hash, other, ptr::null()) }
+}
+
+pub fn check_hash_type(object: Value) -> Value {
+    unsafe { hash::rb_check_hash_type(object) }
 }

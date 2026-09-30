@@ -1,10 +1,11 @@
 use std::convert::From;
 
 use crate::{
-    binding::{class, global::rb_cObject, module},
+    binding::{class, global::rb_cObject, module, vm},
     typed_data::DataTypeWrapper,
     types::{Callback, Value, ValueType},
-    AnyObject, Array, Class, Object, VerifiedObject,
+    AnyException, AnyObject, Array, Class, Exception, NilClass, Object, RString, Symbol,
+    VerifiedObject,
 };
 
 /// `Module`
@@ -172,7 +173,9 @@ impl Module {
     ///     klass.define_nested_module("Inner");
     /// });
     ///
-    /// Module::from_existing("Outer").get_nested_module("Inner");
+    /// let inner = Module::from_existing("Outer").get_nested_module("Inner");
+    ///
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
     /// ```
     ///
     /// Ruby:
@@ -205,7 +208,9 @@ impl Module {
     ///     klass.define_nested_class("Inner", None);
     /// });
     ///
-    /// Module::from_existing("Outer").get_nested_class("Inner");
+    /// let inner = Module::from_existing("Outer").get_nested_class("Inner");
+    ///
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
     /// ```
     ///
     /// Ruby:
@@ -234,11 +239,11 @@ impl Module {
     /// use rutie::{Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Outer").define(|klass| {
-    ///     klass.define_nested_module("Inner");
-    /// });
+    /// let mut outer = Module::new("Outer");
+    /// let inner = outer.define_nested_module("Inner");
     ///
-    /// Module::from_existing("Outer").get_nested_module("Inner");
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
+    /// assert!(Module::from_existing("Outer").get_nested_module("Inner") == inner);
     /// ```
     ///
     /// Ruby:
@@ -267,11 +272,11 @@ impl Module {
     /// use rutie::{Class, Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Outer").define(|klass| {
-    ///     klass.define_nested_class("Inner", None);
-    /// });
+    /// let mut outer = Module::new("Outer");
+    /// let inner = outer.define_nested_class("Inner", None);
     ///
-    /// Module::from_existing("Outer").get_nested_class("Inner");
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
+    /// assert_eq!(inner.superclass(), Some(Class::object()));
     /// ```
     ///
     /// Ruby:
@@ -329,10 +334,15 @@ impl Module {
     /// fn main() {
     ///     # VM::init();
     ///     Module::new("Blank").define(|klass| {
-    ///         klass.mod_func("blank?", is_blank);
+    ///         klass.define_module_function("blank?", is_blank);
     ///     });
     ///
     ///     Class::from_existing("String").include("Blank");
+    ///
+    ///     // Callable on the module, and privately inside includers.
+    ///     let blank = VM::eval("Blank.instance_method(:blank?).bind(' ').call").unwrap();
+    ///     assert!(blank.try_convert_to::<Boolean>().unwrap().to_bool());
+    ///     assert!(VM::eval("' '.blank?").is_err());
     /// }
     /// ```
     ///
@@ -425,6 +435,35 @@ impl Module {
     }
 
     /// An alias for `define_module_function` (similar to Ruby `module_function :some_method`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Fixnum, Module, Object, VM};
+    ///
+    /// module!(Doubler);
+    ///
+    /// methods!(
+    ///     Doubler,
+    ///     rtself,
+    ///
+    ///     fn double(number: Fixnum) -> Fixnum {
+    ///         Fixnum::new(number.unwrap().to_i64() * 2)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Module::new("Doubler").define(|module| {
+    ///         module.mod_func("double", double);
+    ///     });
+    ///
+    ///     let result = VM::eval("Doubler.double(21)").unwrap();
+    ///     assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    /// }
+    /// ```
     pub fn mod_func<I: Object, O: Object>(&mut self, name: &str, callback: Callback<I, O>) {
         self.define_module_function(name, callback);
     }
@@ -572,12 +611,15 @@ impl Module {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Module, Object, VM};
+    /// use rutie::{Fixnum, Module, Object, VM};
     /// # VM::init();
     ///
     /// Module::new("Test").define(|klass| {
     ///     klass.attr_reader("reader");
     /// });
+    ///
+    /// let object = VM::eval("o = Object.new.extend(Test); o.instance_variable_set(:@reader, 1); o").unwrap();
+    /// assert_eq!(unsafe { object.send("reader", &[]) }.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
     /// ```
     ///
     /// Ruby:
@@ -596,12 +638,15 @@ impl Module {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Module, Object, VM};
+    /// use rutie::{Fixnum, Module, Object, VM};
     /// # VM::init();
     ///
     /// Module::new("Test").define(|klass| {
     ///     klass.attr_writer("writer");
     /// });
+    ///
+    /// let object = VM::eval("o = Object.new.extend(Test); o.writer = 2; o").unwrap();
+    /// assert_eq!(object.instance_variable_get("@writer").try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
     /// ```
     ///
     /// Ruby:
@@ -620,12 +665,15 @@ impl Module {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Module, Object, VM};
+    /// use rutie::{Fixnum, Module, Object, VM};
     /// # VM::init();
     ///
     /// Module::new("Test").define(|klass| {
     ///     klass.attr_accessor("accessor");
     /// });
+    ///
+    /// let object = VM::eval("o = Object.new.extend(Test); o.accessor = 3; o").unwrap();
+    /// assert_eq!(unsafe { object.send("accessor", &[]) }.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
     /// ```
     ///
     /// Ruby:
@@ -637,6 +685,457 @@ impl Module {
     /// ```
     pub fn attr_accessor(&mut self, name: &str) {
         class::define_attribute(self.value(), name, true, true);
+    }
+
+    /// Makes `new_name` a copy of the method `old_name` (`rb_define_alias`,
+    /// Ruby's `alias_method`).
+    ///
+    /// Raises `NameError` if `old_name` is not defined.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Aliased; def hello; 'hello'; end; end").unwrap();
+    ///
+    /// Module::from_existing("Aliased").define_alias("greet", "hello");
+    ///
+    /// let greeting = VM::eval("Class.new { include Aliased }.new.greet").unwrap();
+    ///
+    /// assert_eq!(greeting.try_convert_to::<RString>().unwrap().to_str(), "hello");
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// module Aliased
+    ///   alias_method :greet, :hello
+    /// end
+    /// ```
+    pub fn define_alias(&mut self, new_name: &str, old_name: &str) {
+        class::define_alias(self.value(), new_name, old_name);
+    }
+
+    /// Prevents instances from responding to the method `name`, including
+    /// one inherited from an ancestor (`rb_undef_method`, Ruby's
+    /// `undef_method`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Undefined; def to_s; 'custom'; end; end").unwrap();
+    ///
+    /// Module::from_existing("Undefined").undef_method("to_s");
+    ///
+    /// assert!(VM::eval("Class.new { include Undefined }.new.to_s").is_err());
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// module Undefined
+    ///   undef_method :to_s
+    /// end
+    /// ```
+    pub fn undef_method(&mut self, name: &str) {
+        class::undef_method(self.value(), name);
+    }
+
+    /// Returns the module's name, or `None` for an anonymous module
+    /// (Ruby's `name`, `rb_mod_name`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Module::from_existing("Kernel").name().unwrap().to_str(), "Kernel");
+    ///
+    /// let anonymous = VM::eval("Module.new").unwrap().try_convert_to::<Module>().unwrap();
+    ///
+    /// assert!(anonymous.name().is_none());
+    /// ```
+    pub fn name(&self) -> Option<RString> {
+        let name = class::module_name(self.value());
+
+        if name.is_nil() {
+            None
+        } else {
+            Some(RString::from(name))
+        }
+    }
+
+    /// Returns the module's full path, such as `"A::B"`, or a
+    /// `"#<Module:0x...>"` description for an anonymous module
+    /// (`rb_class_path`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Outer; module Inner; end; end").unwrap();
+    ///
+    /// let inner = Module::from_existing("Outer").get_nested_module("Inner");
+    ///
+    /// assert_eq!(inner.path().to_str(), "Outer::Inner");
+    /// ```
+    pub fn path(&self) -> RString {
+        RString::from(class::class_path(self.value()))
+    }
+
+    /// Returns the module named by a path such as `"A::B"`
+    /// (`rb_path2class`), or an error if nothing is defined there
+    /// (`ArgumentError`) or it is not a module (`TypeError`).
+    ///
+    /// Unlike `from_existing`, nested paths work and a missing constant is
+    /// returned as an error instead of raising. No symbols are created for
+    /// unknown names, so untrusted paths are fine.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let found = Module::from_path("File::Constants").unwrap();
+    ///
+    /// assert_eq!(found.path().to_str(), "File::Constants");
+    ///
+    /// assert!(Module::from_path("No::Such::Thing").is_err());
+    ///
+    /// let error = Module::from_path("String").unwrap_err();
+    ///
+    /// assert!(error.message().contains("is not a module"));
+    /// ```
+    pub fn from_path(path: &str) -> Result<Self, AnyException> {
+        let path = ::std::ffi::CString::new(path).map_err(|_| {
+            AnyException::new("ArgumentError", Some("class path contains a NUL byte"))
+        })?;
+
+        let found =
+            vm::protect_value(|| class::path_to_class(&path)).map_err(AnyException::from)?;
+
+        if found.ty() == ValueType::Module {
+            Ok(Self::from(found))
+        } else {
+            let message = format!("{} is not a module", path.to_string_lossy());
+
+            Err(AnyException::new("TypeError", Some(&message)))
+        }
+    }
+
+    /// Returns `true` if instances respond to the method `name` defined in
+    /// this module or its ancestors (`rb_method_boundp`). Private methods
+    /// count only when `include_private` is `true`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Sample; @@count = 1; LIMIT = 10; def visible; end; private def hidden; end; end").unwrap();
+    ///
+    /// let sample = Module::from_existing("Sample");
+    ///
+    /// assert!(sample.is_method_defined("visible", false));
+    /// assert!(!sample.is_method_defined("hidden", false));
+    /// assert!(sample.is_method_defined("hidden", true));
+    /// assert!(!sample.is_method_defined("missing", true));
+    /// ```
+    pub fn is_method_defined(&self, name: &str, include_private: bool) -> bool {
+        class::is_method_defined(self.value(), name, include_private)
+    }
+
+    /// Returns the arity of the instance method `name`, or `0` if it is not
+    /// defined (`rb_mod_method_arity`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Arities; def two(a, b); end; def many(a, *rest); end; end").unwrap();
+    ///
+    /// let arities = Module::from_existing("Arities");
+    ///
+    /// assert_eq!(arities.instance_method_arity("two"), 2);
+    /// assert_eq!(arities.instance_method_arity("many"), -2);
+    /// ```
+    pub fn instance_method_arity(&self, name: &str) -> i32 {
+        crate::binding::rproc::module_method_arity(self.value(), name)
+    }
+
+    /// Compares this module with `other` in the class hierarchy, like
+    /// Ruby's `self <= other` (`rb_class_inherited_p`): `Some(true)` if this
+    /// is `other` or inherits from or includes it, `Some(false)` if `other`
+    /// inherits from or includes this, and `None` if they are unrelated.
+    ///
+    /// Raises `TypeError` if `other` is not a class or module.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// let enumerable = Module::from_existing("Enumerable");
+    /// let comparable = Module::from_existing("Comparable");
+    /// let array = Class::from_existing("Array");
+    ///
+    /// assert_eq!(enumerable.inherits(&enumerable), Some(true));
+    /// assert_eq!(enumerable.inherits(&array), Some(false));
+    /// assert_eq!(enumerable.inherits(&comparable), None);
+    /// ```
+    pub fn inherits<T: Object>(&self, other: &T) -> Option<bool> {
+        let result = class::inherited_p(self.value(), other.value());
+
+        if result.is_nil() {
+            None
+        } else {
+            Some(result.is_true())
+        }
+    }
+
+    /// Returns `true` if `module` is included in this module or one of its
+    /// ancestors (Ruby's `include?`, `rb_mod_include_p`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Outer; include Comparable; end").unwrap();
+    ///
+    /// let outer = Module::from_existing("Outer");
+    ///
+    /// assert!(outer.includes_module(&Module::from_existing("Comparable")));
+    /// assert!(!outer.includes_module(&Module::from_existing("Enumerable")));
+    /// ```
+    pub fn includes_module(&self, module: &Module) -> bool {
+        class::include_p(self.value(), module.value())
+    }
+
+    /// Evaluates `code` in the context of this module (Ruby's
+    /// `module_eval`/`class_eval`, `rb_mod_module_eval`), returning the result
+    /// or the exception raised.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Exception, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut evaluated = Module::new("Evaluated");
+    ///
+    /// evaluated.module_eval("def greet; 'hi'; end").unwrap();
+    ///
+    /// let greeting = VM::eval("Object.new.extend(Evaluated).greet").unwrap();
+    ///
+    /// assert_eq!(greeting.try_convert_to::<RString>().unwrap().to_str(), "hi");
+    ///
+    /// assert!(evaluated.module_eval("raise 'bad'").is_err());
+    /// ```
+    pub fn module_eval(&mut self, code: &str) -> Result<AnyObject, AnyException> {
+        let module = self.value();
+
+        vm::protect_value(|| class::module_eval(module, code))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns the names of the public and protected instance methods as an
+    /// `Array` of `Symbol`s, including inherited ones when
+    /// `include_inherited` is `true` (Ruby's `instance_methods`,
+    /// `rb_class_instance_methods`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Sample; @@count = 1; LIMIT = 10; def visible; end; private def hidden; end; end").unwrap();
+    ///
+    /// let methods = Module::from_existing("Sample").instance_methods(false);
+    ///
+    /// assert_eq!(methods.length(), 1);
+    /// assert_eq!(methods.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("visible")));
+    /// ```
+    pub fn instance_methods(&self, include_inherited: bool) -> Array {
+        Array::from(class::instance_methods(self.value(), include_inherited))
+    }
+
+    /// Returns the value of the class variable `name` (such as `"@@count"`),
+    /// or `None` if it is not defined (`rb_cvar_get`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Sample; @@count = 1; LIMIT = 10; def visible; end; private def hidden; end; end").unwrap();
+    ///
+    /// let sample = Module::from_existing("Sample");
+    ///
+    /// let count = sample.class_variable_get("@@count").unwrap();
+    ///
+    /// assert_eq!(count.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+    /// assert!(sample.class_variable_get("@@missing").is_none());
+    /// ```
+    pub fn class_variable_get(&self, name: &str) -> Option<AnyObject> {
+        if class::is_class_variable_defined(self.value(), name) {
+            Some(AnyObject::from(class::class_variable_get(
+                self.value(),
+                name,
+            )))
+        } else {
+            None
+        }
+    }
+
+    /// Sets the class variable `name` (such as `"@@count"`) to `value`
+    /// (`rb_cvar_set`), or returns the error: a `NameError` if `name` is not
+    /// a class variable name, or a `FrozenError` if the module is frozen.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let mut counter = Module::new("Counter");
+    ///
+    /// counter.class_variable_set("@@count", &Fixnum::new(5)).unwrap();
+    ///
+    /// let count = VM::eval("Counter.class_variable_get(:@@count)").unwrap();
+    ///
+    /// assert_eq!(count.try_convert_to::<Fixnum>(), Ok(Fixnum::new(5)));
+    ///
+    /// assert!(counter.class_variable_set("count", &Fixnum::new(5)).is_err());
+    /// ```
+    pub fn class_variable_set<T: Object>(
+        &mut self,
+        name: &str,
+        value: &T,
+    ) -> Result<(), AnyException> {
+        if !Symbol::new(name).is_class_variable_name() {
+            let message = format!("`{}' is not allowed as a class variable name", name);
+
+            return Err(AnyException::new("NameError", Some(&message)));
+        }
+
+        let (module, value) = (self.value(), value.value());
+
+        vm::protect_value(|| {
+            class::class_variable_set(module, name, value);
+
+            NilClass::new().value()
+        })
+        .map(|_| ())
+        .map_err(AnyException::from)
+    }
+
+    /// Returns `true` if the class variable `name` (such as `"@@count"`) is
+    /// defined here or in an ancestor (`rb_cvar_defined`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Sample; @@count = 1; LIMIT = 10; def visible; end; private def hidden; end; end").unwrap();
+    ///
+    /// let sample = Module::from_existing("Sample");
+    ///
+    /// assert!(sample.is_class_variable_defined("@@count"));
+    /// assert!(!sample.is_class_variable_defined("@@missing"));
+    /// ```
+    pub fn is_class_variable_defined(&self, name: &str) -> bool {
+        class::is_class_variable_defined(self.value(), name)
+    }
+
+    /// Returns `true` if the constant `name` is visible from this module:
+    /// defined in it, its ancestors or `Object` (`rb_const_defined`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Sample; @@count = 1; LIMIT = 10; def visible; end; private def hidden; end; end").unwrap();
+    ///
+    /// let sample = Module::from_existing("Sample");
+    ///
+    /// assert!(sample.is_const_defined("LIMIT"));
+    /// assert!(sample.is_const_defined("String"));
+    /// assert!(!sample.is_const_defined("MISSING"));
+    /// ```
+    pub fn is_const_defined(&self, name: &str) -> bool {
+        class::is_const_defined(self.value(), name)
+    }
+
+    /// Returns `true` if the constant `name` is defined directly in this
+    /// module, not inherited (`rb_const_defined_at`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Sample; @@count = 1; LIMIT = 10; def visible; end; private def hidden; end; end").unwrap();
+    ///
+    /// let sample = Module::from_existing("Sample");
+    ///
+    /// assert!(sample.is_const_defined_at("LIMIT"));
+    /// assert!(!sample.is_const_defined_at("String"));
+    /// ```
+    pub fn is_const_defined_at(&self, name: &str) -> bool {
+        class::is_const_defined_at(self.value(), name)
+    }
+
+    /// Removes the constant `name` defined directly in this module and
+    /// returns its value, or `None` if there is no such constant
+    /// (`rb_const_remove`).
+    ///
+    /// Raises `FrozenError` if the module is frozen and the constant exists.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Sample; @@count = 1; LIMIT = 10; def visible; end; private def hidden; end; end").unwrap();
+    ///
+    /// let mut sample = Module::from_existing("Sample");
+    ///
+    /// let limit = sample.const_remove("LIMIT").unwrap();
+    ///
+    /// assert_eq!(limit.try_convert_to::<Fixnum>(), Ok(Fixnum::new(10)));
+    /// assert!(!sample.is_const_defined_at("LIMIT"));
+    /// assert!(sample.const_remove("LIMIT").is_none());
+    /// ```
+    pub fn const_remove(&mut self, name: &str) -> Option<AnyObject> {
+        if !class::is_const_defined_at(self.value(), name) {
+            return None;
+        }
+
+        Some(AnyObject::from(class::const_remove(self.value(), name)))
     }
 
     /// Wraps Rust structure into a new Ruby object of the current module.
@@ -715,6 +1214,9 @@ impl Module {
     ///         klass.def("host", ruby_server_host);
     ///         klass.def("port", ruby_server_port);
     ///     });
+    ///
+    ///     let host = VM::eval("RubyServer.new('127.0.0.1', 3000).host").unwrap();
+    ///     assert_eq!(host.try_convert_to::<RString>().unwrap().to_str(), "127.0.0.1");
     /// }
     /// ```
     ///
@@ -778,5 +1280,129 @@ impl VerifiedObject for Module {
 impl PartialEq for Module {
     fn eq(&self, other: &Self) -> bool {
         self.equals(other)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{AnyObject, Array, Class, Fixnum, Module, Object, RString, Symbol, GC, VM};
+
+    crate::module!(RutieTestModule);
+
+    crate::methods!(
+        RutieTestModule,
+        rtself,
+        fn rutie_module_double(number: Fixnum) -> Fixnum {
+            Fixnum::new(number.unwrap().to_i64() * 2)
+        },
+        fn rutie_module_name() -> RString {
+            RString::new_utf8("helper")
+        }
+    );
+
+    fn eval_array(code: &str) -> Array {
+        VM::eval(code).unwrap().try_convert_to::<Array>().unwrap()
+    }
+
+    #[test]
+    fn test_module_definitions() {
+        crate::on_ruby_thread(|| {
+            let mut module = Module::new("RutieTestModuleOne");
+            assert_eq!(Module::from_existing("RutieTestModuleOne"), module);
+
+            module.define_module_function("double", rutie_module_double);
+            module.mod_func("helper_name", rutie_module_name);
+            GC::start();
+
+            let doubled = VM::eval("RutieTestModuleOne.double(21)").unwrap();
+            assert_eq!(doubled.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+
+            // Module functions are also private instance methods.
+            let result = eval_array(
+                "c = Class.new { include RutieTestModuleOne; def call; helper_name; end }
+                 [c.new.call, c.new.respond_to?(:helper_name), RutieTestModuleOne.helper_name]",
+            );
+            assert_eq!(
+                result.at(0).try_convert_to::<RString>().unwrap().to_str(),
+                "helper"
+            );
+            assert!(!result.at(1).value().is_true());
+            assert_eq!(
+                result.at(2).try_convert_to::<RString>().unwrap().to_str(),
+                "helper"
+            );
+
+            let nested = module.define_nested_module("Inner");
+            assert_eq!(module.get_nested_module("Inner"), nested);
+            let nested_class = module.define_nested_class("Thing", None);
+            assert_eq!(module.get_nested_class("Thing"), nested_class);
+            assert_eq!(
+                nested_class.name().unwrap().to_str(),
+                "RutieTestModuleOne::Thing"
+            );
+
+            module.const_set("LIMIT", &Fixnum::new(3));
+            assert_eq!(
+                module.const_get("LIMIT").try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(3))
+            );
+            let from_ruby = VM::eval("RutieTestModuleOne::LIMIT").unwrap();
+            assert_eq!(from_ruby.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+        });
+    }
+
+    #[test]
+    fn test_module_composition_and_attrs() {
+        crate::on_ruby_thread(|| {
+            VM::eval("module RutieTestModuleBase; def base; :base; end; end").unwrap();
+            VM::eval("module RutieTestModuleFront; def base; :front; end; end").unwrap();
+
+            let mut module = Module::new("RutieTestModuleTwo");
+            module.include("RutieTestModuleBase");
+            module.prepend("RutieTestModuleFront");
+
+            let ancestors: Vec<String> = module
+                .ancestors()
+                .iter()
+                .map(|m| m.name().unwrap().to_string())
+                .collect();
+            assert_eq!(
+                ancestors,
+                vec![
+                    "RutieTestModuleFront",
+                    "RutieTestModuleTwo",
+                    "RutieTestModuleBase"
+                ]
+            );
+
+            module.attr_reader("reader");
+            module.attr_writer("writer");
+            module.attr_accessor("both");
+
+            let klass = Class::new("RutieTestModuleUser", None);
+            klass.include("RutieTestModuleTwo");
+
+            let result = eval_array(
+                "o = RutieTestModuleUser.new
+                 o.instance_variable_set(:@reader, 1)
+                 o.writer = 2
+                 o.both = 3
+                 [o.reader, o.instance_variable_get(:@writer), o.both, o.base]",
+            );
+            assert_eq!(result.at(0).try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+            assert_eq!(result.at(1).try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+            assert_eq!(result.at(2).try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+            assert_eq!(
+                result.at(3).try_convert_to::<Symbol>().unwrap().to_str(),
+                "front"
+            );
+
+            let any: AnyObject = module.to_any_object();
+            assert!(any.try_convert_to::<Module>().is_ok());
+            assert!(Class::object()
+                .to_any_object()
+                .try_convert_to::<Module>()
+                .is_err());
+        });
     }
 }

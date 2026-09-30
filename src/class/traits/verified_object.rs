@@ -122,7 +122,27 @@ use crate::{types::Value, NilClass, Object};
 /// }
 /// ```
 pub trait VerifiedObject: Object {
+    /// Returns whether `object` is of this type; `try_convert_to` checks it.
+    ///
+    /// ```
+    /// use rutie::{Fixnum, RString, VerifiedObject, VM};
+    /// # VM::init();
+    ///
+    /// assert!(RString::is_correct_type(&RString::new_utf8("a")));
+    /// assert!(!RString::is_correct_type(&Fixnum::new(1)));
+    /// ```
     fn is_correct_type<T: Object>(object: &T) -> bool;
+
+    /// The message of the error `try_convert_to` returns for another type.
+    ///
+    /// ```
+    /// use rutie::{Exception, Fixnum, Object, RString, VerifiedObject, VM};
+    /// # VM::init();
+    ///
+    /// let error = Fixnum::new(1).try_convert_to::<RString>().unwrap_err();
+    ///
+    /// assert_eq!(error.message(), RString::error_message());
+    /// ```
     fn error_message() -> &'static str;
 }
 
@@ -136,5 +156,27 @@ where
     }
     fn error_message() -> &'static str {
         <Obj as VerifiedObject>::error_message()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{AnyObject, Array, Fixnum, Hash, Object, RString, VerifiedObject};
+
+    #[test]
+    fn test_verified_object() {
+        crate::on_ruby_thread(|| {
+            assert!(RString::is_correct_type(&RString::new_utf8("a")));
+            assert!(!RString::is_correct_type(&Fixnum::new(1)));
+            assert!(Array::is_correct_type(&Array::new()));
+            assert!(!Hash::is_correct_type(&Array::new()));
+            assert!(AnyObject::is_correct_type(&Hash::new()));
+
+            assert_eq!(RString::error_message(), "Error converting to String");
+
+            // `try_convert_to` reports the target's error message.
+            let error = Fixnum::new(1).try_convert_to::<RString>().unwrap_err();
+            assert_eq!(crate::Exception::message(&error), RString::error_message());
+        });
     }
 }

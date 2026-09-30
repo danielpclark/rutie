@@ -31,6 +31,9 @@ jobs:
     env:
       RUST_BACKTRACE: full
       CI_STDERR_LOG: true
+      # Unit tests print each test's name as it starts on the Ruby thread, so
+      # a crash (which kills the harness before it reports) names the test.
+      RUTIE_TEST_TRACE: 1
       BUILD_RUBY_VERSION: ${{ matrix.ruby_version }}
 
     # Static Ruby builds are best-effort, and the Windows jobs have no Ruby
@@ -151,10 +154,37 @@ jobs:
         cargo build -vv &&
         cargo test -vv
 
+    # The examples use the crate the way users do: an embedding program, and
+    # two Ruby extensions loaded through the `rutie` gem and tested with
+    # minitest. Static Ruby builds cannot load extensions built this way.
+    - name: Build and test examples
+      if: (runner.os != 'Windows') && (matrix.ruby_static == false) && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
+      run: |
+        rvm reload
+        source "$HOME/.rvm/scripts/rvm"
+        rvm use $BUILD_RUBY_VERSION
+        cargo run --example eval -- "raise 'eval example failed' unless 1 + 1 == 2"
+        (cd examples/rutie_rust_example && cargo test)
+        gem install --no-document rutie -v '~> 0.0.4'
+        gem install --no-document minitest -v '~> 5.15.0'
+        for example in rutie_ruby_example rutie_ruby_gvl_example; do
+          (
+            cd "examples/$example"
+            if [[ "$RUNNER_OS" == "macOS" ]]; then
+              cargo rustc --release -- -C link-args=-Wl,-undefined,dynamic_lookup
+            else
+              cargo build --release
+            fi
+            ruby -Ilib -Itest -e 'Dir["test/**/*_test.rb"].each { |f| require File.expand_path(f) }'
+          )
+        done
+
+    # Only the end of the make log: the whole log is thousands of lines and
+    # pushes the test output out of reach of log viewers that show the tail.
     - name: Print RVM make log
       if: failure() && runner.os != 'Windows'
       continue-on-error: true
-      run: cat $HOME/.rvm/log/*_ruby-${{ matrix.ruby_version }}/make.log
+      run: tail -n 40 $HOME/.rvm/log/*_ruby-${{ matrix.ruby_version }}/make.log
 
     # - name: After script
     #   run: |

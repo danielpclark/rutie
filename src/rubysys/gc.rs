@@ -40,4 +40,27 @@ extern "C" {
     // int
     // rb_objspace_marked_object_p(VALUE obj)
     pub fn rb_objspace_marked_object_p(obj: Value) -> c_int;
+    // VALUE
+    // rb_define_finalizer(VALUE obj, VALUE block)
+    pub fn rb_define_finalizer(object: Value, block: Value) -> Value;
+    // VALUE
+    // rb_gc_latest_gc_info(VALUE key)
+    //
+    // `key` is a Hash to fill or a Symbol to look up.
+    pub fn rb_gc_latest_gc_info(key: Value) -> Value;
+    // void
+    // rb_gc_writebarrier(VALUE a, VALUE b)
+    pub fn rb_gc_writebarrier(parent: Value, child: Value);
+    // void
+    // rb_gc_writebarrier_unprotect(VALUE obj)
+    pub fn rb_gc_writebarrier_unprotect(object: Value);
+    // VALUE
+    // rb_memory_id(VALUE obj)
+    //
+    // Ruby 2.7 and later only.
+    #[cfg(ruby_gte_2_7)]
+    pub fn rb_memory_id(object: Value) -> Value;
+    // VALUE
+    // rb_undefine_finalizer(VALUE obj)
+    pub fn rb_undefine_finalizer(object: Value) -> Value;
 }

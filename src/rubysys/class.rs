@@ -1,5 +1,8 @@
 use crate::rubysys::types::{c_char, c_int, Argc, CallbackPtr, Id, Value};
 
+// VALUE (*)(VALUE klass)
+pub type AllocFunction = extern "C" fn(klass: Value) -> Value;
+
 extern "C" {
     // VALUE
     // rb_class_new_instance(int argc, const VALUE *argv, VALUE klass)
@@ -97,4 +100,86 @@ extern "C" {
     // int
     // rb_scan_args(int argc, const VALUE *argv, const char *fmt, ...)
     pub fn rb_scan_args(argc: Argc, argv: *const Value, fmt: *const c_char, ...) -> c_int;
+    // void
+    // rb_define_alias(VALUE klass, const char *name1, const char *name2)
+    pub fn rb_define_alias(klass: Value, new_name: *const c_char, old_name: *const c_char);
+    // void
+    // rb_define_alloc_func(VALUE klass, rb_alloc_func_t func)
+    pub fn rb_define_alloc_func(klass: Value, func: AllocFunction);
+    // void
+    // rb_define_method_id(VALUE klass, ID mid, VALUE (*func)(ANYARGS), int argc)
+    pub fn rb_define_method_id(klass: Value, name: Id, callback: CallbackPtr, argc: Argc);
+    // int
+    // rb_get_kwargs(VALUE keyword_hash, const ID *table, int required, int optional, VALUE *values)
+    pub fn rb_get_kwargs(
+        keyword_hash: Value,
+        table: *const Id,
+        required: c_int,
+        optional: c_int,
+        values: *mut Value,
+    ) -> c_int;
+    // VALUE
+    // rb_obj_is_kind_of(VALUE obj, VALUE c)
+    pub fn rb_obj_is_kind_of(object: Value, klass: Value) -> Value;
+    // void
+    // rb_undef_alloc_func(VALUE klass)
+    pub fn rb_undef_alloc_func(klass: Value);
+    // void
+    // rb_undef_method(VALUE klass, const char *name)
+    pub fn rb_undef_method(klass: Value, name: *const c_char);
+    // VALUE
+    // rb_class_inherited_p(VALUE mod, VALUE arg)
+    //
+    // `Qtrue` if `mod <= arg`, `Qfalse` if `arg < mod`, `Qnil` if unrelated.
+    pub fn rb_class_inherited_p(module: Value, other: Value) -> Value;
+    // VALUE
+    // rb_class_instance_methods(int argc, const VALUE *argv, VALUE mod)
+    pub fn rb_class_instance_methods(argc: Argc, argv: *const Value, module: Value) -> Value;
+    // VALUE
+    // rb_class_name(VALUE klass)
+    pub fn rb_class_name(klass: Value) -> Value;
+    // VALUE
+    // rb_class_path(VALUE klass)
+    pub fn rb_class_path(klass: Value) -> Value;
+    // int
+    // rb_const_defined(VALUE klass, ID id)
+    pub fn rb_const_defined(klass: Value, name: Id) -> c_int;
+    // int
+    // rb_const_defined_at(VALUE klass, ID id)
+    pub fn rb_const_defined_at(klass: Value, name: Id) -> c_int;
+    // VALUE
+    // rb_const_remove(VALUE mod, ID id)
+    pub fn rb_const_remove(module: Value, name: Id) -> Value;
+    // void
+    // rb_const_set(VALUE klass, ID id, VALUE val)
+    pub fn rb_const_set(klass: Value, name: Id, value: Value);
+    // VALUE
+    // rb_cvar_defined(VALUE klass, ID id)
+    pub fn rb_cvar_defined(klass: Value, name: Id) -> Value;
+    // VALUE
+    // rb_cvar_get(VALUE klass, ID id)
+    pub fn rb_cvar_get(klass: Value, name: Id) -> Value;
+    // void
+    // rb_cvar_set(VALUE klass, ID id, VALUE val)
+    pub fn rb_cvar_set(klass: Value, name: Id, value: Value);
+    // void
+    // rb_define_global_const(const char *name, VALUE val)
+    pub fn rb_define_global_const(name: *const c_char, value: Value);
+    // int
+    // rb_method_boundp(VALUE klass, ID id, int ex)
+    //
+    // `ex` bits: 0x01 excludes private (and, with 0x02, protected) methods.
+    pub fn rb_method_boundp(klass: Value, name: Id, ex: c_int) -> c_int;
+    // VALUE
+    // rb_mod_include_p(VALUE mod, VALUE mod2)
+    pub fn rb_mod_include_p(module: Value, other: Value) -> Value;
+    // VALUE
+    // rb_mod_module_eval(int argc, const VALUE *argv, VALUE mod)
+    pub fn rb_mod_module_eval(argc: Argc, argv: *const Value, module: Value) -> Value;
+    // VALUE
+    // rb_mod_name(VALUE mod)
+    pub fn rb_mod_name(module: Value) -> Value;
+    // VALUE
+    // rb_path2class(const char *path)
+    pub fn rb_path2class(path: *const c_char) -> Value;
 }

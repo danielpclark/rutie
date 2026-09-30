@@ -226,3 +226,66 @@ pub trait Exception: Object {
         RString::from(vm::call_method(self.value(), "to_s", &[])).to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{AnyException, AnyObject, Array, Class, Exception, Object, RString, VM};
+
+    #[test]
+    fn test_exception_trait() {
+        crate::on_ruby_thread(|| {
+            let error = AnyException::new("ArgumentError", Some("bad value"));
+            assert_eq!(error.message(), "bad value");
+            assert_eq!(error.to_s(), "bad value");
+            assert_eq!(error.inspect(), "#<ArgumentError: bad value>");
+            assert!(Class::argument_error().case_equals(&error));
+
+            // `exception` copies with a new message; without one it is the same object.
+            let copy = error.exception(Some("other"));
+            assert_eq!(copy.message(), "other");
+            assert_eq!(error.message(), "bad value");
+            assert!(error.exception(None).equals(&error));
+
+            // Not raised yet, so no backtrace.
+            assert!(error.backtrace().is_none());
+            assert!(error.backtrace_locations().is_none());
+
+            let mut trace = Array::new();
+            trace.push(RString::new_utf8("file.rb:1"));
+            let set = error.set_backtrace(trace.to_any_object()).unwrap();
+            assert_eq!(set.length(), 1);
+            assert_eq!(
+                error
+                    .backtrace()
+                    .unwrap()
+                    .at(0)
+                    .try_convert_to::<RString>()
+                    .unwrap()
+                    .to_str(),
+                "file.rb:1"
+            );
+
+            let raised = VM::eval(
+                "begin
+                   begin
+                     raise 'inner'
+                   rescue
+                     raise ArgumentError, 'outer'
+                   end
+                 rescue => e
+                   e
+                 end",
+            )
+            .unwrap()
+            .try_convert_to::<AnyException>()
+            .unwrap();
+            assert_eq!(raised.cause().unwrap().message(), "inner");
+            assert!(raised.cause().unwrap().cause().is_none());
+            assert!(raised.backtrace().unwrap().length() > 0);
+            assert!(raised.backtrace_locations().unwrap().length() > 0);
+
+            let any: AnyObject = raised.to_any_object();
+            assert!(any.try_convert_to::<AnyException>().is_ok());
+        });
+    }
+}

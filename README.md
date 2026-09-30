@@ -276,50 +276,34 @@ any Ruby methods which can be used from Ruby._
 
 ## Variadic Functions / Splat Operator
 
-A preferred way to integrate a dynamic amount of parameters has not yet been implemented in Rutie,
-but you can still manage to get it done in the following way.
-
-```rust
-use rutie::{AnyObject, Array};
-use rutie::types::{Argc, Value};
-use rutie::util::str_to_cstring;
-use rutie::rubysys::class;
-use std::mem;
-
-pub extern fn example_method(argc: Argc, argv: *const AnyObject, _rtself: AnyObject) -> AnyObject {
-    let args = Value::from(0);
-
-    unsafe {
-        let p_argv: *const Value = mem::transmute(argv);
-
-        class::rb_scan_args(
-            argc,
-            p_argv,
-            str_to_cstring("*").as_ptr(),
-            &args
-        )
-    };
-
-    let arguments = Array::from(args);
-
-    let output = // YOUR CODE HERE.  Use arguments as you see fit.
-
-    output.to_any_object()
-}
-```
-
-This style of code is meant to be used outside of the `methods!` macro for now.
-You may place this method on a class or module as you normally would from a `methods!` macro definition.
+Since 0.10 the `methods!` macro takes a Ruby-style splat: a last parameter written
+`*name` (with no type) receives the remaining arguments as an `Array`. The
+parameters before it keep their usual `Result` types.
 
 ```rust
 #[macro_use]
 extern crate rutie;
 
-use rutie::{Class, Object, VM};
+use rutie::{Array, Class, Object, RString, VM};
 
 class!(Example);
 
-// Code from above
+methods!(
+    Example,
+    rtself,
+
+    // def example_method(name, *rest)
+    fn example_method(name: RString, *rest) -> Array {
+        let mut result = Array::new();
+
+        if let Ok(name) = name {
+            result.push(name);
+        }
+
+        result.push(rest);
+        result
+    }
+);
 
 fn main() {
     VM::init();
@@ -329,8 +313,12 @@ fn main() {
 }
 ```
 
-The Rutie project has in its plans to remove the need for anyone to write unsafe code for
-variadic support and will likely be updating the `methods!` macro to support this natively.
+For optional, keyword and block parameters, write a plain
+`extern fn(Argc, *const AnyObject, Self)` function and let
+[`VM::scan_args`](https://docs.rs/rutie/latest/rutie/struct.VM.html#method.scan_args)
+parse the arguments with an `rb_scan_args` format such as `"11*:&"`. It returns
+`ScannedArgs` (required, optional, splat, post, keywords and block) without any
+unsafe code; see its documentation for an example.
 
 ## Migrating from Ruru to Rutie
 
@@ -355,12 +343,19 @@ Internal changes `util` from `binding` and `rubysys` have been replaced to reduc
 
 #### 0.10
 
-0.10 targets Ruby 2 (2.5, 2.6, 2.7) and continues the 0.8/0.9 line; there are no
-API changes to migrate from 0.9.x. Two behaviour fixes are worth knowing:
+0.10 targets Ruby 2 (2.5, 2.6, 2.7) and continues the 0.8/0.9 line. It adds
+a large amount of API (see the CHANGELOG) and has one breaking change to
+migrate from 0.9.x:
 
-- `VM::at_exit` now calls its closure correctly. Previously closures that captured
-  variables read a bad pointer (a crash on aarch64 macOS, a segfault elsewhere).
-- Builds work with current Cargo without setting `LD_LIBRARY_PATH` for `cargo test`.
+- `VM::at_exit` now does what its name says: the closure runs when the Ruby VM
+  shuts down (Ruby's `at_exit`), not immediately. It must be `'static` (move
+  captured values into it). Programs embedding Ruby run these handlers by calling
+  `unsafe { VM::cleanup() }` at the end. If you relied on the old immediate call,
+  use `VM::call_protected`, which keeps that behaviour (and no longer crashes:
+  closures that captured variables used to read a bad pointer).
+
+Builds also work with current Cargo without setting `LD_LIBRARY_PATH` for
+`cargo test`.
 
 If you were depending on the unpublished `rb-sys`-based `master` (self-labelled
 0.10.0, February–September 2025) through a git dependency: that tree is
@@ -467,13 +462,26 @@ Every published Rutie release targets **Ruby 2**:
 | 0.9.x | 2.5, 2.6, 2.7 | still works on Ruby 2, but superseded by 0.10.0 (`VM::at_exit` crash fix, current-Cargo build fix) |
 | 0.8.x | 2.5, 2.6, 2.7 | older Ruby 2 line |
 
+### Version roadmap
+
+Each Rutie minor version supports exactly three Ruby minor versions:
+
+| Rutie | Ruby | Status |
+|---|---|---|
+| 0.10 | 2.5, 2.6, 2.7 | current: Ruby 2 |
+| 0.11 | 3.0, 3.1, 3.2 | planned: first Ruby 3 release, drops Ruby 2 |
+| 0.12 | 3.1, 3.2, 3.3 | planned: drops 3.0, adds 3.3 |
+| 0.13 | 3.2, 3.3, 3.4 | planned: drops 3.1, adds 3.4 |
+
+The Ruby 3 work is planned in `docs/ruby3-upgrade-plan.md`.
+
 No released Rutie supports Ruby 3. An `rb-sys`-based rewrite lived on `master`
 between February and September 2025 (self-labelled 0.10.0, tested only against
 Ruby 2.7 and 3.0–3.4, never published to crates.io); it has been reverted and
 is not supported. If you depended on it through a `git = "..."` dependency,
 pin the commit you were using or move to a released 0.10.x. Ruby 3 support
 will be taken up once Ruby 2 coverage is complete (see
-`docs/ruby2-full-support-plan.md`).
+`docs/ruby2-full-support-plan.md`), following the roadmap above.
 
 Ruby 2 needs OpenSSL 1.1. If your platform no longer ships it (Homebrew
 removed `openssl@1.1`), build it and point both RVM and pkg-config at it, as
@@ -533,6 +541,31 @@ the documentation.  There is a subfolder under `class` for traits called `traits
 Macros for abstracting away complexity are in `src/dsl.rs`.
 
 Ruby's helper gem is in the submodule folder `gem`.
+
+### Testing against several Rubies
+
+Changes must pass on Ruby 2.5, 2.6 and 2.7. `build.rs` links against the `ruby`
+first on your `PATH` (or the one named by `$RUBY`), so install each version under
+its own prefix and give each its own Cargo target directory. A stale build linked
+against another Ruby crashes at test time.
+
+```sh
+for version in 2.5.9 2.6.10 2.7.8; do
+  PATH="/opt/rb/$version/bin:$PATH" \
+  CARGO_TARGET_DIR="$HOME/rt-$version/target" \
+  cargo test
+done
+```
+
+`CARGO_TARGET_DIR` must end in `/target`. If you use one target directory,
+run `cargo clean` whenever you switch Rubies. Any way of installing the Rubies
+works: RVM, rbenv/ruby-build, release tarballs, or RVM's prebuilt binaries.
+Build them with `--enable-shared`, which RVM does by default.
+
+Unit tests live in a `#[cfg(test)] mod tests` at the bottom of each file and run
+their body through `crate::on_ruby_thread(|| { ... })`, because Ruby 2 must be
+used from the thread that started it. Every public item also needs a doctest
+that runs and asserts.
 
 ## Rutie's Future
 

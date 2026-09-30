@@ -1,4 +1,7 @@
-use crate::rubysys::types::{c_int, c_void, CallbackPtr, Value};
+use crate::rubysys::{
+    libc::timeval,
+    types::{c_int, c_void, Argc, BlockCallFunction, CallbackMutPtr, CallbackPtr, Id, Value},
+};
 
 #[cfg(unix)]
 use crate::rubysys::types::RawFd;
@@ -156,4 +159,96 @@ extern "C" {
     // int
     // rb_thread_interrupted(VALUE thval)
     pub fn rb_thread_interrupted(thread: Value) -> c_int;
+    // VALUE
+    // rb_fiber_alive_p(VALUE fib)
+    pub fn rb_fiber_alive_p(fiber: Value) -> Value;
+    // VALUE
+    // rb_fiber_current(void)
+    pub fn rb_fiber_current() -> Value;
+    // VALUE
+    // rb_fiber_new(VALUE (*func)(ANYARGS), VALUE obj)
+    //
+    // `func` is called like a block function with `obj` as its second argument.
+    pub fn rb_fiber_new(func: BlockCallFunction, obj: Value) -> Value;
+    // VALUE
+    // rb_fiber_resume(VALUE fib, int argc, const VALUE *argv)
+    pub fn rb_fiber_resume(fiber: Value, argc: Argc, argv: *const Value) -> Value;
+    // VALUE
+    // rb_fiber_yield(int argc, const VALUE *argv)
+    pub fn rb_fiber_yield(argc: Argc, argv: *const Value) -> Value;
+    // VALUE
+    // rb_mutex_lock(VALUE mutex)
+    pub fn rb_mutex_lock(mutex: Value) -> Value;
+    // VALUE
+    // rb_mutex_locked_p(VALUE mutex)
+    pub fn rb_mutex_locked_p(mutex: Value) -> Value;
+    // VALUE
+    // rb_mutex_new(void)
+    pub fn rb_mutex_new() -> Value;
+    // VALUE
+    // rb_mutex_sleep(VALUE self, VALUE timeout)
+    pub fn rb_mutex_sleep(mutex: Value, timeout: Value) -> Value;
+    // VALUE
+    // rb_mutex_synchronize(VALUE mutex, VALUE (*func)(VALUE arg), VALUE arg)
+    pub fn rb_mutex_synchronize(
+        mutex: Value,
+        func: extern "C" fn(CallbackMutPtr) -> Value,
+        arg: CallbackMutPtr,
+    ) -> Value;
+    // VALUE
+    // rb_mutex_trylock(VALUE mutex)
+    pub fn rb_mutex_trylock(mutex: Value) -> Value;
+    // VALUE
+    // rb_mutex_unlock(VALUE mutex)
+    pub fn rb_mutex_unlock(mutex: Value) -> Value;
+    // int
+    // rb_thread_alone(void)
+    pub fn rb_thread_alone() -> c_int;
+    // void
+    // rb_thread_atfork(void)
+    pub fn rb_thread_atfork();
+    // void
+    // rb_thread_check_ints(void)
+    pub fn rb_thread_check_ints();
+    // VALUE
+    // rb_thread_current(void)
+    pub fn rb_thread_current() -> Value;
+    // int
+    // rb_thread_fd_writable(int fd)
+    pub fn rb_thread_fd_writable(fd: c_int) -> c_int;
+    // VALUE
+    // rb_thread_kill(VALUE thread)
+    pub fn rb_thread_kill(thread: Value) -> Value;
+    // VALUE
+    // rb_thread_local_aref(VALUE thread, ID id)
+    pub fn rb_thread_local_aref(thread: Value, name: Id) -> Value;
+    // VALUE
+    // rb_thread_local_aset(VALUE thread, ID id, VALUE val)
+    pub fn rb_thread_local_aset(thread: Value, name: Id, value: Value) -> Value;
+    // VALUE
+    // rb_thread_main(void)
+    pub fn rb_thread_main() -> Value;
+    // VALUE
+    // rb_thread_run(VALUE thread)
+    pub fn rb_thread_run(thread: Value) -> Value;
+    // void
+    // rb_thread_schedule(void)
+    pub fn rb_thread_schedule();
+    // void
+    // rb_thread_sleep(int sec)
+    pub fn rb_thread_sleep(seconds: c_int);
+    // void
+    // rb_thread_sleep_forever(void)
+    pub fn rb_thread_sleep_forever();
+    // void
+    // rb_thread_wait_for(struct timeval time)
+    pub fn rb_thread_wait_for(time: timeval);
+    // VALUE
+    // rb_thread_wakeup(VALUE thread)
+    pub fn rb_thread_wakeup(thread: Value) -> Value;
 }
+
+// `RUBY_UBF_IO` / `RUBY_UBF_PROCESS`: `(rb_unblock_function_t *)-1`, which
+// makes Ruby interrupt a blocking system call when the thread must stop.
+pub const RUBY_UBF_IO: usize = usize::MAX;
+pub const RUBY_UBF_PROCESS: usize = usize::MAX;

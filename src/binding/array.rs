@@ -66,3 +66,59 @@ pub fn sort(array: Value) -> Value {
 pub fn sort_bang(array: Value) -> Value {
     unsafe { array::rb_ary_sort_bang(array) }
 }
+
+pub fn freeze(array: Value) -> Value {
+    unsafe { array::rb_ary_freeze(array) }
+}
+
+pub fn assoc(array: Value, key: Value) -> Value {
+    unsafe { array::rb_ary_assoc(array, key) }
+}
+
+pub fn clear(array: Value) {
+    unsafe { array::rb_ary_clear(array) };
+}
+
+pub fn compare(array: Value, other: Value) -> Value {
+    unsafe { array::rb_ary_cmp(array, other) }
+}
+
+pub fn delete(array: Value, item: Value) -> Value {
+    unsafe { array::rb_ary_delete(array, item) }
+}
+
+pub fn delete_at(array: Value, index: i64) -> Value {
+    unsafe { array::rb_ary_delete_at(array, index as c_long) }
+}
+
+pub fn includes(array: Value, item: Value) -> bool {
+    unsafe { array::rb_ary_includes(array, item) }.is_true()
+}
+
+pub fn plus(array: Value, other: Value) -> Value {
+    unsafe { array::rb_ary_plus(array, other) }
+}
+
+pub fn rassoc(array: Value, value: Value) -> Value {
+    unsafe { array::rb_ary_rassoc(array, value) }
+}
+
+pub fn replace(array: Value, other: Value) -> Value {
+    unsafe { array::rb_ary_replace(array, other) }
+}
+
+pub fn resize(array: Value, len: usize) -> Value {
+    unsafe { array::rb_ary_resize(array, len as c_long) }
+}
+
+pub fn rotate(array: Value, count: i64) {
+    unsafe { array::rb_ary_rotate(array, count as c_long) };
+}
+
+pub fn subseq(array: Value, begin: usize, len: usize) -> Value {
+    unsafe { array::rb_ary_subseq(array, begin as c_long, len as c_long) }
+}
+
+pub fn check_array_type(object: Value) -> Value {
+    unsafe { array::rb_check_array_type(object) }
+}

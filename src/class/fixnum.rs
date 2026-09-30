@@ -165,3 +165,42 @@ impl PartialEq for Fixnum {
         self.equals(other)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{AnyObject, Fixnum, Float, Object, VerifiedObject, VM};
+
+    #[test]
+    fn test_fixnum() {
+        crate::on_ruby_thread(|| {
+            let number = Fixnum::new(-42);
+
+            assert_eq!(number.to_i64(), -42);
+            assert_eq!(number.to_i32(), -42);
+            assert_eq!(Fixnum::new(42).to_u64(), 42);
+            assert_eq!(Fixnum::new(42).to_u32(), 42);
+            assert_eq!(Fixnum::new(i32::MAX as i64).to_i32(), i32::MAX);
+
+            // Out of range for i32: Ruby raises RangeError.
+            let result = VM::protect(|| {
+                Fixnum::new(i64::from(i32::MAX) + 1).to_i32();
+                crate::NilClass::new().into()
+            });
+            assert!(result.is_err());
+            VM::clear_error_info();
+
+            let any: AnyObject = Fixnum::new(-42).into();
+            assert!(Fixnum::is_correct_type(&any));
+            assert!(!Fixnum::is_correct_type(&Float::new(1.0)));
+            assert_eq!(any.try_convert_to::<Fixnum>(), Ok(Fixnum::new(-42)));
+            assert!(Float::new(1.0).try_convert_to::<Fixnum>().is_err());
+
+            let sum = VM::eval("20 + 22")
+                .unwrap()
+                .try_convert_to::<Fixnum>()
+                .unwrap();
+            assert_eq!(sum, Fixnum::new(42));
+            assert_ne!(sum, number);
+        });
+    }
+}

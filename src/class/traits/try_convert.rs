@@ -14,5 +14,40 @@ pub trait TryConvert<T>: Sized {
     type Nil;
 
     /// Performs the conversion.
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, TryConvert, VM};
+    /// # VM::init();
+    ///
+    /// let array = VM::eval("[1, 2]").unwrap();
+    /// assert_eq!(Array::try_convert(array).unwrap().length(), 2);
+    ///
+    /// // Not convertible: `Err` holds `nil`.
+    /// assert!(Array::try_convert(Fixnum::new(1).to_any_object()).unwrap_err().is_nil());
+    /// ```
     fn try_convert(value: T) -> Result<Self, Self::Nil>;
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{AnyObject, Array, Fixnum, Hash, NilClass, Object, TryConvert, VM};
+
+    #[test]
+    fn test_try_convert() {
+        crate::on_ruby_thread(|| {
+            let array: AnyObject = VM::eval("[1, 2]").unwrap();
+            assert_eq!(Array::try_convert(array).unwrap().length(), 2);
+
+            // Objects responding to `to_ary` convert too.
+            let convertible = VM::eval("o = Object.new; def o.to_ary; [:x]; end; o").unwrap();
+            assert_eq!(Array::try_convert(convertible).unwrap().length(), 1);
+
+            let error: Result<Array, NilClass> = Array::try_convert(Fixnum::new(1).into());
+            assert!(error.is_err());
+
+            let hash = VM::eval("{a: 1}").unwrap();
+            assert_eq!(Hash::try_convert(hash).unwrap().length(), 1);
+            assert!(Hash::try_convert(Fixnum::new(1).to_any_object()).is_err());
+        });
+    }
 }

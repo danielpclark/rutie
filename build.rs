@@ -20,15 +20,78 @@ macro_rules! ci_stderr_log {
 }
 
 fn rbconfig(key: &str) -> String {
+    try_rbconfig(key).unwrap_or_else(|e| panic!("ruby not found: {}", e))
+}
+
+fn try_rbconfig(key: &str) -> Result<String, std::io::Error> {
     let ruby = env::var_os("RUBY").unwrap_or(OsString::from("ruby"));
 
     let config = Command::new(ruby)
         .arg("-e")
         .arg(format!("print RbConfig::CONFIG['{}']", key))
-        .output()
-        .unwrap_or_else(|e| panic!("ruby not found: {}", e));
+        .output()?;
 
-    String::from_utf8(config.stdout).expect("RbConfig value not UTF-8!")
+    Ok(String::from_utf8(config.stdout).expect("RbConfig value not UTF-8!"))
+}
+
+// Minor versions of Ruby 2 that Rutie supports. Each one gets an exact
+// `ruby_2_N` cfg and, from 2.6 on, a cumulative `ruby_gte_2_N` cfg.
+const SUPPORTED_RUBY_2_MINORS: [u32; 3] = [5, 6, 7];
+
+// Emits `ruby_2_5` / `ruby_2_6` / `ruby_2_7` for the exact version of the
+// Ruby found by `rbconfig` and `ruby_gte_2_6` / `ruby_gte_2_7` for every
+// version at or above those, so bindings can be gated with
+// `#[cfg(ruby_gte_2_7)]` instead of sniffing the version at runtime.
+//
+// The version is also exported to crates depending on Rutie as
+// `DEP_RUBY_VERSION_MAJOR` / `DEP_RUBY_VERSION_MINOR` (through `links = "ruby"`).
+fn ruby_version_cfgs() {
+    for minor in SUPPORTED_RUBY_2_MINORS.iter() {
+        println!("cargo:rustc-check-cfg=cfg(ruby_2_{})", minor);
+        println!("cargo:rustc-check-cfg=cfg(ruby_gte_2_{})", minor);
+    }
+
+    let (major, minor) = match (try_rbconfig("MAJOR"), try_rbconfig("MINOR")) {
+        (Ok(major), Ok(minor)) => match (major.parse::<u32>(), minor.parse::<u32>()) {
+            (Ok(major), Ok(minor)) => (major, minor),
+            _ => {
+                println!(
+                    "cargo:warning=Could not read the Ruby version from RbConfig; \
+                     no Ruby version cfg flags were set."
+                );
+                return;
+            }
+        },
+        _ => {
+            // Without linking (the `no-link` feature or `NO_LINK_RUTIE`) a Ruby
+            // is not required to build, so a missing Ruby is not an error here.
+            ci_stderr_log!("ruby not found; no Ruby version cfg flags were set");
+            return;
+        }
+    };
+
+    println!("cargo:version_major={}", major);
+    println!("cargo:version_minor={}", minor);
+
+    if major != 2 || !SUPPORTED_RUBY_2_MINORS.contains(&minor) {
+        println!(
+            "cargo:warning=Rutie supports Ruby 2.5, 2.6 and 2.7; found Ruby {}.{}. \
+             Ruby 3 is not supported yet.",
+            major, minor
+        );
+    }
+
+    for supported in SUPPORTED_RUBY_2_MINORS.iter() {
+        if major == 2 && minor == *supported {
+            println!("cargo:rustc-cfg=ruby_2_{}", supported);
+        }
+
+        if major > 2 || (major == 2 && minor >= *supported) {
+            println!("cargo:rustc-cfg=ruby_gte_2_{}", supported);
+        }
+    }
+
+    ci_stderr_log!("Ruby version cfg flags set for Ruby {}.{}", major, minor);
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -387,6 +450,8 @@ fn should_link() -> bool {
 }
 
 fn main() {
+    ruby_version_cfgs();
+
     // Ruby programs calling Rust doesn't need cc linking
     if should_link() {
         // If windows OS do windows stuff
