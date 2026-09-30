@@ -52,6 +52,12 @@ API and may have breaking changes during a teeny version change.
    exports Ruby's functions from Rutie's tests and examples so a static
    Ruby's extensions load, and explains a missing archive instead of failing
    in the linker, thanks to @danielpclark
+ - Static linking on macOS: Rutie's tests failed to link a static Ruby 2.6 or
+   2.7 (`SecRandomCopyBytes` undefined), and with 2.5 crashed at boot loading
+   `enc/encdb.bundle`. `build.rs` now also links the frameworks Ruby lists in
+   `LIBRUBYARG_STATIC` (`Security`, `Foundation`), and exports Ruby's
+   functions from Rutie's tests and examples with `-Wl,-export_dynamic`, as
+   it does with `--export-dynamic` on Linux, thanks to @danielpclark
  - CI: the static-Ruby jobs never passed `--disable-shared` to RVM (the check
    read `RUBY_STATIC` in the step that sets it), so they built a shared Ruby
    and then linked it statically, thanks to @danielpclark

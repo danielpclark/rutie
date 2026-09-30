@@ -264,13 +264,29 @@ fn static_linker_args() {
     // must export them (Ruby links `ruby` with `-Wl,-export-dynamic`). This
     // covers Rutie's own tests and examples; a program embedding a static
     // Ruby links with `-C link-arg=-Wl,--export-dynamic` itself.
+    // Apple's linker spells it `-export_dynamic`; without it `-dead_strip`
+    // drops those functions and `enc/encdb.bundle` crashes at boot.
     if is_linux_like_target() {
         println!("cargo:rustc-link-arg=-Wl,--export-dynamic");
+    } else if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        println!("cargo:rustc-link-arg=-Wl,-export_dynamic");
     }
 
     // What the archive itself needs (`-lpthread -ldl -lcrypt -lm`, ...).
     library.parse_libs_cflags(rbconfig("MAINLIBS").as_bytes(), false);
     library.parse_libs_cflags(rbconfig("LIBS").as_bytes(), false);
+
+    // On macOS, the frameworks the archive needs are only listed in
+    // `LIBRUBYARG_STATIC` (`-framework Security` for `SecRandomCopyBytes`,
+    // `-framework Foundation`). Its `-l` entries are the archive and
+    // `MAINLIBS`, both linked above, so only the frameworks are taken.
+    let frameworks = split_flags(rbconfig("LIBRUBYARG_STATIC").as_bytes())
+        .windows(2)
+        .filter(|pair| pair[0] == "-framework")
+        .map(|pair| format!("-framework {}", pair[1]))
+        .collect::<Vec<_>>()
+        .join(" ");
+    library.parse_libs_cflags(frameworks.as_bytes(), false);
 }
 
 fn is_linux_like_target() -> bool {
