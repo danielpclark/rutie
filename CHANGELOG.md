@@ -76,6 +76,12 @@ from Ruru to Rutie → 0.11" in the README.
    build a static Ruby with `--disable-yjit`, and CI does, thanks to @danielpclark
  - CI prints the end of `ruby-build`'s log when building a static Ruby
    fails, thanks to @danielpclark
+ - Windows: `VM::try_init` crashed on Ruby 3.1 and 3.2: it booted without
+   `ruby_sysinit`, which Ruby 3's boot needs; it now calls it like
+   `VM::init`, thanks to @danielpclark
+ - `VM::run_file` sets `$0` to the path `load` resolves (`rb_find_file`), so
+   `__FILE__ == $0` also holds on Windows, where that path uses `/`,
+   thanks to @danielpclark
  - Windows, macOS and static-Ruby support from 0.10.2 carry over to Ruby 3.
    Fibers always use native coroutines there, so the Ruby 2.5/2.6 arm64 macOS
    stack-copying workaround (`rutie_copy_stack_fibers`) is gone, and
