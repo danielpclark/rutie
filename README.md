@@ -612,6 +612,11 @@ static Ruby needs the same flag
 macOS, or a `rustc-link-arg` in its build script). Static linking is tested on
 Linux and macOS.
 
+Build a static Ruby 3.2 with `--disable-yjit`. Ruby enables YJIT when `rustc`
+is on `PATH`, and YJIT puts its own copy of the Rust standard library in the
+archive, which can clash with your program's when linking
+(`duplicate symbol: rust_eh_personality`); `build.rs` warns when it sees one.
+
 ## Contributing
 
 Contributors are welcome!

@@ -51,7 +51,10 @@ jobs:
 
     # There are no prebuilt static Rubies, so build one. ruby-build fetches
     # OpenSSL 1.1 itself where Ruby needs it (3.0). A Ruby without a shared
-    # library is linked statically without setting RUBY_STATIC.
+    # library is linked statically without setting RUBY_STATIC. Ruby 3.2
+    # enables YJIT when rustc is on PATH, and YJIT's Rust runtime in the
+    # archive clashes with the test binary's (`rust_eh_personality`), so it
+    # is turned off (configure only warns about it on 3.0).
     - name: Build static Ruby
       if: matrix.ruby_static == true
       run: |
@@ -62,8 +65,11 @@ jobs:
           sudo apt-get install -y build-essential autoconf libyaml-dev libffi-dev zlib1g-dev libgmp-dev libreadline-dev
         fi
         git clone --depth 1 https://github.com/rbenv/ruby-build.git "$RUNNER_TEMP/ruby-build"
-        RUBY_CONFIGURE_OPTS="--disable-shared --disable-install-doc" \
-          "$RUNNER_TEMP/ruby-build/bin/ruby-build" "${{ matrix.ruby_version }}" "$HOME/.rubies/${{ matrix.ruby_version }}"
+        # ruby-build only names its log on failure, so show the end of it.
+        export TMPDIR="$RUNNER_TEMP"
+        RUBY_CONFIGURE_OPTS="--disable-shared --disable-install-doc --disable-yjit" \
+          "$RUNNER_TEMP/ruby-build/bin/ruby-build" "${{ matrix.ruby_version }}" "$HOME/.rubies/${{ matrix.ruby_version }}" \
+          || { tail -n 150 "$RUNNER_TEMP"/ruby-build.*.log; exit 1; }
         echo "$HOME/.rubies/${{ matrix.ruby_version }}/bin" >> "$GITHUB_PATH"
 
     - name: Setup Rust
