@@ -7,8 +7,25 @@ use crate::{
     AnyObject,
 };
 
+#[cfg(ruby_gte_3_2)]
+use crate::types::c_long;
+
 pub fn new() -> Value {
     unsafe { hash::rb_hash_new() }
+}
+
+// `rb_hash_new_capa` is Ruby 3.2+; the capacity is only a hint, so earlier
+// Rubies get an ordinary empty hash.
+#[cfg(ruby_gte_3_2)]
+pub fn with_capacity(capacity: usize) -> Value {
+    let capacity = capacity.min(c_long::MAX as usize) as c_long;
+
+    unsafe { hash::rb_hash_new_capa(capacity) }
+}
+
+#[cfg(not(ruby_gte_3_2))]
+pub fn with_capacity(_capacity: usize) -> Value {
+    new()
 }
 
 pub fn aref(hash: Value, key: Value) -> Value {

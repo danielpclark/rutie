@@ -65,6 +65,38 @@ impl Hash {
         Self::from(hash::new())
     }
 
+    /// Creates an empty `Hash` with room for `capacity` entries before it
+    /// grows (`rb_hash_new_capa`).
+    ///
+    /// The capacity is a hint: Ruby 3.0 and 3.1 have no way to set it, and
+    /// return an ordinary empty `Hash`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = Hash::with_capacity(100);
+    /// assert_eq!(hash.length(), 0);
+    ///
+    /// for i in 0..100 {
+    ///     hash.store(Fixnum::new(i), Fixnum::new(i * i));
+    /// }
+    ///
+    /// assert_eq!(hash.length(), 100);
+    /// assert_eq!(hash.at(&Fixnum::new(9)), Fixnum::new(81).into());
+    /// ```
+    ///
+    /// Ruby:
+    ///
+    /// ```ruby
+    /// Hash.new(capacity: 100) # Ruby 3.4+
+    /// ```
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self::from(hash::with_capacity(capacity))
+    }
+
     /// Retrieves an `AnyObject` from element stored at `key` key.
     ///
     /// # Examples
@@ -698,6 +730,24 @@ mod tests {
 
             let convertible = VM::eval("o = Object.new; def o.to_hash; { x: 1 }; end; o").unwrap();
             assert_eq!(Hash::try_convert(convertible).unwrap().length(), 1);
+        });
+    }
+
+    #[test]
+    fn test_with_capacity() {
+        crate::on_ruby_thread(|| {
+            let mut hash = Hash::with_capacity(64);
+            assert_eq!(hash.length(), 0);
+
+            for i in 0..200 {
+                hash.store(Fixnum::new(i), Fixnum::new(-i));
+            }
+
+            assert_eq!(hash.length(), 200);
+            assert_eq!(hash.at(&Fixnum::new(150)), Fixnum::new(-150).into());
+            assert_eq!(Hash::with_capacity(0).length(), 0);
+            // Clamped to Ruby's `long`, not an overflow.
+            assert_eq!(Hash::with_capacity(usize::MAX >> 40).length(), 0);
         });
     }
 }
