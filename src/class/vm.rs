@@ -2529,7 +2529,8 @@ impl VM {
     ///
     /// Give the name with its extension (`"name.so"` or `"name.rb"`), as
     /// Ruby's own extensions do, and ask [`VM::is_provided`](#method.is_provided)
-    /// with the same name.
+    /// with the same name. Ruby keeps the name's memory, so each call leaks
+    /// one small string for the life of the process.
     ///
     /// # Examples
     ///
@@ -3549,6 +3550,26 @@ mod tests {
 
             // `p` returns nothing; it prints the inspected object.
             VM::p(&Symbol::new("rutie_vm_p_test"));
+        });
+    }
+
+    #[test]
+    fn test_provide_keeps_feature_name() {
+        crate::on_ruby_thread(|| {
+            // A name in a heap buffer that is reused right after the call.
+            let name = format!("rutie_provide_regression_{}.so", std::process::id());
+            VM::provide(&name);
+
+            // Churn the Rust heap so a freed buffer would be overwritten.
+            let noise: Vec<String> = (0..2000).map(|i| "x".repeat(i % 64 + 1)).collect();
+            drop(noise);
+            crate::GC::start();
+
+            let features = VM::global_get("$LOADED_FEATURES")
+                .try_convert_to::<Array>()
+                .unwrap();
+            assert!(features.includes(&RString::new_utf8(&name)));
+            assert!(VM::is_provided(&name));
         });
     }
 }

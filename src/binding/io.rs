@@ -119,10 +119,14 @@ pub fn require(name: Value) -> Value {
     unsafe { io::rb_f_require(nil(), name) }
 }
 
+// `rb_provide` keeps the pointer: it goes through `rb_fstring_cstr`, which
+// registers a string pointing at `feature` instead of copying it (it is meant
+// for C string literals). So the name is leaked on purpose; freeing it left
+// `$LOADED_FEATURES` reading freed memory.
 pub fn provide(feature: &str) {
-    let feature = util::str_to_cstring(feature);
+    let feature = util::str_to_cstring(feature).into_raw();
 
-    unsafe { io::rb_provide(feature.as_ptr()) }
+    unsafe { io::rb_provide(feature) }
 }
 
 pub fn is_provided(feature: &str) -> bool {
