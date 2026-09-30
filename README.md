@@ -367,7 +367,9 @@ environment variable as documented below, and expect Ruby 2, not Ruby 3.
 #### 0.11
 
 0.11 supports Ruby 3.0, 3.1 and 3.2 and drops Ruby 2 (stay on 0.10.x for
-Ruby 2.5–2.7). Migrating from 0.10:
+Ruby 2.5–2.7). It keeps what 0.10.2 added for all three operating systems:
+Linux, macOS and Windows (MSVC and GNU toolchains, `rutie_callback!`), and
+linking a static Ruby (tested on Linux and macOS). Migrating from 0.10:
 
 - **Build.** `build.rs` fails with a message naming the right Rutie line when
   it finds a Ruby other than 3.0–3.2. The cfg flags are now `ruby_3_0`,
@@ -601,11 +603,11 @@ directory holding the archive. `build.rs` stops with an explanation if the
 archive is missing. (A shared Ruby's archive is not a substitute: its
 extensions are linked to `libruby.so` and would load a second Ruby.)
 
-Rutie links the whole archive, because a static Ruby's extensions
-(`enc/*.so`, `objspace.so`, ...) call Ruby functions from the executable that
-loads them, so they also need those functions exported: Rutie's own tests
-and examples link with `-Wl,--export-dynamic` on Linux and `-Wl,-export_dynamic`
-on macOS, and a program of yours that embeds a static Ruby needs the same flag
+A static Ruby's extensions (`enc/*.so`, `objspace.so`, ...) call Ruby
+functions from the executable that loads them, so they need those functions
+exported: Rutie's own tests and examples link with `-Wl,--export-dynamic` on
+Linux and `-Wl,-export_dynamic` on macOS, and a program of yours that embeds a
+static Ruby needs the same flag
 (`RUSTFLAGS="-C link-arg=-Wl,--export-dynamic"`, or `-Wl,-export_dynamic` on
 macOS, or a `rustc-link-arg` in its build script). Static linking is tested on
 Linux and macOS.

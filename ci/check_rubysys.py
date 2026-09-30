@@ -50,8 +50,18 @@ def cfg_active(cfg, version):
     m = re.fullmatch(r"ruby_(\d+)_(\d+)", cfg)
     if m:
         return version == (int(m.group(1)), int(m.group(2)))
-    # target_os and friends: assume active; symbols are checked on Linux.
-    return not cfg.startswith("windows")
+    # Platform cfgs, for the host the script runs on.
+    windows = sys.platform.startswith("win")
+    if cfg == "windows":
+        return windows
+    if cfg == "unix":
+        return not windows
+    m = re.fullmatch(r'target_os\s*=\s*"(\w+)"', cfg)
+    if m:
+        host = {"linux": "linux", "darwin": "macos"}.get(sys.platform, "windows" if windows else sys.platform)
+        return m.group(1) == host
+    # Anything else (target_pointer_width, rutie_dllimport, ...): active.
+    return not cfg.startswith("rutie_dllimport")
 
 
 def split_args(text):
@@ -73,8 +83,11 @@ def rust_declarations(version):
     """Yields (file, name, kind, rust_return, internal) for active declarations."""
     for path in sorted(glob.glob("src/rubysys/*.rs")):
         text = open(path).read()
-        for block in re.finditer(r'extern "C" \{(.*?)\n\}', text, re.S):
-            body = block.group(1)
+        for block in re.finditer(r'((?:#\[[^\n]*\]\n)*)extern "C" \{(.*?)\n\}', text, re.S):
+            block_cfgs = re.findall(r"#\[cfg\((.*)\)\]", block.group(1))
+            if not all(cfg_active(c, version) for c in block_cfgs):
+                continue
+            body = block.group(2)
             # Attributes and notes directly above each item.
             for m in re.finditer(
                 r"((?:[ \t]*(?://[^\n]*|#\[[^\n]*\])\n)*)[ \t]*pub (fn|static) (\w+)"

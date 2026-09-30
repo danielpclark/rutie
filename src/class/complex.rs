@@ -101,7 +101,7 @@ impl Complex {
             .map_err(AnyException::from)
     }
 
-    /// Returns the real part (`rb_complex_real` on Ruby 2.6+).
+    /// Returns the real part (`rb_complex_real`).
     ///
     /// # Examples
     ///
@@ -117,7 +117,7 @@ impl Complex {
         AnyObject::from(numeric::complex_real(self.value()))
     }
 
-    /// Returns the imaginary part (`rb_complex_imag` on Ruby 2.6+).
+    /// Returns the imaginary part (`rb_complex_imag`).
     ///
     /// # Examples
     ///
@@ -133,7 +133,7 @@ impl Complex {
         AnyObject::from(numeric::complex_imaginary(self.value()))
     }
 
-    /// Returns the magnitude (`rb_complex_abs` on Ruby 2.6+).
+    /// Returns the magnitude (`rb_complex_abs`).
     ///
     /// # Examples
     ///
@@ -147,7 +147,7 @@ impl Complex {
         float::num_to_float(numeric::complex_abs(self.value()))
     }
 
-    /// Returns the angle in radians (`rb_complex_arg` on Ruby 2.6+).
+    /// Returns the angle in radians (`rb_complex_arg`).
     ///
     /// # Examples
     ///

@@ -47,8 +47,8 @@ impl Symbol {
     /// symbol has been created yet (`rb_check_id`).
     ///
     /// Unlike `Symbol::new`, this never creates a symbol, so it is safe to
-    /// call with untrusted input: Ruby 2.5 to 2.7 never garbage collect
-    /// symbols created from C.
+    /// call with untrusted input: Ruby never garbage collects symbols created
+    /// from C (`rb_intern`).
     ///
     /// # Examples
     ///

@@ -45,8 +45,7 @@ pub(crate) struct ScanArgsFormat {
 
 impl ScanArgsFormat {
     /// Parses `[required[optional]][*][post][:][&]`, the same grammar
-    /// `rb_scan_args` accepts on Ruby 2.5 to 2.7, where each count is a
-    /// single digit.
+    /// `rb_scan_args` accepts, where each count is a single digit.
     ///
     /// `rb_scan_args` aborts the process (`rb_fatal`) on a format it cannot
     /// parse, so every format is checked here before it reaches Ruby.

@@ -42,19 +42,11 @@ impl Fiber {
     /// ("Can't eval on top of Fiber or Thread"); call Ruby methods from the
     /// body instead.
     ///
-    /// Ruby 2.5 and 2.6 for arm64 macOS have no native fibers; theirs copy
-    /// the machine stack, and resume only under the `rb_protect` they were
-    /// created under. There `resume` on a fiber made here returns a
-    /// `FiberError` ("fiber called across stack rewinding barrier"). Fibers
-    /// that Ruby code creates and resumes, inside one `VM::eval`, work, and so
-    /// does `Enumerator::next` called from one place, such as a loop.
-    ///
     /// # Examples
     ///
     /// ```
     /// use rutie::{Fiber, Fixnum, Object, VM};
     /// # VM::init();
-    /// # if cfg!(rutie_copy_stack_fibers) { return; } // See `Fiber::new`.
     ///
     /// let counter = Fiber::new(|arguments| {
     ///     let mut n = arguments[0].try_convert_to::<Fixnum>().unwrap().to_i64();
@@ -170,7 +162,6 @@ impl Fiber {
     /// ```
     /// use rutie::{AnyObject, Fiber, Object, RString, Symbol, VM};
     /// # VM::init();
-    /// # if cfg!(rutie_copy_stack_fibers) { return; } // See `Fiber::new`.
     ///
     /// let fiber = Fiber::new(|arguments: &[AnyObject]| {
     ///     let text = arguments[0].try_convert_to::<RString>().unwrap().to_string();
@@ -239,7 +230,6 @@ impl Fiber {
     /// ```
     /// use rutie::{Fiber, NilClass, VM};
     /// # VM::init();
-    /// # if cfg!(rutie_copy_stack_fibers) { return; } // See `Fiber::new`.
     ///
     /// let fiber = Fiber::new(|_| NilClass::new().into());
     ///
@@ -300,18 +290,6 @@ mod tests {
     #[test]
     fn test_fiber() {
         crate::on_ruby_thread(|| {
-            // Ruby 2.5 and 2.6 on arm64 macOS: see `Fiber::new`. A fiber made
-            // in Rust returns a `FiberError` when resumed, and does not crash.
-            if cfg!(rutie_copy_stack_fibers) {
-                let fiber = Fiber::new(|_| crate::NilClass::new().into());
-                let error = fiber.resume(&[]).unwrap_err();
-
-                assert_eq!(error.class().name().unwrap().to_str(), "FiberError");
-                assert!(error.message().contains("stack rewinding barrier"));
-
-                return;
-            }
-
             let generator = Fiber::new(|_| {
                 for i in 1..=3 {
                     Fiber::yield_values(&[Fixnum::new(i).into()]).unwrap();

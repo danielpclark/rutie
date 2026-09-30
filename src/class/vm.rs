@@ -1086,7 +1086,7 @@ impl VM {
     /// Terminating: 27460
     /// ```
     ///
-    /// Ruby 2 has no public C API for installing signal handlers, so this
+    /// Ruby has no public C API for installing signal handlers, so this
     /// (`Signal.trap`) is the supported way to handle signals; a handler can
     /// be a Rust closure wrapped with [`Proc::new`](struct.Proc.html#method.new).
     ///
@@ -1851,8 +1851,7 @@ impl VM {
     /// Returns `true` when the Ruby method currently running was called with
     /// keyword arguments (`rb_keyword_given_p`).
     ///
-    /// Only available on Ruby 2.7, where it is needed to tell keywords from
-    /// a trailing positional `Hash`.
+    /// Ruby 3 needs it to tell keywords from a trailing positional `Hash`.
     ///
     /// # Examples
     ///
@@ -3373,11 +3372,10 @@ mod tests {
             let kwargs = VM::get_kwargs(None, &[], &["a"], false).unwrap();
             assert_eq!(kwargs.optional, vec![None]);
 
-            // Ruby 2.7 formats the names as symbols (`:z`), 2.5 and 2.6 do not.
             let message = VM::get_kwargs(Some(&keywords), &["a", "z"], &[], true)
                 .unwrap_err()
                 .message();
-            assert!(message.starts_with("missing keyword: ") && message.ends_with("z"));
+            assert_eq!(message, "missing keyword: :z");
 
             // A frozen hash is fine: it is never modified.
             let frozen = keywords.freeze();
