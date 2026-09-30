@@ -260,19 +260,22 @@ still need the R1 check: presence doesn't mean the signature is unchanged.
 
 ## 7. 0.12 — Ruby 3.1, 3.2, 3.3
 
-- [ ] Drop 3.0: remove `ruby_3_0` gates and the OpenSSL 1.1 CI step.
-- [ ] `RString`: add the 3.3 layout (top-level `len`); three layouts become
-      3.1, 3.2 and 3.3.
-- [ ] `GC::force_recycle` and `Thread::wait_fd`/`wait_fd_writable` get
-      `#[deprecated]` pointing to their replacements. `GC::is_marked` too:
-      Ruby 3.4 no longer exports `rb_objspace_marked_object_p` (found by
-      `ci/check_rubysys.py`), and there is no replacement.
-- [ ] 3.3 behaviour: `NoMethodError` message format, M:N threads (§5),
-      `rb_io_t` hiding (nothing bound).
-- [ ] Optional 3.3 APIs: `rb_data_define` (Ruby's `Data`, a `DataClass`
-      wrapper like `Struct`), `rb_io_path`/`rb_io_mode`/`rb_io_closed_p`
-      (can replace `IO::is_closed`'s `send`), `rb_io_open_descriptor`.
-- [ ] Tests, doctests, README, CHANGELOG, release 0.12.0.
+- [x] Drop 3.0: `build.rs` supports 3.1–3.3 and points 3.0 at 0.11; the
+      only 3.0-specific code was the cfg test. CI moves to `ubuntu-latest`
+      (there was no OpenSSL step left to drop).
+- [x] `RString`: the 3.3 layout (top-level `len`); three layouts are now
+      3.1, 3.2 and 3.3, covered by the direct-read unit tests.
+- [x] `GC::force_recycle`, `GC::is_marked` and
+      `Thread::wait_fd`/`wait_fd_writable` get `#[deprecated]` pointing to
+      their replacements (none for `is_marked`, whose C function Ruby 3.4
+      no longer exports).
+- [x] 3.3 behaviour: every unit test and doctest passes on 3.3 unchanged
+      (none asserts a `NoMethodError` message), and the unit and `Thread`
+      doctests pass with `RUBY_MN_THREADS=1`. `rb_io_t` is not read.
+- [x] Optional 3.3 APIs: `IO::is_closed` uses `rb_io_closed_p` on 3.3.
+      *Deferred:* `rb_data_define` (a `DataClass` wrapper deserves its own
+      design), `rb_io_path`/`rb_io_mode`, `rb_io_open_descriptor`.
+- [x] Tests, doctests, README, CHANGELOG, version 0.12.0.
 
 ## 8. 0.13 — Ruby 3.2, 3.3, 3.4
 

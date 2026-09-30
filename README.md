@@ -1,9 +1,9 @@
 ## Rutie
 
-### Ruby 3.0, 3.1 and 3.2 (Ruby 2: use 0.10)
+### Ruby 3.1, 3.2 and 3.3 (Ruby 3.0: use 0.11; Ruby 2: use 0.10)
 
 [![GitHub Actions Status](https://github.com/danielpclark/rutie/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/danielpclark/rutie/actions/workflows/ci.yml)
-[![Ruby 3.0–3.2 Compatible](https://img.shields.io/badge/Supports-Ruby%203.0%20%7C%203.1%20%7C%203.2-brightgreen)](https://github.com/danielpclark/rutie#ruby-version-support)
+[![Ruby 3.1–3.3 Compatible](https://img.shields.io/badge/Supports-Ruby%203.1%20%7C%203.2%20%7C%203.3-brightgreen)](https://github.com/danielpclark/rutie#ruby-version-support)
 [![Maintenance](https://img.shields.io/maintenance/yes/2026.svg)](https://github.com/danielpclark/rutie/commits/master)
 [![GitHub contributors](https://img.shields.io/github/contributors/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/graphs/contributors)
 [![license](https://img.shields.io/github/license/danielpclark/rutie.svg)](https://github.com/danielpclark/rutie/blob/master/LICENSE)
@@ -50,7 +50,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.11.2"
+rutie = "0.12.0"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
@@ -433,7 +433,8 @@ Everything is tested against 64 bit operating systems (Linux, macOS and Windows)
 
 | Rutie | Ruby | Notes |
 |---|---|---|
-| 0.11.x | 3.0, 3.1, 3.2 | current; Linux, plus macOS and Windows from 0.11.1, with dynamic/static linking |
+| 0.12.x | 3.1, 3.2, 3.3 | current; Linux, macOS and Windows, with dynamic/static linking |
+| 0.11.x | 3.0, 3.1, 3.2 | the Ruby 3.0 line; Linux, plus macOS and Windows from 0.11.1, with dynamic/static linking |
 | 0.10.x | 2.5, 2.6, 2.7 | the Ruby 2 line; Linux, macOS and Windows (from 0.10.2) |
 | 0.9.x | 2.5, 2.6, 2.7 | still works on Ruby 2, but superseded by 0.10.0 (`VM::at_exit` crash fix, current-Cargo build fix) |
 | 0.8.x | 2.5, 2.6, 2.7 | older Ruby 2 line |
@@ -445,8 +446,8 @@ Each Rutie minor version supports exactly three Ruby minor versions:
 | Rutie | Ruby | Status |
 |---|---|---|
 | 0.10 | 2.5, 2.6, 2.7 | released: Ruby 2 |
-| 0.11 | 3.0, 3.1, 3.2 | current: first Ruby 3 release, drops Ruby 2 |
-| 0.12 | 3.1, 3.2, 3.3 | planned: drops 3.0, adds 3.3 |
+| 0.11 | 3.0, 3.1, 3.2 | released: first Ruby 3 release, drops Ruby 2 |
+| 0.12 | 3.1, 3.2, 3.3 | current: drops 3.0, adds 3.3 |
 | 0.13 | 3.2, 3.3, 3.4 | planned: drops 3.1, adds 3.4 |
 
 The Ruby 3 work is planned in `docs/ruby3-upgrade-plan.md`.
@@ -454,24 +455,24 @@ The Ruby 3 work is planned in `docs/ruby3-upgrade-plan.md`.
 An `rb-sys`-based rewrite lived on `master` between February and September
 2025 (self-labelled 0.10.0, never published to crates.io); it has been
 reverted and is not supported. If you depended on it through a
-`git = "..."` dependency, move to 0.11 (Ruby 3) or 0.10.x (Ruby 2).
+`git = "..."` dependency, move to a Ruby 3 release (see the table) or 0.10.x
+(Ruby 2).
 
 Prebuilt Rubies (`ruby/setup-ruby`, RVM's binaries, distribution packages)
-are the easiest way to get each version. Building Ruby 3.0 from source needs
-OpenSSL 1.1 for its `openssl` extension; 3.1 and later build with OpenSSL 3.
+are the easiest way to get each version.
 
 #### Linux & Mac
 
 - A current stable Rust (CI tests stable and beta)
-- Ruby (64 bit) 3.0, 3.1 or 3.2, built with `--enable-shared` (see "Ruby version support")
+- Ruby (64 bit) 3.1, 3.2 or 3.3, built with `--enable-shared` (see "Ruby version support")
 
 #### Windows
 
 - Rust 1.71 or later with the MSVC toolchain (`x86_64-pc-windows-msvc`, the
   default) and the Visual Studio C++ Build Tools, or the GNU toolchain
   (`x86_64-pc-windows-gnu`)
-- Ruby (64 bit) 3.0, 3.1 or 3.2 from [RubyInstaller](https://rubyinstaller.org/)
-  (without the Devkit); CI tests 3.0.7, 3.1.7 and 3.2.9. A Ruby built with
+- Ruby (64 bit) 3.1, 3.2 or 3.3 from [RubyInstaller](https://rubyinstaller.org/)
+  (without the Devkit); CI tests 3.1.7, 3.2.9 and 3.3.12. A Ruby built with
   MSVC (mswin) works too.
 - `ruby` on your `PATH` (RubyInstaller's default), or `RUBY` set to the
   `ruby.exe` to build against
@@ -486,7 +487,7 @@ that DLL needs the DLLs in `bin\ruby_builtin_dlls`. `cargo run` and
 both directories on `PATH`:
 
 ```bat
-set PATH=C:\Ruby32-x64\bin;C:\Ruby32-x64\bin\ruby_builtin_dlls;%PATH%
+set PATH=C:\Ruby33-x64\bin;C:\Ruby33-x64\bin\ruby_builtin_dlls;%PATH%
 ```
 
 Ruby extensions (like `examples/rutie_ruby_example`) need nothing extra:
@@ -504,7 +505,7 @@ Ruby needs to be compiled with the `--enable-shared` option for dynamic linking,
 
 If using RBENV then the following is recommended:
 
-    CONFIGURE_OPTS=--enable-shared rbenv install 3.2.6
+    CONFIGURE_OPTS=--enable-shared rbenv install 3.3.6
 
 You can check if your Ruby is compiled to be dynamically linked to by running the following and getting a `"yes"` response.
 
@@ -547,13 +548,13 @@ Ruby's helper gem is in the submodule folder `gem`.
 
 ### Testing against several Rubies
 
-Changes must pass on Ruby 3.0, 3.1 and 3.2. `build.rs` links against the `ruby`
+Changes must pass on Ruby 3.1, 3.2 and 3.3. `build.rs` links against the `ruby`
 first on your `PATH` (or the one named by `$RUBY`), so install each version under
 its own prefix and give each its own Cargo target directory, so switching does
 not rebuild everything.
 
 ```sh
-for version in 3.0.7 3.1.7 3.2.9; do
+for version in 3.1.7 3.2.9 3.3.9; do
   PATH="/opt/rb/$version/bin:$PATH" \
   CARGO_TARGET_DIR="$HOME/rt-$version/target" \
   cargo test

@@ -7,6 +7,32 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.12.0] - 2026-10-01
+Supports Ruby 3.1, 3.2 and 3.3 on Linux, macOS and Windows; Ruby 3.0 stays
+on 0.11.x.
+
+### Added
+ - Ruby 3.3 support: `ruby_3_3`/`ruby_gte_3_3` cfg flags, and `RString`
+   reads for 3.3's layout (the length moved out of `as.heap` to the top of
+   the struct, for embedded strings too), thanks to @danielpclark
+
+### Changed
+ - `IO::is_closed` calls `rb_io_closed_p` on Ruby 3.3, thanks to @danielpclark
+ - CI tests Ruby 3.1.7, 3.2.9 and 3.3.12 on Linux (`ubuntu-latest`), macOS
+   and Windows, thanks to @danielpclark
+
+### Deprecated
+ - `GC::force_recycle`: a no-op on Ruby 3.1+, and Ruby 3.4 removes
+   `rb_gc_force_recycle`, thanks to @danielpclark
+ - `GC::is_marked`: Ruby 3.4 no longer exports `rb_objspace_marked_object_p`,
+   thanks to @danielpclark
+ - `Thread::wait_fd` and `Thread::wait_fd_writable`, in favour of
+   `Thread::wait_readable` and `Thread::wait_writable`, thanks to @danielpclark
+
+### Removed
+ - Ruby 3.0 support, and the `ruby_3_0`/`ruby_gte_3_0` cfg flags,
+   thanks to @danielpclark
+
 ## [0.11.2] - 2026-10-01
 Adds the C API Ruby 3.1 and 3.2 introduced, which 0.11 did not bind. What
 needs Ruby 3.1 is marked "Ruby 3.1+" and is not built on Ruby 3.0.
