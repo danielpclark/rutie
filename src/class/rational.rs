@@ -48,9 +48,9 @@ impl Rational {
     /// use rutie::{Integer, Rational, VM};
     /// # VM::init();
     ///
-    /// let tiny = Rational::from_integers(&Integer::new(1), &Integer::from(u128::max_value())).unwrap();
+    /// let tiny = Rational::from_integers(&Integer::new(1), &Integer::from(u128::MAX)).unwrap();
     ///
-    /// assert_eq!(tiny.denominator().to_u128(), Some(u128::max_value()));
+    /// assert_eq!(tiny.denominator().to_u128(), Some(u128::MAX));
     /// ```
     pub fn from_integers(numerator: &Integer, denominator: &Integer) -> Result<Self, AnyException> {
         let (numerator, denominator) = (numerator.value(), denominator.value());

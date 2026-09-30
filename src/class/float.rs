@@ -28,7 +28,7 @@ impl Float {
     ///
     /// assert_eq!(third.numerator().to_i64(), 1);
     /// assert_eq!(third.denominator().to_i64(), 3);
-    /// assert!(Float::new(std::f64::NAN).rationalize().is_err());
+    /// assert!(Float::new(f64::NAN).rationalize().is_err());
     /// ```
     pub fn rationalize(&self) -> Result<Rational, AnyException> {
         let float = self.value();
