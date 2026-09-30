@@ -82,7 +82,11 @@ where
         thread,
     };
 
-    type Job = (Box<dyn FnOnce() + Send>, mpsc::Sender<thread::Result<()>>);
+    type Job = (
+        String,
+        Box<dyn FnOnce() + Send>,
+        mpsc::Sender<thread::Result<()>>,
+    );
 
     lazy_static! {
         static ref RUBY_THREAD: Mutex<mpsc::Sender<Job>> = {
@@ -94,7 +98,16 @@ where
                 .spawn(move || {
                     VM::init();
 
-                    for (test, result) in receiver {
+                    let trace = std::env::var_os("RUTIE_TEST_TRACE").is_some();
+
+                    for (name, test, result) in receiver {
+                        // Written straight to stderr (not `eprintln!`, which the
+                        // harness captures) so a crash still shows which test ran.
+                        if trace {
+                            use std::io::Write;
+                            let _ = writeln!(std::io::stderr(), "[ruby thread] running {}", name);
+                        }
+
                         let outcome = {
                             let _guard = LOCK_FOR_TEST.write().unwrap_or_else(|e| e.into_inner());
 
@@ -115,7 +128,11 @@ where
     RUBY_THREAD
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .send((Box::new(test), sender))
+        .send((
+            thread::current().name().unwrap_or("<unnamed>").to_string(),
+            Box::new(test),
+            sender,
+        ))
         .expect("the Ruby test thread has stopped");
 
     if let Err(payload) = receiver.recv().expect("the Ruby test thread has stopped") {
