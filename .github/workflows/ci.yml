@@ -109,7 +109,9 @@ jobs:
           RVM_OPTS+=("--disable-binary")
         fi
 
-        if [ ! -z "$RUBY_STATIC" ]; then
+        # `RUBY_STATIC` written to $GITHUB_ENV above only reaches later
+        # steps, so this step checks the matrix value.
+        if [ "${{ matrix.ruby_static }}" == "true" ]; then
           RVM_OPTS+=("--disable-shared")
         fi
   

@@ -34,6 +34,15 @@ API and may have breaking changes during a teeny version change.
  - Windows: `Thread::sleep` builds Winsock's `timeval`, thanks to @danielpclark
  - Windows: `cargo run` and `cargo test` find the DLLs the Ruby DLL needs
    (`bin\ruby_builtin_dlls`), thanks to @danielpclark
+ - Static linking on Linux: `build.rs` linked `-lruby` (the shared library)
+   as a static library, and never looked for the archive Ruby installs. It now
+   links the whole `libruby-static.a` (`LIBRUBY_A`) with `LIBS`/`MAINLIBS`,
+   exports Ruby's functions from Rutie's tests and examples so a static
+   Ruby's extensions load, and explains a missing archive instead of failing
+   in the linker, thanks to @danielpclark
+ - CI: the static-Ruby jobs never passed `--disable-shared` to RVM (the check
+   read `RUBY_STATIC` in the step that sets it), so they built a shared Ruby
+   and then linked it statically, thanks to @danielpclark
 
 ## [0.10.1] - 2026-09-30
 ### Fixed
