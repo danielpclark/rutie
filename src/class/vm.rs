@@ -83,6 +83,119 @@ impl VM {
         vm::init_loadpath();
     }
 
+    /// Marks the methods this thread defines from now on as Ractor-safe
+    /// (`rb_ext_ractor_safe(true)`), so Ruby lets any Ractor call them, in
+    /// parallel with other Ractors.
+    ///
+    /// Methods are not Ractor-safe by default: Ruby raises
+    /// `Ractor::UnsafeError` when one is called outside the main Ractor.
+    /// That holds for an extension loaded with `require` (Ruby resets the
+    /// setting for each one) and for a VM started by
+    /// [`VM::init`](#method.init). Use
+    /// [`VM::ext_ractor_unsafe`](#method.ext_ractor_unsafe) to switch back.
+    ///
+    /// # Safety
+    ///
+    /// Each method defined while this is on may run on several Ractors, and
+    /// so several OS threads, at once. It must not touch Rust state shared
+    /// between calls without synchronisation (a `static mut`, or wrapped data
+    /// that is not `Sync`), and must only use Ruby objects it was given or
+    /// created.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, RString, VM};
+    ///
+    /// methods!(
+    ///     Fixnum,
+    ///     rtself,
+    ///
+    ///     // Uses only its receiver, so it is safe on any Ractor.
+    ///     fn double() -> Fixnum {
+    ///         Fixnum::new(rtself.to_i64() * 2)
+    ///     }
+    ///
+    ///     fn triple() -> Fixnum {
+    ///         Fixnum::new(rtself.to_i64() * 3)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::from_existing("Integer").define(|klass| {
+    ///         unsafe { VM::ext_ractor_safe(true) };
+    ///         klass.def("double", double);
+    ///         VM::ext_ractor_unsafe();
+    ///
+    ///         klass.def("triple", triple);
+    ///     });
+    ///
+    ///     let in_ractor = |code: &str| {
+    ///         let code = format!(
+    ///             "Warning[:experimental] = false
+    ///              Ractor.new {{ begin; {}; rescue => e; e.class.name; end }}.take.to_s",
+    ///             code
+    ///         );
+    ///         VM::eval(&code).unwrap().try_convert_to::<RString>().unwrap().to_string()
+    ///     };
+    ///
+    ///     assert_eq!(in_ractor("21.double"), "42");
+    ///     assert_eq!(in_ractor("21.triple"), "Ractor::UnsafeError");
+    ///
+    ///     // The main Ractor can call both.
+    ///     assert_eq!(VM::eval("21.triple").unwrap().try_convert_to::<Fixnum>().unwrap().to_i64(), 63);
+    /// }
+    /// ```
+    pub unsafe fn ext_ractor_safe(flag: bool) {
+        vm::ext_ractor_safe(flag);
+    }
+
+    /// Marks the methods this thread defines from now on as not Ractor-safe
+    /// (`rb_ext_ractor_safe(false)`): calling one outside the main Ractor
+    /// raises `Ractor::UnsafeError`. This is the default; it undoes
+    /// [`VM::ext_ractor_safe`](#method.ext_ractor_safe).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, RString, VM};
+    ///
+    /// methods!(
+    ///     Fixnum,
+    ///     rtself,
+    ///
+    ///     fn negate() -> Fixnum {
+    ///         Fixnum::new(-rtself.to_i64())
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     unsafe { VM::ext_ractor_safe(true) };
+    ///     VM::ext_ractor_unsafe();
+    ///
+    ///     Class::from_existing("Integer").define(|klass| {
+    ///         klass.def("negate", negate);
+    ///     });
+    ///
+    ///     let result = VM::eval(
+    ///         "Warning[:experimental] = false
+    ///          Ractor.new { begin; 1.negate; rescue => e; e.class.name; end }.take",
+    ///     )
+    ///     .unwrap();
+    ///
+    ///     assert_eq!(result.try_convert_to::<RString>().unwrap().to_str(), "Ractor::UnsafeError");
+    /// }
+    /// ```
+    pub fn ext_ractor_unsafe() {
+        vm::ext_ractor_safe(false);
+    }
+
     /// Requires Ruby source file.
     ///
     /// # Examples
@@ -3613,6 +3726,46 @@ mod tests {
                 .unwrap();
             assert!(features.includes(&RString::new_utf8(&name)));
             assert!(VM::is_provided(&name));
+        });
+    }
+
+    crate::methods!(
+        Fixnum,
+        rtself,
+        fn rutie_ractor_default() -> Fixnum {
+            Fixnum::new(rtself.to_i64() + 1)
+        },
+        fn rutie_ractor_opt_in() -> Fixnum {
+            Fixnum::new(rtself.to_i64() + 2)
+        }
+    );
+
+    #[test]
+    fn test_ractor_safety() {
+        crate::on_ruby_thread(|| {
+            Class::from_existing("Integer").define(|klass| {
+                // `VM::init` leaves methods Ractor-unsafe.
+                klass.def("rutie_ractor_default", rutie_ractor_default);
+
+                unsafe { VM::ext_ractor_safe(true) };
+                klass.def("rutie_ractor_opt_in", rutie_ractor_opt_in);
+                VM::ext_ractor_unsafe();
+            });
+
+            let in_ractor = |method: &str| {
+                let code = format!(
+                    "Warning[:experimental] = false
+                     Ractor.new {{ begin; 1.{}.to_s; rescue => e; e.class.name; end }}.take",
+                    method
+                );
+                RString::from(VM::eval(&code).unwrap().value()).to_string()
+            };
+
+            assert_eq!(in_ractor("rutie_ractor_default"), "Ractor::UnsafeError");
+            assert_eq!(in_ractor("rutie_ractor_opt_in"), "3");
+
+            let main = VM::eval("1.rutie_ractor_default").unwrap();
+            assert_eq!(main.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
         });
     }
 }

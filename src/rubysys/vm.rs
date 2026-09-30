@@ -188,6 +188,12 @@ extern "C" {
     // tag state instead. Does nothing when the VM already exists.
     pub fn ruby_setup() -> c_int;
     // void
+    // rb_ext_ractor_safe(bool flag)
+    //
+    // Sets whether C methods defined afterwards on this thread may run in
+    // any Ractor; `require` resets it for each extension it loads.
+    pub fn rb_ext_ractor_safe(flag: bool);
+    // void
     // ruby_finalize(void)
     //
     // Runs the end procs and the finalizers of every object without freeing
