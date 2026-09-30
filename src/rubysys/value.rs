@@ -203,3 +203,76 @@ impl From<InternalValue> for Value {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ValueType;
+    use crate::{AnyObject, Boolean, NilClass, Object, VM};
+
+    fn eval(code: &str) -> AnyObject {
+        VM::eval(code).unwrap()
+    }
+
+    // The special constants are per version (`Qnil` moved in 3.2): values
+    // made by Ruby must be recognised, and values made by Rutie must be
+    // what Ruby expects.
+    #[test]
+    fn test_special_constants_match_ruby() {
+        crate::on_ruby_thread(|| {
+            assert!(eval("nil").value().is_nil());
+            assert!(eval("true").value().is_true());
+            assert!(eval("false").value().is_false());
+            assert!(!eval("false").value().is_nil());
+            assert!(!eval("nil").value().is_false());
+
+            let is_nil = unsafe { NilClass::new().send("nil?", &[]) };
+            assert!(is_nil.value().is_true());
+
+            let classes = eval("->(*values) { values.map { |v| v.class.name } }");
+            let names = unsafe {
+                classes.send(
+                    "call",
+                    &[
+                        NilClass::new().to_any_object(),
+                        Boolean::new(true).to_any_object(),
+                        Boolean::new(false).to_any_object(),
+                    ],
+                )
+            };
+            let names = names.try_convert_to::<crate::Array>().unwrap();
+            let names: Vec<String> = names
+                .into_iter()
+                .map(|name| name.try_convert_to::<crate::RString>().unwrap().to_string())
+                .collect();
+            assert_eq!(names, ["NilClass", "TrueClass", "FalseClass"]);
+        });
+    }
+
+    #[test]
+    fn test_value_types() {
+        crate::on_ruby_thread(|| {
+            let cases = [
+                ("nil", ValueType::Nil),
+                ("true", ValueType::True),
+                ("false", ValueType::False),
+                ("1", ValueType::Fixnum),
+                ("-(2 ** 40)", ValueType::Fixnum),
+                ("1.5", ValueType::Float),
+                ("1e300", ValueType::Float),
+                (":sym", ValueType::Symbol),
+                ("'dynamic'.to_sym", ValueType::Symbol),
+                ("'str'", ValueType::RString),
+                ("[]", ValueType::Array),
+                ("{}", ValueType::Hash),
+                ("2 ** 100", ValueType::Bignum),
+                ("Object.new", ValueType::Object),
+                ("String", ValueType::Class),
+                ("Kernel", ValueType::Module),
+            ];
+
+            for (code, expected) in cases.iter() {
+                assert_eq!(eval(code).value().ty(), *expected, "{}", code);
+            }
+        });
+    }
+}

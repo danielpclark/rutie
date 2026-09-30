@@ -281,3 +281,50 @@ pub unsafe fn is_lockedtmp(value: Value) -> bool {
 
     flags & STR_TMPLOCK as size_t != 0
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{rstring_end, rstring_len, rstring_ptr};
+    use crate::{Array, Fixnum, Object, RString, VM};
+
+    // Strings of every length across the embedded/heap boundary (23 bytes
+    // on 64-bit Ruby 3.0/3.1; the slot size on 3.2), made in several ways,
+    // read directly and compared with what Ruby reports.
+    #[test]
+    fn test_direct_rstring_reads() {
+        crate::on_ruby_thread(|| {
+            let strings = VM::eval(
+                "(0..700).step(1).flat_map do |n|
+                   s = (('a'..'z').to_a.join * 30)[0, n]
+                   [s, s.dup, String.new(s, capacity: 1000), \"#{s}\", (\"_\" + s)[1..], s.b]
+                 end",
+            )
+            .unwrap();
+            let strings = Array::from(strings.value());
+
+            for i in 0..strings.length() {
+                let string = strings.at(i as i64);
+                let value = string.value();
+                let bytesize = unsafe { string.send("bytesize", &[]) };
+                let expected = bytesize.try_convert_to::<Fixnum>().unwrap().to_i64();
+                let len = unsafe { rstring_len(value) };
+
+                assert_eq!(len as i64, expected, "length of string #{}", i);
+
+                let bytes = unsafe {
+                    std::slice::from_raw_parts(rstring_ptr(value) as *const u8, len as usize)
+                };
+                let alphabet: Vec<u8> = (b'a'..=b'z').cycle().take(len as usize).collect();
+                assert_eq!(bytes, &alphabet[..], "bytes of string #{}", i);
+
+                assert_eq!(
+                    unsafe { rstring_end(value).offset_from(rstring_ptr(value)) },
+                    len as isize
+                );
+            }
+
+            let empty = RString::new_utf8("");
+            assert_eq!(unsafe { rstring_len(empty.value()) }, 0);
+        });
+    }
+}
