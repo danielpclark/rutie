@@ -100,9 +100,6 @@ extern "C" {
     pub fn rb_provided(feature: *const c_char) -> c_int;
     // VALUE
     // rb_require_string(VALUE fname)
-    //
-    // Ruby 2.7 and later only.
-    #[cfg(ruby_gte_2_7)]
     pub fn rb_require_string(name: Value) -> Value;
     // void
     // ruby_incpush(const char *path)

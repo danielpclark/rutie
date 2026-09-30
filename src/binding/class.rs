@@ -129,8 +129,8 @@ pub fn freeze(object: Value) -> Value {
     unsafe { class::rb_obj_freeze(object) }
 }
 
-pub fn is_eql(object1: Value, object2: Value) -> Value {
-    unsafe { class::rb_eql(object1, object2) }
+pub fn is_eql(object1: Value, object2: Value) -> bool {
+    util::c_int_to_bool(unsafe { class::rb_eql(object1, object2) })
 }
 
 pub fn equals(object1: Value, object2: Value) -> Value {
@@ -200,10 +200,15 @@ pub const SCAN_ARGS_MAX_VARIABLES: usize = 30;
 //
 // Raises `ArgumentError` on an arity mismatch, so the caller owns `format`
 // and `out`.
+// How a trailing `Hash` is treated (`rb_scan_args_kw`'s `kw_flag`).
+pub const SCAN_ARGS_PASS_CALLED_KEYWORDS: c_int = 0;
+pub const SCAN_ARGS_LAST_HASH_KEYWORDS: c_int = 3;
+
 pub fn scan_args(
     arguments: &[Value],
     format: &CStr,
     out: &mut [Value; SCAN_ARGS_MAX_VARIABLES],
+    kw_flag: c_int,
 ) -> c_int {
     // `rb_scan_args` aborts the process on a format it cannot parse.
     let valid = format
@@ -216,7 +221,8 @@ pub fn scan_args(
     let o = out.as_mut_ptr();
 
     unsafe {
-        class::rb_scan_args(
+        class::rb_scan_args_kw(
+            kw_flag,
             argc,
             argv,
             format.as_ptr(),
