@@ -121,3 +121,41 @@ impl PartialEq for AnyObject {
         self.equals(other)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::types::Value;
+    use crate::{AnyObject, Fixnum, NilClass, Object, RString, VerifiedObject, GC};
+    use std::borrow::Borrow;
+
+    #[test]
+    fn test_any_object_conversions() {
+        crate::on_ruby_thread(|| {
+            let string = RString::new_utf8("any");
+            let object = string.to_any_object();
+            GC::start();
+
+            // Every Ruby object is an AnyObject.
+            assert!(AnyObject::is_correct_type(&object));
+            assert!(AnyObject::is_correct_type(&NilClass::new()));
+
+            let from_ref = AnyObject::from(&string);
+            assert_eq!(from_ref, object);
+
+            let value: Value = object.clone().into();
+            assert_eq!(AnyObject::from(value), object);
+
+            let borrowed: &Value = object.borrow();
+            assert_eq!(*borrowed, value);
+            assert_eq!(*AsRef::<Value>::as_ref(&object), value);
+            assert_eq!(AsRef::<AnyObject>::as_ref(&object), &object);
+
+            // Deref gives the underlying Value.
+            assert_eq!(*object, value);
+
+            assert_ne!(object, Fixnum::new(1).to_any_object());
+            assert_eq!(object.try_convert_to::<RString>().unwrap().to_str(), "any");
+            assert!(object.try_convert_to::<Fixnum>().is_err());
+        });
+    }
+}

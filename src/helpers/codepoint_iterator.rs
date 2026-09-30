@@ -55,3 +55,30 @@ impl Iterator for CodepointIterator {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::CodepointIterator;
+    use crate::{EncodingSupport, Object, RString, VM};
+
+    #[test]
+    fn test_codepoint_iterator() {
+        crate::on_ruby_thread(|| {
+            let string = RString::new_utf8("aé€😀");
+            let codepoints: Vec<usize> = CodepointIterator::new(&string).collect();
+            assert_eq!(codepoints, vec![0x61, 0xe9, 0x20ac, 0x1f600]);
+
+            assert_eq!(CodepointIterator::new(&RString::new_utf8("")).count(), 0);
+
+            // Same answer as Ruby's String#codepoints.
+            let ruby = VM::eval(r#""a\u00e9\u20ac\u{1f600}".codepoints.sum"#).unwrap();
+            let total: usize = codepoints.iter().sum();
+            assert_eq!(
+                ruby.try_convert_to::<crate::Fixnum>().unwrap().to_i64() as usize,
+                total
+            );
+
+            assert!(string.is_valid_encoding());
+        });
+    }
+}

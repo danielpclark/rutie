@@ -1157,4 +1157,59 @@ mod tests {
             assert!(Array::try_convert(RString::new_utf8("x").to_any_object()).is_err());
         });
     }
+
+    #[test]
+    fn test_array_stack_and_order_operations() {
+        crate::on_ruby_thread(|| {
+            let fixnums = |array: &Array| -> Vec<i64> {
+                (0..array.length() as i64)
+                    .map(|i| array.at(i).try_convert_to::<Fixnum>().unwrap().to_i64())
+                    .collect()
+            };
+
+            let mut array: Array = [3, 1, 2]
+                .iter()
+                .map(|&n| Fixnum::new(n).to_any_object())
+                .collect();
+
+            array.unshift(Fixnum::new(0));
+            assert_eq!(fixnums(&array), vec![0, 3, 1, 2]);
+            assert_eq!(array.shift().try_convert_to::<Fixnum>(), Ok(Fixnum::new(0)));
+            assert_eq!(array.pop().try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+            assert_eq!(fixnums(&array), vec![3, 1]);
+
+            let mut empty = Array::new();
+            assert!(empty.pop().is_nil());
+            assert!(empty.shift().is_nil());
+
+            let mut array: Array = [3, 1, 2]
+                .iter()
+                .map(|&n| Fixnum::new(n).to_any_object())
+                .collect();
+            assert_eq!(fixnums(&array.sort()), vec![1, 2, 3]);
+            assert_eq!(fixnums(&array), vec![3, 1, 2]);
+            assert_eq!(fixnums(&array.reverse()), vec![2, 1, 3]);
+            assert_eq!(fixnums(&array), vec![3, 1, 2]);
+
+            array.sort_bang();
+            assert_eq!(fixnums(&array), vec![1, 2, 3]);
+            array.reverse_bang();
+            assert_eq!(fixnums(&array), vec![3, 2, 1]);
+
+            let mut enumerator = array.to_enum();
+            assert_eq!(
+                enumerator.next().unwrap().try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(3))
+            );
+
+            // Mutating a frozen array raises.
+            let result = VM::protect(|| {
+                let mut frozen = Array::new().freeze();
+                frozen.push(NilClass::new());
+                NilClass::new().into()
+            });
+            assert!(result.is_err());
+            VM::clear_error_info();
+        });
+    }
 }

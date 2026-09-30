@@ -103,15 +103,20 @@ impl RString {
 
     /// Creates a new instance of Ruby `String` containing given `string`.
     ///
+    /// Despite the name, the string is tagged `ASCII-8BIT` (binary), as
+    /// `rb_str_new` does; use [`new_utf8`](#method.new_utf8) for text, or
+    /// [`from_bytes`](#method.from_bytes) to choose the encoding.
+    ///
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, VM};
+    /// use rutie::{EncodingSupport, RString, VM};
     /// # VM::init();
     ///
     /// let string = RString::new_usascii_unchecked("Hello, World!");
     ///
     /// assert_eq!(string.to_str(), "Hello, World!");
+    /// assert_eq!(string.encoding().name(), "ASCII-8BIT");
     /// ```
     ///
     /// Ruby:
@@ -1342,6 +1347,35 @@ mod tests {
                 .protect_send("<<", &[RString::new_utf8("!").into()])
                 .is_ok());
             assert_eq!(string.to_str(), "data!!");
+        });
+    }
+
+    #[test]
+    fn test_string_sizes_and_unchecked_access() {
+        crate::on_ruby_thread(|| {
+            let string = RString::new_utf8("héllo");
+            assert_eq!(string.bytesize(), 6);
+            assert_eq!(string.count_chars(), 5);
+            assert_eq!(string.codepoints().length(), 5);
+
+            let with_room = RString::with_capacity(64);
+            assert!(with_room.capacity() >= 64);
+
+            assert_eq!(string.to_str_unchecked(), "héllo");
+            assert_eq!(string.to_string_unchecked(), "héllo");
+            assert_eq!(string.to_bytes_unchecked(), "héllo".as_bytes());
+            assert_eq!(string.to_vec_u8_unchecked(), "héllo".as_bytes().to_vec());
+
+            let ascii = RString::new_usascii_unchecked("plain");
+            assert_eq!(ascii.encoding().name(), "ASCII-8BIT");
+            assert_eq!(ascii.to_str(), "plain");
+
+            let binary = VM::eval(r#""\xFF\xFE".b"#)
+                .unwrap()
+                .try_convert_to::<RString>()
+                .unwrap();
+            assert_eq!(binary.bytesize(), 2);
+            assert_eq!(binary.to_bytes_unchecked(), &[0xFF, 0xFE]);
         });
     }
 }

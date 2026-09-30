@@ -328,4 +328,22 @@ mod tests {
                 .is_err());
         });
     }
+
+    #[test]
+    fn test_struct_members_of() {
+        crate::on_ruby_thread(|| {
+            let point = Struct::define(&["x", "y"]).unwrap();
+            GC::start();
+
+            let members = Struct::members_of(&point).unwrap();
+            let names: Vec<String> = members
+                .into_iter()
+                .map(|member| member.try_convert_to::<Symbol>().unwrap().to_string())
+                .collect();
+            assert_eq!(names, vec!["x", "y"]);
+
+            // A class that is not a Struct has no members.
+            assert!(Struct::members_of(&Class::object()).is_err());
+        });
+    }
 }

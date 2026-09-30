@@ -152,6 +152,13 @@ API and may have breaking changes during a teeny version change.
    Ruby 2 must be used from the thread that started it, thanks to @danielpclark
 
 ### Fixed
+ - `GC::register` registered the address of a temporary copy of the object
+   with `rb_gc_register_address`, so the object was not protected and the GC
+   kept reading a stale stack slot; `GC::unregister` never removed it.
+   Registered objects are now kept alive in a GC-rooted identity table
+   (counted, so each `register` needs one `unregister`), thanks to @danielpclark
+ - `RString::new_usascii_unchecked` is documented as creating an
+   `ASCII-8BIT` string, which is what it has always done, thanks to @danielpclark
  - `unsafe_methods!` callbacks called with too few arguments panicked inside
    an `extern fn` (aborting the process); they now raise `ArgumentError`
    (`rb_error_arity`), thanks to @danielpclark

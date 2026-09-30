@@ -1232,3 +1232,127 @@ impl PartialEq for Module {
         self.equals(other)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{AnyObject, Array, Class, Fixnum, Module, Object, RString, Symbol, GC, VM};
+
+    crate::module!(RutieTestModule);
+
+    crate::methods!(
+        RutieTestModule,
+        rtself,
+        fn rutie_module_double(number: Fixnum) -> Fixnum {
+            Fixnum::new(number.unwrap().to_i64() * 2)
+        },
+        fn rutie_module_name() -> RString {
+            RString::new_utf8("helper")
+        }
+    );
+
+    fn eval_array(code: &str) -> Array {
+        VM::eval(code).unwrap().try_convert_to::<Array>().unwrap()
+    }
+
+    #[test]
+    fn test_module_definitions() {
+        crate::on_ruby_thread(|| {
+            let mut module = Module::new("RutieTestModuleOne");
+            assert_eq!(Module::from_existing("RutieTestModuleOne"), module);
+
+            module.define_module_function("double", rutie_module_double);
+            module.mod_func("helper_name", rutie_module_name);
+            GC::start();
+
+            let doubled = VM::eval("RutieTestModuleOne.double(21)").unwrap();
+            assert_eq!(doubled.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+
+            // Module functions are also private instance methods.
+            let result = eval_array(
+                "c = Class.new { include RutieTestModuleOne; def call; helper_name; end }
+                 [c.new.call, c.new.respond_to?(:helper_name), RutieTestModuleOne.helper_name]",
+            );
+            assert_eq!(
+                result.at(0).try_convert_to::<RString>().unwrap().to_str(),
+                "helper"
+            );
+            assert!(!result.at(1).value().is_true());
+            assert_eq!(
+                result.at(2).try_convert_to::<RString>().unwrap().to_str(),
+                "helper"
+            );
+
+            let nested = module.define_nested_module("Inner");
+            assert_eq!(module.get_nested_module("Inner"), nested);
+            let nested_class = module.define_nested_class("Thing", None);
+            assert_eq!(module.get_nested_class("Thing"), nested_class);
+            assert_eq!(
+                nested_class.name().unwrap().to_str(),
+                "RutieTestModuleOne::Thing"
+            );
+
+            module.const_set("LIMIT", &Fixnum::new(3));
+            assert_eq!(
+                module.const_get("LIMIT").try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(3))
+            );
+            let from_ruby = VM::eval("RutieTestModuleOne::LIMIT").unwrap();
+            assert_eq!(from_ruby.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+        });
+    }
+
+    #[test]
+    fn test_module_composition_and_attrs() {
+        crate::on_ruby_thread(|| {
+            VM::eval("module RutieTestModuleBase; def base; :base; end; end").unwrap();
+            VM::eval("module RutieTestModuleFront; def base; :front; end; end").unwrap();
+
+            let mut module = Module::new("RutieTestModuleTwo");
+            module.include("RutieTestModuleBase");
+            module.prepend("RutieTestModuleFront");
+
+            let ancestors: Vec<String> = module
+                .ancestors()
+                .iter()
+                .map(|m| m.name().unwrap().to_string())
+                .collect();
+            assert_eq!(
+                ancestors,
+                vec![
+                    "RutieTestModuleFront",
+                    "RutieTestModuleTwo",
+                    "RutieTestModuleBase"
+                ]
+            );
+
+            module.attr_reader("reader");
+            module.attr_writer("writer");
+            module.attr_accessor("both");
+
+            let klass = Class::new("RutieTestModuleUser", None);
+            klass.include("RutieTestModuleTwo");
+
+            let result = eval_array(
+                "o = RutieTestModuleUser.new
+                 o.instance_variable_set(:@reader, 1)
+                 o.writer = 2
+                 o.both = 3
+                 [o.reader, o.instance_variable_get(:@writer), o.both, o.base]",
+            );
+            assert_eq!(result.at(0).try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+            assert_eq!(result.at(1).try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+            assert_eq!(result.at(2).try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+            assert_eq!(
+                result.at(3).try_convert_to::<Symbol>().unwrap().to_str(),
+                "front"
+            );
+
+            let any: AnyObject = module.to_any_object();
+            assert!(any.try_convert_to::<Module>().is_ok());
+            assert!(Class::object()
+                .to_any_object()
+                .try_convert_to::<Module>()
+                .is_err());
+        });
+    }
+}

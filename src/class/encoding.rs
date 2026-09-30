@@ -437,4 +437,40 @@ mod tests {
             assert!(RString::new_utf8("x").try_convert_to::<Encoding>().is_err());
         });
     }
+
+    #[test]
+    fn test_encoding_defaults_and_compatibility() {
+        crate::on_ruby_thread(|| {
+            assert_eq!(Encoding::us_ascii().name(), "US-ASCII");
+            assert!(!Encoding::us_ascii().is_dummy());
+
+            // The process-wide defaults match what Ruby reports.
+            let external = VM::eval("Encoding.default_external.name").unwrap();
+            assert_eq!(
+                Encoding::default_external().name(),
+                external.try_convert_to::<RString>().unwrap().to_str()
+            );
+            let internal = VM::eval("Encoding.default_internal").unwrap();
+            assert_eq!(Encoding::default_internal().is_err(), internal.is_nil());
+
+            // Without the encoding database loaded, `Encoding.find('locale')`
+            // is unavailable, so compare with what Ruby's own objects report.
+            let locale = Encoding::locale();
+            assert!(!locale.name().is_empty());
+            assert!(unsafe { locale.send("ascii_compatible?", &[]) }
+                .value()
+                .is_true());
+            assert!(!Encoding::filesystem().name().is_empty());
+
+            let utf8 = RString::new_utf8("é");
+            let ascii = RString::new_usascii_unchecked("a");
+            assert_eq!(
+                Encoding::is_compatible(&utf8, &ascii).unwrap().name(),
+                "UTF-8"
+            );
+
+            let binary = VM::eval(r#""\xFF".b"#).unwrap();
+            assert!(Encoding::is_compatible(&utf8, &binary).is_err());
+        });
+    }
 }

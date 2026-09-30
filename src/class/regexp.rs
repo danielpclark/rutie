@@ -438,4 +438,19 @@ mod tests {
             assert!(VM::eval("'x'").unwrap().try_convert_to::<Regexp>().is_err());
         });
     }
+
+    #[test]
+    fn test_regexp_source() {
+        crate::on_ruby_thread(|| {
+            let regexp = Regexp::new(r"\d+(?<unit>px)?", 0).unwrap();
+            assert_eq!(regexp.source().to_str(), r"\d+(?<unit>px)?");
+
+            let from_ruby = VM::eval("/a\\/b/i")
+                .unwrap()
+                .try_convert_to::<Regexp>()
+                .unwrap();
+            // Ruby drops the escape before `/` from the source.
+            assert_eq!(from_ruby.source().to_str(), "a/b");
+        });
+    }
 }

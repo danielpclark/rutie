@@ -496,4 +496,45 @@ mod tests {
             assert!(a.try_compare(&Fixnum::new(1)).is_err());
         });
     }
+
+    #[test]
+    fn test_enumerator_values_and_feed() {
+        crate::on_ruby_thread(|| {
+            let mut pairs = VM::eval("{a: 1}.each")
+                .unwrap()
+                .try_convert_to::<Enumerator>()
+                .unwrap();
+            let peeked = pairs.peek_values().unwrap();
+            assert_eq!(peeked.length(), 1);
+            let values = pairs.next_values().unwrap();
+            assert_eq!(values.at(0).try_convert_to::<Array>().unwrap().length(), 2);
+            assert!(pairs.next_values().is_err());
+            assert!(pairs.peek_values().is_err());
+
+            // `feed` sets what the block's `yield` returns (as in `map`).
+            let mut mapper = VM::eval("[1, 2].map")
+                .unwrap()
+                .try_convert_to::<Enumerator>()
+                .unwrap();
+            mapper.next().unwrap();
+            mapper.feed(Symbol::new("first").to_any_object()).unwrap();
+            // Feeding twice before `next` is an error.
+            assert!(mapper.feed(Symbol::new("again").to_any_object()).is_err());
+            mapper.next().unwrap();
+            mapper.feed(Symbol::new("second").to_any_object()).unwrap();
+
+            let error = mapper.next().unwrap_err();
+            let result = unsafe { error.send("result", &[]) }
+                .try_convert_to::<Array>()
+                .unwrap();
+            assert_eq!(
+                result.at(0).try_convert_to::<Symbol>().unwrap().to_str(),
+                "first"
+            );
+            assert_eq!(
+                result.at(1).try_convert_to::<Symbol>().unwrap().to_str(),
+                "second"
+            );
+        });
+    }
 }

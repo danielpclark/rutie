@@ -806,4 +806,17 @@ mod tests {
             assert_eq!(Integer::new(-3).to_f64(), -3.0);
         });
     }
+
+    #[test]
+    fn test_integer_is_bignum() {
+        crate::on_ruby_thread(|| {
+            assert!(!Integer::new(1).is_bignum());
+            assert!(Integer::from(u64::MAX).is_bignum());
+            let big = VM::eval("2 ** 100")
+                .unwrap()
+                .try_convert_to::<Integer>()
+                .unwrap();
+            assert!(big.is_bignum());
+        });
+    }
 }

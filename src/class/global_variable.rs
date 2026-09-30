@@ -57,3 +57,28 @@ impl GlobalVariable {
         unsafe { *self.address = value.value() };
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{Fixnum, Object, RString, GC, VM};
+
+    #[test]
+    fn test_global_variable_handle() {
+        crate::on_ruby_thread(|| {
+            let global = VM::define_variable("$rutie_global_variable_test", Fixnum::new(1));
+            assert_eq!(global.get().try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+
+            global.set(RString::new_utf8("changed"));
+            GC::start();
+
+            let from_ruby = VM::eval("$rutie_global_variable_test").unwrap();
+            assert_eq!(
+                from_ruby.try_convert_to::<RString>().unwrap().to_str(),
+                "changed"
+            );
+
+            VM::eval("$rutie_global_variable_test = 7").unwrap();
+            assert_eq!(global.get().try_convert_to::<Fixnum>(), Ok(Fixnum::new(7)));
+        });
+    }
+}

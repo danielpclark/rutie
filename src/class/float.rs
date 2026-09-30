@@ -172,3 +172,45 @@ impl PartialEq for Float {
         self.equals(other)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{AnyObject, Fixnum, Float, Object, RString, VerifiedObject, VM};
+
+    #[test]
+    fn test_float() {
+        crate::on_ruby_thread(|| {
+            let float = Float::new(1.5);
+            assert_eq!(float.to_f64(), 1.5);
+
+            let any: AnyObject = Float::new(1.5).into();
+            assert!(Float::is_correct_type(&any));
+            assert!(!Float::is_correct_type(&Fixnum::new(1)));
+            assert_eq!(any.try_convert_to::<Float>(), Ok(Float::new(1.5)));
+            assert_ne!(Float::new(1.5), Float::new(2.5));
+
+            // `implicit_to_f` accepts numerics (`rb_to_float`), not strings.
+            assert_eq!(Float::implicit_to_f(Fixnum::new(3)).unwrap().to_f64(), 3.0);
+            assert!(Float::implicit_to_f(RString::new_utf8("3")).is_err());
+
+            // `convert` is Kernel#Float, which also parses strings.
+            assert_eq!(
+                Float::convert(&RString::new_utf8("2.25")).unwrap().to_f64(),
+                2.25
+            );
+            assert!(Float::convert(&RString::new_utf8("nope")).is_err());
+
+            let rational = Float::new(0.5).rationalize().unwrap();
+            assert_eq!(rational.inspect_object().to_str(), "(1/2)");
+
+            // Infinity cannot be a Rational.
+            assert!(Float::new(f64::INFINITY).rationalize().is_err());
+
+            let parsed = VM::eval("0.1 + 0.2")
+                .unwrap()
+                .try_convert_to::<Float>()
+                .unwrap();
+            assert!((parsed.to_f64() - 0.3).abs() < 1e-9);
+        });
+    }
+}

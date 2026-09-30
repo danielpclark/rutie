@@ -279,17 +279,35 @@ impl GC {
         gc::mark_maybe(object.value());
     }
 
-    /// Registers the objects address with the GC
+    /// Keeps `object` alive until a matching [`GC::unregister`](#method.unregister),
+    /// even when nothing else references it (for example when only a raw
+    /// `Value` is kept in Rust heap memory, which the GC does not scan).
+    ///
+    /// Registrations are counted: an object registered twice needs two
+    /// `unregister` calls. (Before 0.11 this registered the address of a
+    /// temporary copy with `rb_gc_register_address`, which did not protect
+    /// the object and left the GC reading a stale stack slot.)
     ///
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, GC, VM};
+    /// use rutie::{Fixnum, Object, RString, GC, VM};
     /// # VM::init();
     ///
-    /// let object = RString::new_utf8("1");
+    /// let id = {
+    ///     let object = RString::new_utf8("kept");
+    ///     GC::register(&object);
     ///
-    /// GC::register(&object);
+    ///     unsafe { object.send("object_id", &[]) }
+    /// };
+    ///
+    /// GC::start();
+    ///
+    /// let object_space = rutie::Module::from_existing("ObjectSpace");
+    /// let found = object_space.protect_send("_id2ref", &[id]).unwrap();
+    /// assert_eq!(found.try_convert_to::<RString>().unwrap().to_str(), "kept");
+    ///
+    /// GC::unregister(&found);
     /// ```
     pub fn register(object: &impl Object) {
         gc::register(object.value())
@@ -347,7 +365,9 @@ impl GC {
         gc::stat(key.value())
     }
 
-    /// Unregisters the objects address with the GC
+    /// Undoes one [`GC::register`](#method.register) of `object`; once every
+    /// registration is undone, the GC may collect it again. Unregistering an
+    /// object that is not registered does nothing.
     ///
     /// # Examples
     ///
@@ -357,6 +377,12 @@ impl GC {
     ///
     /// let object = RString::new_utf8("1");
     ///
+    /// GC::register(&object);
+    /// GC::register(&object);
+    /// GC::unregister(&object);
+    /// GC::unregister(&object);
+    ///
+    /// // Extra calls are harmless.
     /// GC::unregister(&object);
     /// ```
     pub fn unregister(object: &impl Object) {
@@ -410,6 +436,121 @@ mod tests {
             let info = GC::latest_info();
             assert!(info.has_key(&Symbol::new("major_by")));
             assert!(info.length() > 2);
+        });
+    }
+
+    pub struct RutieGcHolder {
+        objects: Vec<crate::AnyObject>,
+    }
+
+    crate::wrappable_struct! {
+        RutieGcHolder,
+        RutieGcHolderWrapper,
+        RUTIE_GC_HOLDER,
+
+        mark(data) {
+            // `mark_locations` and `mark_maybe` are for mark functions.
+            GC::mark_locations(&data.objects);
+            for object in &data.objects {
+                GC::mark_maybe(object);
+            }
+            // `is_marked` only means something during marking. A panic here
+            // would abort, so the result is recorded instead.
+            let marked = data.objects.iter().all(|object| unsafe { GC::is_marked(object) });
+            HOLDER_CONTENTS_MARKED.store(marked, Ordering::SeqCst);
+        }
+    }
+
+    static HOLDER_CONTENTS_MARKED: std::sync::atomic::AtomicBool =
+        std::sync::atomic::AtomicBool::new(false);
+
+    fn id2ref(id: &crate::AnyObject) -> Result<crate::AnyObject, crate::AnyException> {
+        crate::Module::from_existing("ObjectSpace").protect_send("_id2ref", &[id.clone()])
+    }
+
+    #[test]
+    fn test_gc_register_keeps_objects_alive() {
+        crate::on_ruby_thread(|| {
+            // Only a raw value in Rust heap memory, which the GC does not scan.
+            let raw: Box<crate::types::Value> =
+                Box::new(crate::RString::new_utf8("registered").value());
+            let object = crate::RString::from(*raw);
+            GC::register(&object);
+            GC::register(&object);
+            assert_eq!(crate::binding::gc::registered_count(*raw), 2);
+
+            let id = unsafe { object.send("object_id", &[]) };
+            drop(object);
+
+            for _ in 0..3 {
+                GC::start();
+            }
+
+            let found = id2ref(&id).unwrap();
+            assert_eq!(
+                found.try_convert_to::<crate::RString>().unwrap().to_str(),
+                "registered"
+            );
+
+            GC::unregister(&found);
+            assert_eq!(crate::binding::gc::registered_count(*raw), 1);
+            GC::unregister(&found);
+            assert_eq!(crate::binding::gc::registered_count(*raw), 0);
+            GC::unregister(&found);
+            assert_eq!(crate::binding::gc::registered_count(*raw), 0);
+
+            let permanent = crate::RString::new_utf8("permanent");
+            GC::register_mark(&permanent);
+            GC::start();
+            assert_eq!(permanent.to_str(), "permanent");
+        });
+    }
+
+    #[test]
+    fn test_gc_controls_and_marking() {
+        crate::on_ruby_thread(|| {
+            let was_disabled = GC::disable();
+            assert!(
+                GC::disable(),
+                "second disable reports it was already disabled"
+            );
+            assert!(GC::enable(), "enable reports it was disabled");
+            assert!(!GC::enable());
+            if was_disabled {
+                GC::disable();
+            }
+
+            let before = GC::count();
+            GC::start();
+            assert!(GC::count() > before);
+            assert_eq!(GC::stat("count"), GC::count());
+
+            GC::adjust_memory_usage(4096);
+            GC::adjust_memory_usage(-4096);
+
+            let holder = crate::Class::new("RutieGcHolderClass", None).wrap_data(
+                RutieGcHolder {
+                    objects: vec![crate::RString::new_utf8("held").to_any_object()],
+                },
+                &*RUTIE_GC_HOLDER,
+            );
+            let holder: crate::AnyObject = holder;
+            GC::start();
+            let held = holder.get_data(&*RUTIE_GC_HOLDER).objects[0].clone();
+            assert_eq!(
+                held.try_convert_to::<crate::RString>().unwrap().to_str(),
+                "held"
+            );
+            assert!(HOLDER_CONTENTS_MARKED.load(Ordering::SeqCst));
+
+            // `force_recycle` frees an object immediately; it must not be used again.
+            let garbage = crate::RString::new_utf8("recycled");
+            GC::force_recycle(garbage);
+
+            let object = crate::RString::new_utf8("finalizable");
+            let finalizer = Proc::new(|_| NilClass::new().into());
+            GC::define_finalizer(&object, &finalizer).unwrap();
+            GC::undefine_finalizer(&object);
         });
     }
 }

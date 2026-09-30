@@ -237,4 +237,24 @@ mod tests {
             assert!(Complex::new(&RString::new_utf8("x"), &Fixnum::new(1)).is_err());
         });
     }
+
+    #[test]
+    fn test_complex_from_f64() {
+        crate::on_ruby_thread(|| {
+            let complex = Complex::from_f64(1.5, -2.0);
+            assert_eq!(
+                complex.real().try_convert_to::<Float>().unwrap().to_f64(),
+                1.5
+            );
+            assert_eq!(
+                complex
+                    .imaginary()
+                    .try_convert_to::<Float>()
+                    .unwrap()
+                    .to_f64(),
+                -2.0
+            );
+            assert_eq!(complex.inspect_object().to_str(), "(1.5-2.0i)");
+        });
+    }
 }

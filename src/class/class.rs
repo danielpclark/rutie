@@ -1414,4 +1414,128 @@ mod tests {
             assert_eq!(named.name().unwrap(), RString::new_utf8("RutieNamedLater"));
         });
     }
+
+    pub struct RutieAllocCounter {
+        count: i64,
+    }
+
+    crate::wrappable_struct!(
+        RutieAllocCounter,
+        RutieAllocCounterWrapper,
+        RUTIE_ALLOC_COUNTER
+    );
+
+    extern "C" fn counter_alloc(klass: Class) -> AnyObject {
+        klass.wrap_data(RutieAllocCounter { count: 41 }, &*RUTIE_ALLOC_COUNTER)
+    }
+
+    #[test]
+    fn test_class_structure() {
+        crate::on_ruby_thread(|| {
+            let mut outer = Class::new("RutieStructOuter", None);
+            let inner = outer.define_nested_class("Inner", None);
+            let nested_module = outer.define_nested_module("Helpers");
+
+            assert_eq!(outer.get_nested_class("Inner"), inner);
+            assert_eq!(outer.get_nested_module("Helpers"), nested_module);
+            assert_eq!(
+                Class::from_existing("RutieStructOuter")
+                    .get_nested_class("Inner")
+                    .name()
+                    .unwrap()
+                    .to_str(),
+                "RutieStructOuter::Inner"
+            );
+
+            let child = Class::new("RutieStructChild", Some(&outer));
+            assert_eq!(
+                child.superclass(),
+                Some(Class::from_existing("RutieStructOuter"))
+            );
+            assert!(Class::basic_object().superclass().is_none());
+
+            let ancestors = child.ancestors();
+            assert_eq!(ancestors[0], child);
+            assert_eq!(ancestors[1], outer);
+            assert!(ancestors.contains(&Class::object()));
+
+            outer.const_set("ANSWER", &Fixnum::new(42));
+            assert_eq!(
+                outer.const_get("ANSWER").try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(42))
+            );
+            assert_eq!(
+                child.const_get("ANSWER").try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(42))
+            );
+
+            VM::eval("module RutieStructMixin; def mixed; :mixed; end; end").unwrap();
+            VM::eval("module RutieStructPrepended; def who; :prepended; end; end").unwrap();
+            VM::eval("class RutieStructChild; def who; :child; end; end").unwrap();
+
+            child.include("RutieStructMixin");
+            child.prepend("RutieStructPrepended");
+
+            let instance = child.new_instance(&[]);
+            let mixed = unsafe { instance.send("mixed", &[]) };
+            assert_eq!(mixed.try_convert_to::<Symbol>().unwrap().to_str(), "mixed");
+            let who = unsafe { instance.send("who", &[]) };
+            assert_eq!(
+                who.try_convert_to::<Symbol>().unwrap().to_str(),
+                "prepended"
+            );
+            assert_eq!(
+                child.ancestors()[0].name().unwrap().to_str(),
+                "RutieStructPrepended"
+            );
+
+            // `allocate` skips `initialize`.
+            VM::eval("class RutieStructChild; def initialize; @set = true; end; end").unwrap();
+            let allocated = child.allocate();
+            assert!(allocated.instance_variable_get("@set").is_nil());
+            assert!(child
+                .new_instance(&[])
+                .instance_variable_get("@set")
+                .value()
+                .is_true());
+        });
+    }
+
+    #[test]
+    fn test_class_attrs_and_alloc_func() {
+        crate::on_ruby_thread(|| {
+            let mut class = Class::new("RutieAttrs", None);
+            class.attr_reader("reader");
+            class.attr_writer("writer");
+            class.attr_accessor("both");
+
+            let object = VM::eval(
+                "o = RutieAttrs.new
+                 o.instance_variable_set(:@reader, 1)
+                 o.writer = 2
+                 o.both = 3
+                 [o.reader, o.instance_variable_get(:@writer), o.both, o.respond_to?(:writer), o.respond_to?(:reader=)]",
+            )
+            .unwrap()
+            .try_convert_to::<crate::Array>()
+            .unwrap();
+
+            assert_eq!(object.at(0).try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+            assert_eq!(object.at(1).try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+            assert_eq!(object.at(2).try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+            assert!(!object.at(3).value().is_true());
+            assert!(!object.at(4).value().is_true());
+
+            let mut counter = Class::new("RutieAllocCounterClass", None);
+            counter.define_alloc_func(counter_alloc);
+
+            let instance = counter.new_instance(&[]);
+            crate::GC::start();
+            assert_eq!(instance.get_data(&*RUTIE_ALLOC_COUNTER).count, 41);
+
+            let error = VM::eval("RutieAttrs.const_get(:Missing)").unwrap_err();
+            assert!(Class::name_error().case_equals(&error));
+            assert!(error.message().contains("Missing"));
+        });
+    }
 }

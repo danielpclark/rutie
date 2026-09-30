@@ -290,4 +290,27 @@ mod tests {
                 .is_err());
         });
     }
+
+    #[test]
+    fn test_time_from_unix() {
+        crate::on_ruby_thread(|| {
+            let time = Time::from_unix(1_000_000_000, 500_000_000);
+            assert_eq!(time.to_unix(), (1_000_000_000, 500_000_000));
+
+            let utc = time.protect_send("utc", &[]).unwrap();
+            let iso = utc
+                .protect_send(
+                    "strftime",
+                    &[RString::new_utf8("%Y-%m-%dT%H:%M:%S.%1NZ").into()],
+                )
+                .unwrap();
+            assert_eq!(
+                iso.try_convert_to::<RString>().unwrap().to_str(),
+                "2001-09-09T01:46:40.5Z"
+            );
+
+            let from_epoch = UNIX_EPOCH + Duration::new(1_000_000_000, 500_000_000);
+            assert_eq!(time.to_system_time(), from_epoch);
+        });
+    }
 }

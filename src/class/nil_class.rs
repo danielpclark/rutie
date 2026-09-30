@@ -81,3 +81,27 @@ impl PartialEq for NilClass {
         self.equals(other)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{AnyObject, Boolean, NilClass, Object, VerifiedObject, VM};
+
+    #[test]
+    fn test_nil_class() {
+        crate::on_ruby_thread(|| {
+            let nil = NilClass::new();
+            assert!(nil.is_nil());
+            assert_eq!(nil, NilClass::default());
+
+            let any: AnyObject = nil.into();
+            assert!(NilClass::is_correct_type(&any));
+            assert!(!NilClass::is_correct_type(&Boolean::new(false)));
+            assert!(Boolean::new(false).try_convert_to::<NilClass>().is_err());
+
+            assert!(VM::eval("[].first")
+                .unwrap()
+                .try_convert_to::<NilClass>()
+                .is_ok());
+        });
+    }
+}

@@ -561,4 +561,41 @@ mod tests {
             let _ = VM::eval("1");
         });
     }
+
+    #[test]
+    fn test_io_streams_and_paths() {
+        crate::on_ruby_thread(|| {
+            let stdin = IO::stdin();
+            let stderr = IO::stderr();
+            assert!(!stdin.is_closed());
+            assert!(!stderr.is_closed());
+            assert_eq!(
+                unsafe { stderr.send("fileno", &[]) }.try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(2))
+            );
+            assert_eq!(
+                unsafe { stdin.send("fileno", &[]) }.try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(0))
+            );
+
+            let path =
+                std::env::temp_dir().join(format!("rutie_io_binmode_{}", std::process::id()));
+            let path_str = path.to_str().unwrap();
+            let file = File::open(path_str, "w").unwrap();
+            file.binmode().unwrap();
+            let binmode = unsafe { file.send("binmode?", &[]) };
+            assert!(binmode.value().is_true());
+            file.close().unwrap();
+            assert!(file.is_closed());
+            // Operations on a closed stream are errors.
+            assert!(file.binmode().is_err());
+            std::fs::remove_file(&path).unwrap();
+
+            let absolute = File::absolute_path("child", Some("/base")).unwrap();
+            assert_eq!(absolute.to_str(), "/base/child");
+            // Unlike expand_path, `~` is not expanded.
+            let tilde = File::absolute_path("~", Some("/base")).unwrap();
+            assert_eq!(tilde.to_str(), "/base/~");
+        });
+    }
 }
