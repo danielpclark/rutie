@@ -40,6 +40,11 @@ extern "C" {
     // rb_io_binmode(VALUE io)
     pub fn rb_io_binmode(io: Value) -> Value;
     // VALUE
+    // rb_io_ascii8bit_binmode(VALUE io)
+    //
+    // What `IO#binmode` calls: binary mode plus ASCII-8BIT external encoding.
+    pub fn rb_io_ascii8bit_binmode(io: Value) -> Value;
+    // VALUE
     // rb_io_close(VALUE io)
     pub fn rb_io_close(io: Value) -> Value;
     // VALUE

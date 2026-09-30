@@ -1,14 +1,13 @@
 use crate::rubysys::types::Value;
 
 // Ruby's built-in classes and modules (`RUBY_EXTERN VALUE` in `ruby.h`).
-// `rb_cFixnum`, `rb_cBignum` and `rb_cCont` are not exported by 2.5-2.7.
+// `rb_cFixnum`, `rb_cBignum`, `rb_cCont` and `rb_cData` are not exported by 3.0-3.2.
 extern "C" {
     pub static rb_cArray: Value;
     pub static rb_cBasicObject: Value;
     pub static rb_cBinding: Value;
     pub static rb_cClass: Value;
     pub static rb_cComplex: Value;
-    pub static rb_cData: Value;
     pub static rb_cDir: Value;
     pub static rb_cEncoding: Value;
     pub static rb_cEnumerator: Value;
