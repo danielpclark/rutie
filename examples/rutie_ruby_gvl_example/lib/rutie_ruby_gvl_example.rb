@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rutie_ruby_gvl_example/version'
 require 'rutie'
 

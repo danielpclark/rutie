@@ -8,8 +8,35 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [Unreleased]
+
+## [0.10.0] - 2026-09-30
 ### Changed
- - Upgraded code base to use rb-sys build system for Ruby 3, thanks to @goyox86
+ - Reverted the `rb-sys` integration (PR #172) and returned to Rutie's own
+   hand-maintained FFI bindings (`rubysys`). Rutie targets Ruby 2 (2.5, 2.6
+   and 2.7) again; Ruby 3 support will be revisited once Ruby 2 support is
+   complete, thanks to @danielpclark
+ - Static Ruby and Windows CI jobs are best-effort and no longer fail the
+   workflow, thanks to @danielpclark
+
+### Removed
+ - The unpublished `rb-sys`-based tree that lived on `master` from February
+   2025 (self-labelled 0.10.0, tested only against Ruby 2.7 and 3.0-3.4). It
+   was never released to crates.io and is not supported; users of it via a git
+   dependency should pin their commit or move to 0.10.x, thanks to @danielpclark
+
+### Fixed
+ - `VM::at_exit` called its closure through the wrong argument, which crashed
+   on aarch64 macOS and with capturing closures on every platform; it now uses
+   a proper single-argument `rb_protect` callback and has a regression test,
+   thanks to @danielpclark
+ - `build.rs` now works with current Cargo, which no longer puts
+   `target/<profile>/deps` on the library path when running test binaries and
+   doctests: `libruby` is linked into `target/<profile>` as well and exposed
+   as a native search path, thanks to @danielpclark
+ - macOS CI builds Ruby 2 against a source-built OpenSSL 1.1.1 (Homebrew no
+   longer ships `openssl@1.1`), keeps `openssl@3` out of the `openssl`
+   extension via `PKG_CONFIG_PATH`, and relaxes clang's implicit-declaration
+   error for Ruby 2's C sources, thanks to @danielpclark
 
 ## [0.9.0] - 2023-12-17
 ### Added

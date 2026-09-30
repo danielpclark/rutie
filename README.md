@@ -51,13 +51,15 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = { version = "0.8", features = ["link-ruby"] }
+rutie = "0.10.0"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
 and begin to use Rutie.
 
 ```rust
+extern crate rutie;
+
 use rutie::{Object, RString, VM};
 
 fn try_it(s: &str) -> String {
@@ -86,6 +88,12 @@ fn it_works() {
 fn main() {}
 ```
 
+> NOTE: Currently in **Linux** you need to set `LD_LIBRARY_PATH` to point at the directory of your current Ruby library and in **Mac** you need to set `DYLD_LIBRARY_PATH` with that info.  You can get the path information with the following command:
+
+    ruby -e "puts RbConfig::CONFIG['libdir']"
+
+This should let you run `cargo test` and `cargo run`.
+
 Running `cargo test` should have this test pass.
 
 ## Using Rust in Ruby
@@ -96,7 +104,7 @@ file. Add Rutie to the `Cargo.toml` file and define the lib type.
 
 ```toml
 [dependencies]
-rutie = { version = "xxx" }
+rutie = {version="xxx"}
 
 [lib]
 name = "rutie_ruby_example"
@@ -106,17 +114,29 @@ crate-type = ["cdylib"]
 Then edit your `src/lib.rs` file for your Rutie code.
 
 ```rust
-use rutie::{class, methods, Class, Object, RString, VM};
+#[macro_use]
+extern crate rutie;
+
+use rutie::{Class, Object, RString, VM};
 
 class!(RutieExample);
 
 methods!(
     RutieExample,
     _rtself,
-    fn pub_reverse(input: RString) -> RString {
-        let ruby_string = input.map_err(VM::raise_ex).unwrap();
 
-        RString::new_utf8(&ruby_string.to_string().chars().rev().collect::<String>())
+    fn pub_reverse(input: RString) -> RString {
+        let ruby_string = input.
+          map_err(|e| VM::raise_ex(e) ).
+          unwrap();
+
+        RString::new_utf8(
+          &ruby_string.
+          to_string().
+          chars().
+          rev().
+          collect::<String>()
+        )
     }
 );
 
@@ -145,11 +165,11 @@ gem 'rutie', '~> 0.0.4'
 And then load the library in your main project file `lib/rutie_ruby_example.rb`.
 
 ```ruby
-require_relative "rutie_ruby_example/version"
-require "rutie"
+require 'rutie_ruby_example/version'
+require 'rutie'
 
 module RutieRubyExample
-  Rutie.new(:rutie_ruby_example).init "Init_rutie_ruby_example", __dir__
+  Rutie.new(:rutie_ruby_example).init 'Init_rutie_ruby_example', __dir__
 end
 ```
 
@@ -160,7 +180,7 @@ That's all you need to load your Ruby things from Rust.  Now to write the test i
 require_relative "test_helper"
 require "rutie_ruby_example"
 
-class TestRutieRubyExample < Minitest::Test
+class RutieRubyExampleTest < Minitest::Test
   def test_it_reverses
     assert_equal "selppa", RutieExample.reverse("apples")
   end
@@ -292,11 +312,15 @@ This style of code is meant to be used outside of the `methods!` macro for now.
 You may place this method on a class or module as you normally would from a `methods!` macro definition.
 
 ```rust
+#[macro_use]
+extern crate rutie;
+
 use rutie::{Class, Object, VM};
 
 class!(Example);
 
 // Code from above
+
 fn main() {
     VM::init();
     Class::new("Example", None).define(|klass| {
@@ -329,9 +353,21 @@ Migrated `parse_arguments` from `VM` to `util`.
 
 Internal changes `util` from `binding` and `rubysys` have been replaced to reduce confusion and reduce duplication.
 
-### 0.10
+#### 0.10
 
-`crate::util::parse_arguments` has been marked as unsafe, this is considered a breaking change in Rust.
+0.10 targets Ruby 2 (2.5, 2.6, 2.7) and continues the 0.8/0.9 line; there are no
+API changes to migrate from 0.9.x. Two behaviour fixes are worth knowing:
+
+- `VM::at_exit` now calls its closure correctly. Previously closures that captured
+  variables read a bad pointer (a crash on aarch64 macOS, a segfault elsewhere).
+- Builds work with current Cargo without setting `LD_LIBRARY_PATH` for `cargo test`.
+
+If you were depending on the unpublished `rb-sys`-based `master` (self-labelled
+0.10.0, February–September 2025) through a git dependency: that tree is
+discontinued. Its `link-ruby` and `ruby-static` cargo features do not exist in
+0.10; use the `no-link` feature (or `NO_LINK_RUTIE`) and the `RUBY_STATIC`
+environment variable as documented below, and expect Ruby 2, not Ruby 3.
+
 
 ## Safety — The Rutie Philosophy vs The Rust Philosophy on Safety
 
@@ -421,32 +457,51 @@ Class::from_existing("Pathname").new_instance(&arguments)
 
 Everything is tested against 64 bit operating systems with 64 bit Ruby & Rust builds.  32 bit isn't currently supported.  
 
-### Ruby 2 Notes
+### Ruby version support
 
-Ruby 2 is supported up through 0.8 of Rutie.  For usage with Ruby 2 you need to install libssl1.1 and point to it when you install.  For example:
+Every published Rutie release targets **Ruby 2**:
+
+| Rutie | Ruby | Notes |
+|---|---|---|
+| 0.10.x | 2.5, 2.6, 2.7 | current; dynamic linking on Linux and macOS is the supported configuration |
+| 0.9.x | 2.5, 2.6, 2.7 | still works on Ruby 2, but superseded by 0.10.0 (`VM::at_exit` crash fix, current-Cargo build fix) |
+| 0.8.x | 2.5, 2.6, 2.7 | older Ruby 2 line |
+
+No released Rutie supports Ruby 3. An `rb-sys`-based rewrite lived on `master`
+between February and September 2025 (self-labelled 0.10.0, tested only against
+Ruby 2.7 and 3.0–3.4, never published to crates.io); it has been reverted and
+is not supported. If you depended on it through a `git = "..."` dependency,
+pin the commit you were using or move to a released 0.10.x. Ruby 3 support
+will be taken up once Ruby 2 coverage is complete (see
+`docs/ruby2-full-support-plan.md`).
+
+Ruby 2 needs OpenSSL 1.1. If your platform no longer ships it (Homebrew
+removed `openssl@1.1`), build it and point both RVM and pkg-config at it, as
+`.github/workflows/ci.yml` does:
 
 ```
 wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
 tar xf openssl-1.1.1l.tar.gz
 cd openssl-1.1.1l
 ./config --prefix=/usr/local/openssl-1.1.1l --openssldir=/usr/local/openssl-1.1.1l
-make
-sudo make install
+make && sudo make install_sw
 cd ..
-rvm install ruby-2.7.7 --with-openssl-dir=/usr/local/openssl-1.1.1l
-rvm use 2.7.7
+export PKG_CONFIG_PATH=/usr/local/openssl-1.1.1l/lib/pkgconfig
+rvm install 2.7.8 --with-openssl-dir=/usr/local/openssl-1.1.1l
+rvm use 2.7.8
 ```
+
+(`PKG_CONFIG_PATH` matters on Ruby 2.5 and 2.6: their `openssl` extension asks
+pkg-config first, and an OpenSSL 3 answer overrides `--with-openssl-dir`.)
 
 #### Linux & Mac
 
 - Rust 1.26 or later
-- Ruby (64 bit) 2.5 or later
-
-NOTE: Known issues with Ruby 3.0 compatility with the GC. `GC#mark`, `GC#is_marked`, `GC#marked_locations` do not work with Ruby 3.
+- Ruby (64 bit) 2.5, 2.6 or 2.7 (Ruby 3 is not supported by any release; see "Ruby version support")
 
 #### Windows
 - Rust 1.26 or later
-- Ruby 2.5+ built with MingW (64 bit)
+- Ruby 2.5–2.7 built with MingW (64 bit) — best-effort, not covered by CI
 - MS Visual Studio (Build Tools)
 
 #### Dynamic vs Static Builds

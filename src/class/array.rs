@@ -1,3 +1,9 @@
+use std::{
+    convert::From,
+    default::Default,
+    iter::{FromIterator, IntoIterator, Iterator},
+};
+
 use crate::{
     binding::array,
     types::{Value, ValueType},
@@ -541,15 +547,15 @@ impl From<Value> for Array {
     }
 }
 
-impl From<Array> for Value {
-    fn from(val: Array) -> Self {
-        val.value
+impl Into<Value> for Array {
+    fn into(self) -> Value {
+        self.value
     }
 }
 
-impl From<Array> for AnyObject {
-    fn from(val: Array) -> Self {
-        AnyObject::from(val.value)
+impl Into<AnyObject> for Array {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 
@@ -606,14 +612,14 @@ impl Iterator for ArrayIterator {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let total = self.len();
+        let total = self.len() as usize;
         (total, Some(total))
     }
 }
 
 impl ExactSizeIterator for ArrayIterator {
     fn len(&self) -> usize {
-        self.array.length()
+        self.array.length() as usize
     }
 }
 

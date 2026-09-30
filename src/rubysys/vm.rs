@@ -1,4 +1,4 @@
-use super::types::{c_char, c_int, c_void, Argc, CallbackPtr, Id, Value, VmPointer};
+use crate::rubysys::types::{c_char, c_int, c_void, Argc, CallbackPtr, Id, Value, VmPointer};
 
 extern "C" {
     // void
@@ -39,9 +39,6 @@ extern "C" {
     // void
     // rb_exit(int status)
     pub fn rb_exit(status: c_int);
-    // void
-    // rb_set_end_proc(void (*func)(VALUE arg), VALUE arg)
-    pub fn rb_set_end_proc(func: CallbackPtr, arg: VmPointer);
     // void
     // rb_raise(VALUE exc, const char *fmt, ...)
     pub fn rb_raise(exception: Value, message: *const c_char);

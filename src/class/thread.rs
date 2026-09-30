@@ -84,7 +84,9 @@ impl Thread {
     /// # Examples
     ///
     /// ```no_run
-    /// use rutie::{class, methods, {Class, Fixnum, Object, Thread}};
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, Thread};
     ///
     /// class!(Calculator);
     ///
@@ -107,9 +109,11 @@ impl Thread {
     ///     }
     /// );
     ///
-    /// Class::new("Calculator", None).define(|klass| {
-    ///     klass.def("heavy_computation", heavy_computation);
-    /// });
+    /// fn main() {
+    ///     Class::new("Calculator", None).define(|klass| {
+    ///         klass.def("heavy_computation", heavy_computation);
+    ///     });
+    /// }
     /// ```
     pub fn call_without_gvl<F, R, G>(func: F, unblock_func: Option<G>) -> R
     where
@@ -141,15 +145,15 @@ impl From<Value> for Thread {
     }
 }
 
-impl From<Thread> for Value {
-    fn from(val: Thread) -> Self {
-        val.value
+impl Into<Value> for Thread {
+    fn into(self) -> Value {
+        self.value
     }
 }
 
-impl From<Thread> for AnyObject {
-    fn from(val: Thread) -> Self {
-        AnyObject::from(val.value)
+impl Into<AnyObject> for Thread {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

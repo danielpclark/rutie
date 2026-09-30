@@ -1,6 +1,9 @@
 use std::convert::From;
 
-use crate::{types::Value, AnyException, AnyObject, Array, Class, Object, VerifiedObject};
+use crate::{
+    types::{Value, ValueType},
+    AnyException, AnyObject, Array, Class, Fixnum, Object, VerifiedObject,
+};
 
 /// `Enumerator`
 #[derive(Debug)]
@@ -33,7 +36,6 @@ impl Enumerator {
     /// assert!(iter.next().is_err(), "not error!");
     /// assert!(iter.next().is_err(), "not error!");
     /// ```
-    #[allow(clippy::should_implement_trait)] // We don't want to implement Rust's Iterator here.
     pub fn next(&mut self) -> Result<AnyObject, AnyException> {
         self.protect_send("next", &[])
     }
@@ -211,15 +213,15 @@ impl From<Value> for Enumerator {
     }
 }
 
-impl From<Enumerator> for Value {
-    fn from(val: Enumerator) -> Self {
-        val.value
+impl Into<Value> for Enumerator {
+    fn into(self) -> Value {
+        self.value
     }
 }
 
-impl From<Enumerator> for AnyObject {
-    fn from(val: Enumerator) -> Self {
-        AnyObject::from(val.value)
+impl Into<AnyObject> for Enumerator {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

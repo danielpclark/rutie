@@ -1,4 +1,8 @@
-use crate::{binding::vm, types::VmPointer};
+use crate::{
+    binding::vm,
+    types::{Argc, Value, VmPointer},
+};
+
 use crate::{util, AnyException, AnyObject, Array, Class, NilClass, Object, Proc, TryConvert};
 
 /// Virtual Machine and helpers
@@ -184,34 +188,49 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Class, Fixnum, Object, VM, eval};
+    /// #[macro_use]
+    /// extern crate rutie;
     ///
-    /// # VM::init();
+    /// use rutie::{Class, Fixnum, Object, VM};
     ///
-    /// // Successful example
+    /// fn main() {
+    ///     # VM::init();
     ///
-    /// let result = VM::eval("2+2").ok().unwrap().try_convert_to::<Fixnum>();
-    /// assert_eq!(result, Ok(Fixnum::new(4)));
+    ///     // Successful example
     ///
-    /// // Error example
-    /// let result = VM::eval("raise 'flowers'");
-    /// assert!(result.is_err());
+    ///     let result = VM::eval("2+2").ok().unwrap().try_convert_to::<Fixnum>();
+    ///
+    ///     assert_eq!(result, Ok(Fixnum::new(4)));
+    ///
+    ///     // Error example
+    ///
+    ///     let result = VM::eval("raise 'flowers'");
+    ///
+    ///     assert!(result.is_err());
+    /// }
     /// ```
     ///
     /// `Err` will return an `AnyObject` of the exception class raised.
+    ///
+    ///
     /// ```
-    /// use rutie::{Class, Fixnum, Object, Exception, RString, VM, eval};
+    /// #[macro_use]
+    /// extern crate rutie;
     ///
-    /// # VM::init();
+    /// use rutie::{Class, Fixnum, Object, Exception, RString, VM};
     ///
-    /// let result = VM::eval("raise IndexError, 'flowers'");
+    /// fn main() {
+    ///     # VM::init();
     ///
-    /// match result {
-    ///     Err(ao) => {
+    ///     let result = VM::eval("raise IndexError, 'flowers'");
+    ///
+    ///     match result {
+    ///       Err(ao) => {
     ///         let err = ao.message();
     ///         assert_eq!(err, "flowers");
-    ///     },
-    ///     _ => { unreachable!() }
+    ///       },
+    ///       _ => { unreachable!() }
+    ///     }
     /// }
     /// ```
     ///
@@ -220,7 +239,7 @@ impl VM {
     /// C/Rust.
     pub fn eval(string: &str) -> Result<AnyObject, AnyException> {
         vm::eval_string_protect(string)
-            .map(AnyObject::from)
+            .map(|v| AnyObject::from(v))
             .map_err(|_| {
                 let output = AnyException::from(vm::errinfo());
 
@@ -236,13 +255,18 @@ impl VM {
     /// # Examples
     ///
     /// ```
+    /// #[macro_use]
+    /// extern crate rutie;
+    ///
     /// use rutie::{Class, Fixnum, Object, VM};
     ///
-    /// # VM::init();
+    /// fn main() {
+    ///     # VM::init();
     ///
-    /// let result = unsafe { VM::eval_str("2+2").try_convert_to::<Fixnum>() };
+    ///     let result = unsafe { VM::eval_str("2+2").try_convert_to::<Fixnum>() };
     ///
-    /// assert_eq!(result, Ok(Fixnum::new(4)));
+    ///     assert_eq!(result, Ok(Fixnum::new(4)));
+    /// }
     /// ```
     ///
     /// Be aware when checking for equality amongst types like strings, that even
@@ -260,8 +284,11 @@ impl VM {
     ///
     /// # Examples
     ///
-    /// ```
-    /// use rutie::{Class, Object, Proc, RString, VM, class, methods};
+    /// ```no_run
+    /// #[macro_use]
+    /// extern crate rutie;
+    ///
+    /// use rutie::{Class, Object, Proc, RString, VM};
     ///
     /// class!(Greeter);
     ///
@@ -277,11 +304,11 @@ impl VM {
     ///     }
     /// );
     ///
-    /// # VM::init();
-    ///
-    /// Class::new("Greeter", None).define(|klass| {
-    ///     klass.def_self("greet_rust_with", greet_rust_with);
-    /// });
+    /// fn main() {
+    ///     Class::new("Greeter", None).define(|klass| {
+    ///         klass.def_self("greet_rust_with", greet_rust_with);
+    ///     });
+    /// }
     /// ```
     ///
     /// Ruby:
@@ -307,7 +334,9 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Class, Fixnum, Object, VM, class, methods};
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, VM};
     ///
     /// class!(Calculator);
     ///
@@ -330,11 +359,13 @@ impl VM {
     ///     }
     /// );
     ///
-    /// # VM::init();
+    /// fn main() {
+    ///     # VM::init();
     ///
-    /// Class::new("Calculator", None).define(|klass| {
-    ///     klass.def("calculate", calculate);
-    /// });
+    ///     Class::new("Calculator", None).define(|klass| {
+    ///         klass.def("calculate", calculate);
+    ///     });
+    /// }
     /// ```
     ///
     /// Ruby:
@@ -359,7 +390,9 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Class, Fixnum, Object, VM, class, methods};
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, VM};
     ///
     /// class!(Calculator);
     ///
@@ -382,15 +415,17 @@ impl VM {
     ///     }
     /// );
     ///
-    /// # VM::init();
+    /// fn main() {
+    ///     # VM::init();
     ///
-    /// Class::new("Calculator", None).define(|klass| {
-    ///     klass.def("calculate", calculate);
-    /// });
+    ///     Class::new("Calculator", None).define(|klass| {
+    ///         klass.def("calculate", calculate);
+    ///     });
     ///
-    /// let result = VM::eval(" Calculator.new().calculate(4) { |n| n * n } ").unwrap();
-    /// let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
-    /// assert_eq!(num, 16);
+    ///     let result = VM::eval(" Calculator.new().calculate(4) { |n| n * n } ").unwrap();
+    ///     let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///     assert_eq!(num, 16);
+    /// }
     /// ```
     ///
     /// Ruby:
@@ -418,7 +453,9 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Array, Class, Fixnum, Object, VM, class, methods};
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Array, Class, Fixnum, Object, VM};
     ///
     /// class!(Calculator);
     ///
@@ -441,15 +478,17 @@ impl VM {
     ///     }
     /// );
     ///
-    /// # VM::init();
+    /// fn main() {
+    ///     # VM::init();
     ///
-    /// Class::new("Calculator", None).define(|klass| {
-    ///     klass.def("calculate", calculate);
-    /// });
+    ///     Class::new("Calculator", None).define(|klass| {
+    ///         klass.def("calculate", calculate);
+    ///     });
     ///
-    /// let result = VM::eval(" Calculator.new().calculate([4,6,8]) { |a,b,c| a*b-c } ").unwrap();
-    /// let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
-    /// assert_eq!(num, 16);
+    ///     let result = VM::eval(" Calculator.new().calculate([4,6,8]) { |a,b,c| a*b-c } ").unwrap();
+    ///     let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///     assert_eq!(num, 16);
+    /// }
     /// ```
     ///
     /// Ruby:
@@ -598,6 +637,7 @@ impl VM {
     /// # Examples
     ///
     /// ```
+    /// extern crate rutie;
     /// use rutie::{VM,Boolean};
     /// # VM::init();
     ///
@@ -612,6 +652,7 @@ impl VM {
     /// and `VM::error_pop` to handle potential exceptions.
     ///
     /// ```
+    /// extern crate rutie;
     /// use rutie::{VM, Symbol, NilClass, Object, AnyException, Exception};
     /// # VM::init();
     ///
@@ -645,6 +686,7 @@ impl VM {
     /// # Examples
     ///
     /// ```
+    /// extern crate rutie;
     /// use rutie::{VM, NilClass, AnyException, Exception, RString};
     /// # VM::init();
     ///
@@ -666,6 +708,7 @@ impl VM {
     /// and `VM::error_pop` to handle potential exceptions.
     ///
     /// ```
+    /// extern crate rutie;
     /// use rutie::{VM, Symbol, NilClass, Object, AnyException, Exception};
     /// # VM::init();
     ///
@@ -728,7 +771,7 @@ impl VM {
     /// ```
     pub fn at_exit<F>(func: F)
     where
-        F: FnMut(VmPointer),
+        F: FnMut(VmPointer) -> (),
     {
         vm::at_exit(func)
     }
@@ -738,7 +781,9 @@ impl VM {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Class, Fixnum, Object, VM, Exception, class, methods};
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, VM, Exception};
     ///
     /// class!(Adder);
     ///
@@ -787,18 +832,20 @@ impl VM {
     /// );
     ///
     ///
-    /// # VM::init();
+    /// fn main() {
+    ///     # VM::init();
     ///
-    /// Class::new("Adder", None).define(|klass| {
-    ///     klass.def("add", adder_add);
-    /// });
-    /// Class::new("DoAdder", Some(&Class::from_existing("Adder"))).define(|klass| {
-    ///     klass.def("add", do_adder_add);
-    /// });
+    ///     Class::new("Adder", None).define(|klass| {
+    ///         klass.def("add", adder_add);
+    ///     });
+    ///     Class::new("DoAdder", Some(&Class::from_existing("Adder"))).define(|klass| {
+    ///         klass.def("add", do_adder_add);
+    ///     });
     ///
-    /// let result = VM::eval(" DoAdder.new().add(4, 4) ").unwrap();
-    /// let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
-    /// assert_eq!(num, 8);
+    ///     let result = VM::eval(" DoAdder.new().add(4, 4) ").unwrap();
+    ///     let num = result.try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///     assert_eq!(num, 8);
+    /// }
     /// ```
     ///
     /// Ruby:
@@ -830,16 +877,29 @@ impl VM {
 
 #[cfg(test)]
 mod tests {
-    use crate::VM;
-    use rb_sys_test_helpers::ruby_test;
+    use crate::{LOCK_FOR_TEST, VM};
 
     // cargo test at_exit -- --nocapture
-    #[ruby_test]
+    #[test]
     fn test_at_exit() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
         let closure = |_vm| {
             println!("test class::vm::tests::test_at_exit worked!");
         };
 
         VM::at_exit(closure);
+    }
+
+    #[test]
+    fn test_at_exit_calls_capturing_closure() {
+        let _guard = LOCK_FOR_TEST.write().unwrap();
+        VM::init();
+
+        let mut calls = 0;
+        VM::at_exit(|_vm| calls += 1);
+
+        assert_eq!(calls, 1);
     }
 }
