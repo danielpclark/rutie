@@ -118,7 +118,7 @@ pub fn complex_new(real: Value, imaginary: Value) -> Value {
 }
 
 pub fn complex_polar(abs: Value, arg: Value) -> Value {
-    unsafe { numeric::rb_complex_polar(abs, arg) }
+    unsafe { numeric::rb_complex_new_polar(abs, arg) }
 }
 
 pub fn to_complex(object: Value) -> Value {
