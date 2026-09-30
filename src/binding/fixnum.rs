@@ -28,16 +28,38 @@ pub fn num_to_i32(num: Value) -> i32 {
     unsafe { fixnum::rb_num2int(num) as i32 }
 }
 
+#[cfg(not(any(windows, target_pointer_width = "32")))]
 pub fn num_to_u32(num: Value) -> u32 {
     unsafe { fixnum::rb_num2uint(num) as u32 }
 }
 
+// `int` and `long` are the same size here, and Ruby's `NUM2UINT` is
+// `rb_num2ulong` (there is no `rb_num2uint`).
+#[cfg(any(windows, target_pointer_width = "32"))]
+pub fn num_to_u32(num: Value) -> u32 {
+    unsafe { fixnum::rb_num2ulong(num) as u32 }
+}
+
+// On 64-bit Windows (LLP64) `long` is 32 bits while `isize` is 64, so
+// `rb_num2long` would raise `RangeError` for values that fit an `isize`.
+#[cfg(not(all(windows, target_pointer_width = "64")))]
 pub fn num_to_isize(num: Value) -> isize {
     unsafe { fixnum::rb_num2long(num) as isize }
 }
 
+#[cfg(all(windows, target_pointer_width = "64"))]
+pub fn num_to_isize(num: Value) -> isize {
+    unsafe { fixnum::rb_num2ll(num) as isize }
+}
+
+#[cfg(not(all(windows, target_pointer_width = "64")))]
 pub fn num_to_usize(num: Value) -> usize {
     unsafe { fixnum::rb_num2ulong(num) as usize }
+}
+
+#[cfg(all(windows, target_pointer_width = "64"))]
+pub fn num_to_usize(num: Value) -> usize {
+    unsafe { fixnum::rb_num2ull(num) as usize }
 }
 
 pub fn num_to_i64(num: Value) -> i64 {

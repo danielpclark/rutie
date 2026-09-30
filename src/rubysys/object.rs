@@ -1,5 +1,6 @@
 use crate::rubysys::types::{c_int, Argc, Id, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_Array(VALUE val)

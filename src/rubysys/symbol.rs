@@ -1,5 +1,6 @@
 use crate::rubysys::types::{c_char, c_int, c_long, Id, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_id2sym(ID x)

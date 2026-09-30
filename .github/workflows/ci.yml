@@ -36,9 +36,9 @@ jobs:
       RUTIE_TEST_TRACE: 1
       BUILD_RUBY_VERSION: ${{ matrix.ruby_version }}
 
-    # Static Ruby builds are best-effort, and the Windows jobs have no Ruby
-    # install step, so neither is allowed to fail the workflow.
-    continue-on-error: ${{ matrix.ruby_static || matrix.os == 'windows-latest' }}
+    # Static Ruby builds are best-effort, so they are not allowed to fail the
+    # workflow. (RubyInstaller ships no static Ruby, so Windows has none.)
+    continue-on-error: ${{ matrix.ruby_static }}
 
     steps:
     - uses: actions/checkout@v3
@@ -139,6 +139,13 @@ jobs:
         source "$HOME/.rvm/scripts/rvm"
         rvm use "$BUILD_RUBY_VERSION"
 
+    # RubyInstaller builds of the same pinned versions.
+    - name: Install Ruby (Windows)
+      if: (runner.os == 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby_version }}
+
     - name: Setup Rust
       if: env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false)
       uses: dtolnay/rust-toolchain@master
@@ -146,7 +153,7 @@ jobs:
         toolchain: ${{ matrix.rust }}
 
     - name: Build and Test
-      if: env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false)
+      if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
       run: |
         rvm reload
         source "$HOME/.rvm/scripts/rvm"
@@ -175,6 +182,41 @@ jobs:
             else
               cargo build --release
             fi
+            ruby -Ilib -Itest -e 'Dir["test/**/*_test.rb"].each { |f| require File.expand_path(f) }'
+          )
+        done
+
+    # MSVC toolchain (the runner's default Rust host) against RubyInstaller.
+    - name: Build and Test (Windows)
+      if: (runner.os == 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
+      shell: bash
+      run: |
+        ruby -v
+        cargo build -vv &&
+        cargo test -vv
+
+    # The GNU host toolchain brings its own MinGW linker.
+    - name: Build and Test (Windows, GNU toolchain)
+      if: (runner.os == 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
+      shell: bash
+      env:
+        CARGO_TARGET_DIR: target-gnu
+      run: |
+        rustup toolchain install ${{ matrix.rust }}-x86_64-pc-windows-gnu --profile minimal
+        cargo +${{ matrix.rust }}-x86_64-pc-windows-gnu test -vv
+
+    - name: Build and test examples (Windows)
+      if: (runner.os == 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
+      shell: bash
+      run: |
+        cargo run --example eval -- "raise 'eval example failed' unless 1 + 1 == 2"
+        (cd examples/rutie_rust_example && cargo test)
+        gem install --no-document rutie -v '~> 0.0.4'
+        gem install --no-document minitest -v '~> 5.15.0'
+        for example in rutie_ruby_example rutie_ruby_gvl_example; do
+          (
+            cd "examples/$example"
+            cargo build --release
             ruby -Ilib -Itest -e 'Dir["test/**/*_test.rb"].each { |f| require File.expand_path(f) }'
           )
         done

@@ -1,5 +1,6 @@
 use crate::rubysys::types::{c_int, Argc, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // int
     // rb_cmpint(VALUE val, VALUE a, VALUE b)

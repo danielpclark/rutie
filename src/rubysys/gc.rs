@@ -1,5 +1,6 @@
 use crate::rubysys::types::{c_int, size_t, ssize_t, CallbackPtr, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // void
     // rb_gc_adjust_memory_usage(ssize_t diff)

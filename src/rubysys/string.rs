@@ -13,6 +13,7 @@ use crate::rubysys::{
 
 pub const STR_TMPLOCK: isize = FL_USER_7;
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_str_new(const char *ptr, long len)
