@@ -1,5 +1,6 @@
 use crate::rubysys::types::{CallbackMutPtr, CallbackPtr, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_hash_aref(VALUE hash, VALUE key)

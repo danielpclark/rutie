@@ -3,6 +3,7 @@ use crate::rubysys::types::{c_char, c_int, Argc, CallbackPtr, Id, Value};
 // VALUE (*)(VALUE klass)
 pub type AllocFunction = extern "C" fn(klass: Value) -> Value;
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_class_new_instance(int argc, const VALUE *argv, VALUE klass)

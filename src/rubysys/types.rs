@@ -9,6 +9,11 @@ pub use crate::rubysys::{
 #[cfg(unix)]
 pub use std::os::unix::io::RawFd;
 
+// On Windows Ruby takes descriptors of the C runtime it is built with (what
+// `IO#fileno` returns), not a `HANDLE` or `SOCKET`.
+#[cfg(windows)]
+pub type RawFd = c_int;
+
 pub type Id = uintptr_t;
 pub type InternalValue = uintptr_t;
 pub type SignedValue = intptr_t;

@@ -51,7 +51,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.10.1"
+rutie = "0.10.2"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
@@ -406,6 +406,19 @@ cargo feature `no-link` for Rutie in your `Cargo.toml` like this:
 rutie = {version="xxx", features=["no-link"]}
 ```
 
+#### Windows: exit code 0xc0000135 (STATUS_DLL_NOT_FOUND)
+
+Windows could not find the Ruby DLL (`x64-msvcrt-ruby270.dll`, ...) or one of
+the DLLs it needs. Put Ruby's `bin` and `bin\ruby_builtin_dlls` directories on
+`PATH` (see "Windows" under "Operating System Requirements").
+
+#### Windows: could not run lib.exe
+
+With the MSVC toolchain, `build.rs` uses `lib.exe` to make an import library
+for the Ruby DLL. Install the "Desktop development with C++" workload (or the
+C++ Build Tools) with the Visual Studio Installer, or build from a Developer
+Command Prompt.
+
 #### Calling methods from other methods within the `methods!` macro doesn't work
 
 The way the macro is designed doesn't use the same parameter signatures you've provided and
@@ -450,7 +463,7 @@ Class::from_existing("Pathname").new_instance(&arguments)
 
 ## Operating System Requirements
 
-Everything is tested against 64 bit operating systems with 64 bit Ruby & Rust builds.  32 bit isn't currently supported.  
+Everything is tested against 64 bit operating systems (Linux, macOS and Windows) with 64 bit Ruby & Rust builds.  32 bit isn't currently supported.  
 
 ### Ruby version support
 
@@ -458,7 +471,7 @@ Every published Rutie release targets **Ruby 2**:
 
 | Rutie | Ruby | Notes |
 |---|---|---|
-| 0.10.x | 2.5, 2.6, 2.7 | current; dynamic linking on Linux and macOS is the supported configuration |
+| 0.10.x | 2.5, 2.6, 2.7 | current; dynamic linking on Linux, macOS and Windows is the supported configuration |
 | 0.9.x | 2.5, 2.6, 2.7 | still works on Ruby 2, but superseded by 0.10.0 (`VM::at_exit` crash fix, current-Cargo build fix) |
 | 0.8.x | 2.5, 2.6, 2.7 | older Ruby 2 line |
 
@@ -508,9 +521,36 @@ pkg-config first, and an OpenSSL 3 answer overrides `--with-openssl-dir`.)
 - Ruby (64 bit) 2.5, 2.6 or 2.7 (Ruby 3 is not supported by any release; see "Ruby version support")
 
 #### Windows
-- Rust 1.26 or later
-- Ruby 2.5–2.7 built with MingW (64 bit) — best-effort, not covered by CI
-- MS Visual Studio (Build Tools)
+
+- Rust with the MSVC toolchain (`x86_64-pc-windows-msvc`, the default) and the
+  Visual Studio C++ Build Tools, or the GNU toolchain (`x86_64-pc-windows-gnu`)
+- Ruby (64 bit) 2.5, 2.6 or 2.7 from [RubyInstaller](https://rubyinstaller.org/)
+  (without the Devkit); CI tests 2.5.9, 2.6.10 and 2.7.8. A Ruby built with
+  MSVC (mswin) works too.
+- `ruby` on your `PATH` (RubyInstaller's default), or `RUBY` set to the
+  `ruby.exe` to build against
+
+`build.rs` makes the import library that the MSVC linker needs from the Ruby
+DLL (with `lib.exe`, found through `vswhere` or a Developer Command Prompt), so
+nothing needs to be set up by hand.
+
+A program that embeds Ruby loads the Ruby DLL from Ruby's `bin` directory, and
+that DLL needs the DLLs in `bin\ruby_builtin_dlls`. `cargo run` and
+`cargo test` find those by themselves; to run the program any other way, put
+both directories on `PATH`:
+
+```bat
+set PATH=C:\Ruby27-x64\bin;C:\Ruby27-x64\bin\ruby_builtin_dlls;%PATH%
+```
+
+Ruby extensions (like `examples/rutie_ruby_example`) need nothing extra:
+`ruby.exe` has already loaded those DLLs. A Windows DLL has to link to the
+Ruby DLL, so the `no-link` feature and `NO_LINK_RUTIE` are ignored on Windows
+whenever a Ruby is found.
+
+RubyInstaller does not ship a static Ruby library, so `RUBY_STATIC` needs a
+Ruby you built yourself (MinGW static libraries only link with the GNU
+toolchain).
 
 #### Dynamic vs Static Builds
 
@@ -561,6 +601,18 @@ done
 run `cargo clean` whenever you switch Rubies. Any way of installing the Rubies
 works: RVM, rbenv/ruby-build, release tarballs, or RVM's prebuilt binaries.
 Build them with `--enable-shared`, which RVM does by default.
+
+On Windows, unpack the RubyInstaller archives (`rubyinstaller-2.7.8-1-x64.7z`,
+...) side by side and do the same from Git Bash; there the target directory
+can have any name:
+
+```sh
+for version in 2.5.9-1 2.6.10-1 2.7.8-1; do
+  PATH="/c/rubies/rubyinstaller-$version-x64/bin:$PATH" \
+  CARGO_TARGET_DIR="/c/rt-$version" \
+  cargo test
+done
+```
 
 Unit tests live in a `#[cfg(test)] mod tests` at the bottom of each file and run
 their body through `crate::on_ruby_thread(|| { ... })`, because Ruby 2 must be

@@ -1,9 +1,11 @@
 use crate::rubysys::types::{c_char, Id, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     pub static rb_cStruct: Value;
 }
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_struct_alloc(VALUE klass, VALUE values)

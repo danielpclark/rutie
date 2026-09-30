@@ -3,7 +3,7 @@ use crate::rubysys::{
     types::{c_int, c_void, Argc, BlockCallFunction, CallbackMutPtr, CallbackPtr, Id, Value},
 };
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use crate::rubysys::types::RawFd;
 
 // rb_thread_call_without_gvl - permit concurrent/parallel execution.
@@ -90,6 +90,7 @@ use crate::rubysys::types::RawFd;
 // * ruby_xmalloc(), ruby_xrealloc(), ruby_xfree() -
 //   they will work without GVL, and may acquire GVL when GC is needed.
 //
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // void *
     // rb_thread_call_without_gvl(void *(*func)(void *data), void *data1,
@@ -151,7 +152,7 @@ extern "C" {
 
     // void
     // rb_thread_wait_fd(int fd)
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     pub fn rb_thread_wait_fd(fd: RawFd);
 
     // This function can be called in blocking region.

@@ -2,15 +2,20 @@ use std::{
     collections::{HashMap, HashSet},
     env,
     ffi::OsString,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::Command,
 };
 
-#[cfg(target_os = "windows")]
-use std::path::Path;
-
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "freebsd",
+    target_os = "openbsd"
+))]
 use std::fs;
+
+#[path = "build/windows.rs"]
+mod windows;
 
 macro_rules! ci_stderr_log {
     () => (eprint!("\n"));
@@ -102,49 +107,6 @@ fn macos_static_ruby_dep() {
     println!("cargo:rustc-link-lib=framework=Foundation");
 }
 
-#[cfg(not(target_os = "windows"))]
-fn windows_static_ruby_dep() {}
-
-// Windows needs ligmp-10.dll as gmp.lib
-#[cfg(target_os = "windows")]
-fn windows_static_ruby_dep() {
-    Command::new("build/windows/vcbuild.cmd")
-        .arg("-arch=x64")
-        .arg("-host_arch=x64")
-        .arg("&&")
-        .arg("dumpbin")
-        .arg("/exports")
-        .arg("/out:exports.txt")
-        .arg(format!(
-            "{}/ruby_builtin_dlls/libgmp-10.dll",
-            rbconfig("bindir")
-        ))
-        .output()
-        .unwrap();
-
-    Command::new("build/windows/exports.bat").output().unwrap();
-
-    let deps_dir = Path::new("target")
-        .join(env::var_os("PROFILE").unwrap())
-        .join("deps");
-
-    Command::new("build/windows/vcbuild.cmd")
-        .arg("-arch=x64")
-        .arg("-host_arch=x64")
-        .arg("&&")
-        .arg("lib")
-        .arg("/def:exports.def")
-        .arg("/name:gmp")
-        .arg(format!("/libpath:{}/ruby_builtin_dlls", rbconfig("bindir")))
-        .arg("/machine:x64")
-        .arg(format!("/out:{}/gmp.lib", deps_dir.to_string_lossy()))
-        .output()
-        .unwrap();
-
-    fs::remove_file("exports.def").expect("couldn't remove exports.def");
-    fs::remove_file("exports.txt").expect("couldn't remove exports.txt");
-}
-
 fn use_static() {
     if let Some(location) = env::var_os("RUBY_STATIC_PATH").map(|s| s.to_string_lossy().to_string())
     {
@@ -152,7 +114,9 @@ fn use_static() {
     }
 
     // If Windows
-    windows_static_ruby_dep();
+    if windows::is_target() {
+        windows::check_static_library(&rbconfig("RUBY_SO_NAME"), Path::new(&rbconfig("libdir")));
+    }
 
     // If Mac OS
     macos_static_ruby_dep();
@@ -165,79 +129,20 @@ fn use_static() {
 
 fn use_dylib() {
     println!("cargo:rustc-link-search={}", rbconfig("libdir"));
+
+    // If Windows
+    if windows::is_target() {
+        windows::link_ruby_dll(
+            &rbconfig("RUBY_SO_NAME"),
+            Path::new(&rbconfig("libdir")),
+            Path::new(&rbconfig("bindir")),
+            &rbconfig("LIBRUBY_SO"),
+        );
+    }
+
     dynamic_linker_args();
     ci_stderr_log!("Using dynamic linker flags");
 }
-
-#[cfg(target_os = "windows")]
-fn delete<'a>(s: &'a str, from: &'a str) -> String {
-    let mut result = String::new();
-    let mut last_end = 0;
-    for (start, part) in s.match_indices(from) {
-        result.push_str(unsafe { s.get_unchecked(last_end..start) });
-        last_end = start + part.len();
-    }
-    result.push_str(unsafe { s.get_unchecked(last_end..s.len()) });
-    result
-}
-
-#[cfg(target_os = "windows")]
-fn purge_refptr_text() {
-    let buffer = fs::read_to_string("exports.def").expect("Failed to read 'exports.def'");
-    fs::write("exports.def", delete(&buffer, ".refptr."))
-        .expect("Failed to write update to 'exports.def'");
-}
-
-#[cfg(target_os = "windows")]
-fn windows_support() {
-    println!("cargo:rustc-link-search={}", rbconfig("bindir"));
-    let mingw_libs: OsString = env::var_os("MINGW_LIBS").unwrap_or(OsString::from(format!(
-        "{}/ruby_builtin_dlls",
-        rbconfig("bindir")
-    )));
-    println!("cargo:rustc-link-search={}", mingw_libs.to_string_lossy());
-
-    let deps_dir = Path::new("target")
-        .join(env::var_os("PROFILE").unwrap())
-        .join("deps");
-    let libruby_so = rbconfig("LIBRUBY_SO");
-    let ruby_dll = Path::new(&libruby_so);
-    let name = ruby_dll.file_stem().unwrap();
-    let target = deps_dir.join(format!("{}.lib", name.to_string_lossy()));
-
-    Command::new("build/windows/vcbuild.cmd")
-        .arg("-arch=x64")
-        .arg("-host_arch=x64")
-        .arg("&&")
-        .arg("dumpbin")
-        .arg("/exports")
-        .arg("/out:exports.txt")
-        .arg(Path::new(&rbconfig("bindir")).join(&libruby_so))
-        .output()
-        .unwrap();
-
-    Command::new("build/windows/exports.bat").output().unwrap();
-
-    purge_refptr_text();
-    Command::new("build/windows/vcbuild.cmd")
-        .arg("-arch=x64")
-        .arg("-host_arch=x64")
-        .arg("&&")
-        .arg("lib")
-        .arg("/def:exports.def")
-        .arg(format!("/name:{}", name.to_string_lossy()))
-        .arg(format!("/libpath:{}", rbconfig("bindir")))
-        .arg("/machine:x64")
-        .arg(format!("/out:{}", target.to_string_lossy()))
-        .output()
-        .unwrap();
-
-    fs::remove_file("exports.def").expect("couldn't remove exports.def");
-    fs::remove_file("exports.txt").expect("couldn't remove exports.txt");
-}
-
-#[cfg(not(target_os = "windows"))]
-fn windows_support() {}
 
 #[cfg(any(
     target_os = "linux",
@@ -296,6 +201,13 @@ fn ruby_lib_link_name() -> String {
 }
 
 fn dynamic_linker_args() {
+    // On Windows `src/rubysys` links the Ruby DLL itself, through `#[link]`
+    // attributes (see `build/windows.rs`), and `LIBS` are the DLL's own
+    // dependencies (`-lgmp` on Ruby 2.5), which programs using it do not need.
+    if windows::is_target() {
+        return;
+    }
+
     let mut library = Library::new();
     library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), false);
     println!("cargo:rustc-link-lib=dylib={}", ruby_lib_link_name());
@@ -304,7 +216,10 @@ fn dynamic_linker_args() {
 
 fn static_linker_args() {
     let mut library = Library::new();
-    library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), true);
+    // On Windows this names the import library for the Ruby DLL.
+    if !windows::is_target() {
+        library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), true);
+    }
     library.parse_libs_cflags(
         format!("-l{}-static", rbconfig("RUBY_SO_NAME")).as_bytes(),
         true,
@@ -414,6 +329,25 @@ impl Library {
                 self.frameworks.push(lib.to_string());
             }
         }
+
+        // A Ruby built with MSVC (mswin) names libraries by file: `user32.lib`.
+        if is_msvc {
+            for word in &words {
+                if let Some(lib) = word.strip_suffix(".lib") {
+                    if lib.is_empty() || lib.starts_with('-') || lib.contains(&['/', '\\'][..]) {
+                        continue;
+                    }
+
+                    if is_static() && statik {
+                        println!("cargo:rustc-link-lib=static={}", lib);
+                    } else {
+                        println!("cargo:rustc-link-lib={}", lib);
+                    }
+
+                    self.libs.push(lib.to_string());
+                }
+            }
+        }
     }
 }
 
@@ -449,14 +383,40 @@ fn should_link() -> bool {
         && std::env::var_os("CARGO_FEATURE_NO_LINK").is_none()
 }
 
+// A Windows DLL cannot leave symbols to be found when it is loaded, so a
+// Ruby extension has to link to the Ruby DLL (the one already loaded into
+// `ruby.exe`). The `no-link` feature and `NO_LINK_RUTIE` only apply when no
+// Ruby is available, so `cargo check` and `cargo doc` still work without one.
+fn should_link_windows() -> bool {
+    if should_link() {
+        return true;
+    }
+
+    match try_rbconfig("RUBY_SO_NAME") {
+        Ok(so_name) if !so_name.is_empty() => {
+            println!(
+                "cargo:warning=Linking to {} although `no-link`/NO_LINK_RUTIE is set: \
+                 Windows DLLs (including Ruby extensions) must link to the Ruby DLL.",
+                so_name
+            );
+            true
+        }
+        _ => false,
+    }
+}
+
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(rutie_dllimport)");
     ruby_version_cfgs();
 
-    // Ruby programs calling Rust doesn't need cc linking
-    if should_link() {
-        // If windows OS do windows stuff
-        windows_support();
+    let link = if windows::is_target() {
+        should_link_windows()
+    } else {
+        should_link()
+    };
 
+    // Ruby programs calling Rust doesn't need cc linking
+    if link {
         if is_static() {
             ci_stderr_log!("RUBY_STATIC is set");
             use_static()

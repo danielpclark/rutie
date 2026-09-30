@@ -1,5 +1,6 @@
 use crate::rubysys::types::{c_char, c_int, Argc, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     pub static rb_cFile: Value;
     pub static rb_cIO: Value;
@@ -9,6 +10,7 @@ extern "C" {
     pub static rb_stdout: Value;
 }
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_dir_getwd(void)
@@ -69,6 +71,7 @@ extern "C" {
 }
 
 // `Marshal`
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
     // rb_marshal_dump(VALUE obj, VALUE port)
@@ -79,6 +82,7 @@ extern "C" {
 }
 
 // Loading code
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // int
     // rb_feature_provided(const char *feature, const char **loading)

@@ -66,6 +66,9 @@ impl AnyException {
     /// that came from the OS, or a plain `IOError` for any other kind of
     /// error, with `message` added to its description.
     ///
+    /// On Windows the OS error is a Win32 error code, which is mapped to an
+    /// `errno` the way Ruby maps it (`ERROR_ACCESS_DENIED` is `Errno::EACCES`).
+    ///
     /// # Examples
     ///
     /// ```
@@ -77,6 +80,7 @@ impl AnyException {
     /// let error = AnyException::from_io_error(&io_error, "/no/such/file/for/rutie");
     ///
     /// assert!(Class::system_call_error().case_equals(&error));
+    /// assert!(Class::from_existing("Errno").get_nested_class("ENOENT").case_equals(&error));
     ///
     /// let custom = std::io::Error::new(std::io::ErrorKind::Other, "custom");
     /// let error = AnyException::from_io_error(&custom, "while reading");
@@ -86,7 +90,7 @@ impl AnyException {
     /// ```
     pub fn from_io_error(error: &std::io::Error, message: &str) -> Self {
         match error.raw_os_error() {
-            Some(errno) => AnyException::from_errno(errno, message),
+            Some(code) => AnyException::from_errno(exception::os_error_to_errno(code), message),
             None => {
                 let message = format!("{} - {}", error, message);
 
@@ -207,7 +211,9 @@ mod tests {
             let unknown = AnyException::from_errno(99_999, "odd");
             assert!(Class::system_call_error().case_equals(&unknown));
 
-            let io = std::io::Error::from_raw_os_error(13);
+            // A permission error: EACCES, or ERROR_ACCESS_DENIED on Windows.
+            let code = if cfg!(windows) { 5 } else { 13 };
+            let io = std::io::Error::from_raw_os_error(code);
             let eacces = AnyException::from_io_error(&io, "secret");
             assert!(Class::from_path("Errno::EACCES")
                 .unwrap()

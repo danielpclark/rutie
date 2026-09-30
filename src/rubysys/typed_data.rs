@@ -1,5 +1,6 @@
 use crate::rubysys::types::{c_char, c_int, c_void, size_t, Value};
 
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // void *
     // rb_check_typeddata(VALUE obj, const rb_data_type_t *data_type)

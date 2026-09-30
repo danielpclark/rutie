@@ -7,6 +7,34 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.10.2] - 2026-09-30
+### Added
+ - Windows support: Rutie builds, links and passes its tests on 64-bit
+   Windows with RubyInstaller's Ruby 2.5, 2.6 and 2.7, with both the MSVC and
+   the GNU Rust toolchains, for programs embedding Ruby and for Ruby
+   extensions, and Windows is tested in CI, thanks to @danielpclark
+ - `Thread::wait_fd` and `Thread::wait_fd_writable` on Windows, where they take
+   a descriptor of Ruby's C runtime (`IO#fileno`), thanks to @danielpclark
+### Fixed
+ - Windows: `build.rs` makes the MSVC import library for the Ruby DLL from the
+   DLL's export table in `OUT_DIR`, instead of running `dumpbin` and batch
+   files and writing into the current directory and `target/`, which failed
+   whenever Rutie was a dependency, thanks to @danielpclark
+ - Windows: Ruby's global variables (`rb_cObject`, `rb_eRuntimeError`, ...) were
+   read from the linker's jump thunks instead of the Ruby DLL, which crashed
+   nearly everything; `rubysys` now imports them from the DLL, thanks to @danielpclark
+ - Windows: `VM::init` calls `ruby_sysinit` before `ruby_init`, as `ruby.exe`
+   does, thanks to @danielpclark
+ - Windows: `Integer`/`Fixnum` `to_u32` (Ruby has no `rb_num2uint` where `int`
+   and `long` are the same size), and `to_isize`/`to_usize` (Windows' `long` is
+   32 bits), thanks to @danielpclark
+ - Windows: `VM::sys_fail` and `AnyException::from_io_error` map Win32 error
+   codes to `errno` like Ruby does (`ERROR_PATH_NOT_FOUND` is `Errno::ENOENT`),
+   thanks to @danielpclark
+ - Windows: `Thread::sleep` builds Winsock's `timeval`, thanks to @danielpclark
+ - Windows: `cargo run` and `cargo test` find the DLLs the Ruby DLL needs
+   (`bin\ruby_builtin_dlls`), thanks to @danielpclark
+
 ## [0.10.1] - 2026-09-30
 ### Fixed
  - Build warnings on current Rust: `Object::get_data` and `Object::get_data_mut`

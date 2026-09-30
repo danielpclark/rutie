@@ -2,7 +2,9 @@
 extern crate rutie;
 
 use rutie::{AnyObject, Class, Fixnum, NilClass, Object, RString, Thread};
+#[cfg(unix)]
 use std::os::unix::io::AsRawFd;
+#[cfg(unix)]
 use std::os::unix::net::UnixStream;
 use std::sync::mpsc;
 
@@ -77,12 +79,17 @@ methods! {
             tx.send(name).unwrap();
             NilClass::new()
         });
+        #[cfg(unix)]
         let (unix_socket, _) = UnixStream::pair().unwrap();
         loop {
             if let Ok(ret) = rx.try_recv() {
                 return ret;
             } else {
+                #[cfg(unix)]
                 Thread::wait_fd(unix_socket.as_raw_fd());
+                // Windows has no Unix sockets; just let the Ruby thread run.
+                #[cfg(windows)]
+                Thread::pass();
             }
         }
     }

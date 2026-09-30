@@ -30,6 +30,11 @@ pub mod vm;
 
 use crate::rubysys::types::Value;
 
+// Every `extern` block in `rubysys` names the Ruby DLL on Windows
+// (`rutie_dllimport`, set by `build.rs`). Rust only imports variables such as
+// `rb_cObject` from a DLL when their block names it; without it they would
+// resolve to jump thunks and read as garbage.
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     pub static rb_cObject: Value;
 }

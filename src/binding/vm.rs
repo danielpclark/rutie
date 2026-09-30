@@ -34,6 +34,20 @@ pub fn yield_splat(values: Value) -> Value {
 }
 
 pub fn init() {
+    // `ruby.exe` calls `ruby_sysinit` before `ruby_init`; on Windows Ruby's
+    // IO, environment and sockets do not work without it.
+    #[cfg(windows)]
+    {
+        static SYSINIT: std::sync::Once = std::sync::Once::new();
+
+        SYSINIT.call_once(|| {
+            let mut argc: c_int = 0;
+            let mut argv: *mut *mut c_char = ptr::null_mut();
+
+            unsafe { vm::ruby_sysinit(&mut argc, &mut argv) };
+        });
+    }
+
     unsafe {
         vm::ruby_init();
     }
