@@ -59,7 +59,7 @@ impl Complex {
     }
 
     /// Creates the complex number with magnitude `abs` and angle `arg`
-    /// radians (Ruby's `Complex.polar`, `rb_complex_polar`).
+    /// radians (Ruby's `Complex.polar`, `rb_complex_new_polar`).
     ///
     /// # Examples
     ///

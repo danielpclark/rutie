@@ -7,6 +7,85 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.11.0] - Unreleased
+Supports Ruby 3.0, 3.1 and 3.2; Ruby 2 stays on 0.10.x. See "Migrating
+from Ruru to Rutie → 0.11" in the README.
+
+### Added
+ - `build.rs` sets `ruby_3_0`/`ruby_3_1`/`ruby_3_2` and cumulative
+   `ruby_gte_3_0`/`ruby_gte_3_1`/`ruby_gte_3_2` cfg flags, and fails on any
+   other Ruby with a message naming the Rutie line that supports it,
+   thanks to @danielpclark
+ - `VM::scan_args_with_keywords`: `VM::scan_args` that takes a trailing
+   `Hash` as the keywords, as Ruby 2 did (`rb_scan_args_kw` with
+   `RB_SCAN_ARGS_LAST_HASH_KEYWORDS`), thanks to @danielpclark
+ - `Thread::wait_readable` and `Thread::wait_writable` (`rb_io_wait`), with a
+   timeout and a `Result`; they replace `Thread::wait_fd` and
+   `Thread::wait_fd_writable`, thanks to @danielpclark
+ - GC compaction: `GC::mark_movable`, `GC::location`, `GC::compact`, and a
+   `compact(data) { .. }` clause for `wrappable_struct!` (the `dcompact`
+   function). Without it wrapped objects stay pinned, as before,
+   thanks to @danielpclark
+ - `VM::ext_ractor_safe` (unsafe) and `VM::ext_ractor_unsafe` choose whether
+   methods defined afterwards may run outside the main Ractor
+   (`rb_ext_ractor_safe`), thanks to @danielpclark
+ - `Fiber::with_storage` (Ruby 3.2+, `rb_fiber_new_storage`),
+   thanks to @danielpclark
+ - `Hash::with_capacity` (`rb_hash_new_capa` on Ruby 3.2; a plain empty hash
+   on 3.0 and 3.1), thanks to @danielpclark
+ - `ci/check_rubysys.py` checks every `rubysys` declaration against the
+   Ruby's headers and `libruby` exports; CI runs it, thanks to @danielpclark
+
+### Changed
+ - `rubysys` follows Ruby 3's ABI: the special constants `Qnil`, `Qtrue` and
+   `Qundef` per version (they moved in 3.2), 3.2's embedded `RString` length
+   and `RArray` length mask, and `FL_SHAREABLE` replacing `FL_TAINT`,
+   `FL_UNTRUSTED` and `FL_DUPPED`, thanks to @danielpclark
+ - `VM::init` and `VM::try_init` process Ruby's command line once (an empty
+   `-e` script, with RubyGems and `RUBYOPT` off), because Ruby 3.2 loads
+   Ruby-defined core methods such as `Marshal.load` and `Time.at` there;
+   `$0` can now be assigned. A `ruby` process that already did this (an
+   extension) is left alone, thanks to @danielpclark
+ - `VM::scan_args` follows Ruby 3's keyword separation: the keywords are
+   only filled when the method was called with keywords,
+   thanks to @danielpclark
+ - `VM::run_file` sets `$0` and `ARGV` and loads the script like `VM::load`:
+   it can run more than once and returns errors, including `SystemExit`,
+   thanks to @danielpclark
+ - `IO::binmode` calls `rb_io_ascii8bit_binmode`, so the external encoding
+   becomes ASCII-8BIT as with Ruby's `IO#binmode`, thanks to @danielpclark
+ - Methods an embedded VM defines through Rutie are no longer Ractor-safe by
+   default (Ruby's main thread starts with C methods marked safe);
+   extensions loaded by `require` were already unsafe by default,
+   thanks to @danielpclark
+ - `methods!` and `unsafe_methods!` generate `extern "C"` functions,
+   thanks to @danielpclark
+ - `build.rs` reruns when `RUBY`, `PATH`, `RBENV_VERSION`,
+   `ASDF_RUBY_VERSION` or the static-linking variables change, so switching
+   Ruby no longer keeps another Ruby's cfgs and link flags,
+   thanks to @danielpclark
+ - CI tests Ruby 3.0, 3.1 and 3.2 from `ruby/setup-ruby` on Linux (macOS and
+   Windows best-effort), with stable and beta Rust; static-Ruby rows are
+   dropped, thanks to @danielpclark
+ - `GC::force_recycle` is documented as a no-op from Ruby 3.1,
+   thanks to @danielpclark
+
+### Removed
+ - Ruby 2.5, 2.6 and 2.7 support, and the `ruby_2_*` cfg flags,
+   thanks to @danielpclark
+ - `Class::data`: Ruby 3 does not export `rb_cData`, thanks to @danielpclark
+
+### Fixed
+ - `Object::is_eql` returned `false` for equal objects on Ruby 3, where
+   `rb_eql` returns `1` instead of `Qtrue`, thanks to @danielpclark
+ - `rb_enc_codepoint_len` (used by `CodepointIterator`) is declared
+   as returning `unsigned int`; reading it as `size_t` took garbage in the
+   upper half on 64-bit targets. `rb_enc_str_asciionly_p` is declared as
+   returning `int`, thanks to @danielpclark
+ - `Complex::polar` uses `rb_complex_new_polar`; `rb_complex_polar` is
+   deprecated, thanks to @danielpclark
+ - The `eval` example flushes `$stdout` by calling `VM::cleanup`,
+   thanks to @danielpclark
 ## [0.10.2] - 2026-09-30
 ### Added
  - Windows support: Rutie builds, links and passes its tests on 64-bit
