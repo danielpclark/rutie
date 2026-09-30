@@ -473,7 +473,7 @@ pub trait Object: From<Value> {
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Class::from_existing("Fixnum").define(|klass| {
+    ///     Class::from_existing("Integer").define(|klass| {
     ///         klass.def("pow", pow);
     ///         klass.def("pow_with_default_argument", pow_with_default_argument);
     ///     });
@@ -483,16 +483,16 @@ pub trait Object: From<Value> {
     /// Ruby:
     ///
     /// ```ruby
-    /// class Fixnum
+    /// class Integer
     ///   def pow(exp)
-    ///     raise ArgumentError unless exp.is_a?(Fixnum)
+    ///     raise ArgumentError unless exp.is_a?(Integer)
     ///
     ///     self ** exp
     ///   end
     ///
     ///   def pow_with_default_argument(exp)
     ///     default_exp = 0
-    ///     exp = default_exp unless exp.is_a?(Fixnum)
+    ///     exp = default_exp unless exp.is_a?(Integer)
     ///
     ///     self ** exp
     ///   end
@@ -596,7 +596,7 @@ pub trait Object: From<Value> {
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Class::from_existing("Fixnum").define(|klass| {
+    ///     Class::from_existing("Integer").define(|klass| {
     ///         klass.def_private("pow", pow);
     ///         klass.def_private("pow_with_default_argument", pow_with_default_argument);
     ///     });
@@ -606,17 +606,17 @@ pub trait Object: From<Value> {
     /// Ruby:
     ///
     /// ```ruby
-    /// class Fixnum
+    /// class Integer
     ///   private
     ///   def pow(exp)
-    ///     raise ArgumentError unless exp.is_a?(Fixnum)
+    ///     raise ArgumentError unless exp.is_a?(Integer)
     ///
     ///     self ** exp
     ///   end
     ///
     ///   def pow_with_default_argument(exp)
     ///     default_exp = 0
-    ///     exp = default_exp unless exp.is_a?(Fixnum)
+    ///     exp = default_exp unless exp.is_a?(Integer)
     ///
     ///     self ** exp
     ///   end
@@ -2163,7 +2163,7 @@ pub trait Object: From<Value> {
     ///     default_port = 8080
     ///
     ///     port =
-    ///       if address.is_a?(Hash) && address[:port].is_a?(Fixnum)
+    ///       if address.is_a?(Hash) && address[:port].is_a?(Integer)
     ///         address[:port]
     ///       else
     ///         default_port

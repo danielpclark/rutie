@@ -51,7 +51,7 @@ use crate::{
 /// ```ruby
 /// module Example
 ///   def square(exp)
-///     raise TypeError unless exp.is_a?(Fixnum)
+///     raise TypeError unless exp.is_a?(Integer)
 ///
 ///     exp * exp
 ///   end
@@ -399,7 +399,7 @@ impl Module {
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Module::from_existing("Fixnum").define(|klass| {
+    ///     Module::from_existing("Integer").define(|klass| {
     ///         klass.mod_func("pow", pow);
     ///         klass.mod_func("pow_with_default_argument", pow_with_default_argument);
     ///     });
@@ -409,9 +409,9 @@ impl Module {
     /// Ruby:
     ///
     /// ```ruby
-    /// module Fixnum
+    /// class Integer
     ///   def pow(exp)
-    ///     raise ArgumentError unless exp.is_a?(Fixnum)
+    ///     raise ArgumentError unless exp.is_a?(Integer)
     ///
     ///     self ** exp
     ///   end
@@ -419,7 +419,7 @@ impl Module {
     ///
     ///   def pow_with_default_argument(exp)
     ///     default_exp = 0
-    ///     exp = default_exp unless exp.is_a?(Fixnum)
+    ///     exp = default_exp unless exp.is_a?(Integer)
     ///
     ///     self ** exp
     ///   end
