@@ -6,14 +6,10 @@ on:
       - master
     paths-ignore:
       - '**.md'
+  # Any base branch, so stacked release PRs are tested too.
   pull_request:
-    branches:
-      - master
     paths-ignore:
       - '**.md'
-
-env:
-  TEST_ALL: false # Set this to true for testing the entire matrix
 
 jobs:
   build:
@@ -21,148 +17,50 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # ubuntu-22.04: ruby/setup-ruby has prebuilt 3.0 binaries for it
+        # (Ruby 3.0 needs OpenSSL 1.1).
+        os: [ubuntu-22.04, macos-latest, windows-latest]
         rust: [stable, beta]
-        ruby_version: ["2.5.9", "2.6.10", "2.7.8"]
-        ruby_static: [false, true]
-        exclude:
-          - os: windows-latest
-            ruby_static: true
+        # Quoted, or YAML reads 3.0 as 3.
+        ruby_version: ["3.0", "3.1", "3.2"]
     env:
       RUST_BACKTRACE: full
       CI_STDERR_LOG: true
       # Unit tests print each test's name as it starts on the Ruby thread, so
       # a crash (which kills the harness before it reports) names the test.
       RUTIE_TEST_TRACE: 1
-      BUILD_RUBY_VERSION: ${{ matrix.ruby_version }}
 
-    # Static Ruby builds are best-effort, and the Windows jobs have no Ruby
-    # install step, so neither is allowed to fail the workflow.
-    continue-on-error: ${{ matrix.ruby_static || matrix.os == 'windows-latest' }}
+    # macOS and Windows are best-effort for now.
+    continue-on-error: ${{ matrix.os != 'ubuntu-22.04' }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - name: Set environment variables
-      run: |
-        echo "BUILD_RUBY_VERSION=${{ matrix.ruby_version }}" >> $GITHUB_ENV
-        echo "RUNNER_OS=$(echo ${{ runner.os }})" >> $GITHUB_ENV
-
-    - name: Import RVM public keys
-      if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
-      run: |
-        curl -sSL https://rvm.io/mpapis.asc | gpg --import -
-        curl -sSL https://rvm.io/pkuczynski.asc | gpg --import -
-
-    - name: Install RVM dependencies (Ubuntu)
-      if: env.RUNNER_OS == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gawk libgmp-dev dirmngr build-essential \
-        gnupg2 man curl direnv software-properties-common libpq-dev \
-        libncurses5-dev wget pkg-config ruby-dev tzdata locales cmake \
-        libgtk2.0-dev libatk1.0-dev libcairo2-dev libx11-dev \
-        libxpm-dev libxt-dev zlib1g-dev libxslt1-dev libcurl4-openssl-dev libffi-dev \
-        libreadline-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev
-
-        wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-        tar xf openssl-1.1.1l.tar.gz
-        cd openssl-1.1.1l
-        ./config --prefix=/usr/local/openssl-1.1.1l --openssldir=/usr/local/openssl-1.1.1l
-        make
-        sudo make install
-        cd ..
-
-    - name: Install OpenSSL 1.1 and RVM dependencies (macOS)
-      if: env.RUNNER_OS == 'macOS'
-      run: |
-        # Homebrew no longer ships openssl@1.1, which RVM tries to install for
-        # Ruby 2.x, so build it from source like the Linux job does.
-        brew install autoconf automake libtool pkg-config coreutils
-
-        wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-        tar xf openssl-1.1.1l.tar.gz
-        cd openssl-1.1.1l
-        ./Configure darwin64-$(uname -m)-cc --prefix=/usr/local/openssl-1.1.1l --openssldir=/usr/local/openssl-1.1.1l
-        make -j"$(sysctl -n hw.ncpu)"
-        # install_sw skips the man pages, which take longer to build than the library.
-        sudo make install_sw
-        cd ..
-
-    - name: Install RVM and Ruby
-      if: (runner.os != 'Windows') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
-      run: |
-        if [ "${{ matrix.ruby_static }}" == "true" ]; then
-          echo "RUBY_STATIC=true" >> $GITHUB_ENV
-        fi
-
-        curl -sSL https://get.rvm.io | bash -s stable
-        source "$HOME/.rvm/scripts/rvm"
-        rvm --version
-        echo "$HOME/.rvm/bin" >> $GITHUB_PATH
-
-        RVM_OPTS=()
-
-        if [[ "$BUILD_RUBY_VERSION" == "2.4"* ]] && [[ "$RUNNER_OS" == "Linux" ]]; then
-          RVM_OPTS+=("--disable-binary")
-        fi
-
-        if [ ! -z "$RUBY_STATIC" ]; then
-          RVM_OPTS+=("--disable-shared")
-        fi
-  
-        if [[ "$RUNNER_OS" == "Linux" ]]; then
-          RVM_OPTS+=("--with-openssl-dir=/usr/local/openssl-1.1.1l")
-        fi
-
-        if [[ "$RUNNER_OS" == "macOS" ]]; then
-          # Dependencies are installed above; stop RVM from brew-installing
-          # openssl@1.1 (removed from Homebrew) and link to our own build.
-          RVM_OPTS+=("--autolibs=disable" "--with-openssl-dir=/usr/local/openssl-1.1.1l")
-          # Modern Apple clang makes implicit function declarations an error,
-          # which Ruby 2.x's C sources and configure checks still rely on.
-          RVM_OPTS+=("--with-cflags=-Wno-error=implicit-function-declaration")
-          # Ruby < 2.7's openssl extension always asks pkg-config, which would
-          # otherwise find Homebrew's openssl@3 ahead of --with-openssl-dir.
-          export PKG_CONFIG_PATH="/usr/local/openssl-1.1.1l/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
-        fi
-
-        if [ ${#RVM_OPTS[@]} -eq 0 ]; then
-          RVM_CMD="rvm install $BUILD_RUBY_VERSION"
-        else
-          RVM_CMD="rvm install ${RVM_OPTS[@]} $BUILD_RUBY_VERSION"
-        fi
-
-        echo "Running: $RVM_CMD"
-        eval $RVM_CMD
-
-        source "$HOME/.rvm/scripts/rvm"
-        rvm use "$BUILD_RUBY_VERSION"
+    # Prebuilt, shared-library Rubies. Static Ruby builds are no longer
+    # tested: RVM's `--disable-shared` builds never produced a static
+    # `libruby` to link against.
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby_version }}
 
     - name: Setup Rust
-      if: env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false)
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
 
     - name: Build and Test
-      if: env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false)
       run: |
-        rvm reload
-        source "$HOME/.rvm/scripts/rvm"
-        rvm use $BUILD_RUBY_VERSION
-        cargo build -vv &&
+        ruby --version
+        cargo build -vv
         cargo test -vv
 
     # The examples use the crate the way users do: an embedding program, and
     # two Ruby extensions loaded through the `rutie` gem and tested with
-    # minitest. Static Ruby builds cannot load extensions built this way.
+    # minitest.
     - name: Build and test examples
-      if: (runner.os != 'Windows') && (matrix.ruby_static == false) && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
+      if: runner.os != 'Windows'
       run: |
-        rvm reload
-        source "$HOME/.rvm/scripts/rvm"
-        rvm use $BUILD_RUBY_VERSION
         cargo run --example eval -- "raise 'eval example failed' unless 1 + 1 == 2"
         (cd examples/rutie_rust_example && cargo test)
         gem install --no-document rutie -v '~> 0.0.4'
@@ -178,13 +76,6 @@ jobs:
             ruby -Ilib -Itest -e 'Dir["test/**/*_test.rb"].each { |f| require File.expand_path(f) }'
           )
         done
-
-    # Only the end of the make log: the whole log is thousands of lines and
-    # pushes the test output out of reach of log viewers that show the tail.
-    - name: Print RVM make log
-      if: failure() && runner.os != 'Windows'
-      continue-on-error: true
-      run: tail -n 40 $HOME/.rvm/log/*_ruby-${{ matrix.ruby_version }}/make.log
 
     # - name: After script
     #   run: |
