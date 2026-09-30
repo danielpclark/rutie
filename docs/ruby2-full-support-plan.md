@@ -347,18 +347,29 @@ as they land; keep this file current.
       2.6+ (2.5 falls back to method calls); `rb_cstr_to_inum` passes no
       length, which disables base-0 prefix detection, so parsing uses
       `rb_str_to_inum`. `rb_num_coerce_*` are bound (`binding::numeric`).
-- [ ] **Range:** `rb_range_new`, `rb_range_values`, `rb_range_beg_len`,
+- [x] **Range:** `rb_range_new`, `rb_range_values`, `rb_range_beg_len`,
       `rb_arithmetic_sequence_extract` (2.6+). New type `Range`.
-- [ ] **Regexp / MatchData:** `rb_reg_new_str`, `rb_reg_new`, `rb_reg_regcomp`,
+      Done. Ruby 2 stores ranges as `T_STRUCT`, so `Range`/`Struct` are
+      verified with `kind_of` against `rb_cRange`/`rb_cStruct`, not `ty()`.
+      `rb_range_beg_len` raises for non-integer bounds (wrapped in `Result`).
+- [x] **Regexp / MatchData:** `rb_reg_new_str`, `rb_reg_new`, `rb_reg_regcomp`,
       `rb_reg_match`, `rb_reg_match2`, `rb_reg_nth_match`, `rb_reg_last_match`,
       `rb_reg_backref_number`, `rb_backref_get/set`, `rb_reg_options`,
       `rb_reg_source`. New types `Regexp`, `MatchData`.
-- [ ] **Time:** `rb_time_new`, `rb_time_nano_new`, `rb_time_timespec_new`,
+      Done. `rb_reg_source` is not exported by any 2.x (uses `source`).
+      Matching returns `Result` because strings with invalid bytes raise.
+      With named groups, Onigmo does not capture unnamed groups.
+- [x] **Time:** `rb_time_new`, `rb_time_nano_new`, `rb_time_timespec_new`,
       `rb_time_num_new`, `rb_time_interval`, `rb_time_timeval`, `rb_time_timespec`,
       `rb_time_utc_offset`. New type `Time` with `From<SystemTime>`/`Duration`.
-- [ ] **Struct:** `rb_struct_define`, `rb_struct_define_under`, `rb_struct_new`,
+      Done. `rb_time_num_new` does not validate its argument (must be an
+      exact Integer/Rational), so `Time::at` calls `Time.at` instead.
+- [x] **Struct:** `rb_struct_define`, `rb_struct_define_under`, `rb_struct_new`,
       `rb_struct_alloc`, `rb_struct_aref`, `rb_struct_aset`, `rb_struct_getmember`,
       `rb_struct_members`, `rb_struct_size`. New type `Struct`.
+      Done. `rb_struct_define(_under)`/`rb_struct_new` are variadic with an
+      unbounded member list, so definitions go through `Struct.new`; they are
+      bound in `rubysys` for fixed-arity C-style use.
 - [ ] **Enumerator / Enumerable:** `rb_enumeratorize`, `rb_enumeratorize_with_size`
       (`RETURN_ENUMERATOR` equivalent for `methods!`), `rb_enum_values_pack`,
       `rb_cmpint`, `rb_cmperr`, `rb_obj_is_kind_of(Enumerable)`. Make

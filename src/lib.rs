@@ -32,11 +32,15 @@ pub use crate::class::{
     integer::Integer,
     module::Module,
     nil_class::NilClass,
+    range::Range,
     rational::Rational,
+    regexp::{MatchData, Regexp},
     rproc::Proc,
+    rstruct::Struct,
     string::{CodeRange, RString},
     symbol::Symbol,
     thread::Thread,
+    time::Time,
     vm::VM,
 };
 

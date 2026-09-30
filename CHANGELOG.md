@@ -78,6 +78,16 @@ API and may have breaking changes during a teeny version change.
    thanks to @danielpclark
  - New `Rational` and `Complex` types, and `Float::rationalize`,
    thanks to @danielpclark
+ - New `Range` type (`new`, `begin`, `end`, `excludes_end`,
+   `offset_and_length`, and on Ruby 2.6+ `arithmetic_sequence`),
+   thanks to @danielpclark
+ - New `Regexp` (`new`, `source`, `options`, `find`, `match_data`) and
+   `MatchData` (`nth`, `named`, `matched`, `pre_match`, `post_match`, `last`,
+   `set_last`) types, thanks to @danielpclark
+ - New `Time` type (`now`, `from_unix`, `at`, `to_unix`, `to_system_time`,
+   `utc_offset`, `interval`, `From<SystemTime>`), thanks to @danielpclark
+ - New `Struct` type (`define`, `define_under`, `new_instance`, `members_of`,
+   `get`, `at`, `set`, `members`, `size`), thanks to @danielpclark
 
 ### Changed
  - **Breaking:** `VM::at_exit` now registers a real end proc
