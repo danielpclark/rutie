@@ -516,6 +516,75 @@ impl VM {
         AnyObject::from(vm::yield_splat(objects.value()))
     }
 
+    /// Yields several values to the block of the current method call, as
+    /// separate block arguments (`rb_yield_values2`), like Ruby's
+    /// `yield a, b`.
+    ///
+    /// Raises `LocalJumpError` when there is no block.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, VM};
+    ///
+    /// class!(Pairs);
+    ///
+    /// methods!(
+    ///     Pairs,
+    ///     rtself,
+    ///
+    ///     fn pairs_each_pair() -> Fixnum {
+    ///         VM::need_block();
+    ///
+    ///         VM::yield_values(&[Fixnum::new(1).into(), Fixnum::new(2).into()]);
+    ///
+    ///         Fixnum::new(0)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Pairs", None).define(|klass| {
+    ///         klass.def("each_pair", pairs_each_pair);
+    ///     });
+    ///
+    ///     let sum = VM::eval("s = 0; Pairs.new.each_pair { |a, b| s = a + b }; s").unwrap();
+    ///
+    ///     assert_eq!(sum.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+    ///     assert!(VM::eval("Pairs.new.each_pair").is_err());
+    /// }
+    /// ```
+    pub fn yield_values(values: &[AnyObject]) -> AnyObject {
+        let values = util::arguments_to_values(values);
+
+        AnyObject::from(vm::yield_values(&values))
+    }
+
+    /// Raises `LocalJumpError` ("no block given") unless the current method
+    /// was called with a block (`rb_need_block`).
+    ///
+    /// See [`VM::yield_values`](#method.yield_values) for an example.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| {
+    ///     VM::need_block();
+    ///     rutie::NilClass::new().into()
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// assert!(Class::from_existing("LocalJumpError").case_equals(&VM::error_pop().unwrap()));
+    /// ```
+    pub fn need_block() {
+        vm::need_block()
+    }
+
     /// Run a `closure` and protect from panic during raised exceptions
     /// by returning `Err<i32>`.
     ///

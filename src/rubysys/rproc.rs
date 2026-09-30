@@ -1,7 +1,7 @@
 use crate::{
     rubysys::{
         constant::UNLIMITED_ARGUMENTS,
-        types::{c_int, Argc, Value},
+        types::{c_int, Argc, BlockCallFunction, Id, Value},
     },
     AnyException, Exception,
 };
@@ -20,6 +20,45 @@ extern "C" {
     pub fn rb_binding_new() -> Value;
     pub fn rb_obj_is_proc(obj: Value) -> Value;
     pub fn rb_obj_is_method(obj: Value) -> Value;
+    // VALUE
+    // rb_block_lambda(void)
+    pub fn rb_block_lambda() -> Value;
+    // VALUE
+    // rb_method_call(int argc, const VALUE *argv, VALUE method)
+    pub fn rb_method_call(argc: Argc, argv: *const Value, method: Value) -> Value;
+    // VALUE
+    // rb_method_call_with_block(int argc, const VALUE *argv, VALUE method, VALUE passed_procval)
+    pub fn rb_method_call_with_block(
+        argc: Argc,
+        argv: *const Value,
+        method: Value,
+        pass_procval: Value,
+    ) -> Value;
+    // int
+    // rb_mod_method_arity(VALUE mod, ID id)
+    //
+    // Returns 0 for an undefined method.
+    pub fn rb_mod_method_arity(module: Value, name: Id) -> c_int;
+    // int
+    // rb_obj_method_arity(VALUE obj, ID id)
+    //
+    // Returns 0 for an undefined method.
+    pub fn rb_obj_method_arity(object: Value, name: Id) -> c_int;
+    // int
+    // rb_proc_arity(VALUE self)
+    pub fn rb_proc_arity(rproc: Value) -> c_int;
+    // VALUE
+    // rb_proc_call(VALUE self, VALUE args)
+    pub fn rb_proc_call(rproc: Value, arguments: Value) -> Value;
+    // VALUE
+    // rb_proc_lambda_p(VALUE self)
+    pub fn rb_proc_lambda_p(rproc: Value) -> Value;
+    // VALUE
+    // rb_proc_new(VALUE (*func)(ANYARGS), VALUE val)
+    //
+    // `func` is called like a block function with `val` as its second
+    // argument; `val` is kept alive (and marked) by the proc.
+    pub fn rb_proc_new(func: BlockCallFunction, val: Value) -> Value;
 }
 
 pub fn check_arity(argc: c_int, min: c_int, max: c_int) -> Result<c_int, AnyException> {

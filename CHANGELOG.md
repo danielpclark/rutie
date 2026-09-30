@@ -88,6 +88,22 @@ API and may have breaking changes during a teeny version change.
    `utc_offset`, `interval`, `From<SystemTime>`), thanks to @danielpclark
  - New `Struct` type (`define`, `define_under`, `new_instance`, `members_of`,
    `get`, `at`, `set`, `members`, `size`), thanks to @danielpclark
+ - `Proc::new` (a Ruby `Proc` backed by a Rust closure, freed with the proc),
+   `Proc::arity` and `Proc::protect_call`; new `Method` type (`call`,
+   `protect_call`, `arity`, `to_proc`) returned by `Object::method`;
+   `Object::method_arity` and `Class`/`Module::instance_method_arity`,
+   thanks to @danielpclark
+ - `Enumerator::new` (`to_enum`) and Rust iteration over enumerators
+   (`Enumerator::iter`, `IntoIterator`, `EnumeratorIterator`);
+   `Object::try_compare` (`<=>` with Ruby's comparison error),
+   thanks to @danielpclark
+ - `VM::yield_values` and `VM::need_block`, thanks to @danielpclark
+ - `Binding` methods: `local_variable_get`, `local_variable_set`,
+   `is_local_variable_defined`, `local_variables`, `receiver` and `eval`,
+   thanks to @danielpclark
+ - `Encoding` methods: `ascii_8bit`, `locale`, `filesystem`, `of`, `index`,
+   `chr`, `is_ascii_compatible` and `is_dummy`; `RString::concat_bytes`,
+   thanks to @danielpclark
 
 ### Changed
  - **Breaking:** `VM::at_exit` now registers a real end proc
@@ -101,6 +117,13 @@ API and may have breaking changes during a teeny version change.
  - `VM::raise` passed its message to `rb_raise` as a printf format, so a
    message containing `%` read arbitrary memory; the message is now always
    used as plain text, thanks to @danielpclark
+ - `Enumerator::next`, `next_values`, `peek`, `peek_values` and `feed` could
+   fail with `FiberError: fiber called across stack rewinding barrier` when
+   called from different stack depths (for example the first and later
+   `next` calls made by `Iterator::collect`); they now rescue exceptions
+   without `rb_protect`, thanks to @danielpclark
+ - `try_convert_to::<Encoding>()` always failed, because `Encoding` objects
+   were expected to be classes, thanks to @danielpclark
 
 ## [0.10.0] - 2026-09-30
 ### Changed

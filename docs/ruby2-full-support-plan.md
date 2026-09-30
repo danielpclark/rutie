@@ -370,20 +370,41 @@ as they land; keep this file current.
       Done. `rb_struct_define(_under)`/`rb_struct_new` are variadic with an
       unbounded member list, so definitions go through `Struct.new`; they are
       bound in `rubysys` for fixed-arity C-style use.
-- [ ] **Enumerator / Enumerable:** `rb_enumeratorize`, `rb_enumeratorize_with_size`
+- [x] **Enumerator / Enumerable:** `rb_enumeratorize`, `rb_enumeratorize_with_size`
       (`RETURN_ENUMERATOR` equivalent for `methods!`), `rb_enum_values_pack`,
       `rb_cmpint`, `rb_cmperr`, `rb_obj_is_kind_of(Enumerable)`. Make
       `Enumerator` iterable from Rust (`next` via `rb_funcall` with
       `StopIteration` mapped to `None`).
-- [ ] **Proc / Method / Binding:** `rb_proc_new`, `rb_proc_arity`,
+      Done: `Enumerator::new`, `iter`/`IntoIterator` (`StopIteration` ends;
+      other exceptions yielded once as `Err`), `Object::try_compare`
+      (`rb_cmpint`). Found and fixed: a fiber may only be resumed under the
+      `rb_protect` it was created under, so `protect_send`-based `next` broke
+      when called from different stack depths; the enumerator methods now use
+      `rb_rescue2`. `rb_enumeratorize_with_size`/`RETURN_ENUMERATOR` need
+      the calling C frame (`rb_frame_this_func`), so `methods!` users call
+      `Enumerator::new(&rtself, "method", &args)` instead.
+- [x] **Proc / Method / Binding:** `rb_proc_new`, `rb_proc_arity`,
       `rb_proc_lambda_p`, `rb_proc_call`, `rb_block_lambda`, `rb_method_call`,
       `rb_obj_method`, `rb_mod_method_arity`, `rb_obj_method_arity`,
       `rb_yield_values`, `rb_yield_values2`, `rb_need_block`, `rb_binding_new`
       (exists) + `Binding::local_variable_get/set` via `rb_funcall`.
-- [ ] **Encoding:** `rb_enc_get`, `rb_enc_name`, `rb_enc_find`, `rb_ascii8bit_encoding`,
+      Done: `Proc::new` (closure owned by a hidden typed-data object the
+      proc's block marks, so it is freed with the proc), `arity`,
+      `protect_call`; `Method` type; `method_arity`/`instance_method_arity`;
+      `VM::yield_values`/`need_block`; `Binding` locals/receiver/eval.
+      `rb_block_lambda`, `rb_method_call_with_block` bound in `rubysys`.
+      Note: for non-lambda procs Ruby does not count optional arguments in
+      `arity`.
+- [x] **Encoding:** `rb_enc_get`, `rb_enc_name`, `rb_enc_find`, `rb_ascii8bit_encoding`,
       `rb_utf8_encoding`, `rb_usascii_encoding`, `rb_locale_encoding`,
       `rb_filesystem_encoding`, `rb_enc_str_buf_cat`, `rb_enc_uint_chr`,
       `rb_enc_precise_mbclen`, `rb_enc_ascget`. Round out `Encoding`.
+      Done: `ascii_8bit`, `locale`, `filesystem`, `of`, `index`, `chr`,
+      `is_ascii_compatible`, `is_dummy`, `RString::concat_bytes`; fixed
+      `Encoding`'s `VerifiedObject` (instances are `T_DATA`). `rb_enc_name` is
+      a macro (uses `name`); `precise_mbclen`/`ascget`/`codelen` stay in
+      `rubysys`. An embedded VM knows only the built-in encodings until
+      `VM::init_loadpath()` + `require "enc/encdb"`.
 
 ### P3 — exceptions, IO, and the standard objects an embedder hits
 

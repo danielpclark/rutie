@@ -1,15 +1,15 @@
-use std::convert::From;
+use std::{cmp::Ordering, convert::From};
 
 use crate::{
-    binding::{class, exception, global::ValueType, object, vm},
+    binding::{class, enumerator, exception, global::ValueType, object, rproc, vm},
     typed_data::DataTypeWrapper,
     types::{Callback, Value},
     util,
 };
 
 use crate::{
-    AnyException, AnyObject, Array, Boolean, Class, Exception, Integer, NilClass, Proc, RString,
-    VerifiedObject, VM,
+    AnyException, AnyObject, Array, Boolean, Class, Exception, Integer, Method, NilClass, Proc,
+    RString, VerifiedObject, VM,
 };
 
 /// `Object`
@@ -1326,7 +1326,7 @@ pub trait Object: From<Value> {
         object::is_instance_of(self.value(), klass.value())
     }
 
-    /// Returns the object's method `name` as a Ruby `Method` object
+    /// Returns the object's method `name` as a [`Method`](struct.Method.html)
     /// (Ruby's `method`, `rb_obj_method`), or the `NameError` if there is no
     /// such method.
     ///
@@ -1337,7 +1337,7 @@ pub trait Object: From<Value> {
     /// # VM::init();
     ///
     /// let method = Fixnum::new(20).method("+").unwrap();
-    /// let result = unsafe { method.send("call", &[Fixnum::new(22).into()]) };
+    /// let result = method.call(&[Fixnum::new(22).into()]);
     ///
     /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
     ///
@@ -1345,12 +1345,61 @@ pub trait Object: From<Value> {
     ///
     /// assert!(error.message().contains("no_such_method"));
     /// ```
-    fn method(&self, name: &str) -> Result<AnyObject, AnyException> {
+    fn method(&self, name: &str) -> Result<Method, AnyException> {
         let object = self.value();
 
         vm::protect_value(|| object::method(object, name))
-            .map(AnyObject::from)
+            .map(Method::from)
             .map_err(AnyException::from)
+    }
+
+    /// Returns the arity of the object's method `name`, or `0` if it is not
+    /// defined (`rb_obj_method_arity`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Object, VM};
+    /// # VM::init();
+    ///
+    /// let array = Array::new();
+    ///
+    /// assert_eq!(array.method_arity("push"), -1);
+    /// assert_eq!(array.method_arity("length"), 0);
+    /// ```
+    fn method_arity(&self, name: &str) -> i32 {
+        rproc::object_method_arity(self.value(), name)
+    }
+
+    /// Compares the object with `other` using Ruby's `<=>`, returning the
+    /// `ArgumentError` Ruby raises when they cannot be compared (`<=>`
+    /// returns `nil`), via `rb_cmpint`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Fixnum, Float, Object, RString, VM};
+    /// use std::cmp::Ordering;
+    /// # VM::init();
+    ///
+    /// assert_eq!(Fixnum::new(1).try_compare(&Float::new(1.5)).unwrap(), Ordering::Less);
+    ///
+    /// let error = Fixnum::new(1).try_compare(&RString::new_utf8("1")).unwrap_err();
+    ///
+    /// assert!(error.message().starts_with("comparison of Integer with String failed"));
+    /// ```
+    fn try_compare<T: Object>(&self, other: &T) -> Result<Ordering, AnyException> {
+        let (object, other) = (self.value(), other.value());
+        let mut ordering = 0;
+
+        vm::protect_value(|| {
+            let result = vm::call_method(object, "<=>", &[other]);
+            ordering = enumerator::cmpint(result, object, other);
+
+            NilClass::new().value()
+        })
+        .map(|_| ordering.cmp(&0))
+        .map_err(AnyException::from)
     }
 
     /// Calls `method` if the object responds to it, returning `None` when

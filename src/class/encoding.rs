@@ -11,6 +11,144 @@ pub struct Encoding {
 }
 
 impl Encoding {
+    /// Returns the `ASCII-8BIT` (binary) encoding (`rb_ascii8bit_encoding`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Encoding::ascii_8bit().name(), "ASCII-8BIT");
+    /// ```
+    pub fn ascii_8bit() -> Self {
+        Encoding::from(encoding::ascii_8bit_encoding())
+    }
+
+    /// Returns the locale's encoding (`rb_locale_encoding`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    ///
+    /// assert!(!Encoding::locale().name().is_empty());
+    /// ```
+    pub fn locale() -> Self {
+        Encoding::from(encoding::locale_encoding())
+    }
+
+    /// Returns the filesystem encoding (`rb_filesystem_encoding`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    ///
+    /// assert!(!Encoding::filesystem().name().is_empty());
+    /// ```
+    pub fn filesystem() -> Self {
+        Encoding::from(encoding::filesystem_encoding())
+    }
+
+    /// Returns the encoding of `object` (a `String`, `Symbol`, `Regexp`,
+    /// ...), or `None` for objects without one (`rb_enc_get`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, Fixnum, RString, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Encoding::of(&RString::new_utf8("x")).unwrap().name(), "UTF-8");
+    /// assert!(Encoding::of(&Fixnum::new(1)).is_none());
+    /// ```
+    pub fn of<T: Object>(object: &T) -> Option<Self> {
+        let found = encoding::encoding_of(object.value());
+
+        if found.is_nil() {
+            None
+        } else {
+            Some(Encoding::from(found))
+        }
+    }
+
+    /// Returns Ruby's internal index for the encoding (`rb_to_encoding_index`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Encoding::utf8().index(), Encoding::utf8().index());
+    /// assert_ne!(Encoding::utf8().index(), Encoding::us_ascii().index());
+    /// ```
+    pub fn index(&self) -> EncodingIndex {
+        encoding::encoding_index(self.value())
+    }
+
+    /// Returns the character with code point `code` in this encoding as a
+    /// string (Ruby's `Integer#chr(encoding)`, `rb_enc_uint_chr`), or the
+    /// `RangeError` if the encoding cannot represent it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Encoding::utf8().chr(0x1F980).unwrap().to_str(), "🦀");
+    /// assert!(Encoding::us_ascii().chr(0xE9).is_err());
+    /// ```
+    pub fn chr(&self, code: u32) -> Result<RString, AnyException> {
+        let encoding = self.value();
+
+        crate::binding::vm::protect_value(|| encoding::chr(code, encoding))
+            .map(RString::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns `true` if ASCII text is valid in this encoding (Ruby's
+    /// `ascii_compatible?`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    /// VM::init_loadpath(); // Needed for the encoding database
+    /// VM::require("enc/encdb");
+    ///
+    /// assert!(Encoding::utf8().is_ascii_compatible());
+    /// assert!(!Encoding::find("UTF-16LE").unwrap().is_ascii_compatible());
+    /// ```
+    pub fn is_ascii_compatible(&self) -> bool {
+        unsafe { self.send("ascii_compatible?", &[]) }
+            .value()
+            .is_true()
+    }
+
+    /// Returns `true` for dummy encodings, which Ruby can name but not
+    /// process (Ruby's `dummy?`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    /// VM::init_loadpath(); // Needed for the encoding database
+    /// VM::require("enc/encdb");
+    ///
+    /// assert!(!Encoding::utf8().is_dummy());
+    /// assert!(Encoding::find("UTF-16").unwrap().is_dummy());
+    /// ```
+    pub fn is_dummy(&self) -> bool {
+        unsafe { self.send("dummy?", &[]) }.value().is_true()
+    }
+
     /// Creates a UTF-8 instance of `Encoding`.
     ///
     /// # Examples
@@ -238,8 +376,8 @@ impl Object for Encoding {
 
 impl VerifiedObject for Encoding {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        object.value().ty() == ValueType::Class
-            && Class::from_existing("Encoding").case_equals(object)
+        // `Encoding` instances are `T_DATA`, not classes.
+        Class::from_existing("Encoding").case_equals(object)
     }
 
     fn error_message() -> &'static str {
@@ -250,5 +388,53 @@ impl VerifiedObject for Encoding {
 impl PartialEq for Encoding {
     fn eq(&self, other: &Self) -> bool {
         self.equals(other)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Encoding, EncodingSupport, Fixnum, Object, RString, Symbol, VM};
+
+    #[test]
+    fn test_encoding_lookup_and_chr() {
+        crate::on_ruby_thread(|| {
+            // An embedded VM only knows the built-in encodings until the
+            // encoding database is loaded.
+            VM::init_loadpath();
+            VM::require("enc/encdb");
+
+            assert_eq!(Encoding::ascii_8bit().name(), "ASCII-8BIT");
+            assert_eq!(
+                Encoding::of(&Symbol::new("sym")).unwrap().name(),
+                "US-ASCII"
+            );
+            assert!(Encoding::of(&Fixnum::new(1)).is_none());
+            assert_eq!(
+                Encoding::of(&RString::new_utf8("é")).unwrap().index(),
+                Encoding::utf8().index()
+            );
+
+            let e = Encoding::utf8().chr(0xE9).unwrap();
+            assert_eq!(e.to_str(), "é");
+            assert_eq!(e.encoding().name(), "UTF-8");
+            assert!(Encoding::utf8().chr(0xD800).is_err());
+
+            let mut binary = RString::from_bytes(b"\xFF", &Encoding::ascii_8bit());
+            assert!(binary
+                .concat_bytes("é".as_bytes(), &Encoding::utf8())
+                .is_err());
+
+            assert!(Encoding::find("Shift_JIS").unwrap().is_ascii_compatible());
+        });
+    }
+
+    #[test]
+    fn test_encoding_try_convert() {
+        crate::on_ruby_thread(|| {
+            let encoding = VM::eval("''.encoding").unwrap();
+
+            assert!(encoding.try_convert_to::<Encoding>().is_ok());
+            assert!(RString::new_utf8("x").try_convert_to::<Encoding>().is_err());
+        });
     }
 }

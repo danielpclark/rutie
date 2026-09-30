@@ -9,6 +9,7 @@ extern "C" {
     pub static rb_eNotImpError: Value;
     pub static rb_eRuntimeError: Value;
     pub static rb_eStandardError: Value;
+    pub static rb_eStopIteration: Value;
     pub static rb_eTypeError: Value;
     pub static rb_eZeroDivError: Value;
 

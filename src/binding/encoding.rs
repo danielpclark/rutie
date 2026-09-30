@@ -1,6 +1,9 @@
 use crate::{
+    binding::global::RubySpecialConsts,
     rubysys::{encoding, string, vm},
-    types::{c_char, c_int, size_t, EncodingIndex, EncodingType, Value, ValueType},
+    types::{
+        c_char, c_int, c_long, size_t, EncodingIndex, EncodingType, InternalValue, Value, ValueType,
+    },
     util,
 };
 use std::ffi::CString;
@@ -74,4 +77,51 @@ pub fn next_codepoint(
     enc: Value,
 ) -> usize {
     unsafe { encoding::rb_enc_codepoint_len(ptr, end, len_p, encoding::rb_to_encoding(enc)) }
+}
+
+pub fn ascii_8bit_encoding() -> Value {
+    unsafe { encoding::rb_enc_from_encoding(encoding::rb_ascii8bit_encoding()) }
+}
+
+pub fn locale_encoding() -> Value {
+    unsafe { encoding::rb_enc_from_encoding(encoding::rb_locale_encoding()) }
+}
+
+pub fn filesystem_encoding() -> Value {
+    unsafe { encoding::rb_enc_from_encoding(encoding::rb_filesystem_encoding()) }
+}
+
+// The `Encoding` of `object`, or `nil` when it has none.
+pub fn encoding_of(object: Value) -> Value {
+    unsafe {
+        let encoding = encoding::rb_enc_get(object);
+
+        if encoding.is_null() {
+            Value::from(RubySpecialConsts::Nil as InternalValue)
+        } else {
+            encoding::rb_enc_from_encoding(encoding)
+        }
+    }
+}
+
+pub fn encoding_index(enc: Value) -> EncodingIndex {
+    unsafe { encoding::rb_to_encoding_index(enc) }
+}
+
+// Raises `RangeError` for a code point the encoding cannot represent.
+pub fn chr(code: u32, enc: Value) -> Value {
+    unsafe { encoding::rb_enc_uint_chr(code, encoding::rb_to_encoding(enc)) }
+}
+
+// Appends `bytes` (in `enc`) to `string`, converting as `String#<<` does;
+// raises `Encoding::CompatibilityError` when they cannot be combined.
+pub fn concat_bytes(string: Value, bytes: &[u8], enc: Value) -> Value {
+    unsafe {
+        encoding::rb_enc_str_buf_cat(
+            string,
+            bytes.as_ptr() as *const c_char,
+            bytes.len() as c_long,
+            encoding::rb_to_encoding(enc),
+        )
+    }
 }

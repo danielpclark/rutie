@@ -1,6 +1,7 @@
 pub mod array;
 pub mod class;
 pub mod encoding;
+pub mod enumerator;
 pub mod exception;
 pub mod fixnum;
 pub mod float;

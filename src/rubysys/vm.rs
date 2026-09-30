@@ -78,6 +78,9 @@ extern "C" {
     // rb_yield_splat(VALUE values)
     pub fn rb_yield_splat(values: Value) -> Value;
     // VALUE
+    // rb_yield_values2(int n, const VALUE *argv)
+    pub fn rb_yield_values2(argc: Argc, argv: *const Value) -> Value;
+    // VALUE
     // rb_yield(VALUE val)
     pub fn rb_yield(value: Value) -> Value;
     // VALUE
@@ -134,6 +137,11 @@ extern "C" {
     // Ruby 2.7 and later only.
     #[cfg(ruby_gte_2_7)]
     pub fn rb_keyword_given_p() -> c_int;
+    // void
+    // rb_need_block(void)
+    //
+    // Raises `LocalJumpError` unless a block was given.
+    pub fn rb_need_block();
     // void
     // rb_obj_call_init(VALUE obj, int argc, const VALUE *argv)
     pub fn rb_obj_call_init(object: Value, argc: Argc, argv: *const Value);

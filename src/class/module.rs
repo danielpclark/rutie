@@ -808,6 +808,26 @@ impl Module {
         class::is_method_defined(self.value(), name, include_private)
     }
 
+    /// Returns the arity of the instance method `name`, or `0` if it is not
+    /// defined (`rb_mod_method_arity`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Arities; def two(a, b); end; def many(a, *rest); end; end").unwrap();
+    ///
+    /// let arities = Module::from_existing("Arities");
+    ///
+    /// assert_eq!(arities.instance_method_arity("two"), 2);
+    /// assert_eq!(arities.instance_method_arity("many"), -2);
+    /// ```
+    pub fn instance_method_arity(&self, name: &str) -> i32 {
+        crate::binding::rproc::module_method_arity(self.value(), name)
+    }
+
     /// Compares this module with `other` in the class hierarchy, like
     /// Ruby's `self <= other` (`rb_class_inherited_p`): `Some(true)` if this
     /// is `other` or inherits from or includes it, `Some(false)` if `other`

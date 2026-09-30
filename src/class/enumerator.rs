@@ -1,6 +1,8 @@
 use std::convert::From;
 
 use crate::{
+    binding::{enumerator, vm},
+    rubysys::exception::rb_eException,
     types::{Value, ValueType},
     AnyException, AnyObject, Array, Class, Fixnum, Object, VerifiedObject,
 };
@@ -13,6 +15,97 @@ pub struct Enumerator {
 }
 
 impl Enumerator {
+    // External enumeration runs on a fiber, and Ruby refuses to resume a
+    // fiber under a different `rb_protect` than the one it was created
+    // under ("fiber called across stack rewinding barrier"). `protect_send`
+    // opens a new `rb_protect` on every call, which only worked when every
+    // call came from the same stack depth, so the enumeration methods rescue
+    // exceptions with `rb_rescue2` instead, which leaves that alone.
+    fn rescue_send(
+        &self,
+        method: &str,
+        arguments: &[AnyObject],
+    ) -> Result<AnyObject, AnyException> {
+        let enumerator = self.value();
+        let arguments = crate::util::arguments_to_values(arguments);
+        let mut error = None;
+
+        let result = vm::rescue(
+            || vm::call_method(enumerator, method, &arguments),
+            |exception| {
+                error = Some(exception);
+
+                exception
+            },
+            &[unsafe { rb_eException }],
+        );
+
+        match error {
+            Some(exception) => Err(AnyException::from(exception)),
+            None => Ok(AnyObject::from(result)),
+        }
+    }
+
+    /// Creates an enumerator over what `object.method(*arguments)` yields,
+    /// like Ruby's `object.to_enum(method, *arguments)`
+    /// (`rb_enumeratorize`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Enumerator, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let array: Array = (1..=3).map(|i| Fixnum::new(i).to_any_object()).collect();
+    /// let mut pairs = Enumerator::new(&array, "each_slice", &[Fixnum::new(2).into()]);
+    ///
+    /// let first = pairs.next().unwrap().try_convert_to::<Array>().unwrap();
+    ///
+    /// assert_eq!(first.length(), 2);
+    /// ```
+    pub fn new<T: Object>(object: &T, method: &str, arguments: &[AnyObject]) -> Self {
+        let arguments = crate::util::arguments_to_values(arguments);
+
+        Enumerator::from(enumerator::enumeratorize(
+            object.value(),
+            method,
+            &arguments,
+        ))
+    }
+
+    /// Returns a Rust iterator over the enumerator's values, starting where
+    /// the enumerator currently is. It ends at `StopIteration`; any other
+    /// exception is yielded once as `Err` and ends the iteration.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, Enumerator, VM};
+    /// # VM::init();
+    ///
+    /// let enumerator = VM::eval("[1, 2, 3].each").unwrap().try_convert_to::<Enumerator>().unwrap();
+    ///
+    /// let sum: i64 = enumerator
+    ///     .iter()
+    ///     .map(|value| value.unwrap().try_convert_to::<Fixnum>().unwrap().to_i64())
+    ///     .sum();
+    ///
+    /// assert_eq!(sum, 6);
+    ///
+    /// let failing = VM::eval("Enumerator.new { |y| y << 1; raise 'broken' }").unwrap()
+    ///     .try_convert_to::<Enumerator>().unwrap();
+    /// let results: Vec<_> = failing.iter().collect();
+    ///
+    /// assert_eq!(results.len(), 2);
+    /// assert!(results[1].is_err());
+    /// ```
+    pub fn iter(&self) -> EnumeratorIterator {
+        EnumeratorIterator {
+            enumerator: Enumerator::from(self.value()),
+            done: false,
+        }
+    }
+
     /// Advances the iterator and returns the next value.
     ///
     /// Returns [`Err`] when iteration is finished.
@@ -37,7 +130,7 @@ impl Enumerator {
     /// assert!(iter.next().is_err(), "not error!");
     /// ```
     pub fn next(&mut self) -> Result<AnyObject, AnyException> {
-        self.protect_send("next", &[])
+        self.rescue_send("next", &[])
     }
 
     /// Advances the iterator and returns the next values.
@@ -73,7 +166,7 @@ impl Enumerator {
     /// assert!(iter.next_values().is_err(), "not error!");
     /// ```
     pub fn next_values(&mut self) -> Result<Array, AnyException> {
-        self.protect_send("next_values", &[])
+        self.rescue_send("next_values", &[])
             .map(|v| Array::from(v.value()))
     }
 
@@ -94,7 +187,7 @@ impl Enumerator {
     /// assert_eq!(Ok(Fixnum::new(2).to_any_object()), iter.peek());
     /// ```
     pub fn peek(&self) -> Result<AnyObject, AnyException> {
-        self.protect_send("peek", &[])
+        self.rescue_send("peek", &[])
     }
 
     /// Peeks into the iterator and returns the next values.
@@ -121,7 +214,7 @@ impl Enumerator {
     /// assert_eq!(Ok(result1), iter.peek_values());
     /// ```
     pub fn peek_values(&self) -> Result<Array, AnyException> {
-        self.protect_send("peek_values", &[])
+        self.rescue_send("peek_values", &[])
             .map(|v| Array::from(v.value()))
     }
 
@@ -203,7 +296,7 @@ impl Enumerator {
     /// end
     /// ```
     pub fn feed(&mut self, object: AnyObject) -> Result<(), AnyException> {
-        self.protect_send("feed", &[object]).map(|_| ())
+        self.rescue_send("feed", &[object]).map(|_| ())
     }
 }
 
@@ -245,5 +338,162 @@ impl VerifiedObject for Enumerator {
 impl PartialEq for Enumerator {
     fn eq(&self, other: &Self) -> bool {
         self.equals(other)
+    }
+}
+
+/// Rust iterator over an [`Enumerator`](struct.Enumerator.html); see
+/// [`Enumerator::iter`](struct.Enumerator.html#method.iter).
+#[derive(Debug)]
+pub struct EnumeratorIterator {
+    enumerator: Enumerator,
+    done: bool,
+}
+
+impl Iterator for EnumeratorIterator {
+    type Item = Result<AnyObject, AnyException>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            return None;
+        }
+
+        match self.enumerator.next() {
+            Ok(value) => Some(Ok(value)),
+            Err(error) => {
+                self.done = true;
+
+                if unsafe { stop_iteration_class() }.case_equals(&error) {
+                    None
+                } else {
+                    Some(Err(error))
+                }
+            }
+        }
+    }
+}
+
+/// Iterates over the enumerator's values; see
+/// [`Enumerator::iter`](struct.Enumerator.html#method.iter).
+///
+/// # Examples
+///
+/// ```
+/// use rutie::{Enumerator, Object, VM};
+/// # VM::init();
+///
+/// let enumerator = VM::eval("(1..4).each").unwrap().try_convert_to::<Enumerator>().unwrap();
+///
+/// assert_eq!(enumerator.into_iter().count(), 4);
+/// ```
+impl IntoIterator for Enumerator {
+    type Item = Result<AnyObject, AnyException>;
+    type IntoIter = EnumeratorIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        EnumeratorIterator {
+            enumerator: self,
+            done: false,
+        }
+    }
+}
+
+unsafe fn stop_iteration_class() -> Class {
+    Class::from(crate::rubysys::exception::rb_eStopIteration)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Array, Enumerator, Fixnum, Hash, Object, Symbol, VM};
+
+    #[test]
+    fn test_enumerator_new_and_iteration() {
+        crate::on_ruby_thread(|| {
+            let mut hash = Hash::new();
+            hash.store(Symbol::new("a"), Fixnum::new(1));
+            hash.store(Symbol::new("b"), Fixnum::new(2));
+
+            let pairs = Enumerator::new(&hash, "each_pair", &[]);
+            let collected: Vec<_> = pairs.iter().map(|pair| pair.unwrap()).collect();
+            assert_eq!(collected.len(), 2);
+            assert_eq!(
+                collected[1]
+                    .try_convert_to::<Array>()
+                    .unwrap()
+                    .at(0)
+                    .try_convert_to::<Symbol>(),
+                Ok(Symbol::new("b"))
+            );
+
+            // Iteration continues from the enumerator's position.
+            let mut numbers = VM::eval("[1, 2, 3].each")
+                .unwrap()
+                .try_convert_to::<Enumerator>()
+                .unwrap();
+            numbers.next().unwrap();
+            assert_eq!(numbers.iter().count(), 2);
+            numbers.rewind();
+            assert_eq!(numbers.into_iter().count(), 3);
+
+            // An infinite enumerator works lazily.
+            let naturals = VM::eval("(1..Float::INFINITY).each")
+                .unwrap()
+                .try_convert_to::<Enumerator>()
+                .unwrap();
+            let first: Vec<i64> = naturals
+                .iter()
+                .take(3)
+                .map(|value| value.unwrap().try_convert_to::<Fixnum>().unwrap().to_i64())
+                .collect();
+            assert_eq!(first, vec![1, 2, 3]);
+        });
+    }
+
+    // Each call to `next` used to open its own `rb_protect`; calls from
+    // different stack depths then failed with a `FiberError`.
+    #[test]
+    fn test_next_from_different_stack_depths() {
+        crate::on_ruby_thread(|| {
+            fn deeper(enumerator: &mut Enumerator, depth: usize) -> i64 {
+                if depth == 0 {
+                    enumerator
+                        .next()
+                        .unwrap()
+                        .try_convert_to::<Fixnum>()
+                        .unwrap()
+                        .to_i64()
+                } else {
+                    let padding = [depth; 16];
+                    deeper(enumerator, depth - 1) + (padding[0] - depth) as i64
+                }
+            }
+
+            let mut enumerator = VM::eval("[1, 2, 3, 4].each")
+                .unwrap()
+                .try_convert_to::<Enumerator>()
+                .unwrap();
+
+            assert_eq!(deeper(&mut enumerator, 0), 1);
+            assert_eq!(deeper(&mut enumerator, 5), 2);
+            assert_eq!(
+                enumerator.peek().unwrap().try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(3))
+            );
+            assert_eq!(deeper(&mut enumerator, 2), 3);
+            assert_eq!(deeper(&mut enumerator, 9), 4);
+            assert!(enumerator.next().is_err());
+        });
+    }
+
+    #[test]
+    fn test_try_compare() {
+        crate::on_ruby_thread(|| {
+            use std::cmp::Ordering;
+
+            let a = crate::RString::new_utf8("a");
+            let b = crate::RString::new_utf8("b");
+            assert_eq!(a.try_compare(&b).unwrap(), Ordering::Less);
+            assert_eq!(b.try_compare(&a).unwrap(), Ordering::Greater);
+            assert!(a.try_compare(&Fixnum::new(1)).is_err());
+        });
     }
 }

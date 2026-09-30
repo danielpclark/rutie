@@ -80,6 +80,63 @@ extern "C" {
     // int
     // rb_utf8_encindex(void)
     pub fn rb_utf8_encindex() -> EncodingIndex;
+    // rb_encoding *
+    // rb_ascii8bit_encoding(void)
+    pub fn rb_ascii8bit_encoding() -> EncodingType;
+    // int
+    // rb_enc_ascget(const char *p, const char *e, int *len, rb_encoding *enc)
+    pub fn rb_enc_ascget(
+        p: *const c_char,
+        e: *const c_char,
+        len: *mut c_int,
+        enc: EncodingType,
+    ) -> c_int;
+    // rb_encoding *
+    // rb_enc_check(VALUE str1, VALUE str2)
+    pub fn rb_enc_check(str1: Value, str2: Value) -> EncodingType;
+    // int
+    // rb_enc_codelen(int code, rb_encoding *enc)
+    pub fn rb_enc_codelen(code: c_int, enc: EncodingType) -> c_int;
+    // void
+    // rb_enc_copy(VALUE obj1, VALUE obj2)
+    pub fn rb_enc_copy(destination: Value, source: Value);
+    // rb_encoding *
+    // rb_enc_find(const char *name)
+    pub fn rb_enc_find(name: *const c_char) -> EncodingType;
+    // rb_encoding *
+    // rb_enc_get(VALUE obj)
+    //
+    // Null for objects without an encoding.
+    pub fn rb_enc_get(object: Value) -> EncodingType;
+    // int
+    // rb_enc_precise_mbclen(const char *p, const char *e, rb_encoding *enc)
+    pub fn rb_enc_precise_mbclen(p: *const c_char, e: *const c_char, enc: EncodingType) -> c_int;
+    // VALUE
+    // rb_enc_str_buf_cat(VALUE str, const char *ptr, long len, rb_encoding *ptr_enc)
+    pub fn rb_enc_str_buf_cat(
+        string: Value,
+        ptr: *const c_char,
+        len: c_long,
+        encoding: EncodingType,
+    ) -> Value;
+    // int
+    // rb_enc_to_index(rb_encoding *enc)
+    pub fn rb_enc_to_index(encoding: EncodingType) -> c_int;
+    // VALUE
+    // rb_enc_uint_chr(unsigned int code, rb_encoding *enc)
+    pub fn rb_enc_uint_chr(code: u32, encoding: EncodingType) -> Value;
+    // rb_encoding *
+    // rb_filesystem_encoding(void)
+    pub fn rb_filesystem_encoding() -> EncodingType;
+    // rb_encoding *
+    // rb_locale_encoding(void)
+    pub fn rb_locale_encoding() -> EncodingType;
+    // rb_encoding *
+    // rb_usascii_encoding(void)
+    pub fn rb_usascii_encoding() -> EncodingType;
+    // rb_encoding *
+    // rb_utf8_encoding(void)
+    pub fn rb_utf8_encoding() -> EncodingType;
     // int
     // rb_enc_mbclen(const char *p, const char *e, rb_encoding *enc)
     pub fn rb_enc_mbclen(p: *const c_char, e: *const c_char, enc: EncodingType) -> c_int;

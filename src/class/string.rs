@@ -802,6 +802,35 @@ impl RString {
         }
     }
 
+    /// Appends `bytes`, which are in encoding `enc`, converting them the
+    /// way Ruby's `<<` does (`rb_enc_str_buf_cat`). Returns the
+    /// `Encoding::CompatibilityError` when the encodings cannot be combined.
+    ///
+    /// Ruby raises `FrozenError` inside the `Err` if the string is frozen.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("abc ");
+    ///
+    /// string.concat_bytes(b"def", &Encoding::us_ascii()).unwrap();
+    /// assert_eq!(string.to_str(), "abc def");
+    ///
+    /// let mut ascii = RString::from_bytes(b"x", &Encoding::us_ascii());
+    /// ascii.concat_bytes("é".as_bytes(), &Encoding::utf8()).unwrap();
+    /// assert_eq!(ascii.to_str(), "xé");
+    /// ```
+    pub fn concat_bytes(&mut self, bytes: &[u8], enc: &Encoding) -> Result<(), AnyException> {
+        let (string, enc) = (self.value(), enc.value());
+
+        vm::protect_value(|| encoding::concat_bytes(string, bytes, enc))
+            .map(|_| ())
+            .map_err(AnyException::from)
+    }
+
     /// Calls `f` with the string's bytes while the string is locked
     /// against modification (`rb_str_locktmp`), so the slice stays valid
     /// even if `f` calls into Ruby.

@@ -537,3 +537,13 @@ pub fn call_method_with_keywords(receiver: Value, method: &str, arguments: &[Val
 
     unsafe { vm::rb_funcallv_kw(receiver, internal_id(method), argc, argv, 1) }
 }
+
+pub fn yield_values(values: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(values);
+
+    unsafe { vm::rb_yield_values2(argc, argv) }
+}
+
+pub fn need_block() {
+    unsafe { vm::rb_need_block() }
+}

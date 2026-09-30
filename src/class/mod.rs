@@ -13,6 +13,7 @@ pub mod gc;
 pub mod global_variable;
 pub mod hash;
 pub mod integer;
+pub mod method;
 pub mod module;
 pub mod nil_class;
 pub mod range;
