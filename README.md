@@ -276,7 +276,7 @@ any Ruby methods which can be used from Ruby._
 
 ## Variadic Functions / Splat Operator
 
-The `methods!` macro takes a Ruby-style splat (unreleased): a last parameter written
+Since 0.10 the `methods!` macro takes a Ruby-style splat: a last parameter written
 `*name` (with no type) receives the remaining arguments as an `Array`. The
 parameters before it keep their usual `Result` types.
 
@@ -343,26 +343,25 @@ Internal changes `util` from `binding` and `rubysys` have been replaced to reduc
 
 #### 0.10
 
-0.10 targets Ruby 2 (2.5, 2.6, 2.7) and continues the 0.8/0.9 line; there are no
-API changes to migrate from 0.9.x. Two behaviour fixes are worth knowing:
+0.10 targets Ruby 2 (2.5, 2.6, 2.7) and continues the 0.8/0.9 line. It adds
+a large amount of API (see the CHANGELOG) and has one breaking change to
+migrate from 0.9.x:
 
-- `VM::at_exit` now calls its closure correctly. Previously closures that captured
-  variables read a bad pointer (a crash on aarch64 macOS, a segfault elsewhere).
-- Builds work with current Cargo without setting `LD_LIBRARY_PATH` for `cargo test`.
+- `VM::at_exit` now does what its name says: the closure runs when the Ruby VM
+  shuts down (Ruby's `at_exit`), not immediately. It must be `'static` (move
+  captured values into it). Programs embedding Ruby run these handlers by calling
+  `unsafe { VM::cleanup() }` at the end. If you relied on the old immediate call,
+  use `VM::call_protected`, which keeps that behaviour (and no longer crashes:
+  closures that captured variables used to read a bad pointer).
+
+Builds also work with current Cargo without setting `LD_LIBRARY_PATH` for
+`cargo test`.
 
 If you were depending on the unpublished `rb-sys`-based `master` (self-labelled
 0.10.0, February–September 2025) through a git dependency: that tree is
 discontinued. Its `link-ruby` and `ruby-static` cargo features do not exist in
 0.10; use the `no-link` feature (or `NO_LINK_RUTIE`) and the `RUBY_STATIC`
 environment variable as documented below, and expect Ruby 2, not Ruby 3.
-
-#### Unreleased
-
-`VM::at_exit` now does what its name says: the closure runs when the Ruby VM shuts
-down (Ruby's `at_exit`), not immediately. It must be `'static` (move captured
-values into it). Programs embedding Ruby run these handlers by calling
-`unsafe { VM::cleanup() }` at the end. If you relied on the old immediate call,
-use `VM::call_protected`, which keeps that behaviour.
 
 
 ## Safety — The Rutie Philosophy vs The Rust Philosophy on Safety

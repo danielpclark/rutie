@@ -73,6 +73,14 @@ Rutie 0.10.0 (the revert of the `rb-sys` integration, PR #172) is the baseline.
    only valid input), the existing method keeps its behaviour and cost, and
    the checked behaviour goes in a second, safer method (`VM::raise` /
    `VM::raise_message`, `unsafe_methods!` / `methods!`).
+9. **SemVer as the README defines it.** Rutie won't reach 1.0, so MINOR
+   versions may break the public API (`src/class/*`, `src/helpers/*`), and
+   PATCH versions may only break the private API (`src/rubysys/*`,
+   `src/binding/*`, `src/util.rs`). A change that breaks public callers
+   (a changed signature or behaviour, a removed item) therefore waits for
+   the next MINOR release; adding items and fixing bugs that break however
+   a method is called (rule 8) are fine in a PATCH. Say in the CHANGELOG
+   which kind each change is.
 
 ---
 
@@ -599,10 +607,10 @@ as they land; keep this file current.
       the crate while it's being ported; the warning says Ruby 2 is the
       supported target.
 - [ ] Release cadence: superseded. Each Rutie minor now maps to three Rubies:
-      0.10 = 2.5/2.6/2.7 (this plan, P0–P8, released within the 0.10 line),
-      0.11 = 3.0/3.1/3.2, 0.12 = 3.1/3.2/3.3, 0.13 = 3.2/3.3/3.4 (P9). Open:
-      how the Ruby 2 completion work is numbered, given the breaking
-      `VM::at_exit` change (P9 plan, §10).
+      0.10 = 2.5/2.6/2.7 (this plan, P0–P8; 0.10.0 is not released yet, so
+      all of it, including the breaking `VM::at_exit` change, ships in
+      0.10.0), 0.11 = 3.0/3.1/3.2, 0.12 = 3.1/3.2/3.3, 0.13 = 3.2/3.3/3.4
+      (P9).
 
 ### P7 — unit tests for every public API
 

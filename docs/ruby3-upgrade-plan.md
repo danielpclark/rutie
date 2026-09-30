@@ -15,7 +15,10 @@ It is P9 of the Ruby 2 plan: the Ruby 2 packages (P0–P8) finish first, so
 lands. The Ruby 2 plan's ground rules (hand-maintained FFI, the
 `rubysys` → `binding` → `class` → `dsl` layering, a running and asserting
 doctest for every public item, unit tests via `on_ruby_thread`, rule 8 on
-safe variants) carry over unchanged.
+safe variants, rule 9 on SemVer) carry over unchanged. Rule 9 is why each
+line below is a MINOR release: 0.11, 0.12 and 0.13 may break the public API
+(`src/class/*`, `src/helpers/*`), while their PATCH releases may change only
+`src/rubysys/*`, `src/binding/*` and `src/util.rs`.
 
 **How the facts below were checked.** Items marked *(headers)* were compared
 in the installed headers of RVM's prebuilt 3.0.6, 3.1.4, 3.2.6 and 3.3.6
@@ -261,14 +264,9 @@ before pushing, and update the CHANGELOG in the same commit.
 
 ## 10. Open questions for the maintainer
 
-1. **Version of the Ruby 2 completion work.** The Ruby 2 plan's P0–P8 were
-   written expecting 0.11–0.15, and some docs say "before 0.11" (for
-   example `VM::at_exit`, which changed from running immediately to running
-   at shutdown, and `GC::register`). With 0.11 now the first Ruby 3 release,
-   that work ships in the 0.10 line. Because the `at_exit` change breaks
-   callers, either release it as 0.10.x with a prominent note, or treat it
-   as the final Ruby 2 minor under another number. Those doc references
-   need updating once this is decided.
+1. *Resolved:* 0.10.0 is not released yet, so all of the Ruby 2 work,
+   including the breaking `VM::at_exit` change, ships in 0.10.0 (a MINOR
+   release under rule 9).
 2. How long `0.10-stable` gets fixes after 0.11 ships.
 3. Whether Windows becomes a supported (not best-effort) target once CI
    uses prebuilt Rubies.

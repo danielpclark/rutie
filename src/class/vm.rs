@@ -900,7 +900,7 @@ impl VM {
     ///
     /// The `VmPointer` argument is always null; it is kept for compatibility.
     ///
-    /// Before 0.11 this method called `func` immediately; that behaviour is
+    /// Before 0.10 this method called `func` immediately; that behaviour is
     /// still available as [`VM::call_protected`](#method.call_protected).
     ///
     /// For code that must run after Ruby is gone (when the VM itself is
@@ -958,7 +958,7 @@ impl VM {
     /// Calls `func` immediately inside `rb_protect`, ignoring any exception
     /// it raises (the error info is left set).
     ///
-    /// This is what `VM::at_exit` did before 0.11. To run code when the VM
+    /// This is what `VM::at_exit` did before 0.10. To run code when the VM
     /// shuts down use [`VM::at_exit`](#method.at_exit); to handle exceptions
     /// use [`VM::protect`](#method.protect).
     ///

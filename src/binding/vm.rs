@@ -305,7 +305,7 @@ where
     nil()
 }
 
-// Runs `func` immediately under `rb_protect` (what `at_exit` did before 0.11).
+// Runs `func` immediately under `rb_protect` (what `at_exit` did before 0.10).
 pub fn call_protected<F>(mut func: F)
 where
     F: FnMut(VmPointer),

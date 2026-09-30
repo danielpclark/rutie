@@ -7,7 +7,7 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
-## [Unreleased]
+## [0.10.0] - Unreleased
 ### Added
  - `build.rs` sets `ruby_2_5`/`ruby_2_6`/`ruby_2_7` and cumulative
    `ruby_gte_2_5`/`ruby_gte_2_6`/`ruby_gte_2_7` cfg flags for the Ruby it builds
@@ -153,6 +153,18 @@ API and may have breaking changes during a teeny version change.
    thanks to @danielpclark
  - Unit tests run on a single dedicated Ruby thread (`on_ruby_thread`), since
    Ruby 2 must be used from the thread that started it, thanks to @danielpclark
+ - Reverted the `rb-sys` integration (PR #172) and returned to Rutie's own
+   hand-maintained FFI bindings (`rubysys`). Rutie targets Ruby 2 (2.5, 2.6
+   and 2.7) again; Ruby 3 support will be revisited once Ruby 2 support is
+   complete, thanks to @danielpclark
+ - Static Ruby and Windows CI jobs are best-effort and no longer fail the
+   workflow, thanks to @danielpclark
+
+### Removed
+ - The unpublished `rb-sys`-based tree that lived on `master` from February
+   2025 (self-labelled 0.10.0, tested only against Ruby 2.7 and 3.0-3.4). It
+   was never released to crates.io and is not supported; users of it via a git
+   dependency should pin their commit or move to 0.10.x, thanks to @danielpclark
 
 ### Fixed
  - `RString::encode` with options aborted Ruby (`[BUG] rb_econv_open_opts
@@ -175,26 +187,10 @@ API and may have breaking changes during a teeny version change.
    without `rb_protect`, thanks to @danielpclark
  - `try_convert_to::<Encoding>()` always failed, because `Encoding` objects
    were expected to be classes, thanks to @danielpclark
-
-## [0.10.0] - 2026-09-30
-### Changed
- - Reverted the `rb-sys` integration (PR #172) and returned to Rutie's own
-   hand-maintained FFI bindings (`rubysys`). Rutie targets Ruby 2 (2.5, 2.6
-   and 2.7) again; Ruby 3 support will be revisited once Ruby 2 support is
-   complete, thanks to @danielpclark
- - Static Ruby and Windows CI jobs are best-effort and no longer fail the
-   workflow, thanks to @danielpclark
-
-### Removed
- - The unpublished `rb-sys`-based tree that lived on `master` from February
-   2025 (self-labelled 0.10.0, tested only against Ruby 2.7 and 3.0-3.4). It
-   was never released to crates.io and is not supported; users of it via a git
-   dependency should pin their commit or move to 0.10.x, thanks to @danielpclark
-
-### Fixed
  - `VM::at_exit` called its closure through the wrong argument, which crashed
-   on aarch64 macOS and with capturing closures on every platform; it now uses
-   a proper single-argument `rb_protect` callback and has a regression test,
+   on aarch64 macOS and with capturing closures on every platform; that
+   immediate call (now `VM::call_protected`, see Changed) uses a proper
+   single-argument `rb_protect` callback and has a regression test,
    thanks to @danielpclark
  - `build.rs` now works with current Cargo, which no longer puts
    `target/<profile>/deps` on the library path when running test binaries and
