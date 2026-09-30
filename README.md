@@ -583,11 +583,12 @@ extensions are linked to `libruby.so` and would load a second Ruby.)
 
 Rutie links the whole archive, because a static Ruby's extensions
 (`enc/*.so`, `objspace.so`, ...) call Ruby functions from the executable that
-loads them. On Linux they also need those functions exported:
-Rutie's own tests and examples link with `-Wl,--export-dynamic`, and a program
-of yours that embeds a static Ruby needs the same flag
-(`RUSTFLAGS="-C link-arg=-Wl,--export-dynamic"`, or a `rustc-link-arg` in its
-build script). Static linking is tested on Linux.
+loads them, so they also need those functions exported: Rutie's own tests
+and examples link with `-Wl,--export-dynamic` on Linux and `-Wl,-export_dynamic`
+on macOS, and a program of yours that embeds a static Ruby needs the same flag
+(`RUSTFLAGS="-C link-arg=-Wl,--export-dynamic"`, or `-Wl,-export_dynamic` on
+macOS, or a `rustc-link-arg` in its build script). Static linking is tested on
+Linux and macOS.
 
 ## Contributing
 
