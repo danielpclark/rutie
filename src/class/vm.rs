@@ -3783,14 +3783,18 @@ mod tests {
             let dir = std::env::temp_dir().join(format!("rutie_run_file_{}", std::process::id()));
             std::fs::create_dir_all(&dir).unwrap();
             let script = dir.join("script.rb");
-            std::fs::write(&script, "$rutie_run_file = [$0, ARGV.dup]").unwrap();
+            std::fs::write(&script, "$rutie_run_file = [$0, ARGV.dup, __FILE__]").unwrap();
             let path = script.to_str().unwrap();
 
             let original_name = RString::from(VM::eval("$0").unwrap().value()).to_string();
 
+            // `$0` is the path as `load` resolves it (`/` separators on
+            // Windows), the same string as the script's `__FILE__`.
             VM::run_file(path, &["a", "b"]).unwrap();
             let seen = Array::from(VM::eval("$rutie_run_file").unwrap().value());
-            assert_eq!(RString::from(seen.at(0).value()).to_string(), path);
+            let program = RString::from(seen.at(0).value()).to_string();
+            assert_eq!(program, RString::from(seen.at(2).value()).to_string());
+            assert!(program.ends_with("script.rb"));
             assert_eq!(Array::from(seen.at(1).value()).length(), 2);
 
             // Not once per process: a second run works.
