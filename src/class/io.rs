@@ -76,7 +76,7 @@ impl IO {
     /// use rutie::{File, RString, VM};
     /// # VM::init();
     ///
-    /// let path = std::env::temp_dir().join("rutie_io_write_example.txt");
+    /// let path = std::env::temp_dir().join(format!("rutie_io_write_example_{}.txt", std::process::id()));
     /// let file = File::open(path.to_str().unwrap(), "w").unwrap();
     ///
     /// assert_eq!(file.write(&RString::new_utf8("héllo")).unwrap(), 6);
@@ -101,7 +101,7 @@ impl IO {
     /// use rutie::{Fixnum, File, RString, VM};
     /// # VM::init();
     ///
-    /// let path = std::env::temp_dir().join("rutie_io_puts_example.txt");
+    /// let path = std::env::temp_dir().join(format!("rutie_io_puts_example_{}.txt", std::process::id()));
     /// let file = File::open(path.to_str().unwrap(), "w").unwrap();
     ///
     /// file.puts(&[RString::new_utf8("a").into(), Fixnum::new(1).into()]).unwrap();
@@ -126,7 +126,7 @@ impl IO {
     /// use rutie::{Fixnum, File, RString, VM};
     /// # VM::init();
     ///
-    /// let path = std::env::temp_dir().join("rutie_io_print_example.txt");
+    /// let path = std::env::temp_dir().join(format!("rutie_io_print_example_{}.txt", std::process::id()));
     /// let file = File::open(path.to_str().unwrap(), "w").unwrap();
     ///
     /// file.print(&[RString::new_utf8("a").into(), Fixnum::new(1).into()]).unwrap();
@@ -151,7 +151,7 @@ impl IO {
     /// use rutie::{File, VM};
     /// # VM::init();
     ///
-    /// let path = std::env::temp_dir().join("rutie_io_gets_example.txt");
+    /// let path = std::env::temp_dir().join(format!("rutie_io_gets_example_{}.txt", std::process::id()));
     /// std::fs::write(&path, "one\ntwo").unwrap();
     ///
     /// let file = File::open(path.to_str().unwrap(), "r").unwrap();
@@ -183,7 +183,7 @@ impl IO {
     /// use rutie::{File, VM};
     /// # VM::init();
     ///
-    /// let path = std::env::temp_dir().join("rutie_io_getbyte_example.txt");
+    /// let path = std::env::temp_dir().join(format!("rutie_io_getbyte_example_{}.txt", std::process::id()));
     /// std::fs::write(&path, [7u8]).unwrap();
     ///
     /// let file = File::open(path.to_str().unwrap(), "rb").unwrap();
@@ -230,7 +230,7 @@ impl IO {
     /// use rutie::{File, VM};
     /// # VM::init();
     ///
-    /// let path = std::env::temp_dir().join("rutie_io_close_example.txt");
+    /// let path = std::env::temp_dir().join(format!("rutie_io_close_example_{}.txt", std::process::id()));
     /// let file = File::open(path.to_str().unwrap(), "w").unwrap();
     ///
     /// file.close().unwrap();
@@ -269,7 +269,7 @@ impl IO {
     /// use rutie::{File, VM};
     /// # VM::init();
     ///
-    /// let path = std::env::temp_dir().join("rutie_io_eof_example.txt");
+    /// let path = std::env::temp_dir().join(format!("rutie_io_eof_example_{}.txt", std::process::id()));
     /// std::fs::write(&path, "x").unwrap();
     ///
     /// let file = File::open(path.to_str().unwrap(), "r").unwrap();
@@ -301,7 +301,7 @@ impl IO {
     /// use rutie::{Encoding, EncodingSupport, File, VM};
     /// # VM::init();
     ///
-    /// let path = std::env::temp_dir().join("rutie_io_binmode_example.txt");
+    /// let path = std::env::temp_dir().join(format!("rutie_io_binmode_example_{}.txt", std::process::id()));
     /// std::fs::write(&path, "x").unwrap();
     ///
     /// let file = File::open(path.to_str().unwrap(), "r").unwrap();
@@ -523,7 +523,8 @@ mod tests {
     #[test]
     fn test_file_round_trip() {
         crate::on_ruby_thread(|| {
-            let path = std::env::temp_dir().join("rutie_io_unit_test.txt");
+            let path =
+                std::env::temp_dir().join(format!("rutie_io_unit_test_{}.txt", std::process::id()));
             let path_str = path.to_str().unwrap();
 
             let file = File::open(path_str, "w").unwrap();

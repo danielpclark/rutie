@@ -1165,13 +1165,27 @@ mod tests {
     }
 
     // Not inlined, so no copy of the strings stays on the (pinning) stack.
+    //
+    // Until `wrap_data` returns, the strings are reachable only through the
+    // `Vec`'s buffer on the Rust heap, which the GC does not scan, so a GC
+    // triggered by one of these allocations would free the earlier strings.
+    // Whether one runs depends on what earlier tests left on the heap.
     #[inline(never)]
     fn movable_object() -> AnyObject {
+        let was_disabled = GC::disable();
+
         let strings = (0..200)
             .map(|i| RString::new_utf8(&format!("s{}", i)))
             .collect();
 
-        Class::new("RutieDslMovable", None).wrap_data(Movable { strings }, &*MOVABLE_WRAPPER)
+        let object =
+            Class::new("RutieDslMovable", None).wrap_data(Movable { strings }, &*MOVABLE_WRAPPER);
+
+        if !was_disabled {
+            GC::enable();
+        }
+
+        object
     }
 
     pub struct Plain;
@@ -1241,11 +1255,16 @@ mod tests {
             VM::protect_require("objspace").unwrap();
 
             let class = Class::new("RutieDslPayload", None);
+
+            // The string is only in the `Vec` until `wrap_data` returns (see
+            // `movable_object`).
+            GC::disable();
             let payload = Payload {
                 objects: vec![RString::new_utf8("kept alive").to_any_object()],
                 extra: 1 << 20,
             };
             let object: AnyObject = class.wrap_data(payload, &*PAYLOAD_WRAPPER);
+            GC::enable();
 
             GC::start();
 

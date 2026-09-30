@@ -2613,7 +2613,7 @@ impl VM {
     /// use rutie::{Fixnum, Object, VM};
     /// # VM::init();
     ///
-    /// let path = std::env::temp_dir().join("rutie_vm_load_example.rb");
+    /// let path = std::env::temp_dir().join(format!("rutie_vm_load_example_{}.rb", std::process::id()));
     /// std::fs::write(&path, "$rutie_loaded = 42").unwrap();
     ///
     /// VM::load(path.to_str().unwrap(), false).unwrap();
@@ -2712,7 +2712,7 @@ impl VM {
     /// use rutie::{Object, RString, VM};
     /// # VM::init();
     ///
-    /// let dir = std::env::temp_dir().join("rutie_load_path_example");
+    /// let dir = std::env::temp_dir().join(format!("rutie_load_path_example_{}", std::process::id()));
     /// std::fs::create_dir_all(&dir).unwrap();
     /// std::fs::write(dir.join("rutie_feature.rb"), "RUTIE_FEATURE = :loaded").unwrap();
     ///
@@ -3446,7 +3446,8 @@ mod tests {
     #[test]
     fn test_load_require_and_provide() {
         crate::on_ruby_thread(|| {
-            let dir = std::env::temp_dir().join("rutie_vm_load_unit_test");
+            let dir = std::env::temp_dir()
+                .join(format!("rutie_vm_load_unit_test_{}", std::process::id()));
             std::fs::create_dir_all(&dir).unwrap();
             std::fs::write(dir.join("rutie_unit_feature.rb"), "$rutie_unit_feature = 1").unwrap();
             std::fs::write(dir.join("rutie_unit_broken.rb"), "raise 'broken on load'").unwrap();
