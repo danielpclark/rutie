@@ -1,5 +1,9 @@
 use crate::rubysys::types::{c_char, c_int, Argc, Value};
 
+// `enum rb_io_event_t` (`RB_WAITFD_IN` / `RB_WAITFD_OUT`).
+pub const RUBY_IO_READABLE: c_int = 0x001;
+pub const RUBY_IO_WRITABLE: c_int = 0x004;
+
 extern "C" {
     pub static rb_cFile: Value;
     pub static rb_cIO: Value;
@@ -44,6 +48,11 @@ extern "C" {
     //
     // What `IO#binmode` calls: binary mode plus ASCII-8BIT external encoding.
     pub fn rb_io_ascii8bit_binmode(io: Value) -> Value;
+    // VALUE
+    // rb_io_wait(VALUE io, VALUE events, VALUE timeout)
+    //
+    // Returns the ready events as an Integer, or `Qfalse` on timeout.
+    pub fn rb_io_wait(io: Value, events: Value, timeout: Value) -> Value;
     // VALUE
     // rb_io_close(VALUE io)
     pub fn rb_io_close(io: Value) -> Value;
