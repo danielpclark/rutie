@@ -218,7 +218,7 @@ pub trait Object: From<Value> {
     /// server.host == "127.0.0.1"
     /// server.port == 3000
     /// ```
-    fn get_data<'a, T>(&'a self, wrapper: &'a dyn DataTypeWrapper<T>) -> &T {
+    fn get_data<'a, T>(&'a self, wrapper: &'a dyn DataTypeWrapper<T>) -> &'a T {
         class::get_data(self.value(), wrapper)
     }
 
@@ -248,7 +248,7 @@ pub trait Object: From<Value> {
     ///     assert_eq!(counter.get_data(&*COUNTER_WRAPPER).count, 2);
     /// }
     /// ```
-    fn get_data_mut<'a, T>(&'a mut self, wrapper: &'a dyn DataTypeWrapper<T>) -> &mut T {
+    fn get_data_mut<'a, T>(&'a mut self, wrapper: &'a dyn DataTypeWrapper<T>) -> &'a mut T {
         class::get_data(self.value(), wrapper)
     }
 

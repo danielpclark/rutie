@@ -173,7 +173,7 @@ extern "C" {
 }
 
 pub unsafe fn coderange_set(obj: Value, code_range: InternalValue) {
-    let basic: *mut RBasic = mem::transmute(obj.value);
+    let basic: *mut RBasic = obj.value as *mut RBasic;
     (*basic).flags = ((*basic).flags & !(ENC_CODERANGE_MASK as InternalValue)) | code_range
 }
 

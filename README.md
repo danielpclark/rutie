@@ -51,7 +51,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.10.0"
+rutie = "0.10.1"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path

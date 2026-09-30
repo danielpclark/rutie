@@ -143,7 +143,7 @@ struct RArray {
 }
 
 pub unsafe fn rb_ary_len(value: Value) -> c_long {
-    let rarray: *const RArray = mem::transmute(value.value);
+    let rarray: *const RArray = value.value as *const RArray;
     let flags = (*rarray).basic.flags;
 
     if flags & (RArrayEmbed::Flag as size_t) == 0 {
