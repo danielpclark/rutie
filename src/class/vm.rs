@@ -1992,7 +1992,7 @@ impl VM {
 mod tests {
     use crate::{
         types::ValueType, AnyObject, Array, Class, Exception, Fixnum, Hash, NilClass, Object,
-        RString, Symbol, LOCK_FOR_TEST, VM,
+        RString, Symbol, VM,
     };
     use std::{
         cell::Cell,

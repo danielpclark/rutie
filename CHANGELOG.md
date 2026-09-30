@@ -68,6 +68,16 @@ API and may have breaking changes during a teeny version change.
  - `Array` methods: `delete`, `delete_at`, `includes`, `clear`, `slice`,
    `plus`, `compare`, `replace`, `resize`, `rotate_bang`, `assoc`, `rassoc`,
    and `TryConvert` (`Array.try_convert`), thanks to @danielpclark
+ - `Hash` methods: `lookup` (ignores the default), `has_key`, `fetch`, `keys`,
+   `values`, `update`, `set_default`, `iter` (with `HashIterator`) and
+   `TryConvert` (`Hash.try_convert`), thanks to @danielpclark
+ - `Integer`: `from_str_radix`, `to_s_radix`, `is_bignum`, `to_i128`,
+   `to_u128`, `to_f64`, `add`, `sub`, `mul`, `div`, `modulo`, `pow`,
+   `compare` (and `PartialOrd`); `From<i128>`, `From<u128>`,
+   `TryFrom<f64>`, and `TryFrom<Integer>` for `i128` and `u128`,
+   thanks to @danielpclark
+ - New `Rational` and `Complex` types, and `Float::rationalize`,
+   thanks to @danielpclark
 
 ### Changed
  - **Breaking:** `VM::at_exit` now registers a real end proc

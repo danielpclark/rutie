@@ -3,7 +3,7 @@ use std::convert::From;
 use crate::{
     binding::float,
     types::{Value, ValueType},
-    AnyException, AnyObject, Object, VerifiedObject, VM,
+    AnyException, AnyObject, Object, Rational, VerifiedObject, VM,
 };
 
 /// `Float`
@@ -14,6 +14,30 @@ pub struct Float {
 }
 
 impl Float {
+    /// Returns the simplest `Rational` that rounds to this float (Ruby's
+    /// `rationalize`, `rb_flt_rationalize`), or the `FloatDomainError` for
+    /// `NaN` and infinities.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Float, VM};
+    /// # VM::init();
+    ///
+    /// let third = Float::new(0.333333333333333333).rationalize().unwrap();
+    ///
+    /// assert_eq!(third.numerator().to_i64(), 1);
+    /// assert_eq!(third.denominator().to_i64(), 3);
+    /// assert!(Float::new(std::f64::NAN).rationalize().is_err());
+    /// ```
+    pub fn rationalize(&self) -> Result<Rational, AnyException> {
+        let float = self.value();
+
+        crate::binding::vm::protect_value(|| crate::binding::numeric::float_rationalize(float))
+            .map(Rational::from)
+            .map_err(AnyException::from)
+    }
+
     /// Converts `object` to a `Float` the way Ruby's `Float(object)`
     /// (`Kernel#Float`, `rb_Float`) does, parsing strings strictly and calling `to_f`. Returns the exception when
     /// it cannot be converted.

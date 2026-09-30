@@ -317,12 +317,18 @@ as they land; keep this file current.
       already existed; freezing is `Object::freeze`. `rb_ary_aref`,
       `rb_ary_to_ary` bound in `rubysys`; `rb_ary_each` needs a Ruby block, so
       iteration uses the iterator or `send_with_block`.
-- [ ] **Hash:** `rb_hash_lookup`, `rb_hash_lookup2`, `rb_hash_fetch`,
+- [x] **Hash:** `rb_hash_lookup`, `rb_hash_lookup2`, `rb_hash_fetch`,
       `rb_hash_has_key`? (use `rb_hash_lookup2` with undef), `rb_hash_keys`,
       `rb_hash_values`, `rb_hash_update_by`, `rb_hash_set_ifnone`,
       `rb_hash_freeze`, `rb_check_hash_type`, `rb_hash_delete_if`?, `rb_hash_tbl`
       (avoid), `rb_env_clear`? (no). `Hash` gets `iter()` over `(AnyObject, AnyObject)`.
-- [ ] **Numeric:** Bignum — `rb_big2str`, `rb_cstr_to_inum`, `rb_str2inum`,
+      Done: `lookup`, `has_key` (`rb_hash_lookup2` with `Qundef`), `fetch`,
+      `keys`, `values` (through `rb_hash_foreach`: `rb_hash_keys` is exported
+      by 2.6/2.7 but in no public header, `rb_hash_values` by none),
+      `update` (`rb_hash_update_by`), `set_default` (through `default=`, since
+      `rb_hash_set_ifnone` skips the frozen check and keeps a default-proc
+      flag), `iter` -> `HashIterator`, `TryConvert` (`rb_check_hash_type`).
+- [x] **Numeric:** Bignum — `rb_big2str`, `rb_cstr_to_inum`, `rb_str2inum`,
       `rb_big_cmp`, `rb_big_plus/minus/mul/div/modulo/pow`, `rb_big2ll/ull/dbl`,
       `rb_dbl2big`, `rb_int_positive_pow`; `rb_num_coerce_bin/cmp/relop`,
       `rb_num2fix`, `rb_fix2str`, `rb_Integer`, `rb_Float`; **Rational/Complex** —
@@ -331,6 +337,16 @@ as they land; keep this file current.
       (2.7 exposes `rb_complex_real`/`_imag`; gate older versions to
       `rb_funcall`). New types: `Bignum`? (fold into `Integer`), `Rational`,
       `Complex`. Implement `TryFrom<i128>/u128`, `From<f64>`.
+      Done: `Integer::from_str_radix`, `to_s_radix`, `is_bignum`, exact
+      `i128`/`u128` both ways (`rb_integer_pack`/`unpack`), `TryFrom<f64>`,
+      `to_f64`, arithmetic (`div`/`modulo` return `Result`), `compare`.
+      New `Rational` and `Complex` types; `Float::rationalize`. Notes: the
+      `rb_big_*` functions take a Bignum receiver only (a Fixnum is UB), so
+      arithmetic goes through the Integer methods; `rb_int_positive_pow` is
+      in `internal.h` only (not bound); `rb_complex_real/imag/abs/arg` are
+      2.6+ (2.5 falls back to method calls); `rb_cstr_to_inum` passes no
+      length, which disables base-0 prefix detection, so parsing uses
+      `rb_str_to_inum`. `rb_num_coerce_*` are bound (`binding::numeric`).
 - [ ] **Range:** `rb_range_new`, `rb_range_values`, `rb_range_beg_len`,
       `rb_arithmetic_sequence_extract` (2.6+). New type `Range`.
 - [ ] **Regexp / MatchData:** `rb_reg_new_str`, `rb_reg_new`, `rb_reg_regcomp`,
@@ -444,8 +460,43 @@ as they land; keep this file current.
       and print a clear error when the linked Ruby's major version ≠ 2 (a
       `cargo:warning` is printed since P0-1; decide whether it should fail).
 - [ ] Release cadence: 0.10.0 = this baseline; 0.11 = P0 + P1; 0.12 = P2;
-      0.13 = P3 + P4; 0.14 = P5 + P6; then declare "Ruby 2 complete" (1.0 is
-      a maintainer call) and only then branch for Ruby 3.
+      0.13 = P3 + P4; 0.14 = P5 + P6; 0.15 = P7 + P8; then declare "Ruby 2
+      complete" (1.0 is a maintainer call) and only then branch for Ruby 3.
+
+### P7 — unit tests for every public API
+
+Every package above ships with tests for what it adds, written as a
+`#[cfg(test)] mod tests` at the bottom of the file that defines the API and run
+through `crate::on_ruby_thread` (§0.3). P7 backfills the API that existed
+before this plan, so that **every public item has at least one unit test that
+round-trips through Ruby**, not only a doctest.
+
+- [ ] Inventory: list every public item (`src/class/**`, `src/helpers/**`,
+      `src/dsl.rs`, `src/util.rs` public fns, `typed_data`) and the unit tests
+      covering it; keep the table in this section current.
+- [ ] Backfill a bottom-of-file test module for each file that lacks one
+      (today: `any_exception`, `any_object`, `binding`, `boolean`, `encoding`,
+      `enumerator`, `fixnum`, `float`, `gc`, `module`, `nil_class`, `rproc`,
+      `thread`, `traits/*`, `helpers/codepoint_iterator`, `typed_data`,
+      `dsl` macros), covering success paths, error paths (`Err`/raised
+      exceptions via `VM::protect`), frozen receivers and GC survival
+      (`GC::start` between creating and using objects) where relevant.
+- [ ] Version-specific behaviour gets version-specific tests under
+      `#[cfg(ruby_2_5)]`/`#[cfg(ruby_gte_2_6)]`/`#[cfg(ruby_gte_2_7)]`.
+- [ ] `cargo test --lib` green on 2.5.9, 2.6.10 and 2.7.8, stable and beta.
+
+### P8 — doctest audit
+
+- [ ] Every public item has a doctest that **runs**: remove `ignore`
+      (the three `wrappable_struct!` fragments, P6), and keep `no_run`/`text`
+      only where running is impossible (process exit, signals), each with a
+      comment saying why.
+- [ ] Doctests assert results (`assert!`/`assert_eq!`), not just call the API;
+      examples that only print are given assertions.
+- [ ] Doctests must not depend on version-specific messages (see §3); gate
+      version-specific examples with `# #[cfg(ruby_gte_2_7)]`.
+- [ ] `cargo test --doc` green on 2.5.9, 2.6.10 and 2.7.8, stable and beta, and
+      in CI on Linux and macOS.
 
 ---
 
@@ -462,8 +513,10 @@ as they land; keep this file current.
 4. Add the `class`-level safe API. Anything that can raise in Ruby is either
    wrapped with `protect` (returns `Result<_, AnyException>`) or documented as
    raising.
-5. Doctest + unit test. Tests that mutate global VM state (globals, constants,
-   `$LOAD_PATH`) must clean up.
+5. Doctest + unit test, written as you go: the unit test lives in the
+   `#[cfg(test)] mod tests` at the bottom of the same file and runs through
+   `crate::on_ruby_thread`. Tests that mutate global VM state (globals,
+   constants, `$LOAD_PATH`) must clean up or use names unique to the test.
 6. `cargo test` on 2.5.9, 2.6.10, 2.7.8 (stable; beta at least once per
    package). `cargo clippy` clean.
 7. CHANGELOG entry under `[Unreleased]` with credit. Tick the box in this

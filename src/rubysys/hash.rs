@@ -28,4 +28,35 @@ extern "C" {
     // VALUE
     // rb_hash_freeze(VALUE hash)
     pub fn rb_hash_freeze(hash: Value) -> Value;
+    // VALUE
+    // rb_check_hash_type(VALUE hash)
+    pub fn rb_check_hash_type(object: Value) -> Value;
+    // VALUE
+    // rb_hash_delete_if(VALUE hash)
+    //
+    // Needs a Ruby block.
+    pub fn rb_hash_delete_if(hash: Value) -> Value;
+    // VALUE
+    // rb_hash_fetch(VALUE hash, VALUE key)
+    //
+    // Raises `KeyError` when `key` is missing.
+    pub fn rb_hash_fetch(hash: Value, key: Value) -> Value;
+    // VALUE
+    // rb_hash_lookup(VALUE hash, VALUE key)
+    pub fn rb_hash_lookup(hash: Value, key: Value) -> Value;
+    // VALUE
+    // rb_hash_lookup2(VALUE hash, VALUE key, VALUE def)
+    //
+    // Returns `def` when `key` is missing; the hash's default is not used.
+    pub fn rb_hash_lookup2(hash: Value, key: Value, default: Value) -> Value;
+    // VALUE
+    // rb_hash_set_ifnone(VALUE hash, VALUE ifnone)
+    //
+    // Does not check frozen state nor clear a default proc; prefer `default=`.
+    pub fn rb_hash_set_ifnone(hash: Value, ifnone: Value) -> Value;
+    // VALUE
+    // rb_hash_update_by(VALUE hash1, VALUE hash2, rb_hash_update_func *func)
+    //
+    // With a null `func`, values from `hash2` overwrite.
+    pub fn rb_hash_update_by(hash: Value, other: Value, func: CallbackPtr) -> Value;
 }

@@ -1,9 +1,9 @@
 use std::{convert::From, default::Default};
 
 use crate::{
-    binding::hash,
+    binding::{hash, vm},
     types::{Value, ValueType},
-    AnyException, AnyObject, Object, VerifiedObject,
+    AnyException, AnyObject, Array, NilClass, Object, TryConvert, VerifiedObject,
 };
 
 /// `Hash`
@@ -292,6 +292,263 @@ impl Hash {
     {
         hash::each(self.value(), closure);
     }
+
+    /// Returns the value stored for `key`, or `None` if there is no such
+    /// key. Unlike [`at`](#method.at), the hash's default is not used
+    /// (`rb_hash_lookup2`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, NilClass, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = VM::eval("Hash.new(0)").unwrap().try_convert_to::<Hash>().unwrap();
+    /// hash.store(Symbol::new("present"), NilClass::new());
+    ///
+    /// assert!(hash.lookup(&Symbol::new("present")).unwrap().is_nil());
+    /// assert!(hash.lookup(&Symbol::new("missing")).is_none());
+    ///
+    /// // `at` would return the default instead:
+    /// assert_eq!(hash.at(&Symbol::new("missing")).try_convert_to::<Fixnum>(), Ok(Fixnum::new(0)));
+    /// ```
+    pub fn lookup<T: Object>(&self, key: &T) -> Option<AnyObject> {
+        hash::lookup(self.value(), key.value()).map(AnyObject::from)
+    }
+
+    /// Returns `true` if the hash has `key` (Ruby's `key?`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = Hash::new();
+    /// hash.store(Symbol::new("a"), Fixnum::new(1));
+    ///
+    /// assert!(hash.has_key(&Symbol::new("a")));
+    /// assert!(!hash.has_key(&Symbol::new("b")));
+    /// ```
+    pub fn has_key<T: Object>(&self, key: &T) -> bool {
+        hash::lookup(self.value(), key.value()).is_some()
+    }
+
+    /// Returns the value for `key`, or the `KeyError` if there is no such
+    /// key (Ruby's `fetch`, `rb_hash_fetch`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = Hash::new();
+    /// hash.store(Symbol::new("a"), Fixnum::new(1));
+    ///
+    /// assert_eq!(hash.fetch(&Symbol::new("a")).unwrap().try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+    ///
+    /// let error = hash.fetch(&Symbol::new("b")).unwrap_err();
+    ///
+    /// assert!(Class::from_existing("KeyError").case_equals(&error));
+    /// ```
+    pub fn fetch<T: Object>(&self, key: &T) -> Result<AnyObject, AnyException> {
+        let (hash, key) = (self.value(), key.value());
+
+        vm::protect_value(|| hash::fetch(hash, key))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns the keys in insertion order (Ruby's `keys`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = Hash::new();
+    /// hash.store(Symbol::new("a"), Fixnum::new(1));
+    /// hash.store(Symbol::new("b"), Fixnum::new(2));
+    ///
+    /// let keys = hash.keys();
+    ///
+    /// assert_eq!(keys.length(), 2);
+    /// assert_eq!(keys.at(1).try_convert_to::<Symbol>(), Ok(Symbol::new("b")));
+    /// ```
+    pub fn keys(&self) -> Array {
+        let mut keys = Array::with_capacity(self.length());
+
+        self.each(|key, _| {
+            keys.push(key);
+        });
+
+        keys
+    }
+
+    /// Returns the values in insertion order (Ruby's `values`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = Hash::new();
+    /// hash.store(Symbol::new("a"), Fixnum::new(1));
+    /// hash.store(Symbol::new("b"), Fixnum::new(2));
+    ///
+    /// let values = hash.values();
+    ///
+    /// assert_eq!(values.at(0).try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+    /// ```
+    pub fn values(&self) -> Array {
+        let mut values = Array::with_capacity(self.length());
+
+        self.each(|_, value| {
+            values.push(value);
+        });
+
+        values
+    }
+
+    /// Adds every pair of `other` to this hash, replacing existing keys'
+    /// values (Ruby's `update`/`merge!`, `rb_hash_update_by`).
+    ///
+    /// Ruby raises `FrozenError` if the hash is frozen; check
+    /// [`is_frozen`](trait.Object.html#method.is_frozen) first or call it inside
+    /// [`VM::protect`](struct.VM.html#method.protect) when that is possible.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = Hash::new();
+    /// hash.store(Symbol::new("a"), Fixnum::new(1));
+    ///
+    /// let mut other = Hash::new();
+    /// other.store(Symbol::new("a"), Fixnum::new(10));
+    /// other.store(Symbol::new("b"), Fixnum::new(2));
+    ///
+    /// hash.update(&other);
+    ///
+    /// assert_eq!(hash.length(), 2);
+    /// assert_eq!(hash.at(&Symbol::new("a")).try_convert_to::<Fixnum>(), Ok(Fixnum::new(10)));
+    /// ```
+    pub fn update(&mut self, other: &Hash) {
+        hash::update(self.value(), other.value());
+    }
+
+    /// Sets the value returned for missing keys (Ruby's `default=`),
+    /// replacing any default proc.
+    ///
+    /// Ruby raises `FrozenError` if the hash is frozen.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = Hash::new();
+    /// hash.set_default(Fixnum::new(0));
+    ///
+    /// assert_eq!(hash.at(&Symbol::new("missing")).try_convert_to::<Fixnum>(), Ok(Fixnum::new(0)));
+    /// ```
+    pub fn set_default<T: Object>(&mut self, value: T) {
+        // `rb_hash_set_ifnone` skips the frozen check and keeps a default
+        // proc flag, so go through `default=`.
+        unsafe { self.send("default=", &[value.to_any_object()]) };
+    }
+
+    /// Returns an iterator over `(key, value)` pairs in insertion order.
+    ///
+    /// The keys are taken when the iterator is created; values are looked
+    /// up as it advances, and keys removed in the meantime are skipped.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = Hash::new();
+    /// hash.store(Symbol::new("a"), Fixnum::new(1));
+    /// hash.store(Symbol::new("b"), Fixnum::new(2));
+    ///
+    /// let sum: i64 = hash
+    ///     .iter()
+    ///     .map(|(_key, value)| value.try_convert_to::<Fixnum>().unwrap().to_i64())
+    ///     .sum();
+    ///
+    /// assert_eq!(sum, 3);
+    /// ```
+    pub fn iter(&self) -> HashIterator {
+        HashIterator {
+            hash: Hash::from(self.value()),
+            keys: self.keys(),
+            index: 0,
+        }
+    }
+}
+
+/// Iterator over the `(key, value)` pairs of a [`Hash`](struct.Hash.html);
+/// see [`Hash::iter`](struct.Hash.html#method.iter).
+///
+/// Keep it on the stack (as `for` loops and iterator chains do), where
+/// Ruby's garbage collector can see the hash and key array it holds.
+#[derive(Debug)]
+pub struct HashIterator {
+    hash: Hash,
+    keys: Array,
+    index: usize,
+}
+
+impl Iterator for HashIterator {
+    type Item = (AnyObject, AnyObject);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.index < self.keys.length() {
+            let key = self.keys.at(self.index as i64);
+            self.index += 1;
+
+            if let Some(value) = self.hash.lookup(&key) {
+                return Some((key, value));
+            }
+        }
+
+        None
+    }
+}
+
+/// Implicit or `nil` conversion, like Ruby's `Hash.try_convert`
+/// (`rb_check_hash_type`): hashes and objects with `to_hash` convert,
+/// anything else is `Err(nil)`.
+///
+/// # Examples
+///
+/// ```
+/// use rutie::{Array, Hash, NilClass, Object, TryConvert, VM};
+/// # VM::init();
+///
+/// assert!(Hash::try_convert(Hash::new().to_any_object()).is_ok());
+/// assert_eq!(Hash::try_convert(Array::new().to_any_object()), Err(NilClass::new()));
+/// ```
+impl TryConvert<AnyObject> for Hash {
+    type Nil = NilClass;
+
+    fn try_convert(obj: AnyObject) -> Result<Self, NilClass> {
+        let result = hash::check_hash_type(obj.value());
+
+        if result.is_nil() {
+            Err(NilClass::from(result))
+        } else {
+            Ok(Self::from(result))
+        }
+    }
 }
 
 impl Clone for Hash {
@@ -351,7 +608,7 @@ impl PartialEq for Hash {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::{Fixnum, Hash, Object, Symbol, LOCK_FOR_TEST, VM};
+    use super::super::super::{Fixnum, Hash, NilClass, Object, Symbol, TryConvert, VM};
 
     #[test]
     fn test_hash_each() {
@@ -382,6 +639,63 @@ mod tests {
             });
 
             assert_eq!(counter, len);
+        });
+    }
+
+    #[test]
+    fn test_hash_lookup_keys_and_update() {
+        crate::on_ruby_thread(|| {
+            let mut hash = VM::eval("Hash.new { |h, k| h[k] = :from_proc }")
+                .unwrap()
+                .try_convert_to::<Hash>()
+                .unwrap();
+
+            hash.store(Symbol::new("a"), Fixnum::new(1));
+
+            // `lookup` and `has_key` never call the default proc.
+            assert!(hash.lookup(&Symbol::new("zzz")).is_none());
+            assert!(!hash.has_key(&Symbol::new("zzz")));
+            assert_eq!(hash.length(), 1);
+            assert!(hash.fetch(&Symbol::new("zzz")).is_err());
+
+            let mut other = Hash::new();
+            other.store(Symbol::new("b"), Fixnum::new(2));
+            hash.update(&other);
+
+            assert_eq!(hash.keys().length(), 2);
+            assert_eq!(
+                hash.values().at(1).try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(2))
+            );
+
+            // Replacing the default proc with a value.
+            hash.set_default(Fixnum::new(0));
+            assert_eq!(
+                hash.at(&Symbol::new("missing")).try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(0))
+            );
+            assert_eq!(hash.length(), 2);
+
+            let pairs: Vec<_> = hash.iter().collect();
+            assert_eq!(pairs.len(), 2);
+            assert_eq!(pairs[0].0.try_convert_to::<Symbol>(), Ok(Symbol::new("a")));
+
+            // Keys removed while iterating are skipped.
+            let mut iterator = hash.iter();
+            hash.delete(Symbol::new("b"));
+            assert_eq!(iterator.by_ref().count(), 1);
+
+            let frozen = Hash::new().freeze();
+            let result = VM::protect(|| {
+                let mut frozen = Hash::from(frozen.value());
+                frozen.set_default(Fixnum::new(1));
+                NilClass::new().into()
+            });
+            assert!(result.is_err());
+            VM::error_pop().unwrap();
+
+            let convertible = VM::eval("o = Object.new; def o.to_hash; { x: 1 }; end; o").unwrap();
+            assert_eq!(Hash::try_convert(convertible).unwrap().length(), 1);
         });
     }
 }

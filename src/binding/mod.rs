@@ -8,6 +8,7 @@ pub mod gc;
 pub mod global;
 pub mod hash;
 pub mod module;
+pub mod numeric;
 pub mod object;
 pub mod rproc;
 pub mod string;

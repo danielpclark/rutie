@@ -9,6 +9,7 @@ pub mod fixnum;
 pub mod float;
 pub mod gc;
 pub mod hash;
+pub mod numeric;
 pub mod object;
 pub mod rproc;
 pub mod string;
