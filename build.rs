@@ -318,9 +318,54 @@ fn ruby_lib_link_name() -> String {
 
 fn dynamic_linker_args() {
     let mut library = Library::new();
-    library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), false);
-    println!("cargo:rustc-link-lib=dylib={}", ruby_lib_link_name());
+    let name = ruby_lib_link_name();
+
+    if cfg!(target_os = "windows") {
+        library.parse_libs_cflags(rbconfig("LIBRUBYARG_SHARED").as_bytes(), false);
+        println!("cargo:rustc-link-lib=dylib={}", name);
+    } else {
+        // Everything but libruby itself (`-L`, `-F`, frameworks), which
+        // `link_libruby` places.
+        let libruby = [
+            format!("-l{}", name),
+            format!("-l{}", rbconfig("RUBY_SO_NAME")),
+        ];
+        let args = split_flags(rbconfig("LIBRUBYARG_SHARED").as_bytes())
+            .into_iter()
+            .filter(|arg| !libruby.contains(arg))
+            .collect::<Vec<_>>()
+            .join(" ");
+        library.parse_libs_cflags(args.as_bytes(), false);
+        link_libruby(&name);
+    }
+
     library.parse_libs_cflags(rbconfig("LIBS").as_bytes(), false);
+}
+
+// Links libruby after the Rust standard library.
+//
+// Ruby 3.2 built with YJIT exports YJIT's copy of the Rust runtime from
+// libruby (`__rust_start_panic`, `__rust_panic_cleanup` and `core`/`alloc`
+// functions; 3.3 hides them). A linker that sees libruby before std binds the
+// binary's panic runtime to YJIT's, and unwinding a panic then aborts or
+// crashes. rustc puts a crate's own native libraries before std and an
+// upstream crate's after it, so crates depending on Rutie get libruby from a
+// `#[link]` attribute in the rlib (`$OUT_DIR/link_ruby.rs`, included by
+// `src/lib.rs` outside `cfg(test)`), and Rutie's own unit tests, where the
+// crate is local, get it as a linker argument, which rustc puts last.
+fn link_libruby(name: &str) {
+    write_link_ruby(&format!(
+        "#[link(name = \"{}\", kind = \"dylib\")]\nextern \"C\" {{}}\n",
+        name
+    ));
+    println!("cargo:rustc-link-arg=-l{}", name);
+}
+
+// `src/lib.rs` includes this file, so it is written (empty) even when libruby
+// is linked another way or not at all.
+fn write_link_ruby(contents: &str) {
+    let path = PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("link_ruby.rs");
+    std::fs::write(path, contents).expect("couldn't write link_ruby.rs");
 }
 
 fn static_linker_args() {
@@ -491,6 +536,7 @@ fn main() {
     }
 
     ruby_version_cfgs();
+    write_link_ruby("");
 
     // Ruby programs calling Rust doesn't need cc linking
     if should_link() {

@@ -14,6 +14,11 @@ pub mod typed_data;
 pub mod types;
 pub mod util;
 
+// libruby for crates that depend on Rutie. Rutie's own unit tests link it
+// differently; see `link_libruby` in build.rs.
+#[cfg(not(test))]
+include!(concat!(env!("OUT_DIR"), "/link_ruby.rs"));
+
 pub use crate::class::{
     any_exception::AnyException,
     any_object::AnyObject,
@@ -207,5 +212,18 @@ mod current_ruby {
             assert_eq!(cfg!(ruby_gte_3_1), version.as_str() >= "3.1");
             assert_eq!(cfg!(ruby_gte_3_2), version.as_str() >= "3.2");
         });
+    }
+
+    // Ruby 3.2 with YJIT exports a Rust runtime from libruby; if this binary
+    // bound its panic runtime to it, re-raising a caught panic aborted the
+    // whole test run (see `link_libruby` in build.rs).
+    #[test]
+    fn rust_panics_unwind_with_libruby_linked() {
+        use std::panic::{self, AssertUnwindSafe};
+
+        let caught = panic::catch_unwind(|| panic!("first")).unwrap_err();
+        let resumed = panic::catch_unwind(AssertUnwindSafe(|| panic::resume_unwind(caught)));
+
+        assert_eq!(resumed.unwrap_err().downcast_ref::<&str>(), Some(&"first"));
     }
 }
