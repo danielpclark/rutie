@@ -55,7 +55,9 @@ impl Array {
     /// use rutie::{Array, VM};
     /// # VM::init();
     ///
-    /// Array::new();
+    /// let array = Array::new();
+    ///
+    /// assert_eq!(array.length(), 0);
     /// ```
     ///
     /// Ruby:

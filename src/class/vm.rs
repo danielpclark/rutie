@@ -41,9 +41,10 @@ impl VM {
     /// VM::init();
     ///
     /// // VM started, able to use Ruby now
-    /// // ...
+    /// assert!(VM::is_initialized());
     ///
-    /// Class::new("SomeClass", None); // etc
+    /// let class = Class::new("SomeClass", None); // etc
+    /// assert_eq!(class.name().unwrap().to_str(), "SomeClass");
     /// ```
     pub fn init() {
         vm::init();
@@ -86,11 +87,23 @@ impl VM {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use rutie::VM;
+    /// A missing file raises `LoadError`, which ends a program that is not
+    /// inside `VM::protect`; [`VM::protect_require`](#method.protect_require)
+    /// returns it instead.
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
     /// # VM::init();
     ///
+    /// let dir = std::env::temp_dir().join(format!("rutie_require_{}", std::process::id()));
+    /// std::fs::create_dir_all(&dir).unwrap();
+    /// std::fs::write(dir.join("some_ruby_file.rb"), "$loaded = 1").unwrap();
+    /// VM::add_load_path(dir.to_str().unwrap());
+    ///
     /// VM::require("some_ruby_file");
+    ///
+    /// assert_eq!(VM::global_get("$loaded").try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+    /// std::fs::remove_dir_all(dir).unwrap();
     /// ```
     ///
     /// Ruby:
@@ -108,11 +121,20 @@ impl VM {
     ///
     /// ### Built-in exceptions
     ///
-    /// ```no_run
-    /// use rutie::{Class, VM};
+    /// ```
+    /// use rutie::{Class, Exception, NilClass, Object, VM};
     /// # VM::init();
     ///
-    /// VM::raise(Class::from_existing("ArgumentError"), "Wrong argument");
+    /// // Raising ends the program unless something rescues it.
+    /// let result = VM::protect(|| {
+    ///     VM::raise(Class::from_existing("ArgumentError"), "Wrong argument");
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// let error = VM::error_pop().unwrap();
+    /// assert!(Class::argument_error().case_equals(&error));
+    /// assert_eq!(error.message(), "Wrong argument");
     /// ```
     ///
     /// Ruby:
@@ -123,14 +145,20 @@ impl VM {
     ///
     /// ### Custom exceptions
     ///
-    /// ```no_run
-    /// use rutie::{Class, VM};
+    /// ```
+    /// use rutie::{Class, Exception, NilClass, Object, VM};
     /// # VM::init();
     ///
     /// let standard_error = Class::from_existing("StandardError");
     /// let custom_exception = Class::new("CustomException", Some(&standard_error));
     ///
-    /// VM::raise(custom_exception, "Something went wrong");
+    /// let result = VM::protect(|| {
+    ///     VM::raise(Class::from_existing("CustomException"), "Something went wrong");
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// assert!(custom_exception.case_equals(&VM::error_pop().unwrap()));
     /// ```
     ///
     /// Ruby:
@@ -182,11 +210,17 @@ impl VM {
     ///
     /// ### Built-in exceptions
     ///
-    /// ```no_run
-    /// use rutie::{Class, VM, Exception, AnyException};
+    /// ```
+    /// use rutie::{Class, VM, Exception, AnyException, NilClass};
     /// # VM::init();
     ///
-    /// VM::raise_ex(AnyException::new("StandardError", Some("something went wrong")));
+    /// let result = VM::protect(|| {
+    ///     VM::raise_ex(AnyException::new("StandardError", Some("something went wrong")));
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// assert_eq!(VM::error_pop().unwrap().message(), "something went wrong");
     /// ```
     ///
     /// Ruby:
@@ -197,16 +231,23 @@ impl VM {
     ///
     /// ### Custom exceptions
     ///
-    /// ```no_run
-    /// use rutie::{Class, VM, Exception, AnyException};
+    /// ```
+    /// use rutie::{Class, VM, Exception, AnyException, NilClass, Object};
     /// # VM::init();
     ///
     /// let standard_error = Class::from_existing("StandardError");
-    /// Class::new("CustomException", Some(&standard_error));
+    /// let custom = Class::new("CustomException", Some(&standard_error));
     ///
     /// let exception = AnyException::new("CustomException", Some("something went wrong"));
     ///
-    /// VM::raise_ex(exception);
+    /// let result = VM::protect(|| {
+    ///     VM::raise_ex(AnyException::new("CustomException", Some("something went wrong")));
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// assert!(custom.case_equals(&VM::error_pop().unwrap()));
+    /// assert_eq!(exception.message(), "something went wrong");
     /// ```
     ///
     /// Ruby:
@@ -325,7 +366,7 @@ impl VM {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// #[macro_use]
     /// extern crate rutie;
     ///
@@ -346,9 +387,13 @@ impl VM {
     /// );
     ///
     /// fn main() {
+    ///     # VM::init();
     ///     Class::new("Greeter", None).define(|klass| {
     ///         klass.def_self("greet_rust_with", greet_rust_with);
     ///     });
+    ///
+    ///     let greeting = VM::eval("Greeter.greet_rust_with { |name| \"Hello, #{name}!\" }").unwrap();
+    ///     assert_eq!(greeting.try_convert_to::<RString>().unwrap().to_str(), "Hello, Rust!");
     /// }
     /// ```
     ///
@@ -406,6 +451,12 @@ impl VM {
     ///     Class::new("Calculator", None).define(|klass| {
     ///         klass.def("calculate", calculate);
     ///     });
+    ///
+    ///     let sum = VM::eval("Calculator.new.calculate(2, 3)").unwrap();
+    ///     assert_eq!(sum.try_convert_to::<Fixnum>(), Ok(Fixnum::new(5)));
+    ///
+    ///     let product = VM::eval("Calculator.new.calculate(2, 3) { |a, b| a * b }").unwrap();
+    ///     assert_eq!(product.try_convert_to::<Fixnum>(), Ok(Fixnum::new(6)));
     /// }
     /// ```
     ///
@@ -627,6 +678,7 @@ impl VM {
     /// # Examples
     ///
     /// ```text
+    /// // How `protect_send` uses these three:
     /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
     ///     let closure = || self.send(&method, arguments.as_ref());
     ///
@@ -642,6 +694,21 @@ impl VM {
     ///     })
     /// }
     /// ```
+    ///
+    /// ```
+    /// use rutie::{AnyException, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| unsafe { VM::eval_str("raise 'oops'") });
+    /// assert!(result.is_err());
+    ///
+    /// // The exception stays in `$!` until it is taken or cleared.
+    /// let error: AnyException = VM::error_info().unwrap();
+    /// assert_eq!(error.message(), "oops");
+    ///
+    /// VM::clear_error_info();
+    /// assert!(VM::error_info().is_err());
+    /// ```
     pub fn protect<F>(func: F) -> Result<AnyObject, i32>
     where
         F: FnMut() -> AnyObject,
@@ -654,6 +721,7 @@ impl VM {
     /// # Examples
     ///
     /// ```text
+    /// // How `protect_send` uses these three:
     /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
     ///     let closure = || self.send(&method, arguments.as_ref()).into();
     ///
@@ -668,6 +736,21 @@ impl VM {
     ///         output
     ///     })
     /// }
+    /// ```
+    ///
+    /// ```
+    /// use rutie::{AnyException, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| unsafe { VM::eval_str("raise 'oops'") });
+    /// assert!(result.is_err());
+    ///
+    /// // The exception stays in `$!` until it is taken or cleared.
+    /// let error: AnyException = VM::error_info().unwrap();
+    /// assert_eq!(error.message(), "oops");
+    ///
+    /// VM::clear_error_info();
+    /// assert!(VM::error_info().is_err());
     /// ```
     pub fn error_info() -> Result<AnyException, NilClass> {
         AnyException::try_convert(AnyObject::from(vm::errinfo()))
@@ -698,6 +781,7 @@ impl VM {
     /// # Examples
     ///
     /// ```text
+    /// // How `protect_send` uses these three:
     /// fn protect_send(&self, method: &str, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
     ///     let closure = || self.send(&method, arguments.as_ref()).into();
     ///
@@ -713,6 +797,21 @@ impl VM {
     ///     })
     /// }
     /// ```
+    ///
+    /// ```
+    /// use rutie::{AnyException, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| unsafe { VM::eval_str("raise 'oops'") });
+    /// assert!(result.is_err());
+    ///
+    /// // The exception stays in `$!` until it is taken or cleared.
+    /// let error: AnyException = VM::error_info().unwrap();
+    /// assert_eq!(error.message(), "oops");
+    ///
+    /// VM::clear_error_info();
+    /// assert!(VM::error_info().is_err());
+    /// ```
     pub fn clear_error_info() {
         vm::set_errinfo(NilClass::new().value());
     }
@@ -721,12 +820,23 @@ impl VM {
     ///
     /// # Examples
     ///
+    /// Outside any `begin`/`rescue` this ends the program with `status`. Inside
+    /// [`VM::protect`](#method.protect) it raises `SystemExit`, which the
+    /// caller can inspect:
+    ///
     /// ```
-    /// extern crate rutie;
-    /// use rutie::VM;
+    /// use rutie::{Class, Fixnum, NilClass, Object, VM};
     /// # VM::init();
     ///
-    /// VM::exit(0)
+    /// let result = VM::protect(|| {
+    ///     VM::exit(3);
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// assert!(result.is_err());
+    /// let exit = VM::error_pop().unwrap();
+    /// assert!(Class::system_exit().case_equals(&exit));
+    /// assert_eq!(unsafe { exit.send("status", &[]) }.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
     /// ```
     pub fn exit(status: i32) {
         vm::exit(status)
@@ -751,6 +861,8 @@ impl VM {
     /// use rutie::{VM,Boolean};
     /// # VM::init();
     ///
+    /// // This ends the doctest process right here, with a success status,
+    /// // which is why nothing can be asserted after it.
     /// unsafe { VM::exit_bang(&[Boolean::new(true).into()]) }
     /// ```
     ///
@@ -2341,7 +2453,15 @@ impl VM {
     /// use rutie::{Fixnum, Object, VM};
     /// # VM::init();
     ///
+    /// # VM::init_loadpath();
+    /// # VM::require("stringio");
+    /// // Capture `$stdout` to check what was printed.
+    /// VM::eval("$stdout = StringIO.new").unwrap();
+    ///
     /// VM::p(&Fixnum::new(42)); // prints "42"
+    ///
+    /// let printed = VM::eval("out = $stdout.string; $stdout = STDOUT; out").unwrap();
+    /// assert_eq!(printed.try_convert_to::<rutie::RString>().unwrap().to_str(), "42\n");
     /// ```
     pub fn p<T: Object>(object: &T) {
         object::p(object.value())

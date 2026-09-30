@@ -173,7 +173,9 @@ impl Module {
     ///     klass.define_nested_module("Inner");
     /// });
     ///
-    /// Module::from_existing("Outer").get_nested_module("Inner");
+    /// let inner = Module::from_existing("Outer").get_nested_module("Inner");
+    ///
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
     /// ```
     ///
     /// Ruby:
@@ -206,7 +208,9 @@ impl Module {
     ///     klass.define_nested_class("Inner", None);
     /// });
     ///
-    /// Module::from_existing("Outer").get_nested_class("Inner");
+    /// let inner = Module::from_existing("Outer").get_nested_class("Inner");
+    ///
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
     /// ```
     ///
     /// Ruby:
@@ -235,11 +239,11 @@ impl Module {
     /// use rutie::{Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Outer").define(|klass| {
-    ///     klass.define_nested_module("Inner");
-    /// });
+    /// let mut outer = Module::new("Outer");
+    /// let inner = outer.define_nested_module("Inner");
     ///
-    /// Module::from_existing("Outer").get_nested_module("Inner");
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
+    /// assert!(Module::from_existing("Outer").get_nested_module("Inner") == inner);
     /// ```
     ///
     /// Ruby:
@@ -268,11 +272,11 @@ impl Module {
     /// use rutie::{Class, Module, Object, VM};
     /// # VM::init();
     ///
-    /// Module::new("Outer").define(|klass| {
-    ///     klass.define_nested_class("Inner", None);
-    /// });
+    /// let mut outer = Module::new("Outer");
+    /// let inner = outer.define_nested_class("Inner", None);
     ///
-    /// Module::from_existing("Outer").get_nested_class("Inner");
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
+    /// assert_eq!(inner.superclass(), Some(Class::object()));
     /// ```
     ///
     /// Ruby:
@@ -330,10 +334,15 @@ impl Module {
     /// fn main() {
     ///     # VM::init();
     ///     Module::new("Blank").define(|klass| {
-    ///         klass.mod_func("blank?", is_blank);
+    ///         klass.define_module_function("blank?", is_blank);
     ///     });
     ///
     ///     Class::from_existing("String").include("Blank");
+    ///
+    ///     // Callable on the module, and privately inside includers.
+    ///     let blank = VM::eval("Blank.instance_method(:blank?).bind(' ').call").unwrap();
+    ///     assert!(blank.try_convert_to::<Boolean>().unwrap().to_bool());
+    ///     assert!(VM::eval("' '.blank?").is_err());
     /// }
     /// ```
     ///
@@ -426,6 +435,35 @@ impl Module {
     }
 
     /// An alias for `define_module_function` (similar to Ruby `module_function :some_method`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Fixnum, Module, Object, VM};
+    ///
+    /// module!(Doubler);
+    ///
+    /// methods!(
+    ///     Doubler,
+    ///     rtself,
+    ///
+    ///     fn double(number: Fixnum) -> Fixnum {
+    ///         Fixnum::new(number.unwrap().to_i64() * 2)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Module::new("Doubler").define(|module| {
+    ///         module.mod_func("double", double);
+    ///     });
+    ///
+    ///     let result = VM::eval("Doubler.double(21)").unwrap();
+    ///     assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    /// }
+    /// ```
     pub fn mod_func<I: Object, O: Object>(&mut self, name: &str, callback: Callback<I, O>) {
         self.define_module_function(name, callback);
     }
@@ -573,12 +611,15 @@ impl Module {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Module, Object, VM};
+    /// use rutie::{Fixnum, Module, Object, VM};
     /// # VM::init();
     ///
     /// Module::new("Test").define(|klass| {
     ///     klass.attr_reader("reader");
     /// });
+    ///
+    /// let object = VM::eval("o = Object.new.extend(Test); o.instance_variable_set(:@reader, 1); o").unwrap();
+    /// assert_eq!(unsafe { object.send("reader", &[]) }.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
     /// ```
     ///
     /// Ruby:
@@ -597,12 +638,15 @@ impl Module {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Module, Object, VM};
+    /// use rutie::{Fixnum, Module, Object, VM};
     /// # VM::init();
     ///
     /// Module::new("Test").define(|klass| {
     ///     klass.attr_writer("writer");
     /// });
+    ///
+    /// let object = VM::eval("o = Object.new.extend(Test); o.writer = 2; o").unwrap();
+    /// assert_eq!(object.instance_variable_get("@writer").try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
     /// ```
     ///
     /// Ruby:
@@ -621,12 +665,15 @@ impl Module {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Module, Object, VM};
+    /// use rutie::{Fixnum, Module, Object, VM};
     /// # VM::init();
     ///
     /// Module::new("Test").define(|klass| {
     ///     klass.attr_accessor("accessor");
     /// });
+    ///
+    /// let object = VM::eval("o = Object.new.extend(Test); o.accessor = 3; o").unwrap();
+    /// assert_eq!(unsafe { object.send("accessor", &[]) }.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
     /// ```
     ///
     /// Ruby:
@@ -1167,6 +1214,9 @@ impl Module {
     ///         klass.def("host", ruby_server_host);
     ///         klass.def("port", ruby_server_port);
     ///     });
+    ///
+    ///     let host = VM::eval("RubyServer.new('127.0.0.1', 3000).host").unwrap();
+    ///     assert_eq!(host.try_convert_to::<RString>().unwrap().to_str(), "127.0.0.1");
     /// }
     /// ```
     ///

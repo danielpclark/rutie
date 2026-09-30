@@ -14,6 +14,17 @@ pub trait TryConvert<T>: Sized {
     type Nil;
 
     /// Performs the conversion.
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, TryConvert, VM};
+    /// # VM::init();
+    ///
+    /// let array = VM::eval("[1, 2]").unwrap();
+    /// assert_eq!(Array::try_convert(array).unwrap().length(), 2);
+    ///
+    /// // Not convertible: `Err` holds `nil`.
+    /// assert!(Array::try_convert(Fixnum::new(1).to_any_object()).unwrap_err().is_nil());
+    /// ```
     fn try_convert(value: T) -> Result<Self, Self::Nil>;
 }
 

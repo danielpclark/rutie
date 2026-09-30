@@ -18,10 +18,13 @@ impl Binding {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Binding, VM};
+    /// use rutie::{Binding, Object, VM};
     /// # VM::init();
     ///
-    /// let _ = Binding::new();
+    /// let binding = Binding::new();
+    ///
+    /// // A binding of the top level, whose receiver is `main`.
+    /// assert_eq!(binding.receiver().inspect_object().to_str(), "main");
     /// ```
     ///
     /// Ruby:

@@ -100,11 +100,11 @@ impl Proc {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// #[macro_use]
     /// extern crate rutie;
     ///
-    /// use rutie::{Class, Object, Proc, RString};
+    /// use rutie::{Class, Object, Proc, RString, VM};
     ///
     /// class!(Greeter);
     ///
@@ -121,9 +121,13 @@ impl Proc {
     /// );
     ///
     /// fn main() {
+    ///     # VM::init();
     ///     Class::new("Greeter", None).define(|klass| {
     ///         klass.def_self("greet_rust_with", greet_rust_with);
     ///     });
+    ///
+    ///     let greeting = VM::eval("Greeter.greet_rust_with(->(name) { \"Hello, #{name}!\" })").unwrap();
+    ///     assert_eq!(greeting.try_convert_to::<RString>().unwrap().to_str(), "Hello, Rust!");
     /// }
     /// ```
     ///

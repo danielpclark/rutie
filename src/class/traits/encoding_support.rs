@@ -1,15 +1,91 @@
 use crate::{AnyException, AnyObject, Encoding, Hash, Object};
 
+/// Encoding operations for Ruby objects that carry an encoding
+/// (implemented by [`RString`](../struct.RString.html)).
 pub trait EncodingSupport {
+    /// Transcodes to `enc` (Ruby's `String#encode`), with `opts` as
+    /// `String#encode` options.
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, RString, VM};
+    /// # VM::init();
+    ///
+    /// let ascii = RString::new_utf8("plain").encode(Encoding::us_ascii(), None);
+    ///
+    /// assert_eq!(ascii.encoding().name(), "US-ASCII");
+    /// ```
     fn encode(&self, enc: Encoding, opts: Option<Hash>) -> Self
     where
         Self: Sized;
+
+    /// Returns the object's encoding.
+    ///
+    /// ```
+    /// use rutie::{EncodingSupport, RString, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(RString::new_utf8("é").encoding().name(), "UTF-8");
+    /// ```
     fn encoding(&self) -> Encoding;
+
+    /// Relabels the object's bytes as `enc` without converting them
+    /// (Ruby's `String#force_encoding`); fails on a frozen object.
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("é");
+    /// let binary = string.force_encoding(Encoding::find("ASCII-8BIT").unwrap()).unwrap();
+    ///
+    /// assert_eq!(binary.encoding().name(), "ASCII-8BIT");
+    /// assert_eq!(binary.to_bytes_unchecked(), "é".as_bytes());
+    /// ```
     fn force_encoding(&mut self, enc: Encoding) -> Result<Self, AnyException>
     where
         Self: Sized;
+
+    /// Returns whether the bytes are valid in the object's encoding
+    /// (Ruby's `String#valid_encoding?`).
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, RString, VM};
+    /// # VM::init();
+    ///
+    /// assert!(RString::new_utf8("ok").is_valid_encoding());
+    /// assert!(!RString::from_bytes(&[0xff], &Encoding::utf8()).is_valid_encoding());
+    /// ```
     fn is_valid_encoding(&self) -> bool;
+
+    /// Returns whether `other` can be combined with this object
+    /// (`rb_enc_compatible`).
+    ///
+    /// ```
+    /// use rutie::{EncodingSupport, RString, VM};
+    /// # VM::init();
+    ///
+    /// let utf8 = RString::new_utf8("é");
+    /// let binary = VM::eval(r#""\xFF".b"#).unwrap();
+    ///
+    /// assert!(utf8.compatible_with(&RString::new_utf8("ascii")));
+    /// assert!(!utf8.compatible_with(&binary));
+    /// ```
     fn compatible_with(&self, other: &impl Object) -> bool;
+
+    /// Returns the encoding that combining `obj1` and `obj2` would have, or
+    /// `nil` when they are incompatible (Ruby's `Encoding.compatible?`).
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let utf8 = RString::new_utf8("é");
+    /// let binary = VM::eval(r#""\xFF".b"#).unwrap();
+    ///
+    /// let combined = RString::compatible_encoding(&utf8, &RString::new_utf8("a"));
+    /// assert_eq!(combined.try_convert_to::<Encoding>().unwrap().name(), "UTF-8");
+    /// assert!(RString::compatible_encoding(&utf8, &binary).is_nil());
+    /// ```
     fn compatible_encoding(obj1: &impl Object, obj2: &impl Object) -> AnyObject;
 }
 

@@ -147,6 +147,8 @@ API and may have breaking changes during a teeny version change.
    thanks to @danielpclark
 
 ### Changed
+ - Every public item's documentation example now runs and asserts its
+   result (no more `ignore`/`no_run` examples), thanks to @danielpclark
  - **Breaking:** `VM::at_exit` now registers a real end proc
    (`rb_set_end_proc`) that runs when the VM shuts down, instead of calling
    the closure immediately. The closure must be `FnOnce(VmPointer) + 'static`,

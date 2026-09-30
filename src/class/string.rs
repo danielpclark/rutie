@@ -190,7 +190,7 @@ impl RString {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
@@ -218,7 +218,7 @@ impl RString {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
@@ -264,7 +264,7 @@ impl RString {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
@@ -294,7 +294,7 @@ impl RString {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{RString, VM};
     /// # VM::init();
     ///
@@ -313,7 +313,7 @@ impl RString {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// use rutie::{Object, RString, Array, Fixnum, Encoding, EncodingSupport, VM};
     /// # VM::init();
     /// # VM::init_loadpath(); // Needed for alternate encodings

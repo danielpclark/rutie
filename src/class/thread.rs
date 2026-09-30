@@ -25,14 +25,17 @@ impl Thread {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Fixnum, Thread, VM};
+    /// use rutie::{Fixnum, Object, Thread, VM};
     /// # VM::init();
     ///
-    /// Thread::new(|| {
+    /// let thread = Thread::new(|| {
     ///     let computation_result = 1 + 2;
     ///
     ///     Fixnum::new(computation_result)
     /// });
+    ///
+    /// let value = thread.join_value().unwrap();
+    /// assert_eq!(value.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
     /// ```
     ///
     /// Ruby:
@@ -58,15 +61,22 @@ impl Thread {
     /// # Examples
     ///
     /// ```
+    /// use std::io::{Read, Write};
     /// use std::os::unix::io::AsRawFd;
     /// use std::os::unix::net::UnixStream;
     ///
     /// use rutie::{Thread, VM};
     /// # VM::init();
     ///
-    /// let (unix_socket, _) = UnixStream::pair().unwrap();
+    /// let (mut reader, mut writer) = UnixStream::pair().unwrap();
+    /// writer.write_all(b"ready").unwrap();
     ///
-    /// Thread::wait_fd(unix_socket.as_raw_fd());
+    /// // Returns once the socket has data (other Ruby threads run meanwhile).
+    /// Thread::wait_fd(reader.as_raw_fd());
+    ///
+    /// let mut buffer = [0; 5];
+    /// reader.read_exact(&mut buffer).unwrap();
+    /// assert_eq!(&buffer, b"ready");
     /// ```
     #[cfg(unix)]
     pub fn wait_fd(fd: RawFd) {
@@ -86,10 +96,10 @@ impl Thread {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```
     /// #[macro_use] extern crate rutie;
     ///
-    /// use rutie::{Class, Fixnum, Object, Thread};
+    /// use rutie::{Class, Fixnum, Object, Thread, VM};
     ///
     /// class!(Calculator);
     ///
@@ -113,9 +123,13 @@ impl Thread {
     /// );
     ///
     /// fn main() {
+    ///     # VM::init();
     ///     Class::new("Calculator", None).define(|klass| {
     ///         klass.def("heavy_computation", heavy_computation);
     ///     });
+    ///
+    ///     let result = VM::eval("Calculator.new.heavy_computation").unwrap();
+    ///     assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(4)));
     /// }
     /// ```
     pub fn call_without_gvl<F, R, G>(func: F, unblock_func: Option<G>) -> R
@@ -126,6 +140,23 @@ impl Thread {
         thread::call_without_gvl(func, unblock_func)
     }
 
+    /// Like [`call_without_gvl`](#method.call_without_gvl)
+    /// (`rb_thread_call_without_gvl2`), but it does not process pending
+    /// interrupts before returning, so the caller can clean up first and
+    /// then call [`Thread::check_interrupts`](#method.check_interrupts).
+    /// `func` must not touch Ruby objects.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Thread, VM};
+    /// # VM::init();
+    ///
+    /// let total = Thread::call_without_gvl2(|| (1..=4u32).product::<u32>(), None::<fn()>);
+    ///
+    /// assert_eq!(total, 24);
+    /// Thread::check_interrupts();
+    /// ```
     pub fn call_without_gvl2<F, R, G>(func: F, unblock_func: Option<G>) -> R
     where
         F: FnMut() -> R,
@@ -134,6 +165,29 @@ impl Thread {
         thread::call_without_gvl2(func, unblock_func)
     }
 
+    /// Re-acquires the GVL to run `func` from inside a
+    /// [`call_without_gvl`](#method.call_without_gvl) closure
+    /// (`rb_thread_call_with_gvl`), so it may use Ruby objects again.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, Thread, VM};
+    /// # VM::init();
+    ///
+    /// let text = Thread::call_without_gvl(
+    ///     || {
+    ///         // No Ruby here: this may run in parallel with Ruby code...
+    ///         let label = format!("{}-{}", "rust", 42);
+    ///
+    ///         // ...until the GVL is taken back.
+    ///         Thread::call_with_gvl(|| RString::new_utf8(&label).to_string())
+    ///     },
+    ///     None::<fn()>,
+    /// );
+    ///
+    /// assert_eq!(text, "rust-42");
+    /// ```
     pub fn call_with_gvl<F, R>(func: F) -> R
     where
         F: FnMut() -> R,
@@ -221,7 +275,13 @@ impl Thread {
     /// use rutie::{Thread, VM};
     /// # VM::init();
     ///
-    /// Thread::pass();
+    /// // Give a started thread a chance to run.
+    /// let thread = Thread::new(|| rutie::Fixnum::new(1));
+    /// while thread.is_alive() {
+    ///     Thread::pass();
+    /// }
+    ///
+    /// assert!(!thread.is_alive());
     /// ```
     pub fn pass() {
         thread::schedule()
@@ -261,10 +321,14 @@ impl Thread {
     /// use rutie::{Thread, VM};
     /// # VM::init();
     ///
+    /// let mut done = 0;
     /// for _ in 0..3 {
     ///     // ... work ...
-    ///     Thread::check_interrupts();
+    ///     done += 1;
+    ///     Thread::check_interrupts(); // raises here if the thread was killed
     /// }
+    ///
+    /// assert_eq!(done, 3);
     /// ```
     pub fn check_interrupts() {
         thread::check_interrupts()
@@ -276,15 +340,22 @@ impl Thread {
     /// # Examples
     ///
     /// ```
+    /// use std::io::{Read, Write};
     /// use std::os::unix::io::AsRawFd;
     /// use std::os::unix::net::UnixStream;
     ///
     /// use rutie::{Thread, VM};
     /// # VM::init();
     ///
-    /// let (unix_socket, _) = UnixStream::pair().unwrap();
+    /// let (mut writer, mut reader) = UnixStream::pair().unwrap();
     ///
-    /// Thread::wait_fd_writable(unix_socket.as_raw_fd());
+    /// // A fresh socket has buffer space, so this returns right away.
+    /// Thread::wait_fd_writable(writer.as_raw_fd());
+    /// writer.write_all(b"ok").unwrap();
+    ///
+    /// let mut buffer = [0; 2];
+    /// reader.read_exact(&mut buffer).unwrap();
+    /// assert_eq!(&buffer, b"ok");
     /// ```
     #[cfg(unix)]
     pub fn wait_fd_writable(fd: RawFd) {

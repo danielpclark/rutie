@@ -157,7 +157,7 @@ impl Encoding {
     /// use rutie::{Encoding, VM};
     /// # VM::init();
     ///
-    /// Encoding::utf8();
+    /// assert_eq!(Encoding::utf8().name(), "UTF-8");
     /// ```
     ///
     /// Ruby:
@@ -177,7 +177,7 @@ impl Encoding {
     /// use rutie::{Encoding, VM};
     /// # VM::init();
     ///
-    /// Encoding::us_ascii();
+    /// assert_eq!(Encoding::us_ascii().name(), "US-ASCII");
     /// ```
     ///
     /// Ruby:
@@ -194,10 +194,15 @@ impl Encoding {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Encoding, VM};
+    /// use rutie::{Encoding, Object, RString, VM};
     /// # VM::init();
     ///
-    /// Encoding::default_external();
+    /// let from_ruby = VM::eval("Encoding.default_external.name").unwrap();
+    ///
+    /// assert_eq!(
+    ///     Encoding::default_external().name(),
+    ///     from_ruby.try_convert_to::<RString>().unwrap().to_str()
+    /// );
     /// ```
     ///
     /// Ruby:
@@ -218,7 +223,11 @@ impl Encoding {
     /// use rutie::{Encoding, VM};
     /// # VM::init();
     ///
-    /// Encoding::default_internal();
+    /// // Ruby has no default internal encoding unless one is set.
+    /// assert!(Encoding::default_internal().is_err());
+    ///
+    /// VM::eval("Encoding.default_internal = 'UTF-8'").unwrap();
+    /// assert_eq!(Encoding::default_internal().unwrap().name(), "UTF-8");
     /// ```
     ///
     /// Ruby:

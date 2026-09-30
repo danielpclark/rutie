@@ -44,6 +44,13 @@ pub trait Object: From<Value> {
     ///         self.value
     ///     }
     /// }
+    ///
+    /// # rutie::VM::init();
+    /// let ruby_array = rutie::VM::eval("[1, 2]").unwrap();
+    /// let array = Array::from(ruby_array.value());
+    ///
+    /// assert_eq!(array.value(), ruby_array.value());
+    /// assert_eq!(array.inspect_object().to_str(), "[1, 2]");
     /// ```
     fn value(&self) -> Value;
 
@@ -196,6 +203,10 @@ pub trait Object: From<Value> {
     ///         klass.def("host", ruby_server_host);
     ///         klass.def("port", ruby_server_port);
     ///     });
+    ///
+    ///     let server = VM::eval("RubyServer.new('127.0.0.1', 3000)").unwrap();
+    ///     assert_eq!(server.get_data(&*SERVER_WRAPPER).port(), 3000);
+    ///     assert_eq!(server.get_data(&*SERVER_WRAPPER).host(), "127.0.0.1");
     /// }
     /// ```
     ///
@@ -212,6 +223,31 @@ pub trait Object: From<Value> {
     }
 
     /// Gets a mutable reference to the Rust structure which is wrapped into a Ruby object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    /// #[macro_use] extern crate lazy_static;
+    ///
+    /// use rutie::{AnyObject, Class, Object, VM};
+    ///
+    /// pub struct Counter {
+    ///     count: u32,
+    /// }
+    ///
+    /// wrappable_struct!(Counter, CounterWrapper, COUNTER_WRAPPER);
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     let mut counter: AnyObject =
+    ///         Class::new("Counter", None).wrap_data(Counter { count: 0 }, &*COUNTER_WRAPPER);
+    ///
+    ///     counter.get_data_mut(&*COUNTER_WRAPPER).count += 2;
+    ///
+    ///     assert_eq!(counter.get_data(&*COUNTER_WRAPPER).count, 2);
+    /// }
+    /// ```
     fn get_data_mut<'a, T>(&'a mut self, wrapper: &'a dyn DataTypeWrapper<T>) -> &mut T {
         class::get_data(self.value(), wrapper)
     }
@@ -224,10 +260,10 @@ pub trait Object: From<Value> {
     ///
     /// ### Defining class
     ///
-    /// ```no_run
+    /// ```
     /// #[macro_use] extern crate rutie;
     ///
-    /// use rutie::{Class, Fixnum, Object, RString};
+    /// use rutie::{Class, Fixnum, Object, RString, VM};
     ///
     /// class!(Hello);
     /// class!(Nested);
@@ -255,6 +291,7 @@ pub trait Object: From<Value> {
     /// );
     ///
     /// fn main() {
+    ///     # VM::init();
     ///     Class::new("Hello", None).define(|klass| {
     ///         klass.attr_reader("reader");
     ///
@@ -265,6 +302,10 @@ pub trait Object: From<Value> {
     ///             klass.def_self("nested_greeting", nested_greeting);
     ///         });
     ///     });
+    ///
+    ///     let greeting = VM::eval("Hello::Nested.nested_greeting").unwrap();
+    ///     assert_eq!(greeting.try_convert_to::<RString>().unwrap().to_str(), "Greeting from nested class");
+    ///     assert!(VM::eval("Hello.new.reader").unwrap().is_nil());
     /// }
     /// ```
     ///
@@ -374,8 +415,11 @@ pub trait Object: From<Value> {
     /// fn main() {
     ///     # VM::init();
     ///     Class::from_existing("String").define(|klass| {
-    ///         klass.def("blank?", is_blank);
+    ///         klass.define_method("blank?", is_blank);
     ///     });
+    ///
+    ///     assert!(VM::eval("'   '.blank?").unwrap().value().is_true());
+    ///     assert!(VM::eval("' x '.blank?").unwrap().value().is_false());
     /// }
     /// ```
     ///
@@ -493,8 +537,12 @@ pub trait Object: From<Value> {
     /// fn main() {
     ///     # VM::init();
     ///     Class::from_existing("String").define(|klass| {
-    ///         klass.def_private("blank?", is_blank);
+    ///         klass.define_private_method("blank?", is_blank);
     ///     });
+    ///
+    ///     // Callable from inside the class, not from outside.
+    ///     assert!(VM::eval("' '.send(:blank?)").unwrap().value().is_true());
+    ///     assert!(VM::eval("' '.blank?").is_err());
     /// }
     /// ```
     ///
@@ -688,16 +736,104 @@ pub trait Object: From<Value> {
     }
 
     /// An alias for `define_method` (similar to Ruby syntax `def some_method`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Object, RString, VM};
+    ///
+    /// class!(Greeter);
+    ///
+    /// methods!(
+    ///     Greeter,
+    ///     rtself,
+    ///
+    ///     fn hello() -> RString {
+    ///         RString::new_utf8("hello")
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Greeter", None).define(|klass| {
+    ///         klass.def("hello", hello);
+    ///     });
+    ///
+    ///     let result = VM::eval("Greeter.new.hello").unwrap();
+    ///     assert_eq!(result.try_convert_to::<RString>().unwrap().to_str(), "hello");
+    /// }
+    /// ```
     fn def<I: Object, O: Object>(&mut self, name: &str, callback: Callback<I, O>) {
         self.define_method(name, callback);
     }
 
     /// An alias for `define_private_method` (similar to Ruby syntax `private def some_method`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Object, RString, VM};
+    ///
+    /// class!(Greeter);
+    ///
+    /// methods!(
+    ///     Greeter,
+    ///     rtself,
+    ///
+    ///     fn hello() -> RString {
+    ///         RString::new_utf8("hello")
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Greeter", None).define(|klass| {
+    ///         klass.def_private("hello", hello);
+    ///     });
+    ///
+    ///     assert!(VM::eval("Greeter.new.hello").is_err());
+    ///     let result = VM::eval("Greeter.new.send(:hello)").unwrap();
+    ///     assert_eq!(result.try_convert_to::<RString>().unwrap().to_str(), "hello");
+    /// }
+    /// ```
     fn def_private<I: Object, O: Object>(&mut self, name: &str, callback: Callback<I, O>) {
         self.define_private_method(name, callback);
     }
 
     /// An alias for `define_singleton_method` (similar to Ruby `def self.some_method`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Object, RString, VM};
+    ///
+    /// class!(Greeter);
+    ///
+    /// methods!(
+    ///     Greeter,
+    ///     rtself,
+    ///
+    ///     fn hello() -> RString {
+    ///         RString::new_utf8("hello")
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Greeter", None).define(|klass| {
+    ///         klass.def_self("hello", hello);
+    ///     });
+    ///
+    ///     let result = VM::eval("Greeter.hello").unwrap();
+    ///     assert_eq!(result.try_convert_to::<RString>().unwrap().to_str(), "hello");
+    /// }
+    /// ```
     fn def_self<I: Object, O: Object>(&mut self, name: &str, callback: Callback<I, O>) {
         self.define_singleton_method(name, callback);
     }
@@ -1981,7 +2117,7 @@ pub trait Object: From<Value> {
     ///  - `address[:port]` is not present
     ///  - `address[:port]` is not a `Fixnum`
     ///
-    /// ```no_run
+    /// ```
     /// #[macro_use]
     /// extern crate rutie;
     ///
@@ -2003,6 +2139,7 @@ pub trait Object: From<Value> {
     ///             .unwrap_or(default_port);
     ///
     ///         // Start server...
+    ///         rtself.instance_variable_set("@port", Fixnum::new(port));
     ///
     ///         NilClass::new()
     ///     }
@@ -2013,6 +2150,10 @@ pub trait Object: From<Value> {
     ///     Class::new("Server", None).define(|klass| {
     ///         klass.def("start", start);
     ///     });
+    ///
+    ///     let port = |code: &str| VM::eval(code).unwrap().try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///     assert_eq!(port("s = Server.new; s.start(port: 3000); s.instance_variable_get(:@port)"), 3000);
+    ///     assert_eq!(port("s = Server.new; s.start('localhost'); s.instance_variable_get(:@port)"), 8080);
     /// }
     /// ```
     ///

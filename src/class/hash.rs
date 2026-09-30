@@ -51,7 +51,9 @@ impl Hash {
     /// use rutie::{Hash, VM};
     /// # VM::init();
     ///
-    /// Hash::new();
+    /// let hash = Hash::new();
+    ///
+    /// assert_eq!(hash.length(), 0);
     /// ```
     ///
     /// Ruby:

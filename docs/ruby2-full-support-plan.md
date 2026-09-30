@@ -697,16 +697,31 @@ round-trips through Ruby**, not only a doctest.
 
 ### P8 — doctest audit
 
-- [ ] Every public item has a doctest that **runs**: remove `ignore`
+- [x] Every public item has a doctest that **runs**: remove `ignore`
       (the three `wrappable_struct!` fragments, P6), and keep `no_run`/`text`
       only where running is impossible (process exit, signals), each with a
       comment saying why.
-- [ ] Doctests assert results (`assert!`/`assert_eq!`), not just call the API;
+      Done: no `ignore` or `no_run` blocks are left. The `text` blocks that
+      remain are Ruby call sequences or show how `protect_send` is built,
+      and each sits next to a running example. `VM::exit` runs under
+      `VM::protect` (it raises `SystemExit` there); `VM::exit_bang` really
+      exits, with a comment saying why nothing follows it.
+- [x] Doctests assert results (`assert!`/`assert_eq!`), not just call the API;
       examples that only print are given assertions.
-- [ ] Doctests must not depend on version-specific messages (see §3); gate
+      Done: an audit script (every public fn, trait method and macro in
+      `src/class`, `src/helpers`, `src/dsl.rs`) finds no example without an
+      assertion. `VM::p` captures `$stdout`; the `GC::mark*`/`is_marked`
+      examples mark from a `wrappable_struct!` mark function (their only
+      correct use) and check the objects survive. Trait method declarations
+      (`EncodingSupport`, `TryConvert`, `VerifiedObject`) got their own
+      examples.
+- [x] Doctests must not depend on version-specific messages (see §3); gate
       version-specific examples with `# #[cfg(ruby_gte_2_7)]`.
 - [ ] `cargo test --doc` green on 2.5.9, 2.6.10 and 2.7.8, stable and beta, and
       in CI on Linux and macOS.
+      Local: green on all three, stable and beta (627/628/630 doctests).
+      CI: Linux green; macOS 2.5/2.6 unit tests crash before the doctests run
+      (under investigation, see the PR).
 
 ### P9 — Ruby 3 upgrade plan
 

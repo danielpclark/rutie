@@ -38,6 +38,13 @@
 ///         klass.def("anonymous_greeting", anonymous_greeting);
 ///         klass.def("friendly_greeting", friendly_greeting);
 ///     });
+///
+///     let greeting = VM::eval("Greeter.new.friendly_greeting('Ruby')").unwrap();
+///     assert_eq!(greeting.try_convert_to::<RString>().unwrap().to_str(), "Hello dear Ruby!");
+///
+///     // A missing or non-String argument falls back to the default.
+///     let greeting = VM::eval("Greeter.new.friendly_greeting(1)").unwrap();
+///     assert_eq!(greeting.try_convert_to::<RString>().unwrap().to_str(), "Hello dear Anonymous!");
 /// }
 /// ```
 ///
@@ -122,6 +129,9 @@ macro_rules! class {
 ///         klass.def("anonymous_greeting", anonymous_greeting);
 ///         klass.def("friendly_greeting", friendly_greeting);
 ///     });
+///
+///     let greeting = VM::eval("Object.new.extend(Greeter).anonymous_greeting").unwrap();
+///     assert_eq!(greeting.try_convert_to::<RString>().unwrap().to_str(), "Hello stranger!");
 /// }
 /// ```
 ///
