@@ -21,6 +21,12 @@ extern "C" {
     // rb_gc_mark(VALUE ptr)
     pub fn rb_gc_mark(value: Value);
     // void
+    // rb_gc_mark_movable(VALUE ptr)
+    pub fn rb_gc_mark_movable(value: Value);
+    // VALUE
+    // rb_gc_location(VALUE value)
+    pub fn rb_gc_location(value: Value) -> Value;
+    // void
     // rb_gc_mark_maybe(VALUE obj)
     pub fn rb_gc_mark_maybe(obj: Value);
     // void
