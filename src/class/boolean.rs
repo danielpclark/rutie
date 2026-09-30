@@ -1,9 +1,6 @@
 use std::convert::From;
 
-use crate::{
-    types::{InternalValue, Value},
-    util, AnyObject, Object, VerifiedObject,
-};
+use crate::{types::Value, util, AnyObject, Object, VerifiedObject};
 
 /// `TrueClass` and `FalseClass`
 #[derive(Debug)]
@@ -60,23 +57,15 @@ impl From<Value> for Boolean {
     }
 }
 
-impl From<InternalValue> for Boolean {
-    fn from(internal_value: InternalValue) -> Self {
-        Boolean {
-            value: Value::from(internal_value),
-        }
+impl Into<Value> for Boolean {
+    fn into(self) -> Value {
+        self.value
     }
 }
 
-impl From<Boolean> for Value {
-    fn from(val: Boolean) -> Self {
-        val.value
-    }
-}
-
-impl From<Boolean> for AnyObject {
-    fn from(val: Boolean) -> Self {
-        AnyObject::from(val.value)
+impl Into<AnyObject> for Boolean {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

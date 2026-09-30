@@ -1,6 +1,6 @@
 use crate::{
     binding::encoding,
-    types::{Value, ValueType},
+    types::{EncodingIndex, Value, ValueType},
     AnyException, AnyObject, Class, Exception, NilClass, Object, RString, VerifiedObject,
 };
 
@@ -217,15 +217,15 @@ impl From<Value> for Encoding {
     }
 }
 
-impl From<Encoding> for Value {
-    fn from(val: Encoding) -> Self {
-        val.value
+impl Into<Value> for Encoding {
+    fn into(self) -> Value {
+        self.value
     }
 }
 
-impl From<Encoding> for AnyObject {
-    fn from(val: Encoding) -> Self {
-        AnyObject::from(val.value)
+impl Into<AnyObject> for Encoding {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

@@ -1,8 +1,8 @@
-use std::{mem::transmute, ptr};
+use std::ptr;
 
 use crate::{
     rubysys::thread,
-    types::{CallbackMutPtr, CallbackPtr, Value},
+    types::{c_void, CallbackMutPtr, CallbackPtr, Value},
     util, Object,
 };
 
@@ -18,12 +18,7 @@ where
 
     let closure_ptr = Box::into_raw(Box::new(fnbox)) as CallbackMutPtr;
 
-    unsafe {
-        thread::rb_thread_create(
-            transmute(thread_create_callbox::<R> as CallbackMutPtr),
-            closure_ptr,
-        )
-    }
+    unsafe { thread::rb_thread_create(thread_create_callbox::<R>, closure_ptr) }
 }
 
 #[cfg(unix)]
@@ -48,8 +43,8 @@ where
             thread::rb_thread_call_without_gvl(
                 thread_call_callbox as CallbackPtr,
                 util::closure_to_ptr(func),
-                ptr::null(),
-                ptr::null_mut() as CallbackMutPtr,
+                ptr::null() as CallbackPtr,
+                ptr::null() as CallbackPtr,
             )
         };
 
@@ -74,8 +69,8 @@ where
             thread::rb_thread_call_without_gvl2(
                 thread_call_callbox as CallbackPtr,
                 util::closure_to_ptr(func),
-                ptr::null(),
-                ptr::null_mut() as CallbackMutPtr,
+                ptr::null() as CallbackPtr,
+                ptr::null() as CallbackPtr,
             )
         };
 

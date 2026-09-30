@@ -2,6 +2,7 @@ use crate::{
     binding::{
         class::const_get,
         global::{rb_cObject, RubySpecialConsts},
+        vm,
     },
     rubysys::rproc::{rb_obj_is_method, rb_obj_is_proc},
     types::{c_char, c_int, c_void, Argc, InternalValue, Value},
@@ -10,7 +11,7 @@ use crate::{
 
 use std::{
     ffi::{CStr, CString},
-    slice,
+    ptr, slice,
 };
 
 pub unsafe fn cstr_to_string(str: *const c_char) -> String {
@@ -30,9 +31,9 @@ pub fn bool_to_value(state: bool) -> Value {
         RubySpecialConsts::True
     } else {
         RubySpecialConsts::False
-    } as InternalValue;
+    };
 
-    Value::from(internal_value)
+    Value::from(internal_value as InternalValue)
 }
 
 #[inline]
@@ -53,43 +54,42 @@ pub fn process_arguments(arguments: &[Value]) -> (Argc, *const Value) {
     (arguments.len() as Argc, arguments.as_ptr())
 }
 
-pub fn option_to_slice<T>(option: &Option<T>) -> &[T] {
+pub fn option_to_slice<'a, T>(option: &'a Option<T>) -> &'a [T] {
     match option {
-        Some(v) => unsafe { slice::from_raw_parts(v, 1) },
-        None => &[],
+        &Some(ref v) => unsafe { slice::from_raw_parts(v, 1) },
+        &None => &[],
     }
 }
 
-/// Converts a pointer to array of `AnyObject`s to `Vec<AnyObject>`.
-///
-/// This function is a helper for callbacks, do not use it directly.
-///
-/// It will be moved to other struct, because it is not related to VM itself.
-///
-/// # Examples
-///
-/// ```
-/// use rutie::types::Argc;
-/// use rutie::{AnyObject, Boolean, Class, Object, RString, util, VM};
-///
-/// #[no_mangle]
-/// pub extern fn string_eq(argc: Argc, argv: *const AnyObject, rtself: RString) -> Boolean {
-///     let argv = unsafe { util::parse_arguments(argc, argv) };
-///     let other_string = argv[0].try_convert_to::<RString>().unwrap();
-///
-///     Boolean::new(rtself.to_str() == other_string.to_str())
-/// }
-///
-/// fn main() {
-///     # VM::init();
-///     Class::from_existing("String").define_method("==", string_eq);
-/// }
-/// ```
-pub unsafe fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject> {
+// Converts a pointer to array of `AnyObject`s to `Vec<AnyObject>`.
+//
+// This function is a helper for callbacks, do not use it directly.
+//
+// It will be moved to other struct, because it is not related to VM itself.
+//
+// # Examples
+//
+// ```no_run
+// use rutie::types::Argc;
+// use rutie::{AnyObject, Boolean, Class, Object, RString, util};
+//
+// #[no_mangle]
+// pub extern fn string_eq(argc: Argc, argv: *const AnyObject, rtself: RString) -> Boolean {
+//     let argv = util::parse_arguments(argc, argv);
+//     let other_string = argv[0].try_convert_to::<RString>().unwrap();
+//
+//     Boolean::new(rtself.to_str() == other_string.to_str())
+// }
+//
+// fn main() {
+//     Class::from_existing("String").define_method("==", string_eq);
+// }
+// ```
+pub fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject> {
     unsafe { slice::from_raw_parts(arguments, argc as usize).to_vec() }
 }
 
-pub fn closure_to_ptr<F, R>(mut func: F) -> *mut c_void
+pub fn closure_to_ptr<F, R>(mut func: F) -> *const c_void
 where
     F: FnMut() -> R,
 {
@@ -100,7 +100,7 @@ where
 
     let fnbox = Box::new(wrap_return) as Box<dyn FnMut() -> *const c_void>;
 
-    Box::into_raw(Box::new(fnbox)) as *mut c_void
+    Box::into_raw(Box::new(fnbox)) as *const c_void
 }
 
 pub unsafe fn ptr_to_data<R>(ptr: *mut c_void) -> R {
@@ -121,11 +121,11 @@ pub fn is_method(obj: Value) -> bool {
 pub fn inmost_rb_object(klass: &str) -> Value {
     let object = unsafe { rb_cObject };
 
-    klass.split("::").fold(object.into(), const_get)
+    klass.split("::").fold(object, |acc, x| const_get(acc, x))
 }
 
 pub mod callback_call {
-    use crate::types::{st_retval, CallbackMutPtr};
+    use crate::types::{c_void, st_retval, CallbackMutPtr};
 
     pub fn no_parameters<F: FnMut() -> R, R>(ptr: CallbackMutPtr) -> R {
         let f = ptr as *mut F;

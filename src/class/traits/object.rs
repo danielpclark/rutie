@@ -7,7 +7,7 @@ use crate::{
     util,
 };
 
-use crate::{AnyException, AnyObject, Class, Exception, NilClass, VerifiedObject, VM};
+use crate::{AnyException, AnyObject, Boolean, Class, Exception, NilClass, VerifiedObject, VM};
 
 /// `Object`
 ///
@@ -25,7 +25,7 @@ pub trait Object: From<Value> {
     /// use rutie::Object;
     ///
     /// struct Array {
-    ///   value: Value
+    ///     value: Value
     /// }
     ///
     /// impl From<Value> for Array {
@@ -127,7 +127,10 @@ pub trait Object: From<Value> {
     /// Wrap `Server` structs to `RubyServer` objects
     ///
     /// ```
-    /// use rutie::{AnyObject, Class, Integer, Object, RString, VM, class, methods, wrappable_struct};
+    /// #[macro_use] extern crate rutie;
+    /// #[macro_use] extern crate lazy_static;
+    ///
+    /// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM};
     ///
     /// // The structure which we want to wrap
     /// pub struct Server {
@@ -160,7 +163,7 @@ pub trait Object: From<Value> {
     ///     RubyServer,
     ///     rtself,
     ///
-    ///     fn ruby_server_new(host: RString, port: Integer) -> AnyObject {
+    ///     fn ruby_server_new(host: RString, port: Fixnum) -> AnyObject {
     ///         let server = Server::new(host.unwrap().to_string(),
     ///                                  port.unwrap().to_i64() as u16);
     ///
@@ -173,10 +176,10 @@ pub trait Object: From<Value> {
     ///         RString::new_utf8(host)
     ///     }
     ///
-    ///     fn ruby_server_port() -> Integer {
+    ///     fn ruby_server_port() -> Fixnum {
     ///         let port = rtself.get_data(&*SERVER_WRAPPER).port();
     ///
-    ///         Integer::new(port as i64)
+    ///         Fixnum::new(port as i64)
     ///     }
     /// );
     ///
@@ -201,12 +204,12 @@ pub trait Object: From<Value> {
     /// server.host == "127.0.0.1"
     /// server.port == 3000
     /// ```
-    fn get_data<'a, T>(&'a self, wrapper: &'a dyn DataTypeWrapper<T>) -> &'a T {
+    fn get_data<'a, T>(&'a self, wrapper: &'a dyn DataTypeWrapper<T>) -> &T {
         class::get_data(self.value(), wrapper)
     }
 
     /// Gets a mutable reference to the Rust structure which is wrapped into a Ruby object.
-    fn get_data_mut<'a, T>(&'a mut self, wrapper: &'a dyn DataTypeWrapper<T>) -> &'a mut T {
+    fn get_data_mut<'a, T>(&'a mut self, wrapper: &'a dyn DataTypeWrapper<T>) -> &mut T {
         class::get_data(self.value(), wrapper)
     }
 
@@ -219,7 +222,9 @@ pub trait Object: From<Value> {
     /// ### Defining class
     ///
     /// ```no_run
-    /// use rutie::{Class, Object, RString, methods, class};
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, RString};
     ///
     /// class!(Hello);
     /// class!(Nested);
@@ -284,8 +289,10 @@ pub trait Object: From<Value> {
     ///
     /// ### Defining singleton method for an object
     ///
-    /// ```rust
-    /// use rutie::{AnyObject, Class, Integer, Object, RString, VM, methods};
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM};
     ///
     /// methods!(
     ///     RString,
@@ -339,7 +346,7 @@ pub trait Object: From<Value> {
     /// # Panics
     ///
     /// Ruby can raise an exception if you try to define instance method directly on an instance
-    /// of some class (like `Integer`, `String`, `Array` etc).
+    /// of some class (like `Fixnum`, `String`, `Array` etc).
     ///
     /// Use this method only on classes (or singleton classes of objects).
     ///
@@ -348,7 +355,9 @@ pub trait Object: From<Value> {
     /// ### The famous String#blank? method
     ///
     /// ```rust
-    /// use rutie::{Boolean, Class, Object, RString, VM, methods};
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Boolean, Class, Object, RString, VM};
     ///
     /// methods!(
     ///    RString,
@@ -380,18 +389,21 @@ pub trait Object: From<Value> {
     ///
     /// ### Receiving arguments
     ///
-    /// Raise `Integer` to the power of `exp`.
+    /// Raise `Fixnum` to the power of `exp`.
     ///
     /// ```rust
+    /// #[macro_use] extern crate rutie;
+    ///
     /// use std::error::Error;
-    /// use rutie::{Class, Integer, Object, Exception, VM, methods};
+    ///
+    /// use rutie::{Class, Fixnum, Object, Exception, VM};
     ///
     /// methods!(
-    ///     Integer,
+    ///     Fixnum,
     ///     rtself,
     ///
-    ///     fn pow(exp: Integer) -> Integer {
-    ///         // `exp` is not a valid `Integer`, raise an exception
+    ///     fn pow(exp: Fixnum) -> Fixnum {
+    ///         // `exp` is not a valid `Fixnum`, raise an exception
     ///         if let Err(ref error) = exp {
     ///             VM::raise(error.class(), &error.message());
     ///         }
@@ -399,22 +411,22 @@ pub trait Object: From<Value> {
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
     ///         let exp = exp.unwrap().to_i64() as u32;
     ///
-    ///         Integer::new(rtself.to_i64().pow(exp))
+    ///         Fixnum::new(rtself.to_i64().pow(exp))
     ///     }
     ///
-    ///     fn pow_with_default_argument(exp: Integer) -> Integer {
+    ///     fn pow_with_default_argument(exp: Fixnum) -> Fixnum {
     ///         let default_exp = 0;
     ///         let exp = exp.map(|exp| exp.to_i64()).unwrap_or(default_exp);
     ///
     ///         let result = rtself.to_i64().pow(exp as u32);
     ///
-    ///         Integer::new(result)
+    ///         Fixnum::new(result)
     ///     }
     /// );
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Class::from_existing("Integer").define(|klass| {
+    ///     Class::from_existing("Fixnum").define(|klass| {
     ///         klass.def("pow", pow);
     ///         klass.def("pow_with_default_argument", pow_with_default_argument);
     ///     });
@@ -424,16 +436,16 @@ pub trait Object: From<Value> {
     /// Ruby:
     ///
     /// ```ruby
-    /// class Integer
+    /// class Fixnum
     ///   def pow(exp)
-    ///     raise ArgumentError unless exp.is_a?(Integer)
+    ///     raise ArgumentError unless exp.is_a?(Fixnum)
     ///
     ///     self ** exp
     ///   end
     ///
     ///   def pow_with_default_argument(exp)
     ///     default_exp = 0
-    ///     exp = default_exp unless exp.is_a?(Integer)
+    ///     exp = default_exp unless exp.is_a?(Fixnum)
     ///
     ///     self ** exp
     ///   end
@@ -453,7 +465,7 @@ pub trait Object: From<Value> {
     /// # Panics
     ///
     /// Ruby can raise an exception if you try to define instance method directly on an instance
-    /// of some class (like `Integer`, `String`, `Array` etc).
+    /// of some class (like `Fixnum`, `String`, `Array` etc).
     ///
     /// Use this method only on classes (or singleton classes of objects).
     ///
@@ -462,7 +474,9 @@ pub trait Object: From<Value> {
     /// ### The famous String#blank? method
     ///
     /// ```rust
-    /// use rutie::{Boolean, Class, Object, RString, VM, methods};
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Boolean, Class, Object, RString, VM};
     ///
     /// methods!(
     ///    RString,
@@ -494,18 +508,21 @@ pub trait Object: From<Value> {
     ///
     /// ### Receiving arguments
     ///
-    /// Raise `Integer` to the power of `exp`.
+    /// Raise `Fixnum` to the power of `exp`.
     ///
     /// ```rust
+    /// #[macro_use] extern crate rutie;
+    ///
     /// use std::error::Error;
-    /// use rutie::{Class, Integer, Object, Exception, VM, methods};
+    ///
+    /// use rutie::{Class, Fixnum, Object, Exception, VM};
     ///
     /// methods!(
-    ///     Integer,
+    ///     Fixnum,
     ///     rtself,
     ///
-    ///     fn pow(exp: Integer) -> Integer {
-    ///         // `exp` is not a valid `Integer`, raise an exception
+    ///     fn pow(exp: Fixnum) -> Fixnum {
+    ///         // `exp` is not a valid `Fixnum`, raise an exception
     ///         if let Err(ref error) = exp {
     ///             VM::raise(error.class(), &error.message());
     ///         }
@@ -513,22 +530,22 @@ pub trait Object: From<Value> {
     ///         // We can safely unwrap here, because an exception was raised if `exp` is `Err`
     ///         let exp = exp.unwrap().to_i64() as u32;
     ///
-    ///         Integer::new(rtself.to_i64().pow(exp))
+    ///         Fixnum::new(rtself.to_i64().pow(exp))
     ///     }
     ///
-    ///     fn pow_with_default_argument(exp: Integer) -> Integer {
+    ///     fn pow_with_default_argument(exp: Fixnum) -> Fixnum {
     ///         let default_exp = 0;
     ///         let exp = exp.map(|exp| exp.to_i64()).unwrap_or(default_exp);
     ///
     ///         let result = rtself.to_i64().pow(exp as u32);
     ///
-    ///         Integer::new(result)
+    ///         Fixnum::new(result)
     ///     }
     /// );
     ///
     /// fn main() {
     ///     # VM::init();
-    ///     Class::from_existing("Integer").define(|klass| {
+    ///     Class::from_existing("Fixnum").define(|klass| {
     ///         klass.def_private("pow", pow);
     ///         klass.def_private("pow_with_default_argument", pow_with_default_argument);
     ///     });
@@ -538,17 +555,17 @@ pub trait Object: From<Value> {
     /// Ruby:
     ///
     /// ```ruby
-    /// class Integer
+    /// class Fixnum
     ///   private
     ///   def pow(exp)
-    ///     raise ArgumentError unless exp.is_a?(Integer)
+    ///     raise ArgumentError unless exp.is_a?(Fixnum)
     ///
     ///     self ** exp
     ///   end
     ///
     ///   def pow_with_default_argument(exp)
     ///     default_exp = 0
-    ///     exp = default_exp unless exp.is_a?(Integer)
+    ///     exp = default_exp unless exp.is_a?(Fixnum)
     ///
     ///     self ** exp
     ///   end
@@ -577,6 +594,7 @@ pub trait Object: From<Value> {
     /// #[macro_use] extern crate rutie;
     ///
     /// use std::error::Error;
+    ///
     /// use rutie::{Class, Object, Exception, RString, Symbol, VM};
     ///
     /// methods!(
@@ -619,7 +637,7 @@ pub trait Object: From<Value> {
     /// ```
     /// #[macro_use] extern crate rutie;
     ///
-    /// use rutie::{AnyObject, Class, Object, RString, VM};
+    /// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM};
     ///
     /// methods!(
     ///     RString,
@@ -686,10 +704,10 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Array, Integer, Object, RString, VM};
+    /// use rutie::{Array, Fixnum, Object, RString, VM};
     /// # VM::init();
     ///
-    /// let array = Array::new().push(Integer::new(1));
+    /// let array = Array::new().push(Fixnum::new(1));
     /// let array_string = unsafe { array.send("to_s", &[]) }
     ///                                  .try_convert_to::<RString>()
     ///                                  .unwrap();
@@ -708,12 +726,12 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Integer, Object, VM};
+    /// use rutie::{Fixnum, Object, VM};
     /// # VM::init();
     ///
-    /// let a = Integer::new(4);
-    /// let b = Integer::new(7);
-    /// let c = Integer::new(4);
+    /// let a = Fixnum::new(4);
+    /// let b = Fixnum::new(7);
+    /// let c = Fixnum::new(4);
     ///
     /// assert!(!a.equals(&b));
     /// assert!(a.equals(&c));
@@ -738,10 +756,10 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Integer, Object, Class, VM};
+    /// use rutie::{Fixnum, Object, Class, VM};
     /// # VM::init();
     ///
-    /// let a = Integer::new(4);
+    /// let a = Fixnum::new(4);
     /// let b = Class::from_existing("Integer");
     ///
     /// assert!(!a.case_equals(&b));
@@ -769,12 +787,12 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Integer, Object, VM};
+    /// use rutie::{Fixnum, Object, VM};
     /// # VM::init();
     ///
-    /// let a = Integer::new(4);
-    /// let b = Integer::new(7);
-    /// let c = Integer::new(4);
+    /// let a = Fixnum::new(4);
+    /// let b = Fixnum::new(7);
+    /// let c = Fixnum::new(4);
     ///
     /// assert!(!a.is_eql(&b));
     /// assert!(a.is_eql(&c));
@@ -852,7 +870,7 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, Object, Exception, Class, VM, Boolean};
+    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM, Boolean};
     /// # VM::init();
     ///
     /// let kernel = Class::from_existing("Kernel");
@@ -886,7 +904,7 @@ pub trait Object: From<Value> {
         method: &str,
         arguments: &[AnyObject],
     ) -> Result<AnyObject, AnyException> {
-        let closure = || unsafe { self.send(method, arguments.as_ref()) };
+        let closure = || unsafe { self.send(&method, arguments.as_ref()) };
 
         let result = VM::protect(closure);
 
@@ -908,7 +926,7 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{RString, Object, Exception, Class, VM, Boolean};
+    /// use rutie::{RString, Fixnum, Object, Exception, Class, VM, Boolean};
     /// # VM::init();
     ///
     /// let kernel = Class::from_existing("Kernel");
@@ -945,7 +963,7 @@ pub trait Object: From<Value> {
         let v = self.value();
         let arguments = util::arguments_to_values(arguments);
 
-        let closure = || vm::call_public_method(v, method, &arguments).into();
+        let closure = || vm::call_public_method(v, &method, &arguments).into();
 
         let result = VM::protect(closure);
 
@@ -988,15 +1006,15 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Array, Integer, Object, VM};
+    /// use rutie::{Array, Fixnum, Object, VM};
     /// # VM::init();
     ///
-    /// let array = Array::new().push(Integer::new(1));
-    /// let args = [Integer::new(1).to_any_object()];
+    /// let array = Array::new().push(Fixnum::new(1));
+    /// let args = [Fixnum::new(1).to_any_object()];
     /// let index = unsafe { array.send("find_index", &args) }
-    ///                           .try_convert_to::<Integer>();
+    ///                           .try_convert_to::<Fixnum>();
     ///
-    /// assert_eq!(index, Ok(Integer::new(0)));
+    /// assert_eq!(index, Ok(Fixnum::new(0)));
     /// ```
     fn to_any_object(&self) -> AnyObject {
         AnyObject::from(self.value())
@@ -1010,7 +1028,7 @@ pub trait Object: From<Value> {
     /// #[macro_use]
     /// extern crate rutie;
     ///
-    /// use rutie::{AnyObject, Class, Integer, Object, VM};
+    /// use rutie::{AnyObject, Class, Fixnum, Object, VM};
     ///
     /// class!(Counter);
     ///
@@ -1019,21 +1037,21 @@ pub trait Object: From<Value> {
     ///     rtself,
     ///
     ///     fn counter_initialize() -> AnyObject {
-    ///         rtself.instance_variable_set("@state", Integer::new(0))
+    ///         rtself.instance_variable_set("@state", Fixnum::new(0))
     ///     }
     ///
     ///     fn counter_increment() -> AnyObject {
-    ///         // Using unsafe conversion, because we are sure that `@state` is always a `Integer`
+    ///         // Using unsafe conversion, because we are sure that `@state` is always a `Fixnum`
     ///         // and we don't provide an interface to set the value externally
     ///         let state = unsafe {
-    ///             rtself.instance_variable_get("@state").to::<Integer>().to_i64()
+    ///             rtself.instance_variable_get("@state").to::<Fixnum>().to_i64()
     ///         };
     ///
-    ///         rtself.instance_variable_set("@state", Integer::new(state + 1))
+    ///         rtself.instance_variable_set("@state", Fixnum::new(state + 1))
     ///     }
     ///
-    ///     fn counter_state() -> Integer {
-    ///         unsafe { rtself.instance_variable_get("@state").to::<Integer>() }
+    ///     fn counter_state() -> Fixnum {
+    ///         unsafe { rtself.instance_variable_get("@state").to::<Fixnum>() }
     ///     }
     /// );
     ///
@@ -1047,9 +1065,9 @@ pub trait Object: From<Value> {
     ///
     ///     unsafe { counter.send("increment!", &[]) };
     ///
-    ///     let new_state = unsafe { counter.send("state", &[]) }.try_convert_to::<Integer>();
+    ///     let new_state = unsafe { counter.send("state", &[]) }.try_convert_to::<Fixnum>();
     ///
-    ///     assert_eq!(new_state, Ok(Integer::new(1)));
+    ///     assert_eq!(new_state, Ok(Fixnum::new(1)));
     /// }
     /// ```
     ///
@@ -1088,7 +1106,10 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{AnyObject, Class, Integer, Object, VM, class, methods};
+    /// #[macro_use]
+    /// extern crate rutie;
+    ///
+    /// use rutie::{AnyObject, Class, Fixnum, Object, VM};
     ///
     /// class!(Counter);
     ///
@@ -1097,21 +1118,21 @@ pub trait Object: From<Value> {
     ///     rtself,
     ///
     ///     fn counter_initialize() -> AnyObject {
-    ///         rtself.instance_variable_set("@state", Integer::new(0))
+    ///         rtself.instance_variable_set("@state", Fixnum::new(0))
     ///     }
     ///
     ///     fn counter_increment() -> AnyObject {
-    ///         // Using unsafe conversion, because we are sure that `@state` is always a `Integer`
+    ///         // Using unsafe conversion, because we are sure that `@state` is always a `Fixnum`
     ///         // and we don't provide an interface to set the value externally
     ///         let state = unsafe {
-    ///             rtself.instance_variable_get("@state").to::<Integer>().to_i64()
+    ///             rtself.instance_variable_get("@state").to::<Fixnum>().to_i64()
     ///         };
     ///
-    ///         rtself.instance_variable_set("@state", Integer::new(state + 1))
+    ///         rtself.instance_variable_set("@state", Fixnum::new(state + 1))
     ///     }
     ///
-    ///     fn counter_state() -> Integer {
-    ///         unsafe { rtself.instance_variable_get("@state").to::<Integer>() }
+    ///     fn counter_state() -> Fixnum {
+    ///         unsafe { rtself.instance_variable_get("@state").to::<Fixnum>() }
     ///     }
     /// );
     ///
@@ -1125,9 +1146,9 @@ pub trait Object: From<Value> {
     ///
     ///     unsafe { counter.send("increment!", &[]) };
     ///
-    ///     let new_state = unsafe { counter.send("state", &[]) }.try_convert_to::<Integer>();
+    ///     let new_state = unsafe { counter.send("state", &[]) }.try_convert_to::<Fixnum>();
     ///
-    ///     assert_eq!(new_state, Ok(Integer::new(1)));
+    ///     assert_eq!(new_state, Ok(Fixnum::new(1)));
     /// }
     /// ```
     ///
@@ -1235,14 +1256,14 @@ pub trait Object: From<Value> {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{AnyObject, Integer, Object, VM};
+    /// use rutie::{AnyObject, Fixnum, Object, VM};
     /// # VM::init();
     ///
-    /// let integer_as_any_object = Integer::new(1).to_any_object();
+    /// let fixnum_as_any_object = Fixnum::new(1).to_any_object();
     ///
-    /// let integer = unsafe { integer_as_any_object.to::<Integer>() };
+    /// let fixnum = unsafe { fixnum_as_any_object.to::<Fixnum>() };
     ///
-    /// assert_eq!(integer.to_i64(), 1);
+    /// assert_eq!(fixnum.to_i64(), 1);
     /// ```
     unsafe fn to<T: Object>(&self) -> T {
         T::from(self.value())
@@ -1260,19 +1281,19 @@ pub trait Object: From<Value> {
     /// ### Basic conversions
     ///
     /// ```
-    /// use rutie::{AnyException, Exception, Integer, Object, RString, VM};
+    /// use rutie::{AnyException, Exception, Fixnum, Object, RString, VM};
     /// # VM::init();
     ///
-    /// let integer_as_any_object = Integer::new(1).to_any_object();
-    /// let converted_integer = integer_as_any_object.try_convert_to::<Integer>();
+    /// let fixnum_as_any_object = Fixnum::new(1).to_any_object();
+    /// let converted_fixnum = fixnum_as_any_object.try_convert_to::<Fixnum>();
     ///
-    /// assert_eq!(converted_integer, Ok(Integer::new(1)));
+    /// assert_eq!(converted_fixnum, Ok(Fixnum::new(1)));
     ///
     /// let string = RString::new_utf8("string");
-    /// let string_as_integer = string.try_convert_to::<Integer>();
-    /// let expected_error = AnyException::new("TypeError", Some("Error converting to Integer"));
+    /// let string_as_fixnum = string.try_convert_to::<Fixnum>();
+    /// let expected_error = AnyException::new("TypeError", Some("Error converting to Fixnum"));
     ///
-    /// assert_eq!(string_as_integer, Err(expected_error));
+    /// assert_eq!(string_as_fixnum, Err(expected_error));
     /// ```
     ///
     /// ### Method arguments
@@ -1300,13 +1321,13 @@ pub trait Object: From<Value> {
     ///
     ///  - `address` is not a `Hash`
     ///  - `address[:port]` is not present
-    ///  - `address[:port]` is not a `Integer`
+    ///  - `address[:port]` is not a `Fixnum`
     ///
     /// ```no_run
     /// #[macro_use]
     /// extern crate rutie;
     ///
-    /// use rutie::{Class, Integer, Hash, NilClass, Object, Symbol, VM, class, methods};
+    /// use rutie::{Class, Fixnum, Hash, NilClass, Object, Symbol, VM};
     ///
     /// class!(Server);
     ///
@@ -1319,7 +1340,7 @@ pub trait Object: From<Value> {
     ///
     ///         let port = address
     ///             .map(|hash| hash.at(&Symbol::new("port")))
-    ///             .and_then(|port| port.try_convert_to::<Integer>())
+    ///             .and_then(|port| port.try_convert_to::<Fixnum>())
     ///             .map(|port| port.to_i64())
     ///             .unwrap_or(default_port);
     ///
@@ -1345,7 +1366,7 @@ pub trait Object: From<Value> {
     ///     default_port = 8080
     ///
     ///     port =
-    ///       if address.is_a?(Hash) && address[:port].is_a?(Integer)
+    ///       if address.is_a?(Hash) && address[:port].is_a?(Fixnum)
     ///         address[:port]
     ///       else
     ///         default_port

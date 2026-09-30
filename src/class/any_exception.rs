@@ -1,5 +1,6 @@
 use crate::{
-    types::Value, AnyObject, Class, Exception, NilClass, Object, TryConvert, VerifiedObject,
+    types::{Value, ValueType},
+    AnyObject, Class, Exception, NilClass, Object, TryConvert, VerifiedObject,
 };
 use std::{
     borrow::Borrow,
@@ -18,15 +19,15 @@ impl From<Value> for AnyException {
     }
 }
 
-impl From<AnyException> for Value {
-    fn from(val: AnyException) -> Self {
-        val.value
+impl Into<Value> for AnyException {
+    fn into(self) -> Value {
+        self.value
     }
 }
 
-impl From<AnyException> for AnyObject {
-    fn from(val: AnyException) -> Self {
-        AnyObject::from(val.value)
+impl Into<AnyObject> for AnyException {
+    fn into(self) -> AnyObject {
+        AnyObject::from(self.value)
     }
 }
 

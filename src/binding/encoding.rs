@@ -1,6 +1,7 @@
 use crate::{
-    rubysys::encoding,
-    types::{c_char, c_int, EncodingIndex, Value, ValueType},
+    rubysys::{encoding, string, vm},
+    types::{c_char, c_int, size_t, EncodingIndex, EncodingType, Value, ValueType},
+    util,
 };
 use std::ffi::CString;
 
@@ -42,20 +43,24 @@ pub fn utf8_encoding() -> Value {
 }
 
 pub fn enc_get_index(s: Value) -> EncodingIndex {
-    unsafe { encoding::rb_enc_get_index(s) }
+    let idx = unsafe { encoding::rb_enc_get_index(s) };
+
+    idx
 }
 
 pub fn find_encoding_index(name: &str) -> EncodingIndex {
     let cstr = CString::new(name).unwrap();
-    unsafe { encoding::rb_enc_find_index(cstr.as_ptr()) }
+    let idx = unsafe { encoding::rb_enc_find_index(cstr.as_ptr()) };
+
+    idx
 }
 
 pub fn encode(str: Value, to: Value, ecflags: c_int, ecopts: Value) -> Value {
     unsafe { encoding::rb_str_encode(str, to, ecflags, ecopts) }
 }
 
-pub fn econv_prepare_opts(opthash: Value, opts: *mut Value) -> c_int {
-    unsafe { encoding::rb_econv_prepare_opts(opthash, opts as *mut _) }
+pub fn econv_prepare_opts(opthash: Value, opts: *const Value) -> c_int {
+    unsafe { encoding::rb_econv_prepare_opts(opthash, opts) }
 }
 
 // ptr - pointer for current point in string starting from the beginning

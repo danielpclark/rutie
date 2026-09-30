@@ -1,4 +1,4 @@
-use super::types::{c_char, c_int, Argc, CallbackPtr, Id, Value};
+use crate::rubysys::types::{c_char, c_int, Argc, CallbackPtr, Id, Value};
 
 extern "C" {
     // VALUE
@@ -55,10 +55,9 @@ extern "C" {
         callback: CallbackPtr,
         argc: Argc,
     );
-
-    // int
+    // VALUE
     // rb_eql(VALUE obj1, VALUE obj2)
-    pub fn rb_eql(obj1: Value, obj2: Value) -> c_int;
+    pub fn rb_eql(obj1: Value, obj2: Value) -> Value;
     // VALUE
     // rb_equal(VALUE obj1, VALUE obj2)
     pub fn rb_equal(obj1: Value, obj2: Value) -> Value;

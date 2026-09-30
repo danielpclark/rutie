@@ -1,7 +1,11 @@
-use super::{
+use crate::rubysys::{
     constant::{FL_USER_8, FL_USER_9},
-    types::{c_char, c_int, size_t, EncodingIndex, EncodingType, InternalValue, RBasic, Value},
+    types::{
+        c_char, c_int, size_t, CallbackPtr, EncodingIndex, EncodingType, InternalValue, RBasic,
+        Value,
+    },
 };
+use std::mem;
 
 pub const ENC_DUMMY_FLAG: isize = 1 << 24;
 pub const ENC_INDEX_MASK: isize = !(!0 << 24);
@@ -96,7 +100,7 @@ extern "C" {
 }
 
 pub unsafe fn coderange_set(obj: Value, code_range: InternalValue) {
-    let basic: *mut RBasic = obj.value as _;
+    let basic: *mut RBasic = mem::transmute(obj.value);
     (*basic).flags = ((*basic).flags & !(ENC_CODERANGE_MASK as InternalValue)) | code_range
 }
 
