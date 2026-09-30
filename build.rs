@@ -526,6 +526,25 @@ fn should_link_windows() -> bool {
 
 fn main() {
     println!("cargo:rustc-check-cfg=cfg(rutie_dllimport)");
+    // Which Ruby is found depends on these, not on files cargo tracks, and
+    // cfgs from one Ruby used with another is a silent ABI mismatch (`Qnil`
+    // differs between 3.1 and 3.2). `PATH` and the version managers'
+    // variables cover switching Ruby with RVM, chruby, rbenv or asdf, except
+    // when rbenv/asdf pick the version from a file.
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=build/windows.rs");
+    for var in [
+        "RUBY",
+        "PATH",
+        "RBENV_VERSION",
+        "ASDF_RUBY_VERSION",
+        "RUBY_STATIC",
+        "RUBY_STATIC_PATH",
+        "NO_LINK_RUTIE",
+    ] {
+        println!("cargo:rerun-if-env-changed={}", var);
+    }
+
     ruby_version_cfgs();
 
     let link = if windows::is_target() {
