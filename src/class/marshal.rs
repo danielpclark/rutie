@@ -69,7 +69,7 @@ mod tests {
         crate::on_ruby_thread(|| {
             let mut hash = Hash::new();
             hash.store(Symbol::new("key"), RString::new_utf8("value"));
-            hash.store(Fixnum::new(1), crate::Integer::from(u128::max_value()));
+            hash.store(Fixnum::new(1), crate::Integer::from(u128::MAX));
 
             let bytes = Marshal::dump(&hash).unwrap();
             let loaded = Marshal::load(&bytes)
