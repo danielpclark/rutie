@@ -1,6 +1,6 @@
 use crate::{
     binding::{gc, vm},
-    AnyException, AnyObject, Hash, Object, Symbol,
+    AnyException, AnyObject, Hash, Module, Object, Symbol,
 };
 
 /// Garbage collection
@@ -357,6 +357,102 @@ impl GC {
     /// ```
     pub fn mark(object: &impl Object) {
         gc::mark(object.value());
+    }
+
+    /// Marks an object like [`GC::mark`](#method.mark), but lets
+    /// `GC.compact` move it (`rb_gc_mark_movable`).
+    ///
+    /// Use it only in the `mark` clause of a `wrappable_struct!` that also has
+    /// a `compact` clause updating the same object with
+    /// [`GC::location`](#method.location). An object marked movable and not
+    /// updated is left pointing at the object's old, freed slot.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    /// #[macro_use] extern crate lazy_static;
+    ///
+    /// use rutie::{AnyObject, Class, Object, RString, GC, VM};
+    ///
+    /// pub struct Label {
+    ///     text: RString,
+    /// }
+    ///
+    /// wrappable_struct! {
+    ///     Label,
+    ///     LabelWrapper,
+    ///     LABEL_WRAPPER,
+    ///
+    ///     mark(data) {
+    ///         GC::mark_movable(&data.text);
+    ///     },
+    ///
+    ///     // Runs after compaction: fetch each object's new address.
+    ///     compact(data) {
+    ///         data.text = GC::location(&data.text);
+    ///     },
+    /// }
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     let label: AnyObject = Class::new("Label", None)
+    ///         .wrap_data(Label { text: RString::new_utf8("still here") }, &*LABEL_WRAPPER);
+    ///
+    ///     // `NotImplementedError` where the platform can't compact.
+    ///     let _ = GC::compact();
+    ///
+    ///     assert_eq!(label.get_data(&*LABEL_WRAPPER).text.to_str(), "still here");
+    /// }
+    /// ```
+    pub fn mark_movable(object: &impl Object) {
+        gc::mark_movable(object.value());
+    }
+
+    /// Returns where `object` is after `GC.compact` moved it
+    /// (`rb_gc_location`), or `object` itself if it did not move.
+    ///
+    /// Only meaningful in a `compact` clause of `wrappable_struct!`; see
+    /// [`GC::mark_movable`](#method.mark_movable).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, GC, VM};
+    /// # VM::init();
+    ///
+    /// // Outside compaction nothing is moving, so this is the same object.
+    /// let string = RString::new_utf8("here");
+    /// assert!(GC::location(&string).equals(&string));
+    /// ```
+    pub fn location<T: Object>(object: &T) -> T {
+        T::from(gc::location(object.value()))
+    }
+
+    /// Compacts the heap (`GC.compact`), moving objects that are not pinned.
+    ///
+    /// Returns a `NotImplementedError` where the platform does not support
+    /// compaction.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Object, RString, GC, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_utf8("survives");
+    ///
+    /// match GC::compact() {
+    ///     Ok(()) => {}
+    ///     Err(error) => assert_eq!(error.class().name().unwrap().to_str(), "NotImplementedError"),
+    /// }
+    ///
+    /// assert_eq!(string.to_str(), "survives");
+    /// ```
+    pub fn compact() -> Result<(), AnyException> {
+        Module::from_existing("GC")
+            .protect_send("compact", &[])
+            .map(|_| ())
     }
 
     /// Mark all of the object from `start` to `end` of the array for the GC.
