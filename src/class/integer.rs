@@ -193,7 +193,7 @@ impl Integer {
     /// # VM::init();
     ///
     /// assert_eq!(Integer::new(255).to_s_radix(16).to_str(), "ff");
-    /// assert_eq!(Integer::from(u128::max_value()).to_s_radix(36).to_str(), "f5lxx1zz5pnorynqglhzmsp33");
+    /// assert_eq!(Integer::from(u128::MAX).to_s_radix(36).to_str(), "f5lxx1zz5pnorynqglhzmsp33");
     /// ```
     pub fn to_s_radix(&self, base: u32) -> RString {
         assert!((2..=36).contains(&base), "invalid radix {}", base);
@@ -211,7 +211,7 @@ impl Integer {
     /// # VM::init();
     ///
     /// assert!(!Integer::new(1).is_bignum());
-    /// assert!(Integer::from(i128::max_value()).is_bignum());
+    /// assert!(Integer::from(i128::MAX).is_bignum());
     /// ```
     pub fn is_bignum(&self) -> bool {
         self.value().ty() == ValueType::Bignum
@@ -226,9 +226,9 @@ impl Integer {
     /// use rutie::{Integer, VM};
     /// # VM::init();
     ///
-    /// assert_eq!(Integer::from(i128::min_value()).to_i128(), Some(i128::min_value()));
+    /// assert_eq!(Integer::from(i128::MIN).to_i128(), Some(i128::MIN));
     /// assert_eq!(Integer::new(-5).to_i128(), Some(-5));
-    /// assert_eq!(Integer::from(u128::max_value()).to_i128(), None);
+    /// assert_eq!(Integer::from(u128::MAX).to_i128(), None);
     /// ```
     pub fn to_i128(&self) -> Option<i128> {
         numeric::integer_to_i128(self.value())
@@ -243,7 +243,7 @@ impl Integer {
     /// use rutie::{Integer, VM};
     /// # VM::init();
     ///
-    /// assert_eq!(Integer::from(u128::max_value()).to_u128(), Some(u128::max_value()));
+    /// assert_eq!(Integer::from(u128::MAX).to_u128(), Some(u128::MAX));
     /// assert_eq!(Integer::new(-1).to_u128(), None);
     /// ```
     pub fn to_u128(&self) -> Option<u128> {
@@ -273,9 +273,9 @@ impl Integer {
     /// use rutie::{Integer, VM};
     /// # VM::init();
     ///
-    /// let sum = Integer::from(u64::max_value()).add(&Integer::new(1));
+    /// let sum = Integer::from(u64::MAX).add(&Integer::new(1));
     ///
-    /// assert_eq!(sum.to_u128(), Some(u64::max_value() as u128 + 1));
+    /// assert_eq!(sum.to_u128(), Some(u64::MAX as u128 + 1));
     /// ```
     pub fn add(&self, other: &Integer) -> Integer {
         Integer::from(vm::call_method(self.value(), "+", &[other.value()]))
@@ -303,9 +303,9 @@ impl Integer {
     /// use rutie::{Integer, VM};
     /// # VM::init();
     ///
-    /// let product = Integer::from(u64::max_value()).mul(&Integer::from(u64::max_value()));
+    /// let product = Integer::from(u64::MAX).mul(&Integer::from(u64::MAX));
     ///
-    /// assert_eq!(product.to_u128(), Some(u64::max_value() as u128 * u64::max_value() as u128));
+    /// assert_eq!(product.to_u128(), Some(u64::MAX as u128 * u64::MAX as u128));
     /// ```
     pub fn mul(&self, other: &Integer) -> Integer {
         Integer::from(vm::call_method(self.value(), "*", &[other.value()]))
@@ -381,7 +381,7 @@ impl Integer {
     /// use std::cmp::Ordering;
     /// # VM::init();
     ///
-    /// let big = Integer::from(u128::max_value());
+    /// let big = Integer::from(u128::MAX);
     ///
     /// assert_eq!(Integer::new(1).compare(&big), Ordering::Less);
     /// assert!(big > Integer::new(0));
@@ -553,7 +553,7 @@ impl TryFrom<f64> for Integer {
 /// # VM::init();
 ///
 /// assert_eq!(i128::try_from(Integer::new(-7)).unwrap(), -7);
-/// assert!(i128::try_from(Integer::from(u128::max_value())).is_err());
+/// assert!(i128::try_from(Integer::from(u128::MAX)).is_err());
 /// ```
 impl TryFrom<Integer> for i128 {
     type Error = AnyException;
@@ -596,19 +596,19 @@ mod tests {
     #[test]
     fn test_github_issue_113_darwin_os() {
         crate::on_ruby_thread(|| {
-            let num: Integer = Integer::new(std::i64::MIN);
-            assert_eq!(num.to_i64(), ::std::i64::MIN);
+            let num: Integer = Integer::new(i64::MIN);
+            assert_eq!(num.to_i64(), i64::MIN);
 
-            let num: Integer = Integer::new(std::i64::MAX);
-            assert_eq!(num.to_i64(), ::std::i64::MAX);
+            let num: Integer = Integer::new(i64::MAX);
+            assert_eq!(num.to_i64(), i64::MAX);
 
-            let num: i64 = std::i64::MIN + std::u32::MAX as i64;
+            let num: i64 = i64::MIN + u32::MAX as i64;
             assert_eq!(Integer::new(num).to_i64(), -9223372032559808513);
 
-            let num: Integer = Integer::new((std::i32::MIN as i64).pow(2));
+            let num: Integer = Integer::new((i32::MIN as i64).pow(2));
             assert_eq!(num.to_i64(), 4611686018427387904);
 
-            let num: Integer = Integer::new((std::i32::MIN as i64).pow(2) * -1 - 1);
+            let num: Integer = Integer::new((i32::MIN as i64).pow(2) * -1 - 1);
             assert_eq!(num.to_i64(), -4611686018427387905)
         });
     }
@@ -625,7 +625,7 @@ mod tests {
             assert_eq!(-1, num.to_i32());
 
             let num = str_to_num("2 ** 31 - 1").unwrap();
-            assert_eq!(::std::i32::MAX, num.to_i32());
+            assert_eq!(i32::MAX, num.to_i32());
 
             let num = str_to_num("2 ** 31").unwrap();
             let result = VM::protect(|| {
@@ -635,7 +635,7 @@ mod tests {
             assert!(result.is_err());
 
             let num = str_to_num("-1 * 2 ** 31").unwrap();
-            assert_eq!(::std::i32::MIN, num.to_i32());
+            assert_eq!(i32::MIN, num.to_i32());
 
             let num = str_to_num("-1 * 2 ** 31 - 1").unwrap();
             let result = VM::protect(|| {
@@ -655,10 +655,10 @@ mod tests {
             assert_eq!(1, num.to_u32());
 
             let num = str_to_num("-1").unwrap();
-            assert_eq!(::std::u32::MAX, num.to_u32());
+            assert_eq!(u32::MAX, num.to_u32());
 
             let num = str_to_num("2 ** 32 - 1").unwrap();
-            assert_eq!(::std::u32::MAX, num.to_u32());
+            assert_eq!(u32::MAX, num.to_u32());
 
             let num = str_to_num("2 ** 32").unwrap();
             let result = VM::protect(|| {
@@ -668,7 +668,7 @@ mod tests {
             assert!(result.is_err());
 
             let num = str_to_num("0").unwrap();
-            assert_eq!(::std::u32::MIN, num.to_u32());
+            assert_eq!(u32::MIN, num.to_u32());
         });
     }
 
@@ -678,7 +678,7 @@ mod tests {
             let nil = NilClass::new();
 
             let num = str_to_num("2 ** 63 - 1").unwrap();
-            assert_eq!(::std::i64::MAX, num.to_i64());
+            assert_eq!(i64::MAX, num.to_i64());
 
             let num = str_to_num("2 ** 63").unwrap();
             let result = VM::protect(|| {
@@ -688,7 +688,7 @@ mod tests {
             assert!(result.is_err());
 
             let num = str_to_num("-1 * 2 ** 63").unwrap();
-            assert_eq!(::std::i64::MIN, num.to_i64());
+            assert_eq!(i64::MIN, num.to_i64());
 
             let num = str_to_num("-1 * 2 ** 63 - 1").unwrap();
             let result = VM::protect(|| {
@@ -705,7 +705,7 @@ mod tests {
             let nil = NilClass::new();
 
             let num = str_to_num("2 ** 64 - 1").unwrap();
-            assert_eq!(::std::u64::MAX, num.to_u64());
+            assert_eq!(u64::MAX, num.to_u64());
 
             let num = str_to_num("2 ** 64").unwrap();
             let result = VM::protect(|| {
@@ -715,7 +715,7 @@ mod tests {
             assert!(result.is_err());
 
             let num = str_to_num("0").unwrap();
-            assert_eq!(::std::u64::MIN, num.to_u64());
+            assert_eq!(u64::MIN, num.to_u64());
 
             // // Current Ruby implementation does not raise an exception
             // let num = str_to_num("-1").unwrap();
@@ -737,12 +737,12 @@ mod tests {
                 0i128,
                 1,
                 -1,
-                i64::max_value() as i128,
-                i64::min_value() as i128,
-                i64::max_value() as i128 + 1,
-                i128::max_value(),
-                i128::min_value(),
-                i128::min_value() + 1,
+                i64::MAX as i128,
+                i64::MIN as i128,
+                i64::MAX as i128 + 1,
+                i128::MAX,
+                i128::MIN,
+                i128::MIN + 1,
             ] {
                 let integer = Integer::from(number);
 
@@ -750,21 +750,19 @@ mod tests {
                 assert_eq!(integer.to_s_radix(10).to_str(), number.to_string());
             }
 
-            for &number in &[0u128, u64::max_value() as u128 + 1, u128::max_value()] {
+            for &number in &[0u128, u64::MAX as u128 + 1, u128::MAX] {
                 assert_eq!(Integer::from(number).to_u128(), Some(number));
             }
 
-            let too_big = Integer::from(u128::max_value()).add(&Integer::new(1));
+            let too_big = Integer::from(u128::MAX).add(&Integer::new(1));
             assert_eq!(too_big.to_u128(), None);
             assert_eq!(too_big.to_i128(), None);
             assert!(u128::try_from(too_big).is_err());
 
-            let below_min = Integer::from(i128::min_value()).sub(&Integer::new(1));
+            let below_min = Integer::from(i128::MIN).sub(&Integer::new(1));
             assert_eq!(below_min.to_i128(), None);
             assert_eq!(
-                Integer::from(i128::max_value())
-                    .add(&Integer::new(1))
-                    .to_i128(),
+                Integer::from(i128::MAX).add(&Integer::new(1)).to_i128(),
                 None
             );
             assert_eq!(Integer::new(-1).to_u128(), None);
@@ -787,7 +785,7 @@ mod tests {
             assert!(Integer::from_str_radix("1\0", 10).is_err());
             assert!(Integer::from_str_radix("1", 37).is_err());
 
-            let a = Integer::from(u64::max_value());
+            let a = Integer::from(u64::MAX);
             let b = Integer::new(2);
             assert_eq!(a.mul(&b).div(&b).unwrap(), a);
             assert_eq!(a.modulo(&b).unwrap().to_i64(), 1);
@@ -802,7 +800,7 @@ mod tests {
                 Integer::try_from(1e20).unwrap().to_u128(),
                 Some(100_000_000_000_000_000_000)
             );
-            assert!(Integer::try_from(std::f64::INFINITY).is_err());
+            assert!(Integer::try_from(f64::INFINITY).is_err());
             assert_eq!(Integer::new(-3).to_f64(), -3.0);
         });
     }
