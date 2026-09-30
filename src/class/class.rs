@@ -146,11 +146,15 @@ impl Class {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use rutie::{Class, Fixnum, Object};
+    /// ```
+    /// use rutie::{Class, Fixnum, Object, VM};
+    /// # VM::init();
+    /// # VM::eval("class Hello; end").unwrap();
+    /// # VM::eval("class Worker; attr_reader :a, :b; def initialize(a, b); @a, @b = a, b; end; end").unwrap();
     ///
     /// // Without arguments
-    /// Class::from_existing("Hello").new_instance(&[]);
+    /// let hello = Class::from_existing("Hello").new_instance(&[]);
+    /// assert!(hello.class() == Class::from_existing("Hello"));
     ///
     /// // With arguments passing arguments to constructor
     /// let arguments = [
@@ -158,7 +162,8 @@ impl Class {
     ///     Fixnum::new(2).to_any_object()
     /// ];
     ///
-    /// Class::from_existing("Worker").new_instance(&arguments);
+    /// let worker = Class::from_existing("Worker").new_instance(&arguments);
+    /// assert_eq!(unsafe { worker.send("b", &[]) }.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
     /// ```
     ///
     /// Ruby:
@@ -179,10 +184,14 @@ impl Class {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use rutie::{Class, Object};
+    /// ```
+    /// use rutie::{Class, Object, RString, VM};
+    /// # VM::init();
     ///
-    /// Class::from_existing("String").allocate();
+    /// // The object is created without calling `initialize`.
+    /// let string = Class::from_existing("String").allocate();
+    ///
+    /// assert_eq!(string.try_convert_to::<RString>().unwrap().to_str(), "");
     /// ```
     ///
     /// Ruby:
@@ -276,7 +285,9 @@ impl Class {
     ///     klass.define_nested_class("Inner", None);
     /// });
     ///
-    /// Class::from_existing("Outer").get_nested_class("Inner");
+    /// let inner = Class::from_existing("Outer").get_nested_class("Inner");
+    ///
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
     /// ```
     ///
     /// Ruby:
@@ -309,7 +320,9 @@ impl Class {
     ///     klass.define_nested_module("Inner");
     /// });
     ///
-    /// Class::from_existing("Outer").get_nested_module("Inner");
+    /// let inner = Class::from_existing("Outer").get_nested_module("Inner");
+    ///
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
     /// ```
     ///
     /// Ruby:
@@ -344,11 +357,11 @@ impl Class {
     /// use rutie::{Class, Object, VM};
     /// # VM::init();
     ///
-    /// Class::new("Outer", None).define(|klass| {
-    ///     klass.define_nested_class("Inner", None);
-    /// });
+    /// let mut outer = Class::new("Outer", None);
+    /// let inner = outer.define_nested_class("Inner", None);
     ///
-    /// Class::from_existing("Outer").get_nested_class("Inner");
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
+    /// assert_eq!(inner.superclass(), Some(Class::object()));
     /// ```
     ///
     /// Ruby:
@@ -379,11 +392,11 @@ impl Class {
     /// use rutie::{Class, Module, Object, VM};
     /// # VM::init();
     ///
-    /// Class::new("Outer", None).define(|klass| {
-    ///     klass.define_nested_module("Inner");
-    /// });
+    /// let mut outer = Class::new("Outer", None);
+    /// let inner = outer.define_nested_module("Inner");
     ///
-    /// Module::from_existing("Outer").get_nested_module("Inner");
+    /// assert_eq!(inner.name().unwrap().to_str(), "Outer::Inner");
+    /// assert!(Module::from_existing("Outer").get_nested_module("Inner") == inner);
     /// ```
     ///
     /// Ruby:
@@ -539,12 +552,16 @@ impl Class {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Class, Object, VM};
+    /// use rutie::{Class, Fixnum, Object, VM};
     /// # VM::init();
     ///
     /// Class::new("Test", None).define(|klass| {
     ///     klass.attr_reader("reader");
     /// });
+    ///
+    /// let object = VM::eval("t = Test.new; t.instance_variable_set(:@reader, 1); t").unwrap();
+    /// assert_eq!(unsafe { object.send("reader", &[]) }.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+    /// assert!(!object.respond_to("reader="));
     /// ```
     ///
     /// Ruby:
@@ -563,12 +580,16 @@ impl Class {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Class, Object, VM};
+    /// use rutie::{Class, Fixnum, Object, VM};
     /// # VM::init();
     ///
     /// Class::new("Test", None).define(|klass| {
     ///     klass.attr_writer("writer");
     /// });
+    ///
+    /// let object = VM::eval("t = Test.new; t.writer = 2; t").unwrap();
+    /// assert_eq!(object.instance_variable_get("@writer").try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+    /// assert!(!object.respond_to("writer"));
     /// ```
     ///
     /// Ruby:
@@ -587,12 +608,15 @@ impl Class {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Class, Object, VM};
+    /// use rutie::{Class, Fixnum, Object, VM};
     /// # VM::init();
     ///
     /// Class::new("Test", None).define(|klass| {
     ///     klass.attr_accessor("accessor");
     /// });
+    ///
+    /// let object = VM::eval("t = Test.new; t.accessor = 3; t").unwrap();
+    /// assert_eq!(unsafe { object.send("accessor", &[]) }.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
     /// ```
     ///
     /// Ruby:
@@ -1212,6 +1236,9 @@ impl Class {
     ///         klass.def("host", ruby_server_host);
     ///         klass.def("port", ruby_server_port);
     ///     });
+    ///
+    ///     let port = VM::eval("RubyServer.new('127.0.0.1', 3000).port").unwrap();
+    ///     assert_eq!(port.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3000)));
     /// }
     /// ```
     ///

@@ -598,9 +598,11 @@ as they land; keep this file current.
       the warning rather than failing, so the later Ruby 3 work can build
       the crate while it's being ported; the warning says Ruby 2 is the
       supported target.
-- [ ] Release cadence: 0.10.0 = this baseline; 0.11 = P0 + P1; 0.12 = P2;
-      0.13 = P3 + P4; 0.14 = P5 + P6; 0.15 = P7 + P8; then declare "Ruby 2
-      complete" (1.0 is a maintainer call) and only then branch for Ruby 3.
+- [ ] Release cadence: superseded. Each Rutie minor now maps to three Rubies:
+      0.10 = 2.5/2.6/2.7 (this plan, P0–P8, released within the 0.10 line),
+      0.11 = 3.0/3.1/3.2, 0.12 = 3.1/3.2/3.3, 0.13 = 3.2/3.3/3.4 (P9). Open:
+      how the Ruby 2 completion work is numbered, given the breaking
+      `VM::at_exit` change (P9 plan, §10).
 
 ### P7 — unit tests for every public API
 
@@ -697,6 +699,15 @@ round-trips through Ruby**, not only a doctest.
       version-specific examples with `# #[cfg(ruby_gte_2_7)]`.
 - [ ] `cargo test --doc` green on 2.5.9, 2.6.10 and 2.7.8, stable and beta, and
       in CI on Linux and macOS.
+
+### P9 — Ruby 3 upgrade plan
+
+- [x] Plan the path from 0.10 (Ruby 2) to 0.11 (Ruby 3.0–3.2), 0.12
+      (3.1–3.3) and 0.13 (3.2–3.4): `docs/ruby3-upgrade-plan.md`. It lists the
+      verified ABI differences (special constants, `RString`/`RArray`
+      layouts), removed and deprecated C APIs Rutie binds, behaviour changes
+      that affect tests, and the work packages for each release. The README
+      has the version roadmap table.
 
 ---
 

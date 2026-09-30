@@ -276,7 +276,7 @@ any Ruby methods which can be used from Ruby._
 
 ## Variadic Functions / Splat Operator
 
-Since 0.11 the `methods!` macro takes a Ruby-style splat: a last parameter written
+The `methods!` macro takes a Ruby-style splat (unreleased): a last parameter written
 `*name` (with no type) receives the remaining arguments as an `Array`. The
 parameters before it keep their usual `Result` types.
 
@@ -356,7 +356,7 @@ discontinued. Its `link-ruby` and `ruby-static` cargo features do not exist in
 0.10; use the `no-link` feature (or `NO_LINK_RUTIE`) and the `RUBY_STATIC`
 environment variable as documented below, and expect Ruby 2, not Ruby 3.
 
-#### Unreleased (0.11)
+#### Unreleased
 
 `VM::at_exit` now does what its name says: the closure runs when the Ruby VM shuts
 down (Ruby's `at_exit`), not immediately. It must be `'static` (move captured
@@ -463,13 +463,26 @@ Every published Rutie release targets **Ruby 2**:
 | 0.9.x | 2.5, 2.6, 2.7 | still works on Ruby 2, but superseded by 0.10.0 (`VM::at_exit` crash fix, current-Cargo build fix) |
 | 0.8.x | 2.5, 2.6, 2.7 | older Ruby 2 line |
 
+### Version roadmap
+
+Each Rutie minor version supports exactly three Ruby minor versions:
+
+| Rutie | Ruby | Status |
+|---|---|---|
+| 0.10 | 2.5, 2.6, 2.7 | current: Ruby 2 |
+| 0.11 | 3.0, 3.1, 3.2 | planned: first Ruby 3 release, drops Ruby 2 |
+| 0.12 | 3.1, 3.2, 3.3 | planned: drops 3.0, adds 3.3 |
+| 0.13 | 3.2, 3.3, 3.4 | planned: drops 3.1, adds 3.4 |
+
+The Ruby 3 work is planned in `docs/ruby3-upgrade-plan.md`.
+
 No released Rutie supports Ruby 3. An `rb-sys`-based rewrite lived on `master`
 between February and September 2025 (self-labelled 0.10.0, tested only against
 Ruby 2.7 and 3.0–3.4, never published to crates.io); it has been reverted and
 is not supported. If you depended on it through a `git = "..."` dependency,
 pin the commit you were using or move to a released 0.10.x. Ruby 3 support
 will be taken up once Ruby 2 coverage is complete (see
-`docs/ruby2-full-support-plan.md`).
+`docs/ruby2-full-support-plan.md`), following the roadmap above.
 
 Ruby 2 needs OpenSSL 1.1. If your platform no longer ships it (Homebrew
 removed `openssl@1.1`), build it and point both RVM and pkg-config at it, as
