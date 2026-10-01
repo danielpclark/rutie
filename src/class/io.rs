@@ -1,17 +1,28 @@
-use std::convert::From;
+use std::{convert::From, time::Duration};
 
 use crate::{
-    binding::{io, vm},
+    binding::{float, io, vm},
     types::Value,
-    util, AnyException, AnyObject, Class, Exception, Fixnum, NilClass, Object, RString,
+    util, AnyException, AnyObject, Class, Exception, Fixnum, Float, NilClass, Object, RString,
     VerifiedObject,
 };
+
+#[cfg(any(unix, windows))]
+use crate::types::RawFd;
 
 fn protect<F>(func: F) -> Result<Value, AnyException>
 where
     F: FnOnce() -> Value,
 {
     vm::protect_value(func).map_err(AnyException::from)
+}
+
+// `None` is `nil`.
+fn timeout_value(timeout: Option<Duration>) -> Value {
+    match timeout {
+        Some(timeout) => Float::new(timeout.as_secs_f64()).value(),
+        None => NilClass::new().value(),
+    }
 }
 
 /// `IO`, including `File` objects.
@@ -25,6 +36,51 @@ pub struct IO {
 }
 
 impl IO {
+    /// The event of a stream being readable (`RUBY_IO_READABLE`, Ruby's
+    /// `IO::READABLE`), for [`IO::maybe_wait`](#method.maybe_wait).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, IO, VM};
+    /// # VM::init();
+    ///
+    /// let readable = VM::eval("IO::READABLE").unwrap().try_convert_to::<Fixnum>().unwrap();
+    ///
+    /// assert_eq!(readable.to_i64(), IO::READABLE as i64);
+    /// ```
+    pub const READABLE: i32 = io::RUBY_IO_READABLE;
+
+    /// The event of priority data being readable (`RUBY_IO_PRIORITY`, Ruby's
+    /// `IO::PRIORITY`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, IO, VM};
+    /// # VM::init();
+    ///
+    /// let priority = VM::eval("IO::PRIORITY").unwrap().try_convert_to::<Fixnum>().unwrap();
+    ///
+    /// assert_eq!(priority.to_i64(), IO::PRIORITY as i64);
+    /// ```
+    pub const PRIORITY: i32 = io::RUBY_IO_PRIORITY;
+
+    /// The event of a stream being writable (`RUBY_IO_WRITABLE`, Ruby's
+    /// `IO::WRITABLE`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, IO, VM};
+    /// # VM::init();
+    ///
+    /// let writable = VM::eval("IO::WRITABLE").unwrap().try_convert_to::<Fixnum>().unwrap();
+    ///
+    /// assert_eq!(writable.to_i64(), IO::WRITABLE as i64);
+    /// ```
+    pub const WRITABLE: i32 = io::RUBY_IO_WRITABLE;
+
     /// Returns `$stdin` (`rb_stdin`).
     ///
     /// # Examples
@@ -318,6 +374,333 @@ impl IO {
 
         protect(|| io::binmode(io_value)).map(|_| ())
     }
+
+    /// Returns the file descriptor (Ruby's `fileno`, `rb_io_descriptor`), or
+    /// `IOError` for a closed stream.
+    ///
+    /// On Windows this is a C runtime descriptor, not a `HANDLE`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, IO, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(IO::stderr().descriptor().unwrap(), 2);
+    ///
+    /// let pipe = VM::eval("IO.pipe").unwrap().try_convert_to::<rutie::Array>().unwrap();
+    /// let reader = pipe.at(0).try_convert_to::<IO>().unwrap();
+    /// let fileno = unsafe { reader.send("fileno", &[]) };
+    ///
+    /// assert_eq!(fileno.try_convert_to::<rutie::Fixnum>().unwrap().to_i64(), reader.descriptor().unwrap() as i64);
+    ///
+    /// reader.close().unwrap();
+    /// assert!(Class::io_error().case_equals(&reader.descriptor().unwrap_err()));
+    /// # pipe.at(1).try_convert_to::<IO>().unwrap().close().unwrap();
+    /// ```
+    #[cfg(any(unix, windows))]
+    pub fn descriptor(&self) -> Result<RawFd, AnyException> {
+        let io_value = self.value();
+        let mut fd = -1;
+
+        protect(|| {
+            fd = io::descriptor(io_value);
+
+            NilClass::new().value()
+        })
+        .map(|_| fd as RawFd)
+    }
+
+    /// After an operation on the stream failed with the OS error `errno`,
+    /// waits for `events` (a combination of [`IO::READABLE`](#associatedconstant.READABLE),
+    /// [`IO::PRIORITY`](#associatedconstant.PRIORITY) and
+    /// [`IO::WRITABLE`](#associatedconstant.WRITABLE)) if retrying makes
+    /// sense (`rb_io_maybe_wait`).
+    ///
+    /// For `EAGAIN`/`EWOULDBLOCK` it waits like
+    /// [`Thread::wait_readable`](struct.Thread.html#method.wait_readable) and
+    /// returns the ready events, or `None` on timeout. For `EINTR` it returns
+    /// `events` right away, and for any other error `None`, so the operation
+    /// can be retried in a loop while this returns `Some`. `timeout` is in
+    /// seconds; `None` waits without a limit (on Ruby 3.2+, up to the
+    /// stream's [`timeout`](#method.timeout), if one is set).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    ///
+    /// use rutie::{Fixnum, Object, RString, IO, VM};
+    /// # VM::init();
+    ///
+    /// let errno = |name: &str| {
+    ///     VM::eval(&format!("Errno::{}::Errno", name)).unwrap().try_convert_to::<Fixnum>().unwrap().to_i64() as i32
+    /// };
+    ///
+    /// let pipe = VM::eval("IO.pipe").unwrap().try_convert_to::<rutie::Array>().unwrap();
+    /// let reader = pipe.at(0).try_convert_to::<IO>().unwrap();
+    /// let writer = pipe.at(1).try_convert_to::<IO>().unwrap();
+    ///
+    /// // Nothing to read yet: a read would have failed with EAGAIN.
+    /// let short = Some(Duration::from_millis(10));
+    /// assert_eq!(reader.maybe_wait(errno("EAGAIN"), IO::READABLE, short), Ok(None));
+    ///
+    /// writer.write(&RString::new_utf8("x")).unwrap();
+    /// assert_eq!(reader.maybe_wait(errno("EAGAIN"), IO::READABLE, None), Ok(Some(IO::READABLE)));
+    ///
+    /// // Errors that retrying can't fix.
+    /// assert_eq!(reader.maybe_wait(errno("EBADF"), IO::READABLE, None), Ok(None));
+    /// # reader.close().unwrap();
+    /// # writer.close().unwrap();
+    /// ```
+    pub fn maybe_wait(
+        &self,
+        errno: i32,
+        events: i32,
+        timeout: Option<Duration>,
+    ) -> Result<Option<i32>, AnyException> {
+        let io_value = self.value();
+        let timeout = timeout_value(timeout);
+
+        protect(|| io::maybe_wait(errno, io_value, events, timeout)).map(|ready| {
+            if ready.is_false() || ready.is_nil() {
+                None
+            } else {
+                Some(Fixnum::from(ready).to_i64() as i32)
+            }
+        })
+    }
+
+    /// Like [`IO::maybe_wait`](#method.maybe_wait) for
+    /// [`IO::READABLE`](#associatedconstant.READABLE)
+    /// (`rb_io_maybe_wait_readable`): `Ok(true)` when the stream is readable
+    /// (or `errno` is `EINTR`), `Ok(false)` on timeout or for an error that
+    /// waiting does not help with.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, RString, IO, VM};
+    /// # VM::init();
+    ///
+    /// let errno = |name: &str| {
+    ///     VM::eval(&format!("Errno::{}::Errno", name)).unwrap().try_convert_to::<Fixnum>().unwrap().to_i64() as i32
+    /// };
+    ///
+    /// let pipe = VM::eval("IO.pipe").unwrap().try_convert_to::<rutie::Array>().unwrap();
+    /// let reader = pipe.at(0).try_convert_to::<IO>().unwrap();
+    /// let writer = pipe.at(1).try_convert_to::<IO>().unwrap();
+    ///
+    /// writer.write(&RString::new_utf8("x")).unwrap();
+    ///
+    /// assert_eq!(reader.maybe_wait_readable(errno("EAGAIN"), None), Ok(true));
+    /// assert_eq!(reader.maybe_wait_readable(errno("EPIPE"), None), Ok(false));
+    /// # reader.close().unwrap();
+    /// # writer.close().unwrap();
+    /// ```
+    pub fn maybe_wait_readable(
+        &self,
+        errno: i32,
+        timeout: Option<Duration>,
+    ) -> Result<bool, AnyException> {
+        let io_value = self.value();
+        let timeout = timeout_value(timeout);
+        let mut ready = 0;
+
+        protect(|| {
+            ready = io::maybe_wait_readable(errno, io_value, timeout);
+
+            NilClass::new().value()
+        })
+        .map(|_| ready != 0)
+    }
+
+    /// Like [`IO::maybe_wait`](#method.maybe_wait) for
+    /// [`IO::WRITABLE`](#associatedconstant.WRITABLE)
+    /// (`rb_io_maybe_wait_writable`); see
+    /// [`IO::maybe_wait_readable`](#method.maybe_wait_readable).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, IO, VM};
+    /// # VM::init();
+    ///
+    /// let errno = |name: &str| {
+    ///     VM::eval(&format!("Errno::{}::Errno", name)).unwrap().try_convert_to::<Fixnum>().unwrap().to_i64() as i32
+    /// };
+    ///
+    /// let pipe = VM::eval("IO.pipe").unwrap().try_convert_to::<rutie::Array>().unwrap();
+    /// let writer = pipe.at(1).try_convert_to::<IO>().unwrap();
+    ///
+    /// // An empty pipe has room.
+    /// assert_eq!(writer.maybe_wait_writable(errno("EAGAIN"), None), Ok(true));
+    /// assert_eq!(writer.maybe_wait_writable(errno("ENOSPC"), None), Ok(false));
+    ///
+    /// writer.close().unwrap();
+    /// assert!(writer.maybe_wait_writable(errno("EAGAIN"), None).is_err());
+    /// # pipe.at(0).try_convert_to::<IO>().unwrap().close().unwrap();
+    /// ```
+    pub fn maybe_wait_writable(
+        &self,
+        errno: i32,
+        timeout: Option<Duration>,
+    ) -> Result<bool, AnyException> {
+        let io_value = self.value();
+        let timeout = timeout_value(timeout);
+        let mut ready = 0;
+
+        protect(|| {
+            ready = io::maybe_wait_writable(errno, io_value, timeout);
+
+            NilClass::new().value()
+        })
+        .map(|_| ready != 0)
+    }
+
+    /// Returns the stream's timeout, or `None` if it has none (Ruby's
+    /// `IO#timeout`, `rb_io_timeout`). Ruby 3.2+.
+    ///
+    /// Blocking operations that take longer raise `IO::TimeoutError`
+    /// ([`Class::io_timeout_error`](struct.Class.html#method.io_timeout_error)).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    ///
+    /// use rutie::{Object, IO, VM};
+    /// # VM::init();
+    ///
+    /// let pipe = VM::eval("IO.pipe").unwrap().try_convert_to::<rutie::Array>().unwrap();
+    /// let reader = pipe.at(0).try_convert_to::<IO>().unwrap();
+    ///
+    /// assert_eq!(reader.timeout().unwrap(), None);
+    ///
+    /// reader.set_timeout(Some(Duration::from_millis(1500))).unwrap();
+    /// assert_eq!(reader.timeout().unwrap(), Some(Duration::from_millis(1500)));
+    ///
+    /// // Set from Ruby as an Integer.
+    /// unsafe { reader.send("timeout=", &[rutie::Fixnum::new(2).into()]) };
+    /// assert_eq!(reader.timeout().unwrap(), Some(Duration::from_secs(2)));
+    /// # reader.close().unwrap();
+    /// # pipe.at(1).try_convert_to::<IO>().unwrap().close().unwrap();
+    /// ```
+    #[cfg(ruby_gte_3_2)]
+    pub fn timeout(&self) -> Result<Option<Duration>, AnyException> {
+        let io_value = self.value();
+        let mut seconds = None;
+
+        protect(|| {
+            let timeout = io::timeout(io_value);
+
+            if !timeout.is_nil() {
+                seconds = Some(float::num_to_float(timeout));
+            }
+
+            NilClass::new().value()
+        })
+        .map(|_| seconds.map(Duration::from_secs_f64))
+    }
+
+    /// Sets the stream's timeout, or removes it with `None` (Ruby's
+    /// `IO#timeout=`, `rb_io_set_timeout`). Ruby 3.2+.
+    ///
+    /// Blocking operations on the stream that take longer than `timeout`
+    /// raise `IO::TimeoutError` (a best-effort limit).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    ///
+    /// use rutie::{Class, Object, IO, VM};
+    /// # VM::init();
+    ///
+    /// let pipe = VM::eval("IO.pipe").unwrap().try_convert_to::<rutie::Array>().unwrap();
+    /// let reader = pipe.at(0).try_convert_to::<IO>().unwrap();
+    ///
+    /// reader.set_timeout(Some(Duration::from_millis(10))).unwrap();
+    ///
+    /// // Nothing is ever written, so reading times out.
+    /// let error = reader.gets().unwrap_err();
+    /// assert!(Class::io_timeout_error().case_equals(&error));
+    ///
+    /// reader.set_timeout(None).unwrap();
+    /// assert_eq!(reader.timeout().unwrap(), None);
+    /// # reader.close().unwrap();
+    /// # pipe.at(1).try_convert_to::<IO>().unwrap().close().unwrap();
+    /// ```
+    #[cfg(ruby_gte_3_2)]
+    pub fn set_timeout(&self, timeout: Option<Duration>) -> Result<(), AnyException> {
+        let io_value = self.value();
+        let timeout = timeout_value(timeout);
+
+        protect(|| io::set_timeout(io_value, timeout)).map(|_| ())
+    }
+
+    /// Wraps the open file descriptor `fd` in a new `IO`
+    /// (`rb_io_open_descriptor`). Ruby 3.3+.
+    ///
+    /// `readable` and `writable` say what the stream may be used for. With
+    /// `autoclose`, the `IO` owns `fd`: closing it, or the garbage collector
+    /// freeing it, closes `fd`. Without it (`FMODE_EXTERNAL`,
+    /// `IO#autoclose?` false), `fd` stays open and is still the caller's to
+    /// close.
+    ///
+    /// # Safety
+    ///
+    /// `fd` must be an open descriptor that allows the reads and writes
+    /// `readable` and `writable` ask for. With `autoclose`, ownership of `fd`
+    /// moves to Ruby, so nothing else may close it or use it after the `IO`
+    /// closes it. Without `autoclose`, `fd` must stay open, referring to the
+    /// same file, for as long as the `IO` is used.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, IO, VM};
+    /// # VM::init();
+    ///
+    /// let pipe = VM::eval("IO.pipe").unwrap().try_convert_to::<rutie::Array>().unwrap();
+    /// let reader = pipe.at(0).try_convert_to::<IO>().unwrap();
+    /// let writer = pipe.at(1).try_convert_to::<IO>().unwrap();
+    ///
+    /// // A second IO for the writer's descriptor, which `writer` keeps owning.
+    /// let borrowed = unsafe { IO::from_raw_fd(writer.descriptor().unwrap(), false, true, false) };
+    ///
+    /// borrowed.write(&RString::new_utf8("via fd\n")).unwrap();
+    /// borrowed.flush().unwrap();
+    /// borrowed.close().unwrap();
+    ///
+    /// // Closing `borrowed` left the descriptor open.
+    /// writer.write(&RString::new_utf8("via writer\n")).unwrap();
+    ///
+    /// assert_eq!(reader.gets().unwrap().unwrap().to_str(), "via fd\n");
+    /// assert_eq!(reader.gets().unwrap().unwrap().to_str(), "via writer\n");
+    /// # reader.close().unwrap();
+    /// # writer.close().unwrap();
+    /// ```
+    #[cfg(all(ruby_gte_3_3, any(unix, windows)))]
+    pub unsafe fn from_raw_fd(fd: RawFd, readable: bool, writable: bool, autoclose: bool) -> Self {
+        use crate::rubysys::io::{FMODE_EXTERNAL, FMODE_READABLE, FMODE_WRITABLE};
+
+        let mut mode = 0;
+
+        if readable {
+            mode |= FMODE_READABLE;
+        }
+
+        if writable {
+            mode |= FMODE_WRITABLE;
+        }
+
+        if !autoclose {
+            mode |= FMODE_EXTERNAL;
+        }
+
+        IO::from(io::open_descriptor(fd as _, mode))
+    }
 }
 
 impl From<Value> for IO {
@@ -475,6 +858,41 @@ impl File {
     pub fn current_directory() -> Result<RString, AnyException> {
         protect(io::getwd).map(RString::from)
     }
+
+    /// Returns the file's size in bytes, after flushing buffered output
+    /// (Ruby's `File#size`, `rb_file_size`), or the error, such as
+    /// `IOError` for a closed file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{File, RString, VM};
+    /// # VM::init();
+    ///
+    /// let path = std::env::temp_dir().join(format!("rutie_file_size_example_{}.txt", std::process::id()));
+    /// let file = File::open(path.to_str().unwrap(), "wb").unwrap();
+    ///
+    /// assert_eq!(file.size().unwrap(), 0);
+    ///
+    /// // Counts output still in Ruby's buffer.
+    /// file.write(&RString::new_utf8("12345")).unwrap();
+    /// assert_eq!(file.size().unwrap(), 5);
+    ///
+    /// file.close().unwrap();
+    /// assert!(file.size().is_err());
+    /// # std::fs::remove_file(path).unwrap();
+    /// ```
+    pub fn size(&self) -> Result<u64, AnyException> {
+        let file = self.value();
+        let mut size = 0;
+
+        protect(|| {
+            size = io::file_size(file);
+
+            NilClass::new().value()
+        })
+        .map(|_| size as u64)
+    }
 }
 
 impl ::std::ops::Deref for File {
@@ -529,7 +947,210 @@ impl PartialEq for File {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Class, File, Fixnum, Object, RString, IO, VM};
+    use crate::{Array, Class, File, Fixnum, Object, RString, IO, VM};
+    use std::time::Duration;
+
+    fn errno(name: &str) -> i32 {
+        VM::eval(&format!("Errno::{}::Errno", name))
+            .unwrap()
+            .try_convert_to::<Fixnum>()
+            .unwrap()
+            .to_i64() as i32
+    }
+
+    fn pipe() -> (IO, IO) {
+        let pipe = VM::eval("IO.pipe")
+            .unwrap()
+            .try_convert_to::<Array>()
+            .unwrap();
+
+        (
+            pipe.at(0).try_convert_to::<IO>().unwrap(),
+            pipe.at(1).try_convert_to::<IO>().unwrap(),
+        )
+    }
+
+    #[test]
+    fn test_io_descriptor_and_maybe_wait() {
+        crate::on_ruby_thread(|| {
+            let (reader, writer) = pipe();
+            let short = Some(Duration::from_millis(10));
+
+            assert!(reader.descriptor().unwrap() > 2);
+            assert_ne!(reader.descriptor(), writer.descriptor());
+
+            // EINTR: retry right away.
+            assert_eq!(
+                reader.maybe_wait(errno("EINTR"), IO::READABLE, None),
+                Ok(Some(IO::READABLE))
+            );
+            assert_eq!(reader.maybe_wait_readable(errno("EINTR"), None), Ok(true));
+
+            // EAGAIN with nothing to read: times out.
+            assert_eq!(
+                reader.maybe_wait(errno("EAGAIN"), IO::READABLE, short),
+                Ok(None)
+            );
+            assert_eq!(
+                reader.maybe_wait_readable(errno("EAGAIN"), short),
+                Ok(false)
+            );
+
+            assert_eq!(
+                writer.maybe_wait(errno("EAGAIN"), IO::WRITABLE, None),
+                Ok(Some(IO::WRITABLE))
+            );
+            assert_eq!(
+                writer.maybe_wait(errno("EACCES"), IO::WRITABLE, None),
+                Ok(None)
+            );
+
+            reader.close().unwrap();
+            writer.close().unwrap();
+            assert!(reader.descriptor().is_err());
+            assert!(reader
+                .maybe_wait(errno("EAGAIN"), IO::READABLE, None)
+                .is_err());
+            assert!(reader.maybe_wait_readable(errno("EAGAIN"), None).is_err());
+        });
+    }
+
+    #[cfg(ruby_gte_3_2)]
+    #[test]
+    fn test_io_timeout() {
+        crate::on_ruby_thread(|| {
+            let (reader, writer) = pipe();
+
+            assert_eq!(reader.timeout(), Ok(None));
+            reader
+                .set_timeout(Some(Duration::from_millis(250)))
+                .unwrap();
+            assert_eq!(reader.timeout(), Ok(Some(Duration::from_millis(250))));
+            let ruby_timeout = unsafe { reader.send("timeout", &[]) };
+            assert_eq!(
+                ruby_timeout
+                    .try_convert_to::<crate::Float>()
+                    .unwrap()
+                    .to_f64(),
+                0.25
+            );
+
+            reader.set_timeout(Some(Duration::from_millis(5))).unwrap();
+            let error = reader.getbyte().unwrap_err();
+            assert!(Class::io_timeout_error().case_equals(&error));
+            assert!(Class::io_timeout_error()
+                .inherits(&Class::io_error())
+                .unwrap());
+
+            reader.set_timeout(None).unwrap();
+            assert_eq!(reader.timeout(), Ok(None));
+            reader.close().unwrap();
+            writer.close().unwrap();
+        });
+    }
+
+    #[cfg(ruby_gte_3_3)]
+    #[test]
+    fn test_io_from_raw_fd_owning() {
+        crate::on_ruby_thread(|| {
+            let (reader, writer) = pipe();
+            let fd = writer.descriptor().unwrap();
+
+            // Let go of the descriptor, then hand it to a new IO that owns it.
+            unsafe { writer.send("autoclose=", &[crate::Boolean::new(false).into()]) };
+            writer.close().unwrap();
+
+            let owner = unsafe { IO::from_raw_fd(fd, false, true, true) };
+            assert!(unsafe { owner.send("autoclose?", &[]) }.value().is_true());
+            assert_eq!(owner.descriptor(), Ok(fd));
+            owner.write(&RString::new_utf8("owned\n")).unwrap();
+            owner.close().unwrap();
+
+            // Closing the owner closed the descriptor: the pipe is at its end.
+            assert_eq!(reader.gets().unwrap().unwrap().to_str(), "owned\n");
+            assert!(reader.gets().unwrap().is_none());
+            reader.close().unwrap();
+
+            // An IO that may not write.
+            let (reader, writer) = pipe();
+            let read_only =
+                unsafe { IO::from_raw_fd(reader.descriptor().unwrap(), true, false, false) };
+            assert!(read_only.write(&RString::new_utf8("x")).is_err());
+            read_only.close().unwrap();
+            reader.close().unwrap();
+            writer.close().unwrap();
+        });
+    }
+
+    #[cfg(ruby_gte_3_3)]
+    #[test]
+    fn test_process_status_wait() {
+        crate::on_ruby_thread(|| {
+            VM::require("rbconfig");
+            let pid = VM::eval("Process.spawn(RbConfig.ruby, '-e', 'exit 3')")
+                .unwrap()
+                .try_convert_to::<Fixnum>()
+                .unwrap()
+                .to_i64();
+
+            let status = unsafe { crate::rubysys::io::rb_process_status_wait(pid as _, 0) };
+            let status = crate::AnyObject::from(status);
+
+            assert!(Class::from_existing("Process")
+                .get_nested_class("Status")
+                .case_equals(&status));
+            assert_eq!(
+                unsafe { status.send("exitstatus", &[]) }.try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(3))
+            );
+            assert_eq!(
+                unsafe { status.send("pid", &[]) }.try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(pid))
+            );
+
+            // Still running: nothing to reap with WNOHANG.
+            let pid = VM::eval("Process.spawn(RbConfig.ruby, '-e', 'sleep 30')")
+                .unwrap()
+                .try_convert_to::<Fixnum>()
+                .unwrap()
+                .to_i64();
+            let wnohang = VM::eval("Process::WNOHANG")
+                .unwrap()
+                .try_convert_to::<Fixnum>()
+                .unwrap()
+                .to_i64();
+
+            let status =
+                unsafe { crate::rubysys::io::rb_process_status_wait(pid as _, wnohang as _) };
+            assert!(status.is_nil());
+
+            VM::eval(&format!("Process.kill(:KILL, {})", pid)).unwrap();
+            let status = unsafe { crate::rubysys::io::rb_process_status_wait(pid as _, 0) };
+            assert_eq!(
+                unsafe { crate::AnyObject::from(status).send("pid", &[]) }
+                    .try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(pid))
+            );
+        });
+    }
+
+    #[test]
+    fn test_file_size() {
+        crate::on_ruby_thread(|| {
+            let path =
+                std::env::temp_dir().join(format!("rutie_file_size_unit_{}", std::process::id()));
+            std::fs::write(&path, "abc").unwrap();
+
+            let file = File::open(path.to_str().unwrap(), "ab").unwrap();
+            assert_eq!(file.size(), Ok(3));
+            file.write(&RString::new_utf8("de")).unwrap();
+            assert_eq!(file.size(), Ok(5));
+            file.close().unwrap();
+
+            assert!(Class::io_error().case_equals(&file.size().unwrap_err()));
+            std::fs::remove_file(path).unwrap();
+        });
+    }
 
     #[test]
     fn test_file_round_trip() {
