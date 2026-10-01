@@ -161,6 +161,12 @@ pub use crate::class::{
     vm::VM,
 };
 
+#[cfg(ruby_gte_3_2)]
+pub use crate::class::thread::{InternalThreadEvent, InternalThreadEventHook};
+
+#[cfg(ruby_gte_3_3)]
+pub use crate::class::thread::InternalThreadSpecificKey;
+
 pub use crate::class::traits::{
     encoding_support::EncodingSupport, exception::Exception, object::Object,
     try_convert::TryConvert, verified_object::VerifiedObject,

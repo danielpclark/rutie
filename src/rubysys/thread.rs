@@ -294,3 +294,120 @@ extern "C" {
 // makes Ruby interrupt a blocking system call when the thread must stop.
 pub const RUBY_UBF_IO: usize = usize::MAX;
 pub const RUBY_UBF_PROCESS: usize = usize::MAX;
+
+// Thread events for `rb_internal_thread_add_event_hook` (Ruby 3.2+), an
+// `rb_event_flag_t` mask.
+//
+// Thread started.
+#[cfg(ruby_gte_3_2)]
+pub const RUBY_INTERNAL_THREAD_EVENT_STARTED: u32 = 1 << 0;
+// Acquiring the GVL; the hook runs without it.
+#[cfg(ruby_gte_3_2)]
+pub const RUBY_INTERNAL_THREAD_EVENT_READY: u32 = 1 << 1;
+// Acquired the GVL; the hook runs with it.
+#[cfg(ruby_gte_3_2)]
+pub const RUBY_INTERNAL_THREAD_EVENT_RESUMED: u32 = 1 << 2;
+// Released the GVL; the hook runs without it.
+#[cfg(ruby_gte_3_2)]
+pub const RUBY_INTERNAL_THREAD_EVENT_SUSPENDED: u32 = 1 << 3;
+// Thread terminated; the hook runs without the GVL.
+#[cfg(ruby_gte_3_2)]
+pub const RUBY_INTERNAL_THREAD_EVENT_EXITED: u32 = 1 << 4;
+// All thread events.
+#[cfg(ruby_gte_3_2)]
+pub const RUBY_INTERNAL_THREAD_EVENT_MASK: u32 = 0xff;
+
+// typedef void rb_internal_thread_event_data_t; // for future extension.
+//
+// Ruby 3.2 passes no event data (a null pointer).
+#[cfg(all(ruby_gte_3_2, not(ruby_gte_3_3)))]
+pub type InternalThreadEventData = c_void;
+
+// typedef struct rb_internal_thread_event_data {
+//    VALUE thread;
+// } rb_internal_thread_event_data_t;
+//
+// `thread` is the Ruby thread the event is about; the hook may run on
+// another native thread.
+#[cfg(ruby_gte_3_3)]
+#[repr(C)]
+pub struct InternalThreadEventData {
+    pub thread: Value,
+}
+
+// typedef void (*rb_internal_thread_event_callback)(rb_event_flag_t event,
+//               const rb_internal_thread_event_data_t *event_data,
+//               void *user_data);
+#[cfg(ruby_gte_3_2)]
+pub type InternalThreadEventCallback = rutie_callback!(type fn(
+    event: u32,
+    event_data: *const InternalThreadEventData,
+    user_data: *mut c_void,
+));
+
+// typedef struct rb_internal_thread_event_hook rb_internal_thread_event_hook_t;
+#[cfg(ruby_gte_3_2)]
+#[repr(C)]
+pub struct InternalThreadEventHook {
+    _private: [u8; 0],
+}
+
+// typedef int rb_internal_thread_specific_key_t;
+#[cfg(ruby_gte_3_3)]
+pub type InternalThreadSpecificKey = c_int;
+
+// #define RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX 8
+#[cfg(ruby_gte_3_3)]
+pub const RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX: c_int = 8;
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // Registers `func` to run with `data` on the thread events in `events`.
+    // It runs without the GVL (except for `RESUMED`), on any native thread.
+    // Returns NULL on Windows, where Ruby does not implement it.
+    //
+    // rb_internal_thread_event_hook_t *
+    // rb_internal_thread_add_event_hook(rb_internal_thread_event_callback func,
+    //                                   rb_event_flag_t events, void *data)
+    #[cfg(ruby_gte_3_2)]
+    pub fn rb_internal_thread_add_event_hook(
+        func: InternalThreadEventCallback,
+        events: u32,
+        data: *mut c_void,
+    ) -> *mut InternalThreadEventHook;
+    // Unregisters (and frees) `hook`; it must not be called from a hook, and
+    // crashes when no hook at all is registered.
+    //
+    // bool
+    // rb_internal_thread_remove_event_hook(rb_internal_thread_event_hook_t * hook)
+    #[cfg(ruby_gte_3_2)]
+    pub fn rb_internal_thread_remove_event_hook(hook: *mut InternalThreadEventHook) -> bool;
+    // Raises a `ThreadError` once `RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX` keys
+    // exist. (Ruby 3.3 and 3.4 check this one key too late and return
+    // `RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX` itself, which is out of range.)
+    //
+    // rb_internal_thread_specific_key_t
+    // rb_internal_thread_specific_key_create(void)
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_internal_thread_specific_key_create() -> InternalThreadSpecificKey;
+    // Async signal safe and thread safe.
+    //
+    // void *
+    // rb_internal_thread_specific_get(VALUE thread_val, rb_internal_thread_specific_key_t key)
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_internal_thread_specific_get(
+        thread: Value,
+        key: InternalThreadSpecificKey,
+    ) -> *mut c_void;
+    // Async signal safe and thread safe.
+    //
+    // void
+    // rb_internal_thread_specific_set(VALUE thread_val, rb_internal_thread_specific_key_t key,
+    //                                 void *data)
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_internal_thread_specific_set(
+        thread: Value,
+        key: InternalThreadSpecificKey,
+        data: *mut c_void,
+    );
+}
