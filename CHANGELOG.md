@@ -66,6 +66,12 @@ on 0.11.x.
    rb_io_encoding`, the `FMODE_*` constants, `rb_ary_hidden_new`,
    `rb_obj_freeze_inline`, `ruby_scan_digits`, `ruby_hexdigits` and
    `rb_cNameErrorMesg`, thanks to @danielpclark
+ - Raw bindings for Ruby's allocator (`ruby_xmalloc`, `ruby_xmalloc2`,
+   `ruby_xcalloc`, `ruby_xrealloc`, `ruby_xrealloc2` and `ruby_xfree`),
+   `rb_reg_onig_match` (Ruby 3.3+, with `ReRegisters` and
+   `OnigMatchFunction`), `rb_st_init_existing_table_with_size` and
+   `rb_st_replace` (Ruby 3.3 only, with `StHashType`), and
+   `rb_debug_rstring_null_ptr`, thanks to @danielpclark
 
 ### Changed
  - `IO::is_closed` calls `rb_io_closed_p` on Ruby 3.3, thanks to @danielpclark
