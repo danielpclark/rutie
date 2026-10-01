@@ -433,7 +433,7 @@ Everything is tested against 64 bit operating systems (Linux, macOS and Windows)
 
 | Rutie | Ruby | Notes |
 |---|---|---|
-| 0.11.x | 3.0, 3.1, 3.2 | current; Linux, plus macOS and Windows from 0.11.1, with dynamic linking (static linking on Linux and macOS) |
+| 0.11.x | 3.0, 3.1, 3.2 | current; Linux, plus macOS and Windows from 0.11.1, with dynamic/static linking |
 | 0.10.x | 2.5, 2.6, 2.7 | the Ruby 2 line; Linux, macOS and Windows (from 0.10.2) |
 | 0.9.x | 2.5, 2.6, 2.7 | still works on Ruby 2, but superseded by 0.10.0 (`VM::at_exit` crash fix, current-Cargo build fix) |
 | 0.8.x | 2.5, 2.6, 2.7 | older Ruby 2 line |
