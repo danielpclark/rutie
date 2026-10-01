@@ -60,6 +60,8 @@ builtins! {
     rational => rb_cRational, "Rational";
     refinement => rb_cRefinement, "Refinement";
     regexp => rb_cRegexp, "Regexp";
+    ruby_box => rb_cBox, "Ruby::Box";
+    set => rb_cSet, "Set";
     file_stat => rb_cStat, "File::Stat";
     string => rb_cString, "String";
     struct_class => rb_cStruct, "Struct";

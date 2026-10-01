@@ -201,6 +201,10 @@ impl Thread {
     /// [`call_without_gvl`](#method.call_without_gvl) closure
     /// (`rb_thread_call_with_gvl`), so it may use Ruby objects again.
     ///
+    /// From Ruby 4.0 this also works when the thread already holds the GVL
+    /// (then `func` simply runs); [`Thread::has_gvl`](#method.has_gvl) says
+    /// which is the case.
+    ///
     /// # Examples
     ///
     /// ```
@@ -232,7 +236,7 @@ impl Thread {
     /// `RUBY_MN_THREADS=1`), for code that relies on thread-local storage
     /// (`rb_thread_lock_native_thread`). Returns `false` if the thread
     /// already had one, which is always the case without M:N threads, and
-    /// `true` if it was given one now. Ruby 3.4+.
+    /// `true` if it was given one now.
     ///
     /// # Examples
     ///
@@ -245,9 +249,38 @@ impl Thread {
     /// // From now on the thread keeps its own native thread.
     /// assert!(!Thread::lock_native_thread());
     /// ```
-    #[cfg(ruby_gte_3_4)]
     pub fn lock_native_thread() -> bool {
         thread::lock_native_thread()
+    }
+
+    /// Returns `true` if the current thread holds the GVL
+    /// (`ruby_thread_has_gvl_p`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Thread, VM};
+    /// # VM::init();
+    ///
+    /// assert!(Thread::has_gvl());
+    ///
+    /// let inside = Thread::call_without_gvl(
+    ///     || {
+    ///         let without = Thread::has_gvl();
+    ///         let with = Thread::call_with_gvl(Thread::has_gvl);
+    ///
+    ///         (without, with)
+    ///     },
+    ///     None::<fn()>,
+    /// );
+    ///
+    /// assert_eq!(inside, (false, true));
+    ///
+    /// // Ruby 4.0 runs `call_with_gvl` on a thread that already holds it.
+    /// assert!(Thread::call_with_gvl(Thread::has_gvl));
+    /// ```
+    pub fn has_gvl() -> bool {
+        thread::has_gvl()
     }
 
     /// Like [`call_without_gvl`](#method.call_without_gvl), with Ruby's

@@ -34,6 +34,9 @@ extern "C" {
     pub static rb_cRational: Value;
     pub static rb_cRefinement: Value;
     pub static rb_cRegexp: Value;
+    // Ruby 4.0: `Set` is part of the core, and `Ruby::Box` is new.
+    pub static rb_cSet: Value;
+    pub static rb_cBox: Value;
     pub static rb_cStat: Value;
     pub static rb_cString: Value;
     pub static rb_cStruct: Value;

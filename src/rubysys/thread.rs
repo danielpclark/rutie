@@ -141,7 +141,12 @@ extern "C" {
     //
     // void *
     // rb_thread_call_with_gvl(void *(*func)(void *), void *data1)
+    //
+    // From Ruby 4.0 it may also be called with the GVL held.
     pub fn rb_thread_call_with_gvl(func: CallbackPtr, args: *const c_void) -> *mut c_void;
+    // int
+    // ruby_thread_has_gvl_p(void)
+    pub fn ruby_thread_has_gvl_p() -> c_int;
 
     // VALUE
     // rb_thread_create(VALUE (*fn)(ANYARGS), void *arg)

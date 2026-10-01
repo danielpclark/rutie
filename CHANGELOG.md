@@ -14,6 +14,13 @@ Supports Ruby 4.0 on Linux, macOS and Windows; Ruby 3.2–3.4 stay on 0.13.x.
  - Ruby 4.0 support: `ruby_4_0`/`ruby_gte_4_0` cfg flags, and every `rubysys`
    declaration checked against Ruby 4.0's headers and `libruby` exports,
    thanks to @danielpclark
+ - `Set`, over Ruby 4.0's new C API for the core `Set` class (`rb_set_new`,
+   `rb_set_new_capa`, `rb_set_add`, `rb_set_lookup`, `rb_set_delete`,
+   `rb_set_clear`, `rb_set_size`, `rb_set_foreach`), thanks to @danielpclark
+ - `Class::set` and `Class::ruby_box` (`rb_cSet`, `rb_cBox`), thanks to
+   @danielpclark
+ - `Thread::has_gvl` (`ruby_thread_has_gvl_p`). `Thread::call_with_gvl` may
+   also be called with the GVL held on Ruby 4.0, thanks to @danielpclark
 
 ### Changed
  - `build.rs` warns about a static Ruby built with ZJIT as well as YJIT; both

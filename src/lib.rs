@@ -157,6 +157,7 @@ pub use crate::class::{
     regexp::{MatchData, Regexp},
     rproc::Proc,
     rstruct::Struct,
+    set::Set,
     string::{CodeRange, RString},
     symbol::Symbol,
     thread::Thread,

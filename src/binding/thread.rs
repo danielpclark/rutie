@@ -78,6 +78,10 @@ where
     }
 }
 
+pub fn has_gvl() -> bool {
+    unsafe { thread::ruby_thread_has_gvl_p() != 0 }
+}
+
 pub fn call_with_gvl<F, R>(func: F) -> R
 where
     F: FnMut() -> R,

@@ -30,6 +30,7 @@ pub mod rational;
 pub mod regexp;
 pub mod rproc;
 pub mod rstruct;
+pub mod set;
 pub mod string;
 pub mod symbol;
 pub mod thread;
