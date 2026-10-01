@@ -57,12 +57,69 @@ pub fn is_eof(io: Value) -> bool {
     unsafe { io::rb_io_eof(io) }.is_true()
 }
 
-pub use crate::rubysys::io::{RUBY_IO_READABLE, RUBY_IO_WRITABLE};
+pub use crate::rubysys::io::{RUBY_IO_PRIORITY, RUBY_IO_READABLE, RUBY_IO_WRITABLE};
 
 /// `timeout` is `nil` to wait without a limit (Ruby 3.2+: the IO's
 /// `#timeout`, which is `nil` unless set).
 pub fn wait(io: Value, events: c_int, timeout: Value) -> Value {
     unsafe { io::rb_io_wait(io, fixnum::i32_to_num(events), timeout) }
+}
+
+// `rb_io_closed_p` is Ruby 3.3+; earlier Rubies call `closed?`.
+#[cfg(ruby_gte_3_3)]
+pub fn is_closed(io: Value) -> bool {
+    unsafe { io::rb_io_closed_p(io) }.is_true()
+}
+
+#[cfg(not(ruby_gte_3_3))]
+pub fn is_closed(io: Value) -> bool {
+    crate::binding::vm::call_method(io, "closed?", &[]).is_true()
+}
+
+// Raises `IOError` for a closed stream.
+pub fn descriptor(io: Value) -> c_int {
+    unsafe { io::rb_io_descriptor(io) }
+}
+
+// The ready events as an Integer, or `false`.
+pub fn maybe_wait(error: c_int, io: Value, events: c_int, timeout: Value) -> Value {
+    unsafe { io::rb_io_maybe_wait(error, io, fixnum::i32_to_num(events), timeout) }
+}
+
+pub fn maybe_wait_readable(error: c_int, io: Value, timeout: Value) -> c_int {
+    unsafe { io::rb_io_maybe_wait_readable(error, io, timeout) }
+}
+
+pub fn maybe_wait_writable(error: c_int, io: Value, timeout: Value) -> c_int {
+    unsafe { io::rb_io_maybe_wait_writable(error, io, timeout) }
+}
+
+#[cfg(ruby_gte_3_2)]
+pub fn timeout(io: Value) -> Value {
+    unsafe { io::rb_io_timeout(io) }
+}
+
+#[cfg(ruby_gte_3_2)]
+pub fn set_timeout(io: Value, timeout: Value) -> Value {
+    unsafe { io::rb_io_set_timeout(io, timeout) }
+}
+
+// An `IO` for `fd`, with no path, timeout or encodings.
+#[cfg(ruby_gte_3_3)]
+pub unsafe fn open_descriptor(fd: c_int, mode: c_int) -> Value {
+    io::rb_io_open_descriptor(
+        crate::rubysys::builtins::rb_cIO,
+        fd,
+        mode,
+        nil(),
+        nil(),
+        std::ptr::null_mut(),
+    )
+}
+
+// Raises for a closed file.
+pub fn file_size(file: Value) -> i64 {
+    unsafe { io::rb_file_size(file) }
 }
 
 pub fn binmode(io: Value) -> Value {

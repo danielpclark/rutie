@@ -39,6 +39,9 @@ extern "C" {
     pub static rb_eThreadError: Value;
     pub static rb_eTypeError: Value;
     pub static rb_eZeroDivError: Value;
+    // `IO::TimeoutError` (`ruby/io.h`).
+    #[cfg(ruby_gte_3_2)]
+    pub static rb_eIOTimeoutError: Value;
 
     // void
     // rb_check_frozen(VALUE obj)
