@@ -127,6 +127,13 @@ pub const RB_WARN_CATEGORY_DEPRECATED: c_int = 1;
 pub const RB_WARN_CATEGORY_EXPERIMENTAL: c_int = 2;
 pub const RB_WARN_CATEGORY_PERFORMANCE: c_int = 3;
 pub const RB_WARN_CATEGORY_STRICT_UNUSED_BLOCK: c_int = 4;
+// The categories enabled by default, and all of them, as bit masks.
+pub const RB_WARN_CATEGORY_DEFAULT_BITS: c_int =
+    (1 << RB_WARN_CATEGORY_DEPRECATED) | (1 << RB_WARN_CATEGORY_EXPERIMENTAL);
+pub const RB_WARN_CATEGORY_ALL_BITS: c_int = (1 << RB_WARN_CATEGORY_DEPRECATED)
+    | (1 << RB_WARN_CATEGORY_EXPERIMENTAL)
+    | (1 << RB_WARN_CATEGORY_PERFORMANCE)
+    | (1 << RB_WARN_CATEGORY_STRICT_UNUSED_BLOCK);
 
 // `enum rb_io_wait_readwrite` values.
 pub const RB_IO_WAIT_READABLE: c_int = 0;

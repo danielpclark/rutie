@@ -38,6 +38,10 @@ pub type BlockCallFunction = rutie_callback!(type fn(
 pub struct RBasic {
     pub flags: InternalValue,
     pub klass: InternalValue,
+    // Ruby 4.0 keeps an object's shape ID here where `VALUE` is narrower than
+    // 64 bits (in `flags` otherwise).
+    #[cfg(target_pointer_width = "32")]
+    pub shape_id: InternalValue,
 }
 
 #[repr(C)]

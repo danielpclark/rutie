@@ -270,6 +270,22 @@ pub struct rb_io_t {
 #[allow(non_camel_case_types)]
 pub type rb_io_mode = c_int;
 
+// The `enum rb_io_mode` names (Ruby 4.0) of the `FMODE_*` flags.
+pub const RUBY_IO_MODE_EXTERNAL: rb_io_mode = FMODE_EXTERNAL;
+pub const RUBY_IO_MODE_READABLE: rb_io_mode = FMODE_READABLE;
+pub const RUBY_IO_MODE_WRITABLE: rb_io_mode = FMODE_WRITABLE;
+pub const RUBY_IO_MODE_READABLE_WRITABLE: rb_io_mode = FMODE_READWRITE;
+pub const RUBY_IO_MODE_BINARY: rb_io_mode = FMODE_BINMODE;
+pub const RUBY_IO_MODE_TEXT: rb_io_mode = FMODE_TEXTMODE;
+pub const RUBY_IO_MODE_TEXT_SET_ENCODING_FROM_BOM: rb_io_mode = FMODE_SETENC_BY_BOM;
+pub const RUBY_IO_MODE_SYNCHRONISED: rb_io_mode = FMODE_SYNC;
+pub const RUBY_IO_MODE_TTY: rb_io_mode = FMODE_TTY;
+pub const RUBY_IO_MODE_DUPLEX: rb_io_mode = FMODE_DUPLEX;
+pub const RUBY_IO_MODE_APPEND: rb_io_mode = FMODE_APPEND;
+pub const RUBY_IO_MODE_CREATE: rb_io_mode = FMODE_CREATE;
+pub const RUBY_IO_MODE_EXCLUSIVE: rb_io_mode = FMODE_EXCL;
+pub const RUBY_IO_MODE_TRUNCATE: rb_io_mode = FMODE_TRUNC;
+
 // `mode_t`, the permission argument of `open(2)`.
 #[cfg(unix)]
 #[allow(non_camel_case_types)]

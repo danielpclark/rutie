@@ -101,6 +101,22 @@ through RubyGems' `require`, so load a bundled gem with
    `Array::pair`, `Hash::bulk_insert`, `Hash::split_keywords`,
    `Time::precise_interval` and `Time::now_since_epoch`, thanks to
    @danielpclark
+ - `IO::try_convert`, `convert`, `pipe`, `fdopen`, `fmode`, `oflags`,
+   `fmode_from_oflags` and `is_reserved_fd`, and `IO#ungetbyte`, `printf`,
+   `write_bytes` and `set_write_io`, thanks to @danielpclark
+ - `File::is_directory`, `is_absolute_path`, `encode_ospath`, `get_path`,
+   `glob` and `glob_with_flags`, thanks to @danielpclark
+ - `VM::gets`, `raise_eof_error`, `write_error`, `show_version`,
+   `show_copyright`, `find_file_ext` and `exec_recursive` (with `_paired`,
+   `_outer` and `_paired_outer` variants), thanks to @danielpclark
+ - `Process` for child processes, signals and the environment (`spawn`,
+   `waitpid`, `detach`, `last_status`, `set_last_status`, `times`, `kill`,
+   `signal_name`, `exec`, `exec_command`, `setenv`, `unsetenv`), thanks to
+   @danielpclark
+ - `TracePoint` and `TraceArg`: trace Ruby events with a Rust closure,
+   thanks to @danielpclark
+ - `GC::is_during_gc`, `GC::copy_finalizer`, `Thread::stop`,
+   `Thread#wakeup_alive` and `Object#class_name`, thanks to @danielpclark
  - `rubysys` bindings for the rest of Ruby 4.0's string, encoding,
    transcoding, sprintf, symbol, parse and regexp C API, with the `RbEconv`,
    `ReRegisters`, `OnigRegexType` and `OnigPosition` types, thanks to
@@ -115,6 +131,11 @@ through RubyGems' `require`, so load a bundled gem with
    VM, eval, iterator, proc, error, array, hash, struct, enumerator, marshal,
    load, rdata and time C API. `rb_cstr_to_dbl` crashes Ruby 4.0 on malformed
    input with a nonzero `mode`, so pass 0, thanks to @danielpclark
+ - `rubysys` bindings for the rest of Ruby 4.0's IO, file, process, signal,
+   select, glob, GC and memory, st table, native thread, interpreter and
+   event hook/TracePoint C API; the `RUBY_IO_MODE_*` names, and
+   `RB_WARN_CATEGORY_DEFAULT_BITS` and `RB_WARN_CATEGORY_ALL_BITS`,
+   thanks to @danielpclark
 
 ### Changed
  - `build.rs` warns about a static Ruby built with ZJIT as well as YJIT; both
@@ -124,6 +145,11 @@ through RubyGems' `require`, so load a bundled gem with
    with minitest 5.25+ (5.15 does not install on Ruby 4.0), thanks to
    @danielpclark
  - `rubysys::constant::FL_EXIVAR` is 0, as Ruby 4.0's `RUBY_FL_EXIVAR` is,
+   thanks to @danielpclark
+ - `rubysys::constant::FL_PROMOTED` is bit 5 alone, and `ELTS_SHARED` and
+   `FL_SINGLETON` are `FL_USER_0` and `FL_USER_1`, as in Ruby 3.3 and 3.4,
+   thanks to @danielpclark
+ - `rubysys::types::RBasic` has Ruby 4.0's `shape_id` on 32-bit targets,
    thanks to @danielpclark
  - `Complex::from_f64` uses `rb_dbl_complex_new`, thanks to @danielpclark
  - `Encoding::is_dummy` calls `rb_enc_dummy_p`, thanks to @danielpclark
