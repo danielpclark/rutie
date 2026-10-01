@@ -135,6 +135,7 @@ pub use crate::class::{
     complex::Complex,
     debug::{DebugInspector, ProfileFrame},
     encoding::Encoding,
+    encoding_converter::{ConversionResult, EncodingConverter},
     enumerator::{Enumerator, EnumeratorIterator},
     fiber::Fiber,
     fixnum::Fixnum,

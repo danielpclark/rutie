@@ -8,6 +8,7 @@ pub mod class;
 pub mod complex;
 pub mod debug;
 pub mod encoding;
+pub mod encoding_converter;
 pub mod enumerator;
 pub mod fiber;
 pub mod fixnum;

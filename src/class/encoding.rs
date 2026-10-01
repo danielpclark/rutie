@@ -132,7 +132,7 @@ impl Encoding {
     }
 
     /// Returns `true` for dummy encodings, which Ruby can name but not
-    /// process (Ruby's `dummy?`).
+    /// process (Ruby's `dummy?`, `rb_enc_dummy_p`).
     ///
     /// # Examples
     ///
@@ -146,7 +146,7 @@ impl Encoding {
     /// assert!(Encoding::find("UTF-16").unwrap().is_dummy());
     /// ```
     pub fn is_dummy(&self) -> bool {
-        unsafe { self.send("dummy?", &[]) }.value().is_true()
+        encoding::is_dummy(self.value())
     }
 
     /// Creates a UTF-8 instance of `Encoding`.
@@ -350,6 +350,152 @@ impl Encoding {
             Ok(Self::from(result))
         }
     }
+
+    /// Registers a dummy encoding (one Ruby can name but not process, like
+    /// `UTF-7`) called `name`, and returns it (`rb_define_dummy_encoding`).
+    /// Returns the `ArgumentError` if an encoding has that name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    ///
+    /// let dummy = Encoding::define_dummy("X-Rutie-Dummy").unwrap();
+    ///
+    /// assert_eq!(dummy.name(), "X-Rutie-Dummy");
+    /// assert!(dummy.is_dummy());
+    /// assert_eq!(Encoding::find("X-Rutie-Dummy").unwrap(), dummy);
+    /// assert!(Encoding::define_dummy("UTF-8").is_err());
+    /// ```
+    pub fn define_dummy(name: &str) -> Result<Encoding, AnyException> {
+        crate::binding::vm::protect_value(|| encoding::define_dummy(name))
+            .map(Encoding::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Registers `alias` as another name for the encoding `original`
+    /// (`rb_enc_alias`). Returns the `ArgumentError` if `alias` is taken or
+    /// `original` is not an encoding.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    ///
+    /// Encoding::add_alias("X-RUTIE-UTF8", "UTF-8").unwrap();
+    ///
+    /// assert_eq!(Encoding::find("X-RUTIE-UTF8").unwrap(), Encoding::utf8());
+    /// assert!(Encoding::add_alias("X-RUTIE-UTF8", "UTF-8").is_err());
+    /// assert!(Encoding::add_alias("X-RUTIE-NONE", "NO-SUCH-ENCODING").is_err());
+    /// ```
+    pub fn add_alias(alias: &str, original: &str) -> Result<(), AnyException> {
+        let mut status = 0;
+
+        crate::binding::vm::protect_value(|| {
+            status = encoding::alias(alias, original);
+
+            NilClass::new().value()
+        })
+        .map_err(AnyException::from)?;
+
+        if status < 0 {
+            let message = format!("unknown encoding name - {}", original);
+
+            Err(AnyException::new("ArgumentError", Some(&message)))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Returns `true` if `object` can carry an encoding: a `String`,
+    /// `Symbol` or `Regexp`, or an object Ruby gave the encoding flag
+    /// (`rb_enc_capable`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, Fixnum, RString, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// assert!(Encoding::is_capable(&RString::new_utf8("x")));
+    /// assert!(Encoding::is_capable(&Symbol::new("x")));
+    /// assert!(!Encoding::is_capable(&Fixnum::new(1)));
+    /// ```
+    pub fn is_capable<T: Object>(object: &T) -> bool {
+        encoding::is_capable(object.value())
+    }
+
+    /// Returns `true` for the Unicode encodings, such as UTF-8 and UTF-16
+    /// (`rb_enc_unicode_p`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    ///
+    /// assert!(Encoding::utf8().is_unicode());
+    /// assert!(!Encoding::us_ascii().is_unicode());
+    /// ```
+    pub fn is_unicode(&self) -> bool {
+        encoding::is_unicode(self.value())
+    }
+
+    /// Returns the name of the locale's character map, such as `"UTF-8"` or
+    /// `"ANSI_X3.4-1968"` (Ruby's `Encoding.locale_charmap`,
+    /// `rb_locale_charmap`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let charmap = VM::eval("Encoding.locale_charmap").unwrap();
+    ///
+    /// assert_eq!(Encoding::locale_charmap(), charmap.try_convert_to::<RString>().unwrap());
+    /// ```
+    pub fn locale_charmap() -> RString {
+        RString::from(encoding::locale_charmap())
+    }
+
+    /// Returns how many characters `bytes` hold in this encoding, counting
+    /// each invalid byte as one (`rb_enc_strlen`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Encoding::utf8().count_chars("añb".as_bytes()), 3);
+    /// assert_eq!(Encoding::ascii_8bit().count_chars("añb".as_bytes()), 4);
+    /// ```
+    pub fn count_chars(&self, bytes: &[u8]) -> usize {
+        encoding::strlen(bytes, self.value())
+    }
+
+    /// Returns the byte offset of the first occurrence of `needle` in
+    /// `haystack`, or `None` (`rb_memsearch`). The encoding picks the search
+    /// algorithm; the bytes are compared exactly.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, VM};
+    /// # VM::init();
+    ///
+    /// let utf8 = Encoding::utf8();
+    ///
+    /// assert_eq!(utf8.search("ñb".as_bytes(), "añbañb".as_bytes()), Some(1));
+    /// assert_eq!(utf8.search(b"zz", b"abc"), None);
+    /// assert_eq!(utf8.search(b"", b"abc"), Some(0));
+    /// ```
+    pub fn search(&self, needle: &[u8], haystack: &[u8]) -> Option<usize> {
+        encoding::memsearch(needle, haystack, self.value())
+    }
 }
 
 impl Default for Encoding {
@@ -402,7 +548,7 @@ impl PartialEq for Encoding {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Encoding, EncodingSupport, Fixnum, Object, RString, Symbol, VM};
+    use crate::{Encoding, EncodingSupport, Exception, Fixnum, Object, RString, Symbol, VM};
 
     #[test]
     fn test_encoding_lookup_and_chr() {
@@ -480,6 +626,59 @@ mod tests {
 
             let binary = VM::eval(r#""\xFF".b"#).unwrap();
             assert!(Encoding::is_compatible(&utf8, &binary).is_err());
+        });
+    }
+
+    #[test]
+    fn test_encoding_registration_and_queries() {
+        crate::on_ruby_thread(|| {
+            let dummy = Encoding::define_dummy("X-RUTIE-TEST-DUMMY").unwrap();
+            assert!(dummy.is_dummy());
+            assert!(!dummy.is_unicode());
+            let from_ruby = VM::eval("Encoding.find('X-RUTIE-TEST-DUMMY')").unwrap();
+            assert_eq!(from_ruby.try_convert_to::<Encoding>().unwrap(), dummy);
+            assert!(Encoding::define_dummy("X-RUTIE-TEST-DUMMY").is_err());
+
+            Encoding::add_alias("X-RUTIE-TEST-ALIAS", "X-RUTIE-TEST-DUMMY").unwrap();
+            assert_eq!(Encoding::find("X-RUTIE-TEST-ALIAS").unwrap(), dummy);
+            assert!(Encoding::add_alias("X-RUTIE-TEST-ALIAS", "UTF-8").is_err());
+            let unknown = Encoding::add_alias("X-RUTIE-TEST-OTHER", "NO-SUCH").unwrap_err();
+            assert!(crate::Class::from_existing("ArgumentError").case_equals(&unknown));
+
+            assert!(Encoding::is_capable(&VM::eval("/re/").unwrap()));
+            assert!(!Encoding::is_capable(&VM::eval("Object.new").unwrap()));
+            assert!(!Encoding::is_capable(&crate::NilClass::new()));
+
+            assert!(!Encoding::ascii_8bit().is_unicode());
+            assert!(!Encoding::utf8().is_dummy());
+            assert!(!Encoding::locale_charmap().to_str().is_empty());
+
+            let utf8 = Encoding::utf8();
+            assert_eq!(utf8.count_chars(b""), 0);
+            // Each invalid byte is a character.
+            assert_eq!(utf8.count_chars(b"a\xFF\xFEb"), 4);
+            assert_eq!(utf8.count_chars("🦀".as_bytes()), 1);
+            // So is each byte of a truncated character.
+            assert_eq!(utf8.count_chars(&"🦀".as_bytes()[..2]), 2);
+
+            assert_eq!(utf8.search(b"abc", b"abc"), Some(0));
+            assert_eq!(utf8.search(b"abcd", b"abc"), None);
+            assert_eq!(utf8.search(b"c", b"abc"), Some(2));
+            let long_needle = "ü".repeat(10);
+            let haystack = format!("{}{}", "x".repeat(50), long_needle);
+            assert_eq!(
+                utf8.search(long_needle.as_bytes(), haystack.as_bytes()),
+                Some(50)
+            );
+            // A needle ending in a lead byte.
+            assert_eq!(
+                utf8.search(b"abcdefghij\xF0", b"0123456789abcdefghij\xF0"),
+                Some(10)
+            );
+            assert_eq!(
+                Encoding::ascii_8bit().search(b"123456789", b"0123456789"),
+                Some(1)
+            );
         });
     }
 }
