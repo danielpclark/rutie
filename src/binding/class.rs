@@ -3,7 +3,7 @@ use std::ffi::CStr;
 use crate::{
     binding::symbol,
     helpers::scan_args::ScanArgsFormat,
-    rubysys::{class, typed_data, types::RBasic},
+    rubysys::{class, typed_data, types::RBasic, variable},
     typed_data::DataTypeWrapper,
     types::{c_int, c_void, Callback, CallbackPtr, Id, Value, ValueType},
     util, Object,
@@ -369,4 +369,170 @@ pub fn class_variable_find(klass: Value, name: &str) -> (Value, Value) {
 // `FrozenError` when it is frozen, so the caller owns `name`.
 pub fn deprecate_constant(module: Value, name: &CStr) {
     unsafe { class::rb_deprecate_constant(module, name.as_ptr()) }
+}
+
+// An anonymous class with its own metaclass, so class methods of
+// `superclass` are inherited; `inherited` is not called. Raises `TypeError`
+// when `superclass` cannot be subclassed.
+pub fn new_anonymous_class(superclass: Value) -> Value {
+    unsafe { class::rb_define_class_id(0, superclass) }
+}
+
+pub fn new_anonymous_module() -> Value {
+    unsafe { class::rb_module_new() }
+}
+
+pub fn check_inheritable(klass: Value) {
+    unsafe { class::rb_check_inheritable(klass) }
+}
+
+pub fn class_real(klass: Value) -> Value {
+    unsafe { class::rb_class_real(klass) }
+}
+
+pub enum MethodVisibility {
+    Public,
+    Protected,
+    Private,
+}
+
+pub fn instance_methods_with_visibility(
+    module: Value,
+    include_inherited: bool,
+    visibility: MethodVisibility,
+) -> Value {
+    let arguments = [util::bool_to_value(include_inherited)];
+    let (argc, argv) = util::process_arguments(&arguments);
+
+    unsafe {
+        match visibility {
+            MethodVisibility::Public => class::rb_class_public_instance_methods(argc, argv, module),
+            MethodVisibility::Protected => {
+                class::rb_class_protected_instance_methods(argc, argv, module)
+            }
+            MethodVisibility::Private => {
+                class::rb_class_private_instance_methods(argc, argv, module)
+            }
+        }
+    }
+}
+
+pub fn included_modules(module: Value) -> Value {
+    unsafe { class::rb_mod_included_modules(module) }
+}
+
+pub fn singleton_methods(object: Value, include_modules: bool) -> Value {
+    let arguments = [util::bool_to_value(include_modules)];
+    let (argc, argv) = util::process_arguments(&arguments);
+
+    unsafe { class::rb_obj_singleton_methods(argc, argv, object) }
+}
+
+pub fn constants(module: Value, include_inherited: bool) -> Value {
+    let arguments = [util::bool_to_value(include_inherited)];
+    let (argc, argv) = util::process_arguments(&arguments);
+
+    unsafe { variable::rb_mod_constants(argc, argv, module) }
+}
+
+pub fn class_variables(module: Value, include_inherited: bool) -> Value {
+    let arguments = [util::bool_to_value(include_inherited)];
+    let (argc, argv) = util::process_arguments(&arguments);
+
+    unsafe { variable::rb_mod_class_variables(argc, argv, module) }
+}
+
+// Raises `NameError` unless `module` itself defines the constant.
+pub fn const_get_at(module: Value, name: &str) -> Value {
+    unsafe { variable::rb_const_get_at(module, symbol::internal_id(name)) }
+}
+
+// Raises `NameError` when the constant is missing.
+pub fn const_get_from(module: Value, name: &str) -> Value {
+    unsafe { variable::rb_const_get_from(module, symbol::internal_id(name)) }
+}
+
+pub fn is_const_defined_from(module: Value, name: &str) -> bool {
+    util::c_int_to_bool(unsafe {
+        variable::rb_const_defined_from(module, symbol::internal_id(name))
+    })
+}
+
+// Raises `NameError` when the class variable is not defined in `module`.
+pub fn remove_class_variable(module: Value, name: &str) -> Value {
+    let name = symbol::id_to_sym(symbol::internal_id(name));
+
+    unsafe { variable::rb_mod_remove_cvar(module, name) }
+}
+
+pub fn autoload_path(module: Value, name: &str) -> Value {
+    unsafe { variable::rb_autoload_p(module, symbol::internal_id(name)) }
+}
+
+// Raises what loading the file raises.
+pub fn autoload_load(module: Value, name: &str) -> bool {
+    unsafe { variable::rb_autoload_load(module, symbol::internal_id(name)) }.is_true()
+}
+
+// Raises `NameError` unless `klass` itself defines the method.
+pub fn remove_method(klass: Value, name: &str) {
+    unsafe { class::rb_remove_method_id(klass, symbol::internal_id(name)) }
+}
+
+pub fn is_method_basic_definition(klass: Value, name: &str) -> bool {
+    util::c_int_to_bool(unsafe {
+        class::rb_method_basic_definition_p(klass, symbol::internal_id(name))
+    })
+}
+
+pub fn set_class_path(klass: Value, outer: Value, name: &str) {
+    let name = crate::binding::string::new_utf8(name);
+
+    unsafe { variable::rb_set_class_path_string(klass, outer, name) }
+}
+
+pub fn define_protected_method<I: Object, O: Object>(
+    klass: Value,
+    name: &str,
+    callback: Callback<I, O>,
+) {
+    let name = util::str_to_cstring(name);
+
+    unsafe {
+        class::rb_define_protected_method(klass, name.as_ptr(), callback as CallbackPtr, -1);
+    }
+}
+
+pub fn define_global_function<I: Object, O: Object>(name: &str, callback: Callback<I, O>) {
+    let name = util::str_to_cstring(name);
+
+    unsafe { class::rb_define_global_function(name.as_ptr(), callback as CallbackPtr, -1) }
+}
+
+// A method that raises `NotImplementedError`, and that `respond_to?` reports
+// as missing.
+pub fn define_not_implemented_method(klass: Value, name: &str) {
+    let name = util::str_to_cstring(name);
+
+    unsafe {
+        class::rb_define_method(
+            klass,
+            name.as_ptr(),
+            crate::rubysys::vm::rb_f_notimplement as CallbackPtr,
+            -1,
+        )
+    }
+}
+
+// The last argument must be a `Hash`; it is passed as keywords.
+pub fn new_instance_with_keywords(klass: Value, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { class::rb_class_new_instance_kw(argc, argv, klass, 1) }
+}
+
+pub fn respond_to_including_private(object: Value, method: &str) -> bool {
+    util::c_int_to_bool(unsafe {
+        crate::rubysys::object::rb_obj_respond_to(object, symbol::internal_id(method), 1)
+    })
 }

@@ -1,12 +1,16 @@
 use std::convert::From;
 
 use crate::{
-    binding::{class, global::rb_cObject, module, vm},
+    binding::{
+        class::{self, MethodVisibility},
+        global::rb_cObject,
+        module, vm,
+    },
     rubysys::class::AllocFunction,
     typed_data::DataTypeWrapper,
     types::{Value, ValueType},
-    util, AnyException, AnyObject, Array, Exception, Module, NilClass, Object, RString, Symbol,
-    VerifiedObject,
+    util, AnyException, AnyObject, Array, Exception, Hash, Module, NilClass, Object, RString,
+    Symbol, VerifiedObject,
 };
 
 /// `Class`
@@ -226,6 +230,159 @@ impl Class {
         } else {
             Some(Self::from(superclass_value))
         }
+    }
+
+    /// Creates an anonymous subclass of `superclass` (`Object` when `None`),
+    /// like Ruby's `Class.new(superclass)` without a block, but without
+    /// calling `superclass.inherited` (`rb_define_class_id`). No constant is
+    /// set; see [`Class::set_path`](#method.set_path) to name it.
+    ///
+    /// Returns the `TypeError` when `superclass` cannot be subclassed (a
+    /// singleton class, or `Class`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Base; def self.kind; :base; end; end").unwrap();
+    ///
+    /// let base = Class::from_existing("Base");
+    /// let anonymous = Class::new_anonymous(Some(&base)).unwrap();
+    ///
+    /// assert!(anonymous.name().is_none());
+    /// assert_eq!(anonymous.superclass(), Some(base));
+    ///
+    /// // Class methods are inherited.
+    /// let kind = unsafe { anonymous.send("kind", &[]) };
+    /// assert_eq!(kind.try_convert_to::<Symbol>(), Ok(Symbol::new("base")));
+    ///
+    /// assert!(Class::new_anonymous(Some(&Class::from_existing("Class"))).is_err());
+    /// ```
+    pub fn new_anonymous(superclass: Option<&Self>) -> Result<Self, AnyException> {
+        let superclass = Self::superclass_to_value(superclass);
+
+        vm::protect_value(|| class::new_anonymous_class(superclass))
+            .map(Self::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Checks that this class can be subclassed (`rb_check_inheritable`),
+    /// returning the `TypeError` Ruby raises for a singleton class or
+    /// `Class` itself.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// assert!(Class::from_existing("String").check_inheritable().is_ok());
+    ///
+    /// let error = Class::from_existing("Class").check_inheritable().unwrap_err();
+    ///
+    /// assert_eq!(error.message(), "can't make subclass of Class");
+    /// assert!(Class::from_existing("String").singleton_class().check_inheritable().is_err());
+    /// ```
+    pub fn check_inheritable(&self) -> Result<(), AnyException> {
+        let klass = self.value();
+
+        vm::protect_value(|| {
+            class::check_inheritable(klass);
+
+            NilClass::new().value()
+        })
+        .map(|_| ())
+        .map_err(AnyException::from)
+    }
+
+    /// Returns the first class that is not a singleton class (nor an
+    /// include class) starting from this one (`rb_class_real`): for an
+    /// object's singleton class, the object's class.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let singleton = RString::new_utf8("text").singleton_class();
+    ///
+    /// assert_ne!(singleton, Class::from_existing("String"));
+    /// assert_eq!(singleton.real_class(), Class::from_existing("String"));
+    /// assert_eq!(Class::from_existing("Array").real_class(), Class::from_existing("Array"));
+    /// ```
+    pub fn real_class(&self) -> Self {
+        Self::from(class::class_real(self.value()))
+    }
+
+    /// Returns `true` if the instance method `name` of this class is still
+    /// Ruby's built-in definition, not redefined or overridden by Ruby code
+    /// (`rb_method_basic_definition_p`), so a fast path that skips calling
+    /// it gives the same result.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, VM};
+    /// # VM::init();
+    ///
+    /// assert!(Class::from_existing("Integer").is_method_basic_definition("+"));
+    ///
+    /// VM::eval("class Array; def first; :patched; end; end").unwrap();
+    ///
+    /// assert!(!Class::from_existing("Array").is_method_basic_definition("first"));
+    /// ```
+    pub fn is_method_basic_definition(&self, name: &str) -> bool {
+        class::is_method_basic_definition(self.value(), name)
+    }
+
+    /// Creates a new instance of the class with `arguments` and `keywords`
+    /// given to `initialize` as positional and keyword arguments
+    /// (`rb_class_new_instance_kw`), or returns the exception `initialize`
+    /// raises.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Point; attr_reader :x, :y; def initialize(x, y: 0); @x, @y = x, y; end; end").unwrap();
+    ///
+    /// let point_class = Class::from_existing("Point");
+    /// let mut keywords = Hash::new();
+    /// keywords.store(Symbol::new("y"), Fixnum::new(2));
+    ///
+    /// let point = point_class
+    ///     .new_instance_with_keywords(&[Fixnum::new(1).into()], keywords)
+    ///     .unwrap();
+    ///
+    /// let y = unsafe { point.send("y", &[]) };
+    /// assert_eq!(y.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+    ///
+    /// let mut unknown = Hash::new();
+    /// unknown.store(Symbol::new("z"), Fixnum::new(3));
+    ///
+    /// let error = point_class
+    ///     .new_instance_with_keywords(&[Fixnum::new(1).into()], unknown)
+    ///     .unwrap_err();
+    ///
+    /// assert_eq!(error.message(), "unknown keyword: :z");
+    /// ```
+    pub fn new_instance_with_keywords(
+        &self,
+        arguments: &[AnyObject],
+        keywords: Hash,
+    ) -> Result<AnyObject, AnyException> {
+        let klass = self.value();
+        let mut arguments = util::arguments_to_values(arguments);
+        arguments.push(keywords.value());
+
+        vm::protect_value(|| class::new_instance_with_keywords(klass, &arguments))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
     }
 
     /// Returns a Vector of ancestors of current class
@@ -1361,6 +1518,374 @@ impl Class {
         .map_err(AnyException::from)
     }
 
+    /// Returns the names of the public instance methods of this class as
+    /// an `Array` of `Symbol`s (Ruby's `public_instance_methods`,
+    /// `rb_class_public_instance_methods`); with `include_inherited`, also
+    /// those of its ancestors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Sample; def open; end; protected def guarded; end; private def hidden; end; end").unwrap();
+    ///
+    /// let methods = Class::from_existing("Sample").public_instance_methods(false);
+    ///
+    /// assert_eq!(methods.length(), 1);
+    /// assert_eq!(methods.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("open")));
+    /// ```
+    pub fn public_instance_methods(&self, include_inherited: bool) -> Array {
+        Array::from(class::instance_methods_with_visibility(
+            self.value(),
+            include_inherited,
+            MethodVisibility::Public,
+        ))
+    }
+
+    /// Returns the names of the protected instance methods of this class
+    /// as an `Array` of `Symbol`s (Ruby's `protected_instance_methods`,
+    /// `rb_class_protected_instance_methods`); with `include_inherited`,
+    /// also those of its ancestors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Sample; def open; end; protected def guarded; end; private def hidden; end; end").unwrap();
+    ///
+    /// let methods = Class::from_existing("Sample").protected_instance_methods(false);
+    ///
+    /// assert_eq!(methods.length(), 1);
+    /// assert_eq!(methods.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("guarded")));
+    /// ```
+    pub fn protected_instance_methods(&self, include_inherited: bool) -> Array {
+        Array::from(class::instance_methods_with_visibility(
+            self.value(),
+            include_inherited,
+            MethodVisibility::Protected,
+        ))
+    }
+
+    /// Returns the names of the private instance methods of this class as
+    /// an `Array` of `Symbol`s (Ruby's `private_instance_methods`,
+    /// `rb_class_private_instance_methods`); with `include_inherited`, also
+    /// those of its ancestors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Sample; def open; end; protected def guarded; end; private def hidden; end; end").unwrap();
+    ///
+    /// let methods = Class::from_existing("Sample").private_instance_methods(false);
+    ///
+    /// assert_eq!(methods.length(), 1);
+    /// assert_eq!(methods.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("hidden")));
+    /// ```
+    pub fn private_instance_methods(&self, include_inherited: bool) -> Array {
+        Array::from(class::instance_methods_with_visibility(
+            self.value(),
+            include_inherited,
+            MethodVisibility::Private,
+        ))
+    }
+
+    /// Returns the modules included in this class and its ancestors
+    /// (Ruby's `included_modules`, `rb_mod_included_modules`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Walking; end; class Sample; include Walking; end").unwrap();
+    ///
+    /// let modules = Class::from_existing("Sample").included_modules();
+    ///
+    /// assert_eq!(modules[0], Module::from_existing("Walking"));
+    /// assert!(modules.contains(&Module::from_existing("Kernel")));
+    /// ```
+    pub fn included_modules(&self) -> Vec<Module> {
+        Array::from(class::included_modules(self.value()))
+            .into_iter()
+            .map(|module| Module::from(module.value()))
+            .collect()
+    }
+
+    /// Returns the names of the constants of this class as an `Array` of
+    /// `Symbol`s (Ruby's `constants`, `rb_mod_constants`); with
+    /// `include_inherited`, also those of its ancestors (`Object`'s constants are left out).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Limits; FLOOR = 0; end; class Sample; include Limits; CEILING = 10; end").unwrap();
+    ///
+    /// let sample = Class::from_existing("Sample");
+    /// let own = sample.constants(false);
+    ///
+    /// assert_eq!(own.length(), 1);
+    /// assert_eq!(own.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("CEILING")));
+    /// assert_eq!(sample.constants(true).length(), 2);
+    /// ```
+    pub fn constants(&self, include_inherited: bool) -> Array {
+        Array::from(class::constants(self.value(), include_inherited))
+    }
+
+    /// Returns the names of the class variables of this class as an
+    /// `Array` of `Symbol`s (Ruby's `class_variables`,
+    /// `rb_mod_class_variables`); with `include_inherited`, also those of
+    /// its ancestors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Shared; @@shared = 1; end; class Sample; include Shared; @@own = 2; end").unwrap();
+    ///
+    /// let sample = Class::from_existing("Sample");
+    /// let own = sample.class_variables(false);
+    ///
+    /// assert_eq!(own.length(), 1);
+    /// assert_eq!(own.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("@@own")));
+    /// assert_eq!(sample.class_variables(true).length(), 2);
+    /// ```
+    pub fn class_variables(&self, include_inherited: bool) -> Array {
+        Array::from(class::class_variables(self.value(), include_inherited))
+    }
+
+    /// Returns the constant `name` defined in this class itself, not in an
+    /// ancestor, or the `NameError` when there is none (`rb_const_get_at`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Limits; FLOOR = 0; end; class Sample; include Limits; CEILING = 10; end").unwrap();
+    ///
+    /// let sample = Class::from_existing("Sample");
+    /// let ceiling = sample.const_get_at("CEILING").unwrap();
+    ///
+    /// assert_eq!(ceiling.try_convert_to::<Fixnum>(), Ok(Fixnum::new(10)));
+    /// assert!(sample.const_get_at("FLOOR").is_err());
+    /// ```
+    pub fn const_get_at(&self, name: &str) -> Result<AnyObject, AnyException> {
+        let module = self.value();
+
+        vm::protect_value(|| class::const_get_at(module, name))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns the constant `name` the way Ruby's `Sample::NAME` finds it, in
+    /// this class or its ancestors but not in `Object` (unless this is
+    /// `Object`), or the `NameError` when there is none
+    /// (`rb_const_get_from`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Limits; FLOOR = 0; end; class Sample; include Limits; end").unwrap();
+    ///
+    /// let sample = Class::from_existing("Sample");
+    /// let floor = sample.const_get_from("FLOOR").unwrap();
+    ///
+    /// assert_eq!(floor.try_convert_to::<Fixnum>(), Ok(Fixnum::new(0)));
+    ///
+    /// // A top-level constant is not `Sample::String`.
+    /// assert!(sample.const_get_from("String").is_err());
+    /// ```
+    pub fn const_get_from(&self, name: &str) -> Result<AnyObject, AnyException> {
+        let module = self.value();
+
+        vm::protect_value(|| class::const_get_from(module, name))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns `true` if `Sample::NAME` would find the constant `name`: it is
+    /// defined in this class or its ancestors, leaving out `Object` (unless
+    /// this is `Object`) (`rb_const_defined_from`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Limits; FLOOR = 0; end; class Sample; include Limits; end").unwrap();
+    ///
+    /// let sample = Class::from_existing("Sample");
+    ///
+    /// assert!(sample.is_const_defined_from("FLOOR"));
+    /// assert!(!sample.is_const_defined_from("String"));
+    /// assert!(sample.is_const_defined("String"));
+    /// ```
+    pub fn is_const_defined_from(&self, name: &str) -> bool {
+        class::is_const_defined_from(self.value(), name)
+    }
+
+    /// Removes the class variable `name` (such as `"@@count"`) defined in
+    /// this class and returns its value, or the `NameError` when this class
+    /// does not define it (Ruby's `remove_class_variable`,
+    /// `rb_mod_remove_cvar`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Sample; @@count = 3; end").unwrap();
+    ///
+    /// let mut sample = Class::from_existing("Sample");
+    /// let count = sample.remove_class_variable("@@count").unwrap();
+    ///
+    /// assert_eq!(count.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+    /// assert!(!sample.is_class_variable_defined("@@count"));
+    /// assert!(sample.remove_class_variable("@@count").is_err());
+    /// ```
+    pub fn remove_class_variable(&mut self, name: &str) -> Result<AnyObject, AnyException> {
+        let module = self.value();
+
+        vm::protect_value(|| class::remove_class_variable(module, name))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns the path registered with `autoload` for the constant `name`
+    /// of this class, or `None` when there is no pending autoload (Ruby's
+    /// `autoload?`, `rb_autoload_p`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Sample; autoload :Plugin, '/nonexistent/plugin'; end").unwrap();
+    ///
+    /// let sample = Class::from_existing("Sample");
+    ///
+    /// assert_eq!(sample.autoload_path("Plugin").unwrap().to_str(), "/nonexistent/plugin");
+    /// assert!(sample.autoload_path("Missing").is_none());
+    /// ```
+    pub fn autoload_path(&self, name: &str) -> Option<RString> {
+        let path = class::autoload_path(self.value(), name);
+
+        if path.is_nil() {
+            None
+        } else {
+            Some(RString::from(path))
+        }
+    }
+
+    /// Loads the file registered with `autoload` for the constant `name`
+    /// of this class, as referring to the constant would (`rb_autoload_load`).
+    ///
+    /// Returns `false` when there is no pending autoload for `name`, or the
+    /// exception loading the file raised (such as `LoadError`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Sample; autoload :Plugin, '/nonexistent/plugin'; end").unwrap();
+    ///
+    /// let sample = Class::from_existing("Sample");
+    /// let error = sample.autoload_load("Plugin").unwrap_err();
+    ///
+    /// assert!(Class::from_existing("LoadError").case_equals(&error));
+    /// assert_eq!(sample.autoload_load("Missing"), Ok(false));
+    /// ```
+    pub fn autoload_load(&self, name: &str) -> Result<bool, AnyException> {
+        let module = self.value();
+        let mut loaded = false;
+
+        vm::protect_value(|| {
+            loaded = class::autoload_load(module, name);
+
+            NilClass::new().value()
+        })
+        .map(|_| loaded)
+        .map_err(AnyException::from)
+    }
+
+    /// Removes the method `name` defined in this class, so calls find the
+    /// method of an ancestor again (Ruby's `remove_method`,
+    /// `rb_remove_method_id`), or returns the `NameError` when this class
+    /// does not define it. Compare
+    /// [`undef_method`](#method.undef_method), which hides ancestors'
+    /// methods as well.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("class Sample; def to_s; 'custom'; end; end").unwrap();
+    ///
+    /// let mut sample = Class::from_existing("Sample");
+    ///
+    /// assert!(sample.remove_method("to_s").is_ok());
+    /// assert_eq!(sample.public_instance_methods(false).length(), 0);
+    /// assert!(sample.remove_method("to_s").is_err());
+    /// ```
+    pub fn remove_method(&mut self, name: &str) -> Result<(), AnyException> {
+        let module = self.value();
+
+        vm::protect_value(|| {
+            class::remove_method(module, name);
+
+            NilClass::new().value()
+        })
+        .map(|_| ())
+        .map_err(AnyException::from)
+    }
+
+    /// Names this class `name` inside `outer` (a `Class` or `Module`), so
+    /// `name`, `inspect` and error messages show `Outer::Name`, without
+    /// defining a constant (`rb_set_class_path_string`). For an anonymous
+    /// class made by [`Class::new_anonymous`](#method.new_anonymous).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, VM};
+    /// # VM::init();
+    ///
+    /// let outer = Class::new("Outer", None);
+    /// let mut anonymous = Class::new_anonymous(None).unwrap();
+    ///
+    /// anonymous.set_path(&outer, "Inner");
+    ///
+    /// assert_eq!(anonymous.name().unwrap().to_str(), "Outer::Inner");
+    /// assert!(!outer.is_const_defined_at("Inner"));
+    /// ```
+    pub fn set_path<T: Object>(&mut self, outer: &T, name: &str) {
+        class::set_class_path(self.value(), outer.value(), name);
+    }
+
     /// Wraps Rust structure into a new Ruby object of the current class.
     ///
     /// See the documentation for `wrappable_struct!` macro for more information.
@@ -1522,7 +2047,7 @@ impl PartialEq for Class {
 
 #[cfg(test)]
 mod tests {
-    use crate::{AnyObject, Class, Exception, Fixnum, Module, Object, RString, Symbol, VM};
+    use crate::{AnyObject, Class, Exception, Fixnum, Hash, Module, Object, RString, Symbol, VM};
 
     #[test]
     fn test_class_introspection() {
@@ -1935,6 +2460,160 @@ mod tests {
 
             let error = Class::data_define(Some(&Class::object()), &["a"]).unwrap_err();
             assert!(Class::type_error().case_equals(&error));
+        });
+    }
+
+    #[test]
+    fn test_anonymous_classes_and_paths() {
+        crate::on_ruby_thread(|| {
+            let anonymous = Class::new_anonymous(None).unwrap();
+            assert_eq!(anonymous.superclass(), Some(Class::from_existing("Object")));
+            assert!(anonymous.name().is_none());
+
+            // `inherited` is not called.
+            VM::eval(
+                "class RutieInheritWatch
+                   @children = 0
+                   def self.inherited(child); @children += 1; super; end
+                   def self.children; @children; end
+                 end",
+            )
+            .unwrap();
+            let watched = Class::from_existing("RutieInheritWatch");
+            let mut child = Class::new_anonymous(Some(&watched)).unwrap();
+            let children = unsafe { watched.send("children", &[]) };
+            assert_eq!(children.try_convert_to::<Fixnum>(), Ok(Fixnum::new(0)));
+
+            let outer = Module::new("RutieAnonOuter");
+            child.set_path(&outer, "Child");
+            assert_eq!(child.name().unwrap().to_str(), "RutieAnonOuter::Child");
+            assert!(child.inherits(&watched).unwrap());
+
+            let singleton = child.singleton_class();
+            assert!(singleton.check_inheritable().is_err());
+            assert!(Class::new_anonymous(Some(&singleton)).is_err());
+            assert_eq!(singleton.real_class(), Class::from_existing("Class"));
+            assert_eq!(
+                RString::new_utf8("s").singleton_class().real_class(),
+                Class::from_existing("String")
+            );
+        });
+    }
+
+    #[test]
+    fn test_class_member_lists_and_lookup() {
+        crate::on_ruby_thread(|| {
+            VM::eval(
+                "module RutieListMixin; MIXED = 1; @@mixed = 1; def mixed; end; end
+                 class RutieListBase; def base_public; end; protected def base_protected; end; end
+                 class RutieList < RutieListBase
+                   include RutieListMixin
+                   OWN = 2
+                   @@own = 2
+                   def own_public; end
+                   protected def own_protected; end
+                   private def own_private; end
+                   autoload :RutieLazy, '/nonexistent/rutie_lazy'
+                 end",
+            )
+            .unwrap();
+
+            let mut list = Class::from_existing("RutieList");
+
+            let names = |array: crate::Array| -> Vec<String> {
+                let mut names: Vec<String> = array
+                    .into_iter()
+                    .map(|name| name.try_convert_to::<Symbol>().unwrap().to_string())
+                    .collect();
+                names.sort();
+                names
+            };
+
+            assert_eq!(
+                names(list.public_instance_methods(false)),
+                vec!["own_public"]
+            );
+            assert_eq!(
+                names(list.protected_instance_methods(false)),
+                vec!["own_protected"]
+            );
+            assert_eq!(
+                names(list.private_instance_methods(false)),
+                vec!["own_private"]
+            );
+            assert_eq!(
+                names(list.protected_instance_methods(true)),
+                vec!["base_protected", "own_protected"]
+            );
+            assert!(names(list.public_instance_methods(true)).contains(&"mixed".to_string()));
+
+            assert_eq!(names(list.constants(false)), vec!["OWN", "RutieLazy"]);
+            assert_eq!(
+                names(list.constants(true)),
+                vec!["MIXED", "OWN", "RutieLazy"]
+            );
+            assert_eq!(names(list.class_variables(false)), vec!["@@own"]);
+            assert_eq!(names(list.class_variables(true)), vec!["@@mixed", "@@own"]);
+
+            let modules = list.included_modules();
+            assert_eq!(modules[0], Module::from_existing("RutieListMixin"));
+
+            assert!(list.const_get_at("OWN").is_ok());
+            assert!(list.const_get_at("MIXED").is_err());
+            assert!(list.const_get_from("MIXED").is_ok());
+            assert!(list.const_get_from("Comparable").is_err());
+            assert!(list.is_const_defined_from("MIXED"));
+            assert!(!list.is_const_defined_from("Comparable"));
+
+            assert_eq!(
+                list.autoload_path("RutieLazy").unwrap().to_str(),
+                "/nonexistent/rutie_lazy"
+            );
+            let error = list.autoload_load("RutieLazy").unwrap_err();
+            assert!(Class::from_existing("LoadError").case_equals(&error));
+            assert_eq!(list.autoload_load("OWN"), Ok(false));
+
+            assert!(list.remove_class_variable("@@mixed").is_err());
+            let own = list.remove_class_variable("@@own").unwrap();
+            assert_eq!(own.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+
+            assert!(list.remove_method("own_public").is_ok());
+            assert!(list.remove_method("own_public").is_err());
+            // A method of an ancestor cannot be removed here.
+            assert!(list.remove_method("base_public").is_err());
+            assert!(list.is_method_defined("base_public", false));
+
+            assert!(Class::from_existing("String").is_method_basic_definition("length"));
+            assert!(!list.is_method_basic_definition("own_protected"));
+        });
+    }
+
+    #[test]
+    fn test_new_instance_with_keywords() {
+        crate::on_ruby_thread(|| {
+            VM::eval(
+                "class RutieKwInit
+                   attr_reader :all
+                   def initialize(*args, **kw); raise ArgumentError, 'none' if args.empty?; @all = [args, kw]; end
+                 end",
+            )
+            .unwrap();
+
+            let class = Class::from_existing("RutieKwInit");
+            let keywords = VM::eval("{ mode: :fast }")
+                .unwrap()
+                .try_convert_to::<Hash>()
+                .unwrap();
+            let instance = class
+                .new_instance_with_keywords(&[Fixnum::new(1).into()], keywords)
+                .unwrap();
+            let all = unsafe { instance.send("all", &[]) };
+            assert_eq!(all.inspect_object().to_str(), "[[1], {mode: :fast}]");
+
+            let error = class
+                .new_instance_with_keywords(&[], Hash::new())
+                .unwrap_err();
+            assert_eq!(error.message(), "none");
         });
     }
 }

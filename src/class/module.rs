@@ -1,7 +1,11 @@
 use std::convert::From;
 
 use crate::{
-    binding::{class, global::rb_cObject, module, vm},
+    binding::{
+        class::{self, MethodVisibility},
+        global::rb_cObject,
+        module, vm,
+    },
     typed_data::DataTypeWrapper,
     types::{Callback, Value, ValueType},
     AnyException, AnyObject, Array, Class, Exception, NilClass, Object, RString, Symbol,
@@ -177,6 +181,28 @@ impl Module {
             .into_iter()
             .map(|module| unsafe { module.to::<Self>() })
             .collect()
+    }
+
+    /// Creates an anonymous module, like Ruby's `Module.new` without a block
+    /// (`rb_module_new`). No constant is set; see
+    /// [`Module::set_path`](#method.set_path) to name it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// let mut helpers = Module::new_anonymous();
+    ///
+    /// assert!(helpers.name().is_none());
+    ///
+    /// helpers.module_eval("def self.answer; 42; end").unwrap();
+    ///
+    /// assert!(helpers.respond_to("answer"));
+    /// ```
+    pub fn new_anonymous() -> Self {
+        Self::from(class::new_anonymous_module())
     }
 
     /// Retrieves a `Module` nested to current `Module`.
@@ -1211,6 +1237,374 @@ impl Module {
         crate::class::class::deprecate_constant(self.value(), name)
     }
 
+    /// Returns the names of the public instance methods of this module as
+    /// an `Array` of `Symbol`s (Ruby's `public_instance_methods`,
+    /// `rb_class_public_instance_methods`); with `include_inherited`, also
+    /// those of its ancestors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Toolkit; def open; end; protected def guarded; end; private def hidden; end; end").unwrap();
+    ///
+    /// let methods = Module::from_existing("Toolkit").public_instance_methods(false);
+    ///
+    /// assert_eq!(methods.length(), 1);
+    /// assert_eq!(methods.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("open")));
+    /// ```
+    pub fn public_instance_methods(&self, include_inherited: bool) -> Array {
+        Array::from(class::instance_methods_with_visibility(
+            self.value(),
+            include_inherited,
+            MethodVisibility::Public,
+        ))
+    }
+
+    /// Returns the names of the protected instance methods of this module
+    /// as an `Array` of `Symbol`s (Ruby's `protected_instance_methods`,
+    /// `rb_class_protected_instance_methods`); with `include_inherited`,
+    /// also those of its ancestors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Toolkit; def open; end; protected def guarded; end; private def hidden; end; end").unwrap();
+    ///
+    /// let methods = Module::from_existing("Toolkit").protected_instance_methods(false);
+    ///
+    /// assert_eq!(methods.length(), 1);
+    /// assert_eq!(methods.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("guarded")));
+    /// ```
+    pub fn protected_instance_methods(&self, include_inherited: bool) -> Array {
+        Array::from(class::instance_methods_with_visibility(
+            self.value(),
+            include_inherited,
+            MethodVisibility::Protected,
+        ))
+    }
+
+    /// Returns the names of the private instance methods of this module as
+    /// an `Array` of `Symbol`s (Ruby's `private_instance_methods`,
+    /// `rb_class_private_instance_methods`); with `include_inherited`, also
+    /// those of its ancestors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Toolkit; def open; end; protected def guarded; end; private def hidden; end; end").unwrap();
+    ///
+    /// let methods = Module::from_existing("Toolkit").private_instance_methods(false);
+    ///
+    /// assert_eq!(methods.length(), 1);
+    /// assert_eq!(methods.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("hidden")));
+    /// ```
+    pub fn private_instance_methods(&self, include_inherited: bool) -> Array {
+        Array::from(class::instance_methods_with_visibility(
+            self.value(),
+            include_inherited,
+            MethodVisibility::Private,
+        ))
+    }
+
+    /// Returns the modules included in this module and its ancestors
+    /// (Ruby's `included_modules`, `rb_mod_included_modules`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Walking; end; module Toolkit; include Walking; end").unwrap();
+    ///
+    /// let modules = Module::from_existing("Toolkit").included_modules();
+    ///
+    /// assert_eq!(modules[0], Module::from_existing("Walking"));
+    /// assert_eq!(modules.len(), 1);
+    /// ```
+    pub fn included_modules(&self) -> Vec<Module> {
+        Array::from(class::included_modules(self.value()))
+            .into_iter()
+            .map(|module| Module::from(module.value()))
+            .collect()
+    }
+
+    /// Returns the names of the constants of this module as an `Array` of
+    /// `Symbol`s (Ruby's `constants`, `rb_mod_constants`); with
+    /// `include_inherited`, also those of its ancestors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Limits; FLOOR = 0; end; module Toolkit; include Limits; CEILING = 10; end").unwrap();
+    ///
+    /// let toolkit = Module::from_existing("Toolkit");
+    /// let own = toolkit.constants(false);
+    ///
+    /// assert_eq!(own.length(), 1);
+    /// assert_eq!(own.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("CEILING")));
+    /// assert_eq!(toolkit.constants(true).length(), 2);
+    /// ```
+    pub fn constants(&self, include_inherited: bool) -> Array {
+        Array::from(class::constants(self.value(), include_inherited))
+    }
+
+    /// Returns the names of the class variables of this module as an
+    /// `Array` of `Symbol`s (Ruby's `class_variables`,
+    /// `rb_mod_class_variables`); with `include_inherited`, also those of
+    /// its ancestors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Shared; @@shared = 1; end; module Toolkit; include Shared; @@own = 2; end").unwrap();
+    ///
+    /// let toolkit = Module::from_existing("Toolkit");
+    /// let own = toolkit.class_variables(false);
+    ///
+    /// assert_eq!(own.length(), 1);
+    /// assert_eq!(own.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("@@own")));
+    /// assert_eq!(toolkit.class_variables(true).length(), 2);
+    /// ```
+    pub fn class_variables(&self, include_inherited: bool) -> Array {
+        Array::from(class::class_variables(self.value(), include_inherited))
+    }
+
+    /// Returns the constant `name` defined in this module itself, not in an
+    /// ancestor, or the `NameError` when there is none (`rb_const_get_at`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Limits; FLOOR = 0; end; module Toolkit; include Limits; CEILING = 10; end").unwrap();
+    ///
+    /// let toolkit = Module::from_existing("Toolkit");
+    /// let ceiling = toolkit.const_get_at("CEILING").unwrap();
+    ///
+    /// assert_eq!(ceiling.try_convert_to::<Fixnum>(), Ok(Fixnum::new(10)));
+    /// assert!(toolkit.const_get_at("FLOOR").is_err());
+    /// ```
+    pub fn const_get_at(&self, name: &str) -> Result<AnyObject, AnyException> {
+        let module = self.value();
+
+        vm::protect_value(|| class::const_get_at(module, name))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns the constant `name` the way Ruby's `Toolkit::NAME` finds it, in
+    /// this module or its ancestors but not in `Object` (unless this is
+    /// `Object`), or the `NameError` when there is none
+    /// (`rb_const_get_from`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Limits; FLOOR = 0; end; module Toolkit; include Limits; end").unwrap();
+    ///
+    /// let toolkit = Module::from_existing("Toolkit");
+    /// let floor = toolkit.const_get_from("FLOOR").unwrap();
+    ///
+    /// assert_eq!(floor.try_convert_to::<Fixnum>(), Ok(Fixnum::new(0)));
+    ///
+    /// // A top-level constant is not `Toolkit::String`.
+    /// assert!(toolkit.const_get_from("String").is_err());
+    /// ```
+    pub fn const_get_from(&self, name: &str) -> Result<AnyObject, AnyException> {
+        let module = self.value();
+
+        vm::protect_value(|| class::const_get_from(module, name))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns `true` if `Toolkit::NAME` would find the constant `name`: it is
+    /// defined in this module or its ancestors, leaving out `Object` (unless
+    /// this is `Object`) (`rb_const_defined_from`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Limits; FLOOR = 0; end; module Toolkit; include Limits; end").unwrap();
+    ///
+    /// let toolkit = Module::from_existing("Toolkit");
+    ///
+    /// assert!(toolkit.is_const_defined_from("FLOOR"));
+    /// assert!(!toolkit.is_const_defined_from("String"));
+    /// assert!(toolkit.is_const_defined("String"));
+    /// ```
+    pub fn is_const_defined_from(&self, name: &str) -> bool {
+        class::is_const_defined_from(self.value(), name)
+    }
+
+    /// Removes the class variable `name` (such as `"@@count"`) defined in
+    /// this module and returns its value, or the `NameError` when this module
+    /// does not define it (Ruby's `remove_class_variable`,
+    /// `rb_mod_remove_cvar`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Toolkit; @@count = 3; end").unwrap();
+    ///
+    /// let mut toolkit = Module::from_existing("Toolkit");
+    /// let count = toolkit.remove_class_variable("@@count").unwrap();
+    ///
+    /// assert_eq!(count.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+    /// assert!(!toolkit.is_class_variable_defined("@@count"));
+    /// assert!(toolkit.remove_class_variable("@@count").is_err());
+    /// ```
+    pub fn remove_class_variable(&mut self, name: &str) -> Result<AnyObject, AnyException> {
+        let module = self.value();
+
+        vm::protect_value(|| class::remove_class_variable(module, name))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns the path registered with `autoload` for the constant `name`
+    /// of this module, or `None` when there is no pending autoload (Ruby's
+    /// `autoload?`, `rb_autoload_p`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Toolkit; autoload :Plugin, '/nonexistent/plugin'; end").unwrap();
+    ///
+    /// let toolkit = Module::from_existing("Toolkit");
+    ///
+    /// assert_eq!(toolkit.autoload_path("Plugin").unwrap().to_str(), "/nonexistent/plugin");
+    /// assert!(toolkit.autoload_path("Missing").is_none());
+    /// ```
+    pub fn autoload_path(&self, name: &str) -> Option<RString> {
+        let path = class::autoload_path(self.value(), name);
+
+        if path.is_nil() {
+            None
+        } else {
+            Some(RString::from(path))
+        }
+    }
+
+    /// Loads the file registered with `autoload` for the constant `name`
+    /// of this module, as referring to the constant would (`rb_autoload_load`).
+    ///
+    /// Returns `false` when there is no pending autoload for `name`, or the
+    /// exception loading the file raised (such as `LoadError`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Class, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Toolkit; autoload :Plugin, '/nonexistent/plugin'; end").unwrap();
+    ///
+    /// let toolkit = Module::from_existing("Toolkit");
+    /// let error = toolkit.autoload_load("Plugin").unwrap_err();
+    ///
+    /// assert!(Class::from_existing("LoadError").case_equals(&error));
+    /// assert_eq!(toolkit.autoload_load("Missing"), Ok(false));
+    /// ```
+    pub fn autoload_load(&self, name: &str) -> Result<bool, AnyException> {
+        let module = self.value();
+        let mut loaded = false;
+
+        vm::protect_value(|| {
+            loaded = class::autoload_load(module, name);
+
+            NilClass::new().value()
+        })
+        .map(|_| loaded)
+        .map_err(AnyException::from)
+    }
+
+    /// Removes the method `name` defined in this module, so calls find the
+    /// method of an ancestor again (Ruby's `remove_method`,
+    /// `rb_remove_method_id`), or returns the `NameError` when this module
+    /// does not define it. Compare
+    /// [`undef_method`](#method.undef_method), which hides ancestors'
+    /// methods as well.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Toolkit; def to_s; 'custom'; end; end").unwrap();
+    ///
+    /// let mut toolkit = Module::from_existing("Toolkit");
+    ///
+    /// assert!(toolkit.remove_method("to_s").is_ok());
+    /// assert_eq!(toolkit.public_instance_methods(false).length(), 0);
+    /// assert!(toolkit.remove_method("to_s").is_err());
+    /// ```
+    pub fn remove_method(&mut self, name: &str) -> Result<(), AnyException> {
+        let module = self.value();
+
+        vm::protect_value(|| {
+            class::remove_method(module, name);
+
+            NilClass::new().value()
+        })
+        .map(|_| ())
+        .map_err(AnyException::from)
+    }
+
+    /// Names this module `name` inside `outer` (a `Class` or `Module`), so
+    /// `name`, `inspect` and error messages show `Outer::Name`, without
+    /// defining a constant (`rb_set_class_path_string`). For an anonymous
+    /// module made by [`Module::new_anonymous`](#method.new_anonymous).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// let outer = Module::new("Outer");
+    /// let mut anonymous = Module::new_anonymous();
+    ///
+    /// anonymous.set_path(&outer, "Inner");
+    ///
+    /// assert_eq!(anonymous.name().unwrap().to_str(), "Outer::Inner");
+    /// assert!(!outer.is_const_defined_at("Inner"));
+    /// ```
+    pub fn set_path<T: Object>(&mut self, outer: &T, name: &str) {
+        class::set_class_path(self.value(), outer.value(), name);
+    }
+
     /// Wraps Rust structure into a new Ruby object of the current module.
     ///
     /// See the documentation for `wrappable_struct!` macro for more information.
@@ -1509,6 +1903,48 @@ mod tests {
             deprecating.const_set("GONE", &Fixnum::new(0));
             assert!(deprecating.deprecate_constant("GONE").is_ok());
             assert!(deprecating.deprecate_constant("NEVER_DEFINED").is_err());
+        });
+    }
+
+    #[test]
+    fn test_module_anonymous_and_member_lists() {
+        crate::on_ruby_thread(|| {
+            let mut anonymous = Module::new_anonymous();
+            assert!(anonymous.name().is_none());
+
+            let outer = Module::new("RutieModOuter");
+            anonymous.set_path(&outer, "Inner");
+            assert_eq!(anonymous.name().unwrap().to_str(), "RutieModOuter::Inner");
+
+            VM::eval(
+                "module RutieModMembers
+                   LIMIT = 1
+                   @@count = 0
+                   def visible; end
+                   protected def guarded; end
+                   private def hidden; end
+                 end",
+            )
+            .unwrap();
+            let mut members = Module::from_existing("RutieModMembers");
+
+            assert_eq!(members.public_instance_methods(false).length(), 1);
+            assert_eq!(members.protected_instance_methods(false).length(), 1);
+            assert_eq!(members.private_instance_methods(false).length(), 1);
+            assert_eq!(members.constants(false).length(), 1);
+            assert_eq!(members.class_variables(false).length(), 1);
+            assert!(members.included_modules().is_empty());
+
+            assert!(members.const_get_at("LIMIT").is_ok());
+            assert!(members.const_get_from("String").is_err());
+            assert!(members.is_const_defined_from("LIMIT"));
+            assert!(members.autoload_path("LIMIT").is_none());
+            assert_eq!(members.autoload_load("LIMIT"), Ok(false));
+
+            assert!(members.remove_class_variable("@@count").is_ok());
+            assert!(members.remove_method("hidden").is_ok());
+            assert!(members.remove_method("hidden").is_err());
+            assert_eq!(members.private_instance_methods(false).length(), 0);
         });
     }
 }

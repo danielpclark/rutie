@@ -8,9 +8,16 @@ use crate::{
 };
 
 use crate::{
-    AnyException, AnyObject, Array, Boolean, Class, Exception, Integer, Method, NilClass, Proc,
-    RString, VerifiedObject, VM,
+    AnyException, AnyObject, Array, Boolean, Class, Exception, Float, Integer, Method, NilClass,
+    Proc, RString, Symbol, VerifiedObject, VM,
 };
+
+// A C string argument for a conversion, or the `ArgumentError` Ruby raises
+// for a string with a NUL byte.
+fn cstring_argument(text: &str) -> Result<std::ffi::CString, AnyException> {
+    std::ffi::CString::new(text)
+        .map_err(|_| AnyException::new("ArgumentError", Some("string contains null byte")))
+}
 
 /// `Object`
 ///
@@ -1769,6 +1776,475 @@ pub trait Object: From<Value> {
             .map_err(AnyException::from)
     }
 
+    /// Returns Kernel's default `to_s` of the object, such as
+    /// `#<Object:0x000055d5...>`, whatever `to_s` its class defines
+    /// (`rb_any_to_s`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, VM};
+    /// # VM::init();
+    ///
+    /// let object = VM::eval("o = Object.new; def o.to_s; 'custom'; end; o").unwrap();
+    ///
+    /// assert_eq!(object.as_string().to_str(), "custom");
+    /// assert!(object.default_to_s().to_str().starts_with("#<Object:0x"));
+    /// ```
+    fn default_to_s(&self) -> RString {
+        RString::from(object::any_to_s(self.value()))
+    }
+
+    /// Returns `true` if the object responds to `method`, counting its
+    /// private and protected methods (Ruby's `respond_to?(method, true)`,
+    /// `rb_obj_respond_to`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, VM};
+    /// # VM::init();
+    ///
+    /// let object = VM::eval("Object.new").unwrap();
+    ///
+    /// // `puts` is a private method of `Kernel`.
+    /// assert!(!object.respond_to("puts"));
+    /// assert!(object.respond_to_including_private("puts"));
+    /// assert!(!object.respond_to_including_private("no_such_method"));
+    /// ```
+    fn respond_to_including_private(&self, method: &str) -> bool {
+        class::respond_to_including_private(self.value(), method)
+    }
+
+    /// Returns the names of the object's singleton methods as an `Array` of
+    /// `Symbol`s (Ruby's `singleton_methods`, `rb_obj_singleton_methods`).
+    /// With `include_modules`, methods of modules the object is extended
+    /// with are included.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let object = VM::eval(
+    ///     "module Greeting; def hello; end; end
+    ///      o = Object.new; o.extend(Greeting); def o.only_mine; end; o",
+    /// )
+    /// .unwrap();
+    ///
+    /// let own = object.singleton_methods(false);
+    ///
+    /// assert_eq!(own.length(), 1);
+    /// assert_eq!(own.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("only_mine")));
+    /// assert_eq!(object.singleton_methods(true).length(), 2);
+    /// ```
+    fn singleton_methods(&self, include_modules: bool) -> Array {
+        Array::from(class::singleton_methods(self.value(), include_modules))
+    }
+
+    /// Returns the number of instance variables set on the object
+    /// (`rb_ivar_count`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let mut object = VM::eval("Object.new").unwrap();
+    ///
+    /// assert_eq!(object.instance_variable_count(), 0);
+    ///
+    /// object.instance_variable_set("@a", Fixnum::new(1));
+    /// object.instance_variable_set("@b", Fixnum::new(2));
+    ///
+    /// assert_eq!(object.instance_variable_count(), 2);
+    /// ```
+    fn instance_variable_count(&self) -> usize {
+        object::instance_variable_count(self.value())
+    }
+
+    /// Calls `func` with the name (such as `:@count`) and the value of each
+    /// instance variable of the object, in the order they were set
+    /// (`rb_ivar_foreach`).
+    ///
+    /// The variables are collected before `func` is first called, so `func`
+    /// may set or remove instance variables.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{AnyObject, Fixnum, Object, RString, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut object = VM::eval("Object.new").unwrap();
+    /// object.instance_variable_set("@count", Fixnum::new(1));
+    /// object.instance_variable_set("@name", RString::new_utf8("rutie"));
+    ///
+    /// let mut names = Vec::new();
+    ///
+    /// object.each_instance_variable(|name, value| {
+    ///     names.push(name.to_string());
+    ///
+    ///     if name == Symbol::new("@count") {
+    ///         assert_eq!(value.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+    ///     }
+    /// });
+    ///
+    /// assert_eq!(names, vec!["@count", "@name"]);
+    /// ```
+    fn each_instance_variable<F>(&self, mut func: F)
+    where
+        F: FnMut(Symbol, AnyObject),
+    {
+        let pairs = Array::from(object::instance_variable_pairs(self.value()));
+        let mut index = 0;
+
+        while index + 1 < pairs.length() as i64 {
+            func(Symbol::from(pairs.at(index).value()), pairs.at(index + 1));
+
+            index += 2;
+        }
+    }
+
+    /// Converts the object to `value_type` with the conversion method
+    /// `method` (such as `"to_str"`), the way Ruby converts arguments
+    /// (`rb_convert_type`): an object already of `value_type` is returned
+    /// as is.
+    ///
+    /// Returns the `TypeError` raised when the object has no such method or
+    /// it returns something else, naming `class_name` as the expected class.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Object, RString, VM};
+    /// use rutie::types::ValueType;
+    /// # VM::init();
+    ///
+    /// let path = VM::eval("o = Object.new; def o.to_str; 'a/b'; end; o").unwrap();
+    /// let converted = path.convert_type(ValueType::RString, "String", "to_str").unwrap();
+    ///
+    /// assert_eq!(converted.try_convert_to::<RString>().unwrap().to_str(), "a/b");
+    ///
+    /// let error = VM::eval("Object.new")
+    ///     .unwrap()
+    ///     .convert_type(ValueType::RString, "String", "to_str")
+    ///     .unwrap_err();
+    ///
+    /// assert_eq!(error.message(), "no implicit conversion of Object into String");
+    /// ```
+    fn convert_type(
+        &self,
+        value_type: ValueType,
+        class_name: &str,
+        method: &str,
+    ) -> Result<AnyObject, AnyException> {
+        let object = self.value();
+        let class_name = cstring_argument(class_name)?;
+        let method = cstring_argument(method)?;
+
+        vm::protect_value(|| object::convert_type(object, value_type, &class_name, &method))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Like [`convert_type`](#method.convert_type), but returns `None` when
+    /// the object does not respond to `method` (`rb_check_convert_type`).
+    /// A `method` returning something not of `value_type` is still a
+    /// `TypeError`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, VM};
+    /// use rutie::types::ValueType;
+    /// # VM::init();
+    ///
+    /// let list = VM::eval("o = Object.new; def o.to_ary; [1, 2]; end; o").unwrap();
+    /// let array = list.check_convert_type(ValueType::Array, "Array", "to_ary").unwrap();
+    ///
+    /// assert_eq!(array.unwrap().try_convert_to::<Array>().unwrap().length(), 2);
+    ///
+    /// let none = Fixnum::new(1).check_convert_type(ValueType::Array, "Array", "to_ary");
+    ///
+    /// assert!(none.unwrap().is_none());
+    ///
+    /// let liar = VM::eval("o = Object.new; def o.to_ary; 1; end; o").unwrap();
+    ///
+    /// assert!(liar.check_convert_type(ValueType::Array, "Array", "to_ary").is_err());
+    /// ```
+    fn check_convert_type(
+        &self,
+        value_type: ValueType,
+        class_name: &str,
+        method: &str,
+    ) -> Result<Option<AnyObject>, AnyException> {
+        let object = self.value();
+        let class_name = cstring_argument(class_name)?;
+        let method = cstring_argument(method)?;
+
+        vm::protect_value(|| object::check_convert_type(object, value_type, &class_name, &method))
+            .map(|result| {
+                if result.is_nil() {
+                    None
+                } else {
+                    Some(AnyObject::from(result))
+                }
+            })
+            .map_err(AnyException::from)
+    }
+
+    /// Converts the object to an `Integer` with `to_int`, Ruby's implicit
+    /// integer conversion (`rb_to_int`), or returns the `TypeError` (or the
+    /// exception `to_int` raises).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Float, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Float::new(2.9).to_int().unwrap().to_i64(), 2);
+    ///
+    /// let error = RString::new_utf8("2").to_int().unwrap_err();
+    ///
+    /// assert_eq!(error.message(), "no implicit conversion of String into Integer");
+    /// ```
+    fn to_int(&self) -> Result<Integer, AnyException> {
+        let object = self.value();
+
+        vm::protect_value(|| object::to_int(object))
+            .map(Integer::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Converts the object to an `Integer` with `to_int`, returning `None`
+    /// when it has no `to_int` or `to_int` does not return an `Integer`
+    /// (`rb_check_to_int`). An exception raised by `to_int` is returned as
+    /// the error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Float, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let integer = Float::new(7.5).check_to_int().unwrap();
+    ///
+    /// assert_eq!(integer.unwrap().to_i64(), 7);
+    /// assert!(RString::new_utf8("7").check_to_int().unwrap().is_none());
+    ///
+    /// let failing = VM::eval("o = Object.new; def o.to_int; raise 'no'; end; o").unwrap();
+    ///
+    /// assert!(failing.check_to_int().is_err());
+    /// ```
+    fn check_to_int(&self) -> Result<Option<Integer>, AnyException> {
+        let object = self.value();
+
+        vm::protect_value(|| object::check_to_int(object))
+            .map(|result| AnyObject::from(result).try_convert_to::<Integer>().ok())
+            .map_err(AnyException::from)
+    }
+
+    /// Calls the conversion method `method` (such as `"to_i"`) on the
+    /// object, returning its result when it is an `Integer` and `None`
+    /// otherwise (`rb_check_to_integer`). An `Integer` is returned as is.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let integer = RString::new_utf8("42").check_to_integer("to_i").unwrap();
+    ///
+    /// assert_eq!(integer.unwrap().to_i64(), 42);
+    /// assert!(RString::new_utf8("42").check_to_integer("to_sym").unwrap().is_none());
+    /// ```
+    fn check_to_integer(&self, method: &str) -> Result<Option<Integer>, AnyException> {
+        let object = self.value();
+        let method = cstring_argument(method)?;
+
+        vm::protect_value(|| object::check_to_integer(object, &method))
+            .map(|result| AnyObject::from(result).try_convert_to::<Integer>().ok())
+            .map_err(AnyException::from)
+    }
+
+    /// Converts a `Numeric` to a `Float` with `to_f`, returning `None` for
+    /// other objects (`rb_check_to_float`), or the exception `to_f` raises
+    /// (`RangeError` for a `Complex` with an imaginary part).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Float, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let float = Fixnum::new(3).check_to_float().unwrap();
+    ///
+    /// assert_eq!(float, Some(Float::new(3.0)));
+    ///
+    /// // Strings have `to_f`, but are not `Numeric`.
+    /// assert_eq!(RString::new_utf8("3").check_to_float().unwrap(), None);
+    /// ```
+    fn check_to_float(&self) -> Result<Option<Float>, AnyException> {
+        let object = self.value();
+
+        vm::protect_value(|| object::check_to_float(object))
+            .map(|result| AnyObject::from(result).try_convert_to::<Float>().ok())
+            .map_err(AnyException::from)
+    }
+
+    /// Like [`check_send`](#method.check_send), with `keywords` passed as
+    /// keyword arguments (`rb_check_funcall_kw`).
+    ///
+    /// # Safety
+    ///
+    /// Like `send`, an exception raised by the method is not caught.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let object = VM::eval("o = Object.new; def o.scale(x, by: 1); x * by; end; o").unwrap();
+    ///
+    /// let mut keywords = Hash::new();
+    /// keywords.store(Symbol::new("by"), Fixnum::new(3));
+    ///
+    /// let result = unsafe {
+    ///     object.check_send_with_keywords("scale", &[Fixnum::new(5).into()], keywords.clone())
+    /// };
+    ///
+    /// assert_eq!(result.unwrap().try_convert_to::<Fixnum>(), Ok(Fixnum::new(15)));
+    ///
+    /// let missing = unsafe { object.check_send_with_keywords("missing", &[], keywords) };
+    ///
+    /// assert!(missing.is_none());
+    /// ```
+    unsafe fn check_send_with_keywords(
+        &self,
+        method: &str,
+        arguments: &[AnyObject],
+        keywords: crate::Hash,
+    ) -> Option<AnyObject> {
+        let mut arguments = util::arguments_to_values(arguments);
+        arguments.push(keywords.value());
+
+        object::check_funcall_with_keywords(self.value(), method, &arguments).map(AnyObject::from)
+    }
+
+    /// Defines a protected method for the given class or object
+    /// (`rb_define_protected_method`): it can only be called with an
+    /// instance of the class as the explicit receiver from inside the
+    /// class's methods.
+    ///
+    /// Use `methods!` macro to define a `callback`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, VM};
+    ///
+    /// class!(Account);
+    ///
+    /// methods!(
+    ///     Account,
+    ///     rtself,
+    ///
+    ///     fn account_balance() -> Fixnum {
+    ///         Fixnum::new(100)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Account", None).define(|klass| {
+    ///         klass.define_protected_method("balance", account_balance);
+    ///     });
+    ///
+    ///     VM::eval("class Account; def richer?(other); balance > other.balance; end; end").unwrap();
+    ///
+    ///     assert!(VM::eval("Account.new.balance").is_err());
+    ///     assert!(VM::eval("Account.new.richer?(Account.new)").unwrap().value().is_false());
+    /// }
+    /// ```
+    fn define_protected_method<I: Object, O: Object>(
+        &mut self,
+        name: &str,
+        callback: Callback<I, O>,
+    ) {
+        class::define_protected_method(self.value(), name, callback);
+    }
+
+    /// An alias for `define_protected_method` (similar to Ruby syntax
+    /// `protected def some_method`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Object, RString, VM};
+    ///
+    /// class!(Vault);
+    ///
+    /// methods!(
+    ///     Vault,
+    ///     rtself,
+    ///
+    ///     fn vault_secret() -> RString {
+    ///         RString::new_utf8("gold")
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Vault", None).define(|klass| {
+    ///         klass.def_protected("secret", vault_secret);
+    ///     });
+    ///
+    ///     VM::eval("class Vault; def peek(other); other.secret; end; end").unwrap();
+    ///
+    ///     assert!(VM::eval("Vault.new.secret").is_err());
+    ///
+    ///     let secret = VM::eval("Vault.new.peek(Vault.new)").unwrap();
+    ///     assert_eq!(secret.try_convert_to::<RString>().unwrap().to_str(), "gold");
+    /// }
+    /// ```
+    fn def_protected<I: Object, O: Object>(&mut self, name: &str, callback: Callback<I, O>) {
+        self.define_protected_method(name, callback);
+    }
+
+    /// Defines the method `name` as not implemented on this platform, the
+    /// way Ruby defines `fork` where it is missing (`rb_f_notimplement`):
+    /// calling it raises `NotImplementedError`, and `respond_to?` returns
+    /// `false` for it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, VM};
+    /// # VM::init();
+    ///
+    /// let mut device = Class::new("Device", None);
+    /// device.define_not_implemented_method("eject");
+    ///
+    /// assert!(VM::eval("Device.new.respond_to?(:eject)").unwrap().value().is_false());
+    ///
+    /// let error = VM::eval("Device.new.eject").unwrap_err();
+    ///
+    /// assert!(Class::from_existing("NotImplementedError").case_equals(&error));
+    /// ```
+    fn define_not_implemented_method(&mut self, name: &str) {
+        class::define_not_implemented_method(self.value(), name);
+    }
+
     /// Checks whether the object is `nil`
     ///
     /// # Examples
@@ -2477,6 +2953,151 @@ mod tests {
             boxed.get_data_mut(&*RUTIE_OBJECT_BOX).count += 41;
             crate::GC::start();
             assert_eq!(boxed.get_data(&*RUTIE_OBJECT_BOX).count, 42);
+        });
+    }
+
+    crate::class!(RutieProtectedDefs);
+
+    crate::methods!(
+        RutieProtectedDefs,
+        rtself,
+        fn rutie_obj_protected() -> Symbol {
+            Symbol::new("protected")
+        }
+    );
+
+    #[test]
+    fn test_conversion_helpers() {
+        crate::on_ruby_thread(|| {
+            use crate::types::ValueType;
+
+            assert_eq!(Float::new(-2.5).to_int().unwrap().to_i64(), -2);
+            assert!(RString::new_utf8("1").to_int().is_err());
+            assert!(VM::eval("o = Object.new; def o.to_int; 'x'; end; o")
+                .unwrap()
+                .to_int()
+                .is_err());
+
+            assert_eq!(Fixnum::new(4).check_to_int().unwrap().unwrap().to_i64(), 4);
+            assert!(NilClass::new().check_to_int().unwrap().is_none());
+            // `to_int` returning a non-Integer is "no conversion", not an error.
+            let odd = VM::eval("o = Object.new; def o.to_int; 'x'; end; o").unwrap();
+            assert!(odd.check_to_int().unwrap().is_none());
+
+            let text = RString::new_utf8("12abc");
+            assert_eq!(text.check_to_integer("to_i").unwrap().unwrap().to_i64(), 12);
+            assert!(text.check_to_integer("no_such_method").unwrap().is_none());
+            assert!(text.check_to_integer("to\0i").is_err());
+
+            assert_eq!(
+                VM::eval("3r").unwrap().check_to_float().unwrap(),
+                Some(Float::new(3.0))
+            );
+            // `Complex#to_f` raises for a non-zero imaginary part.
+            assert!(VM::eval("1i").unwrap().check_to_float().is_err());
+            assert_eq!(
+                VM::eval("Complex(2, 0)").unwrap().check_to_float().unwrap(),
+                Some(Float::new(2.0))
+            );
+
+            let symbol = Symbol::new("name");
+            let string = symbol
+                .convert_type(ValueType::RString, "String", "to_s")
+                .unwrap();
+            assert_eq!(string.try_convert_to::<RString>().unwrap().to_str(), "name");
+            assert!(symbol
+                .convert_type(ValueType::RString, "Str\0ing", "to_s")
+                .is_err());
+            assert!(symbol
+                .convert_type(ValueType::Array, "Array", "to_s")
+                .is_err());
+            assert!(symbol
+                .check_convert_type(ValueType::Array, "Array", "to_ary")
+                .unwrap()
+                .is_none());
+        });
+    }
+
+    #[test]
+    fn test_instance_variable_iteration_and_introspection() {
+        crate::on_ruby_thread(|| {
+            let mut object = VM::eval("Object.new").unwrap();
+            assert_eq!(object.instance_variable_count(), 0);
+
+            let mut seen = 0;
+            object.each_instance_variable(|_, _| seen += 1);
+            assert_eq!(seen, 0);
+
+            for i in 0..20 {
+                object.instance_variable_set(&format!("@v{}", i), Fixnum::new(i));
+            }
+            assert_eq!(object.instance_variable_count(), 20);
+
+            // The closure may change the variables while iterating.
+            let mut target = object.clone();
+            let mut sum = 0;
+            object.each_instance_variable(|name, value| {
+                sum += value.try_convert_to::<Fixnum>().unwrap().to_i64();
+                target.remove_instance_variable(&name.to_string());
+            });
+            assert_eq!(sum, (0..20).sum::<i64>());
+            assert_eq!(object.instance_variable_count(), 0);
+
+            // Objects that are not `T_OBJECT` keep their variables elsewhere.
+            let mut string = RString::new_utf8("text");
+            string.instance_variable_set("@tag", Symbol::new("t"));
+            let mut names = Vec::new();
+            string.each_instance_variable(|name, _| names.push(name.to_string()));
+            assert_eq!(names, vec!["@tag"]);
+            assert_eq!(string.instance_variable_count(), 1);
+
+            let custom =
+                VM::eval("o = Object.new; def o.to_s; 'c'; end; def o.inspect; 'i'; end; o")
+                    .unwrap();
+            assert!(custom.default_to_s().to_str().starts_with("#<Object:0x"));
+            assert_eq!(custom.singleton_methods(false).length(), 2);
+
+            assert!(Fixnum::new(1).respond_to_including_private("initialize_copy"));
+            assert!(!Fixnum::new(1).respond_to("initialize_copy"));
+        });
+    }
+
+    #[test]
+    fn test_protected_and_not_implemented_methods() {
+        crate::on_ruby_thread(|| {
+            let mut class = Class::new("RutieProtectedDefs", None);
+            class.def_protected("guarded", rutie_obj_protected);
+            class.define_not_implemented_method("unsupported");
+
+            VM::eval("class RutieProtectedDefs; def peek(other); other.guarded; end; end").unwrap();
+
+            let error = VM::eval("RutieProtectedDefs.new.guarded").unwrap_err();
+            assert!(Class::no_method_error().case_equals(&error));
+            assert!(error.message().contains("protected method"));
+
+            let peeked = VM::eval("RutieProtectedDefs.new.peek(RutieProtectedDefs.new)").unwrap();
+            assert_eq!(
+                peeked.try_convert_to::<Symbol>(),
+                Ok(Symbol::new("protected"))
+            );
+
+            let instance = class.new_instance(&[]);
+            assert!(!instance.respond_to("unsupported"));
+            let error = instance.protect_send("unsupported", &[]).unwrap_err();
+            assert!(Class::from_existing("NotImplementedError").case_equals(&error));
+
+            let keywords = VM::eval("{ by: 2 }")
+                .unwrap()
+                .try_convert_to::<Hash>()
+                .unwrap();
+            let target = VM::eval("o = Object.new; def o.times(x, by:); x * by; end; o").unwrap();
+            let result = unsafe {
+                target.check_send_with_keywords("times", &[Fixnum::new(4).into()], keywords)
+            };
+            assert_eq!(
+                result.unwrap().try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(8))
+            );
         });
     }
 }
