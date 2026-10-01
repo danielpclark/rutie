@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     binding::{class, exception, global::RubySpecialConsts, symbol::internal_id},
-    rubysys::{exception::rb_eRuntimeError, thread, vm},
+    rubysys::{exception::rb_eRuntimeError, interpreter, thread, vm},
     types::{
         c_char, c_int, c_void, CallbackMutPtr, CallbackPtr, Id, InternalValue, Value, VmPointer,
     },
@@ -900,4 +900,75 @@ pub fn make_exception(arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);
 
     unsafe { vm::rb_make_exception(argc, argv) }
+}
+
+// `arg` is the address of the caller's `F`.
+rutie_callback! {
+    fn exec_recursive_callback<F>(_object: Value, arg: Value, recursive: c_int) -> Value
+    where
+        F: FnMut(bool) -> Value,
+    {
+        let func = unsafe { &mut *(arg.value as *mut F) };
+
+        call_catching_panic(|| func(recursive != 0))
+    }
+}
+
+// Like `protect_value`, but only exceptions are returned: anything else
+// that unwinds the stack, such as a `throw`, carries on past the caller.
+pub fn protect_exception<F>(func: F) -> Result<Value, Value>
+where
+    F: FnOnce() -> Value,
+{
+    let mut func = Some(func);
+    let mut state = 0;
+    let value = unsafe {
+        vm::rb_protect(
+            call_once_callback::<F> as CallbackPtr,
+            &mut func as *mut Option<F> as *const c_void,
+            &mut state as *mut c_int,
+        )
+    };
+
+    // `TAG_RAISE` and `TAG_FATAL` (`enum ruby_tag_type`).
+    match state {
+        0 => Ok(value),
+        6 | 8 => {
+            let exception = errinfo();
+            set_errinfo(nil());
+
+            Err(exception)
+        }
+        _ => jump_tag(state),
+    }
+}
+
+// `paired` is `None` for `rb_exec_recursive(_outer)`.
+pub fn exec_recursive<F>(object: Value, paired: Option<Value>, outer: bool, mut func: F) -> Value
+where
+    F: FnMut(bool) -> Value,
+{
+    let arg = Value::from(&mut func as *mut F as InternalValue);
+    let callback = exec_recursive_callback::<F>;
+
+    unsafe {
+        match (paired, outer) {
+            (None, false) => thread::rb_exec_recursive(callback, object, arg),
+            (None, true) => thread::rb_exec_recursive_outer(callback, object, arg),
+            (Some(paired), false) => {
+                thread::rb_exec_recursive_paired(callback, object, paired, arg)
+            }
+            (Some(paired), true) => {
+                thread::rb_exec_recursive_paired_outer(callback, object, paired, arg)
+            }
+        }
+    }
+}
+
+pub fn show_version() {
+    unsafe { interpreter::ruby_show_version() }
+}
+
+pub fn show_copyright() {
+    unsafe { interpreter::ruby_show_copyright() }
 }

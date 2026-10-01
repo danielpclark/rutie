@@ -515,3 +515,12 @@ pub fn internal_thread_specific_set(
 pub fn lock_native_thread() -> bool {
     unsafe { thread::rb_thread_lock_native_thread() }
 }
+
+pub fn stop() -> Value {
+    unsafe { thread::rb_thread_stop() }
+}
+
+// `false` for a dead thread.
+pub fn wakeup_alive(thread: Value) -> bool {
+    !unsafe { thread::rb_thread_wakeup_alive(thread) }.is_nil()
+}

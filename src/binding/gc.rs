@@ -118,3 +118,11 @@ pub fn writebarrier(parent: Value, child: Value) {
 pub fn writebarrier_unprotect(object: Value) {
     unsafe { gc::rb_gc_writebarrier_unprotect(object) }
 }
+
+pub fn is_during_gc() -> bool {
+    util::c_int_to_bool(unsafe { gc::rb_during_gc() })
+}
+
+pub fn copy_finalizer(destination: Value, source: Value) {
+    unsafe { gc::rb_gc_copy_finalizer(destination, source) };
+}

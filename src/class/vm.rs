@@ -4012,6 +4012,352 @@ impl VM {
 
         AnyObject::from(vm::call_super_with_keywords(&arguments))
     }
+
+    /// Reads the next line like Ruby's `Kernel#gets` (`rb_gets`): from the
+    /// files named in `ARGV`, or `$stdin` when there are none (`ARGF`).
+    /// Returns `None` at the end, and the line is also stored in `$_`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let path = std::env::temp_dir().join(format!("rutie_gets_example_{}.txt", std::process::id()));
+    /// std::fs::write(&path, "first\nsecond\n").unwrap();
+    ///
+    /// // Read the file through ARGF.
+    /// VM::global_set("$rutie_path", RString::new_utf8(path.to_str().unwrap()));
+    /// VM::eval("ARGV.replace([$rutie_path])").unwrap();
+    ///
+    /// assert_eq!(VM::gets().unwrap().unwrap().to_str(), "first\n");
+    /// assert_eq!(VM::eval("$_").unwrap().try_convert_to::<RString>().unwrap().to_str(), "first\n");
+    /// assert_eq!(VM::gets().unwrap().unwrap().to_str(), "second\n");
+    /// # std::fs::remove_file(path).unwrap();
+    /// ```
+    pub fn gets() -> Result<Option<RString>, AnyException> {
+        vm::protect_value(io::kernel_gets)
+            .map(|line| {
+                if line.is_nil() {
+                    None
+                } else {
+                    Some(RString::from(line))
+                }
+            })
+            .map_err(AnyException::from)
+    }
+
+    /// Raises `EOFError` with Ruby's usual message (`rb_eof_error`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| VM::raise_eof_error());
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    ///
+    /// assert!(Class::from_existing("EOFError").case_equals(&error));
+    /// assert_eq!(error.message(), "end of file reached");
+    /// ```
+    pub fn raise_eof_error() -> ! {
+        io::eof_error()
+    }
+
+    /// Writes `message` to `$stderr` as it is, as Ruby does for its own
+    /// error reports (`rb_write_error2`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("require 'stringio'; $saved_stderr = $stderr; $stderr = StringIO.new").unwrap();
+    ///
+    /// VM::write_error("something failed\n");
+    ///
+    /// let written = VM::eval("s = $stderr.string; $stderr = $saved_stderr; s").unwrap();
+    /// assert_eq!(written.try_convert_to::<RString>().unwrap().to_str(), "something failed\n");
+    /// ```
+    pub fn write_error(message: &str) {
+        io::write_error(message);
+    }
+
+    /// Prints Ruby's version, as `ruby -v` does, to the process's standard
+    /// output (not `$stdout`) (`ruby_show_version`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// // Prints something like "ruby 4.0.7 (2026-...) +PRISM [x86_64-linux]".
+    /// VM::show_version();
+    /// ```
+    pub fn show_version() {
+        vm::show_version();
+    }
+
+    /// Prints Ruby's copyright notice, as `ruby --copyright` does, to the
+    /// process's standard output (`ruby_show_copyright`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// // Prints "ruby - Copyright (C) 1993-... Yukihiro Matsumoto".
+    /// VM::show_copyright();
+    /// ```
+    pub fn show_copyright() {
+        vm::show_copyright();
+    }
+
+    /// Looks for `name` with each of `extensions` (such as `".rb"`) in
+    /// `$LOAD_PATH`, as `require` does (`rb_find_file_ext`). Returns the
+    /// full path and the index of the extension that was found, `None` when
+    /// nothing was, or the error for an invalid name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// let directory = std::env::temp_dir().join(format!("rutie_find_ext_example_{}", std::process::id()));
+    /// std::fs::create_dir_all(&directory).unwrap();
+    /// std::fs::write(directory.join("rutie_feature.rb"), "").unwrap();
+    /// VM::add_load_path(directory.to_str().unwrap());
+    ///
+    /// let (path, index) = VM::find_file_ext("rutie_feature", &[".so", ".rb"]).unwrap().unwrap();
+    ///
+    /// assert!(path.to_str().ends_with("rutie_feature.rb"));
+    /// assert_eq!(index, 1);
+    /// assert_eq!(VM::find_file_ext("rutie_feature", &[".so"]).unwrap(), None);
+    /// assert!(VM::find_file_ext("nul\0", &[".rb"]).is_err());
+    /// # std::fs::remove_dir_all(directory).unwrap();
+    /// ```
+    pub fn find_file_ext(
+        name: &str,
+        extensions: &[&str],
+    ) -> Result<Option<(RString, usize)>, AnyException> {
+        let extensions = extensions
+            .iter()
+            .map(|extension| std::ffi::CString::new(*extension))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| {
+                AnyException::new("ArgumentError", Some("extension contains a NUL byte"))
+            })?;
+        let name = RString::new_utf8(name);
+        let mut found = None;
+
+        vm::protect_value(|| {
+            found = io::find_file_ext(name.value(), &extensions);
+
+            NilClass::new().value()
+        })
+        .map(|_| found.map(|(path, index)| (RString::from(path), index)))
+        .map_err(AnyException::from)
+    }
+
+    /// Calls `func` with `false`, unless the same `object` is already being
+    /// processed by a `VM::exec_recursive` call further up the stack (of
+    /// the current thread): then `func` gets `true`, to stop the recursion
+    /// (`rb_exec_recursive`). This is how Ruby's own `inspect`, `hash` and
+    /// `==` deal with structures that contain themselves.
+    ///
+    /// Returns what `func` returns, or the exception it raised.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{AnyObject, Array, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// fn describe(object: &AnyObject) -> String {
+    ///     let array = match object.try_convert_to::<Array>() {
+    ///         Ok(array) => array,
+    ///         Err(_) => return object.inspect_object().to_string(),
+    ///     };
+    ///
+    ///     let text = VM::exec_recursive(&array, |recursive| {
+    ///         if recursive {
+    ///             return RString::new_utf8("[...]");
+    ///         }
+    ///
+    ///         let items: Vec<String> = (0..array.length() as i64).map(|i| describe(&array.at(i))).collect();
+    ///
+    ///         RString::new_utf8(&format!("[{}]", items.join(", ")))
+    ///     });
+    ///
+    ///     text.unwrap().try_convert_to::<RString>().unwrap().to_string()
+    /// }
+    ///
+    /// let nested = VM::eval("a = [1, [2]]; a << a; a").unwrap();
+    ///
+    /// assert_eq!(describe(&nested), "[1, [2], [...]]");
+    /// ```
+    pub fn exec_recursive<T, F, R>(object: &T, mut func: F) -> Result<AnyObject, AnyException>
+    where
+        T: Object,
+        F: FnMut(bool) -> R,
+        R: Object,
+    {
+        let object = object.value();
+
+        vm::protect_exception(|| {
+            vm::exec_recursive(object, None, false, |recursive| func(recursive).value())
+        })
+        .map(AnyObject::from)
+        .map_err(AnyException::from)
+    }
+
+    /// Like [`VM::exec_recursive`](#method.exec_recursive), but recursion
+    /// is detected on the pair of `object` and `paired`, as when comparing
+    /// two structures with each other (`rb_exec_recursive_paired`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Boolean, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let (a, b) = (Fixnum::new(1), Fixnum::new(2));
+    ///
+    /// let result = VM::exec_recursive_paired(&a, &b, |outer| {
+    ///     assert!(!outer);
+    ///
+    ///     // The same pair again is a recursion; another pair is not.
+    ///     let same = VM::exec_recursive_paired(&a, &b, |recursive| Boolean::new(recursive)).unwrap();
+    ///     let other = VM::exec_recursive_paired(&a, &a, |recursive| Boolean::new(recursive)).unwrap();
+    ///
+    ///     Boolean::new(same.value().is_true() && !other.value().is_true())
+    /// });
+    ///
+    /// assert!(result.unwrap().value().is_true());
+    /// ```
+    pub fn exec_recursive_paired<T, P, F, R>(
+        object: &T,
+        paired: &P,
+        mut func: F,
+    ) -> Result<AnyObject, AnyException>
+    where
+        T: Object,
+        P: Object,
+        F: FnMut(bool) -> R,
+        R: Object,
+    {
+        let (object, paired) = (object.value(), paired.value());
+
+        vm::protect_exception(|| {
+            vm::exec_recursive(object, Some(paired), false, |recursive| {
+                func(recursive).value()
+            })
+        })
+        .map(AnyObject::from)
+        .map_err(AnyException::from)
+    }
+
+    /// Like [`VM::exec_recursive`](#method.exec_recursive), but when the
+    /// recursion is found the whole computation starts over: the nested
+    /// calls are abandoned (with a Ruby `throw`) and the outermost call
+    /// runs `func` again with `true` (`rb_exec_recursive_outer`). Ruby's
+    /// `Array#hash` uses it so that a recursive array has one hash.
+    ///
+    /// Abandoning the nested calls does not run destructors of the values
+    /// they own (they leak), as when Ruby raises through Rust code.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// use std::cell::Cell;
+    /// # VM::init();
+    ///
+    /// let object = Fixnum::new(7);
+    /// let calls = Cell::new(Vec::new());
+    ///
+    /// let result = VM::exec_recursive_outer(&object, |recursive| {
+    ///     let mut seen = calls.take();
+    ///     seen.push(recursive);
+    ///     calls.set(seen);
+    ///
+    ///     if recursive {
+    ///         return Fixnum::new(0);
+    ///     }
+    ///
+    ///     // Found the recursion: this never returns.
+    ///     VM::exec_recursive_outer(&object, |_| Fixnum::new(1)).unwrap();
+    ///     unreachable!();
+    /// });
+    ///
+    /// assert_eq!(result.unwrap().try_convert_to::<Fixnum>(), Ok(Fixnum::new(0)));
+    /// assert_eq!(calls.take(), [false, true]);
+    /// ```
+    pub fn exec_recursive_outer<T, F, R>(object: &T, mut func: F) -> Result<AnyObject, AnyException>
+    where
+        T: Object,
+        F: FnMut(bool) -> R,
+        R: Object,
+    {
+        let object = object.value();
+
+        vm::protect_exception(|| {
+            vm::exec_recursive(object, None, true, |recursive| func(recursive).value())
+        })
+        .map(AnyObject::from)
+        .map_err(AnyException::from)
+    }
+
+    /// [`VM::exec_recursive_outer`](#method.exec_recursive_outer) for a
+    /// pair of objects (`rb_exec_recursive_paired_outer`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let (a, b) = (Symbol::new("a"), Symbol::new("b"));
+    ///
+    /// let result = VM::exec_recursive_paired_outer(&a, &b, |recursive| {
+    ///     if !recursive {
+    ///         VM::exec_recursive_paired_outer(&a, &b, |_| Fixnum::new(1)).unwrap();
+    ///     }
+    ///
+    ///     Fixnum::new(2)
+    /// });
+    ///
+    /// assert_eq!(result.unwrap().try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+    /// ```
+    pub fn exec_recursive_paired_outer<T, P, F, R>(
+        object: &T,
+        paired: &P,
+        mut func: F,
+    ) -> Result<AnyObject, AnyException>
+    where
+        T: Object,
+        P: Object,
+        F: FnMut(bool) -> R,
+        R: Object,
+    {
+        let (object, paired) = (object.value(), paired.value());
+
+        vm::protect_exception(|| {
+            vm::exec_recursive(object, Some(paired), true, |recursive| {
+                func(recursive).value()
+            })
+        })
+        .map(AnyObject::from)
+        .map_err(AnyException::from)
+    }
 }
 
 #[cfg(test)]
@@ -5335,6 +5681,112 @@ mod tests {
             assert!(VM::eval("Kernel.rutie_global_triple(1)").is_ok());
 
             assert!(VM::backtrace().length() == 0);
+        });
+    }
+
+    #[test]
+    fn test_exec_recursive_family() {
+        crate::on_ruby_thread(|| {
+            let array = VM::eval("a = [1]; a << a; a").unwrap();
+
+            // Nested calls on the same object see the recursion.
+            let flags = std::cell::RefCell::new(Vec::new());
+            let result = VM::exec_recursive(&array, |outer| {
+                flags.borrow_mut().push(outer);
+                VM::exec_recursive(&array, |inner| {
+                    flags.borrow_mut().push(inner);
+                    NilClass::new()
+                })
+                .unwrap();
+                Fixnum::new(1)
+            });
+            assert_eq!(
+                result.unwrap().try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(1))
+            );
+            assert_eq!(*flags.borrow(), [false, true]);
+
+            // Exceptions and panics in the closure are returned.
+            let error = VM::exec_recursive(&array, |_| -> NilClass {
+                VM::raise(Class::from_existing("KeyError"), "inside");
+                unreachable!()
+            })
+            .unwrap_err();
+            assert!(Class::from_existing("KeyError").case_equals(&error));
+            let error = VM::exec_recursive(&array, |_| -> NilClass { panic!("recursive panic") })
+                .unwrap_err();
+            assert!(error.message().contains("recursive panic"));
+
+            // The recursion state is cleaned up after an exception.
+            let fresh =
+                VM::exec_recursive(&array, |recursive| crate::Boolean::new(recursive)).unwrap();
+            assert!(!fresh.value().is_true());
+
+            let (a, b) = (Fixnum::new(1), Fixnum::new(2));
+            let nested = VM::exec_recursive_paired(&a, &b, |_| {
+                let same = VM::exec_recursive_paired(&a, &b, |r| crate::Boolean::new(r)).unwrap();
+                let swapped =
+                    VM::exec_recursive_paired(&b, &a, |r| crate::Boolean::new(r)).unwrap();
+                fixnums(&[
+                    same.value().is_true() as i64,
+                    swapped.value().is_true() as i64,
+                ])
+            });
+            assert_eq!(nested.unwrap().inspect_object().to_string(), "[1, 0]");
+
+            let runs = Cell::new(0);
+            let result = VM::exec_recursive_outer(&a, |recursive| {
+                runs.set(runs.get() + 1);
+                if !recursive {
+                    VM::exec_recursive_outer(&a, |_| Fixnum::new(-1)).unwrap();
+                }
+                Fixnum::new(if recursive { 10 } else { 20 })
+            });
+            assert_eq!(
+                result.unwrap().try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(10))
+            );
+            assert_eq!(runs.get(), 2);
+
+            // Without recursion the outer variants are plain calls.
+            let result =
+                VM::exec_recursive_paired_outer(&a, &b, |recursive| crate::Boolean::new(recursive));
+            assert!(!result.unwrap().value().is_true());
+        });
+    }
+
+    #[test]
+    fn test_io_helpers() {
+        crate::on_ruby_thread(|| {
+            let result = VM::protect(|| VM::raise_eof_error());
+            assert!(result.is_err());
+            assert!(Class::from_existing("EOFError").case_equals(&VM::error_pop().unwrap()));
+
+            eval_raising("require 'stringio'; $rutie_saved = $stderr; $stderr = StringIO.new");
+            VM::write_error("with\0nul");
+            let written = eval_raising("s = $stderr.string; $stderr = $rutie_saved; s");
+            assert_eq!(
+                RString::from(written.value()).to_bytes_unchecked(),
+                b"with\0nul"
+            );
+
+            let dir =
+                std::env::temp_dir().join(format!("rutie_vm_find_ext_{}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("rutie_vm_ext.rb"), "").unwrap();
+            VM::add_load_path(dir.to_str().unwrap());
+            let (path, index) = VM::find_file_ext("rutie_vm_ext", &[".rb"])
+                .unwrap()
+                .unwrap();
+            assert!(path.to_str().ends_with("rutie_vm_ext.rb"));
+            assert_eq!(index, 0);
+            assert_eq!(
+                VM::find_file_ext("rutie_vm_missing", &[".rb", ".so"]).unwrap(),
+                None
+            );
+            assert!(VM::find_file_ext("x", &["nul\0"]).is_err());
+            assert_eq!(VM::find_file_ext("rutie_vm_ext", &[]).unwrap(), None);
+            std::fs::remove_dir_all(&dir).unwrap();
         });
     }
 }

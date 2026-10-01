@@ -1,7 +1,12 @@
+use std::{
+    ffi::{CStr, CString},
+    ptr,
+};
+
 use crate::{
-    binding::{fixnum, global::RubySpecialConsts},
-    rubysys::io,
-    types::{c_int, InternalValue, Value},
+    binding::{array, fixnum, global::RubySpecialConsts, vm},
+    rubysys::{exception, file, io, string},
+    types::{c_char, c_int, c_long, c_void, InternalValue, Value},
     util,
 };
 
@@ -194,4 +199,162 @@ pub fn add_load_path(path: &str) {
     let path = util::str_to_cstring(path);
 
     unsafe { io::ruby_incpush(path.as_ptr()) }
+}
+
+// `rb_sys_fail` with `errno` as a C function left it.
+fn sys_fail(message: Option<&CStr>) -> ! {
+    unsafe { exception::rb_sys_fail(message.map_or(ptr::null(), |message| message.as_ptr())) }
+}
+
+pub fn check_io(object: Value) -> Value {
+    unsafe { io::rb_io_check_io(object) }
+}
+
+pub fn get_io(object: Value) -> Value {
+    unsafe { io::rb_io_get_io(object) }
+}
+
+pub fn set_write_io(io: Value, write_io: Value) -> Value {
+    unsafe { io::rb_io_set_write_io(io, write_io) }
+}
+
+pub fn ungetbyte(io: Value, byte: Value) -> Value {
+    unsafe { io::rb_io_ungetbyte(io, byte) }
+}
+
+pub fn printf(io: Value, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { io::rb_io_printf(argc, argv, io) }
+}
+
+// The number of bytes written; raises the `SystemCallError` for a failed
+// write.
+pub fn bufwrite(io: Value, bytes: &[u8]) -> usize {
+    let written = unsafe { io::rb_io_bufwrite(io, bytes.as_ptr() as *const c_void, bytes.len()) };
+
+    if written < 0 {
+        sys_fail(None)
+    }
+
+    written as usize
+}
+
+// The two ends of a new pipe, as `IO`s that own them; raises the
+// `SystemCallError` when there is no pipe.
+pub fn pipe() -> (Value, Value) {
+    let mut fds: [c_int; 2] = [-1, -1];
+
+    if unsafe { io::rb_pipe(fds.as_mut_ptr()) } != 0 {
+        sys_fail(None)
+    }
+
+    // `O_RDONLY` and `O_WRONLY`, which are 0 and 1 everywhere.
+    let reader = unsafe { io::rb_io_fdopen(fds[0], 0, ptr::null()) };
+    let writer = unsafe { io::rb_io_fdopen(fds[1], 1, ptr::null()) };
+
+    // Unbuffered, as `IO.pipe` makes it.
+    vm::call_method(writer, "sync=", &[util::bool_to_value(true)]);
+
+    (reader, writer)
+}
+
+pub fn fdopen(fd: c_int, flags: c_int, path: Option<&CStr>) -> Value {
+    unsafe { io::rb_io_fdopen(fd, flags, path.map_or(ptr::null(), |path| path.as_ptr())) }
+}
+
+pub fn modestr_fmode(mode: &CStr) -> c_int {
+    unsafe { io::rb_io_modestr_fmode(mode.as_ptr()) }
+}
+
+pub fn modestr_oflags(mode: &CStr) -> c_int {
+    unsafe { io::rb_io_modestr_oflags(mode.as_ptr()) }
+}
+
+pub fn oflags_fmode(oflags: c_int) -> c_int {
+    unsafe { io::rb_io_oflags_fmode(oflags) }
+}
+
+pub fn is_reserved_fd(fd: c_int) -> bool {
+    util::c_int_to_bool(unsafe { io::rb_reserved_fd_p(fd) })
+}
+
+pub fn kernel_gets() -> Value {
+    unsafe { io::rb_gets() }
+}
+
+pub fn eof_error() -> ! {
+    unsafe { io::rb_eof_error() }
+}
+
+pub fn write_error(message: &str) {
+    unsafe { io::rb_write_error2(message.as_ptr() as *const c_char, message.len() as c_long) }
+}
+
+pub fn is_directory(path: Value) -> bool {
+    unsafe { file::rb_file_directory_p(nil(), path) }.is_true()
+}
+
+pub fn is_absolute_path(path: &CStr) -> bool {
+    util::c_int_to_bool(unsafe { file::rb_is_absolute_path(path.as_ptr()) })
+}
+
+pub fn encode_ospath(path: Value) -> Value {
+    unsafe { file::rb_str_encode_ospath(path) }
+}
+
+pub fn get_path(object: Value) -> Value {
+    unsafe { file::rb_get_path(object) }
+}
+
+// The full path and the index of the extension found, or `None`.
+pub fn find_file_ext(name: Value, extensions: &[CString]) -> Option<(Value, usize)> {
+    let mut extensions: Vec<*const c_char> = extensions.iter().map(|e| e.as_ptr()).collect();
+    extensions.push(ptr::null());
+
+    let mut feature = name;
+    let found = unsafe { file::rb_find_file_ext(&mut feature, extensions.as_ptr()) };
+
+    if found == 0 {
+        None
+    } else {
+        Some((feature, found as usize - 1))
+    }
+}
+
+// `arg` is the Array the paths are pushed to.
+rutie_callback! {
+    fn glob_push(path: *const c_char, arg: Value, enc: *mut c_void) {
+        let path = unsafe { CStr::from_ptr(path) }.to_bytes();
+        let path = unsafe {
+            string::rb_enc_str_new(path.as_ptr() as *const c_char, path.len() as c_long, enc)
+        };
+
+        array::push(arg, path);
+    }
+}
+
+rutie_callback! {
+    fn ruby_glob_push(path: *const c_char, arg: Value, enc: *mut c_void) -> c_int {
+        glob_push(path, arg, enc);
+
+        0
+    }
+}
+
+// The matching paths, as an Array.
+pub fn glob(pattern: &CStr) -> Value {
+    let paths = array::new();
+
+    unsafe { file::rb_glob(pattern.as_ptr(), glob_push, paths) };
+
+    paths
+}
+
+pub fn glob_with_flags(pattern: &CStr, flags: c_int) -> Value {
+    let paths = array::new();
+
+    unsafe { file::ruby_glob(pattern.as_ptr(), flags, ruby_glob_push, paths) };
+
+    paths
 }

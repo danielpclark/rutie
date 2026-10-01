@@ -76,6 +76,29 @@ pub trait Object: From<Value> {
         Class::from(class)
     }
 
+    /// Returns the name of the object's class, skipping singleton classes;
+    /// an anonymous class is named like `#<Class:0x...>`
+    /// (`rb_obj_classname`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Array::new().class_name(), "Array");
+    /// assert_eq!(Fixnum::new(1).class_name(), "Integer");
+    ///
+    /// let object = VM::eval("o = Object.new; def o.extra = 1; o").unwrap();
+    /// assert_eq!(object.class_name(), "Object");
+    ///
+    /// let anonymous = VM::eval("Class.new.new").unwrap();
+    /// assert!(anonymous.class_name().starts_with("#<Class:0x"));
+    /// ```
+    fn class_name(&self) -> String {
+        object::class_name(self.value())
+    }
+
     /// Returns a singleton class of current object.
     ///
     /// # Examples
@@ -3098,6 +3121,19 @@ mod tests {
                 result.unwrap().try_convert_to::<Fixnum>(),
                 Ok(Fixnum::new(8))
             );
+        });
+    }
+
+    #[test]
+    fn test_class_name() {
+        crate::on_ruby_thread(|| {
+            assert_eq!(crate::RString::new_utf8("").class_name(), "String");
+            assert_eq!(crate::NilClass::new().class_name(), "NilClass");
+            assert_eq!(
+                VM::eval("Struct.new(:a).new(1)").unwrap().class_name()[..9].to_string(),
+                "#<Class:0"
+            );
+            assert_eq!(VM::eval("Comparable").unwrap().class_name(), "Module");
         });
     }
 }

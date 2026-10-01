@@ -4,7 +4,7 @@ use libc::uintptr_t;
 
 use crate::{
     binding::{string, symbol},
-    rubysys::{array, object, variable},
+    rubysys::{array, cstr, object, variable},
     types::{c_int, st_retval, Id, InternalValue, Value, ValueType},
     util,
 };
@@ -210,4 +210,9 @@ pub fn instance_variable_pairs(object: Value) -> Value {
     };
 
     pairs
+}
+
+// Copied at once: the C string belongs to the class's name String.
+pub fn class_name(object: Value) -> String {
+    unsafe { util::cstr_to_string(cstr::rb_obj_classname(object)) }
 }

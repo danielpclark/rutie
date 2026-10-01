@@ -591,6 +591,53 @@ impl GC {
     pub fn unregister(object: &impl Object) {
         gc::unregister(object.value())
     }
+
+    /// Returns whether a garbage collection is running (`rb_during_gc`); for
+    /// code that may be called from a mark or free function, where Ruby
+    /// objects must not be allocated.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, VM};
+    /// # VM::init();
+    ///
+    /// assert!(!GC::is_during_gc());
+    /// ```
+    pub fn is_during_gc() -> bool {
+        gc::is_during_gc()
+    }
+
+    /// Gives `destination` the finalizers of `source`, as Ruby does for the
+    /// copy made by `dup` or `clone` (`rb_gc_copy_finalizer`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{GC, NilClass, Object, Proc, VM};
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    ///
+    /// static FINALIZED: AtomicUsize = AtomicUsize::new(0);
+    ///
+    /// # VM::init();
+    /// let source = VM::eval("Object.new").unwrap();
+    /// let destination = VM::eval("Object.new").unwrap();
+    /// let finalizer = Proc::new(|_| {
+    ///     FINALIZED.fetch_add(1, Ordering::SeqCst);
+    ///     NilClass::new().into()
+    /// });
+    ///
+    /// GC::define_finalizer(&source, &finalizer).unwrap();
+    /// GC::copy_finalizer(&destination, &source);
+    /// GC::undefine_finalizer(&source);
+    ///
+    /// // Shutting the VM down runs the finalizers still defined: the copy.
+    /// unsafe { VM::cleanup() };
+    /// assert_eq!(FINALIZED.load(Ordering::SeqCst), 1);
+    /// ```
+    pub fn copy_finalizer<D: Object, S: Object>(destination: &D, source: &S) {
+        gc::copy_finalizer(destination.value(), source.value());
+    }
 }
 
 #[cfg(test)]
@@ -768,6 +815,23 @@ mod tests {
 
             GC::start();
             assert_eq!(child.to_str(), "child");
+        });
+    }
+
+    #[test]
+    fn test_during_gc_and_copy_finalizer() {
+        crate::on_ruby_thread(|| {
+            assert!(!GC::is_during_gc());
+
+            let source = crate::VM::eval("Object.new").unwrap();
+            let destination = crate::VM::eval("Object.new").unwrap();
+            let finalizer = Proc::new(|_| NilClass::new().into());
+            GC::define_finalizer(&source, &finalizer).unwrap();
+            GC::copy_finalizer(&destination, &source);
+            // Copying from an object without finalizers does nothing.
+            GC::copy_finalizer(&source, &Symbol::new("rutie"));
+            GC::undefine_finalizer(&source);
+            GC::undefine_finalizer(&destination);
         });
     }
 }

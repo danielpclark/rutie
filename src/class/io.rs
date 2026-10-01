@@ -1,10 +1,10 @@
-use std::{convert::From, time::Duration};
+use std::{convert::From, ffi::CString, time::Duration};
 
 use crate::{
     binding::{float, io, vm},
     types::Value,
-    util, AnyException, AnyObject, Class, Exception, Fixnum, Float, NilClass, Object, RString,
-    VerifiedObject,
+    util, AnyException, AnyObject, Array, Class, Exception, Fixnum, Float, NilClass, Object,
+    RString, VerifiedObject,
 };
 
 #[cfg(any(unix, windows))]
@@ -23,6 +23,18 @@ fn timeout_value(timeout: Option<Duration>) -> Value {
         Some(timeout) => Float::new(timeout.as_secs_f64()).value(),
         None => NilClass::new().value(),
     }
+}
+
+fn mode_cstring(mode: &str) -> Result<CString, AnyException> {
+    CString::new(mode)
+        .map_err(|_| AnyException::new("ArgumentError", Some("mode contains a NUL byte")))
+}
+
+fn glob_results(paths: Value) -> Vec<RString> {
+    Array::from(paths)
+        .into_iter()
+        .map(|path| RString::from(path.value()))
+        .collect()
 }
 
 /// `IO`, including `File` objects.
@@ -700,6 +712,349 @@ impl IO {
 
         IO::from(io::open_descriptor(fd as _, mode))
     }
+
+    /// Converts `object` with its `to_io` method, returning `None` when it
+    /// has none (Ruby's `IO.try_convert`, `rb_io_check_io`), or the
+    /// `TypeError` when `to_io` returns something else than an `IO`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, IO, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(IO::try_convert(&IO::stdout()).unwrap(), Some(IO::stdout()));
+    /// assert_eq!(IO::try_convert(&Fixnum::new(1)).unwrap(), None);
+    ///
+    /// let wrapper = VM::eval("o = Object.new; def o.to_io = $stderr; o").unwrap();
+    /// assert_eq!(IO::try_convert(&wrapper).unwrap(), Some(IO::stderr()));
+    ///
+    /// let broken = VM::eval("o = Object.new; def o.to_io = 1; o").unwrap();
+    /// assert!(IO::try_convert(&broken).is_err());
+    /// ```
+    pub fn try_convert<T: Object>(object: &T) -> Result<Option<IO>, AnyException> {
+        let object = object.value();
+
+        protect(|| io::check_io(object)).map(|io| {
+            if io.is_nil() {
+                None
+            } else {
+                Some(IO::from(io))
+            }
+        })
+    }
+
+    /// Like [`IO::try_convert`](#method.try_convert), but an object without
+    /// `to_io` is a `TypeError` too (`rb_io_get_io`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, IO, Object, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(IO::convert(&IO::stdin()).unwrap(), IO::stdin());
+    ///
+    /// let error = IO::convert(&Fixnum::new(1)).unwrap_err();
+    /// assert!(Class::type_error().case_equals(&error));
+    /// ```
+    pub fn convert<T: Object>(object: &T) -> Result<IO, AnyException> {
+        let object = object.value();
+
+        protect(|| io::get_io(object)).map(IO::from)
+    }
+
+    /// Creates a pipe and returns its reading and writing ends (like Ruby's
+    /// `IO.pipe`, made with `rb_pipe` and `rb_io_fdopen`). Both descriptors
+    /// are close-on-exec, and each `IO` closes its descriptor when closed or
+    /// garbage collected.
+    ///
+    /// Returns the `SystemCallError` when the OS has no pipe to give (such as
+    /// `Errno::EMFILE`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{IO, RString, VM};
+    /// # VM::init();
+    ///
+    /// let (reader, writer) = IO::pipe().unwrap();
+    ///
+    /// writer.write(&RString::new_utf8("through the pipe\n")).unwrap();
+    /// writer.close().unwrap();
+    ///
+    /// assert_eq!(reader.gets().unwrap().unwrap().to_str(), "through the pipe\n");
+    /// assert_eq!(reader.gets().unwrap(), None);
+    /// reader.close().unwrap();
+    /// ```
+    pub fn pipe() -> Result<(IO, IO), AnyException> {
+        let mut writer = None;
+
+        let reader = protect(|| {
+            let (reader, write_end) = io::pipe();
+            writer = Some(write_end);
+
+            reader
+        })?;
+
+        Ok((IO::from(reader), IO::from(writer.unwrap())))
+    }
+
+    /// Wraps the file descriptor `fd` in a new `IO` (`rb_io_fdopen`). `flags`
+    /// are the `open(2)` flags `fd` was opened with (`O_RDONLY` is 0,
+    /// `O_WRONLY` 1 and `O_RDWR` 2), which decide whether the IO can be read
+    /// and written; `path` is only for messages and `inspect` (a `path`
+    /// other than `"-"` makes it a `File`).
+    ///
+    /// # Safety
+    ///
+    /// The `IO` owns `fd`: it closes it when closed or garbage collected.
+    /// `fd` must be an open descriptor that nothing else closes or wraps.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, IO, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let (reader, writer) = IO::pipe().unwrap();
+    ///
+    /// // Hand the writing end's descriptor over to a second IO.
+    /// let fd = unsafe { writer.send("fileno", &[]) }.try_convert_to::<Fixnum>().unwrap().to_i32();
+    /// unsafe { writer.send("autoclose=", &[rutie::Boolean::new(false).into()]) };
+    ///
+    /// let wrapped = unsafe { IO::fdopen(fd, 1, None) }.unwrap();
+    /// wrapped.write(&RString::new_utf8("x")).unwrap();
+    /// wrapped.close().unwrap();
+    ///
+    /// assert_eq!(reader.getbyte().unwrap(), Some(b'x'));
+    /// # reader.close().unwrap();
+    /// ```
+    #[cfg(any(unix, windows))]
+    pub unsafe fn fdopen(fd: RawFd, flags: i32, path: Option<&str>) -> Result<IO, AnyException> {
+        let path = match path.map(CString::new) {
+            Some(Ok(path)) => Some(path),
+            Some(Err(_)) => {
+                return Err(AnyException::new(
+                    "ArgumentError",
+                    Some("path contains a NUL byte"),
+                ))
+            }
+            None => None,
+        };
+
+        protect(|| io::fdopen(fd, flags, path.as_deref())).map(IO::from)
+    }
+
+    /// Pushes `byte` back onto the stream, to be read next (Ruby's
+    /// `ungetbyte`, `rb_io_ungetbyte`), or returns the error when the stream
+    /// is not open for reading.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{IO, VM};
+    /// # VM::init();
+    ///
+    /// let (reader, writer) = IO::pipe().unwrap();
+    ///
+    /// reader.ungetbyte(b'!').unwrap();
+    /// assert_eq!(reader.getbyte().unwrap(), Some(b'!'));
+    ///
+    /// assert!(writer.ungetbyte(b'!').is_err());
+    /// # reader.close().unwrap();
+    /// # writer.close().unwrap();
+    /// ```
+    pub fn ungetbyte(&self, byte: u8) -> Result<(), AnyException> {
+        let io_value = self.value();
+
+        protect(|| io::ungetbyte(io_value, Fixnum::new(i64::from(byte)).value())).map(|_| ())
+    }
+
+    /// Writes `arguments` formatted with `format` (Ruby's `printf`,
+    /// `rb_io_printf`; the format is the one of `Kernel#format`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, IO, RString, VM};
+    /// # VM::init();
+    ///
+    /// let (reader, writer) = IO::pipe().unwrap();
+    ///
+    /// writer.printf("%s=%03d\n", &[RString::new_utf8("x").into(), Fixnum::new(7).into()]).unwrap();
+    ///
+    /// assert_eq!(reader.gets().unwrap().unwrap().to_str(), "x=007\n");
+    /// assert!(writer.printf("%d", &[RString::new_utf8("x").into()]).is_err());
+    /// # reader.close().unwrap();
+    /// # writer.close().unwrap();
+    /// ```
+    pub fn printf(&self, format: &str, arguments: &[AnyObject]) -> Result<(), AnyException> {
+        let io_value = self.value();
+        let mut values = vec![RString::new_utf8(format).value()];
+        values.extend(util::arguments_to_values(arguments));
+
+        protect(|| io::printf(io_value, &values)).map(|_| ())
+    }
+
+    /// Writes `bytes` through the stream's write buffer and returns how many
+    /// were written (`rb_io_bufwrite`), or the error: the stream is closed
+    /// or not open for writing, or the write failed (`Errno::*`).
+    ///
+    /// Unlike [`write`](#method.write), the bytes are not converted to the
+    /// stream's encoding and need not be a Ruby String.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{IO, VM};
+    /// # VM::init();
+    ///
+    /// let (reader, writer) = IO::pipe().unwrap();
+    ///
+    /// assert_eq!(writer.write_bytes(&[b'o', b'k', 0xff]).unwrap(), 3);
+    /// writer.flush().unwrap();
+    ///
+    /// assert_eq!(reader.getbyte().unwrap(), Some(b'o'));
+    /// assert!(reader.write_bytes(b"x").is_err());
+    /// # reader.close().unwrap();
+    /// # writer.close().unwrap();
+    /// ```
+    pub fn write_bytes(&self, bytes: &[u8]) -> Result<usize, AnyException> {
+        let io_value = self.value();
+        let mut written = 0;
+
+        protect(|| {
+            written = io::bufwrite(io_value, bytes);
+
+            NilClass::new().value()
+        })
+        .map(|_| written)
+    }
+
+    /// Makes the stream write to `write_io` instead of itself (or to itself
+    /// again for `None`), as a duplex stream like a pipe opened with
+    /// `IO.popen` does, and returns the IO it wrote to before, if it was
+    /// another one (`rb_io_set_write_io`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{IO, RString, VM};
+    /// # VM::init();
+    ///
+    /// let (reader, writer) = IO::pipe().unwrap();
+    /// let (other_reader, other_writer) = IO::pipe().unwrap();
+    ///
+    /// // `reader` now writes to `other_writer`.
+    /// assert_eq!(reader.set_write_io(Some(&other_writer)).unwrap(), None);
+    /// reader.write(&RString::new_utf8("y")).unwrap();
+    /// assert_eq!(other_reader.getbyte().unwrap(), Some(b'y'));
+    ///
+    /// assert_eq!(reader.set_write_io(None).unwrap(), Some(other_writer));
+    /// # for io in [reader, writer, other_reader] { io.close().unwrap(); }
+    /// ```
+    pub fn set_write_io(&self, write_io: Option<&IO>) -> Result<Option<IO>, AnyException> {
+        let io_value = self.value();
+        let write_io = write_io.map_or_else(|| NilClass::new().value(), Object::value);
+
+        protect(|| io::set_write_io(io_value, write_io)).map(|previous| {
+            if previous.is_nil() {
+                None
+            } else {
+                Some(IO::from(previous))
+            }
+        })
+    }
+
+    /// Returns Ruby's `FMODE_*` flags for a mode string such as `"r+b"`
+    /// (`rb_io_modestr_fmode`), or the `ArgumentError` for an invalid one.
+    ///
+    /// `FMODE_READABLE` is 0x1, `FMODE_WRITABLE` 0x2, `FMODE_BINMODE` 0x4,
+    /// `FMODE_APPEND` 0x40, `FMODE_CREATE` 0x80, `FMODE_EXCL` 0x400,
+    /// `FMODE_TRUNC` 0x800 and `FMODE_TEXTMODE` 0x1000.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{IO, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(IO::fmode("r").unwrap(), 0x1);
+    /// assert_eq!(IO::fmode("w+b").unwrap(), 0x1 | 0x2 | 0x4 | 0x80 | 0x800);
+    /// assert!(IO::fmode("q").is_err());
+    /// ```
+    pub fn fmode(mode: &str) -> Result<i32, AnyException> {
+        let mode = mode_cstring(mode)?;
+        let mut flags = 0;
+
+        protect(|| {
+            flags = io::modestr_fmode(&mode);
+
+            NilClass::new().value()
+        })
+        .map(|_| flags)
+    }
+
+    /// Returns the `open(2)` flags (`O_*`) for a mode string
+    /// (`rb_io_modestr_oflags`), or the `ArgumentError` for an invalid one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{IO, VM};
+    /// # VM::init();
+    ///
+    /// // O_RDONLY is 0 and O_WRONLY 1 everywhere.
+    /// assert_eq!(IO::oflags("r").unwrap() & 3, 0);
+    /// assert_eq!(IO::oflags("w").unwrap() & 3, 1);
+    /// assert!(IO::oflags("rw").is_err());
+    /// ```
+    pub fn oflags(mode: &str) -> Result<i32, AnyException> {
+        let mode = mode_cstring(mode)?;
+        let mut flags = 0;
+
+        protect(|| {
+            flags = io::modestr_oflags(&mode);
+
+            NilClass::new().value()
+        })
+        .map(|_| flags)
+    }
+
+    /// Converts `open(2)` flags (`O_*`) to Ruby's `FMODE_*` flags
+    /// (`rb_io_oflags_fmode`); see [`IO::fmode`](#method.fmode).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{IO, VM};
+    /// # VM::init();
+    ///
+    /// let oflags = IO::oflags("a+").unwrap();
+    ///
+    /// assert_eq!(IO::fmode_from_oflags(oflags), IO::fmode("a+").unwrap());
+    /// ```
+    pub fn fmode_from_oflags(oflags: i32) -> i32 {
+        io::oflags_fmode(oflags)
+    }
+
+    /// Returns whether Ruby uses the file descriptor `fd` itself, such as
+    /// for its timer thread (`rb_reserved_fd_p`); a C extension must not
+    /// close those.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{IO, VM};
+    /// # VM::init();
+    ///
+    /// assert!(!IO::is_reserved_fd(0));
+    /// ```
+    #[cfg(any(unix, windows))]
+    pub fn is_reserved_fd(fd: RawFd) -> bool {
+        io::is_reserved_fd(fd)
+    }
 }
 
 impl From<Value> for IO {
@@ -891,6 +1246,180 @@ impl File {
             NilClass::new().value()
         })
         .map(|_| size as u64)
+    }
+
+    /// Returns whether `path` is a directory, or a symbolic link to one
+    /// (Ruby's `File.directory?`, `rb_file_directory_p`), or the error for a
+    /// path with a NUL byte.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{File, VM};
+    /// # VM::init();
+    ///
+    /// let directory = std::env::temp_dir();
+    ///
+    /// assert!(File::is_directory(directory.to_str().unwrap()).unwrap());
+    /// assert!(!File::is_directory("/no/such/rutie/dir").unwrap());
+    /// assert!(File::is_directory("nul\0byte").is_err());
+    /// ```
+    pub fn is_directory(path: &str) -> Result<bool, AnyException> {
+        let path = RString::new_utf8(path);
+        let mut is_directory = false;
+
+        protect(|| {
+            is_directory = io::is_directory(path.value());
+
+            NilClass::new().value()
+        })
+        .map(|_| is_directory)
+    }
+
+    /// Returns whether `path` is absolute (`rb_is_absolute_path`): it starts
+    /// with `/`, or on Windows with a drive letter and a separator or with
+    /// two separators (a UNC path). A path with a NUL byte is not.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{File, VM};
+    /// # VM::init();
+    ///
+    /// assert!(!File::is_absolute_path("relative/path"));
+    /// assert!(!File::is_absolute_path("~/x"));
+    ///
+    /// if cfg!(windows) {
+    ///     assert!(File::is_absolute_path("C:/Windows"));
+    /// } else {
+    ///     assert!(File::is_absolute_path("/usr"));
+    /// }
+    /// ```
+    pub fn is_absolute_path(path: &str) -> bool {
+        match CString::new(path) {
+            Ok(path) => io::is_absolute_path(&path),
+            Err(_) => false,
+        }
+    }
+
+    /// Returns `path` converted to the encoding of the OS's file names where
+    /// there is one, UTF-8 on Windows and macOS, and as it is elsewhere
+    /// (`rb_str_encode_ospath`); or the error when it cannot be converted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{File, RString, VM};
+    /// # VM::init();
+    ///
+    /// let path = File::encode_ospath(&RString::new_utf8("dir/fïle")).unwrap();
+    ///
+    /// assert_eq!(path.to_str(), "dir/fïle");
+    /// ```
+    pub fn encode_ospath(path: &RString) -> Result<RString, AnyException> {
+        let path = path.value();
+
+        protect(|| io::encode_ospath(path)).map(RString::from)
+    }
+
+    /// Converts `object` to a path the way Ruby's file methods do: with its
+    /// `to_path` method if it has one, then as a String, rejecting NUL bytes
+    /// and encodings that are not ASCII-compatible (`rb_get_path`,
+    /// `FilePathValue`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, File, Fixnum, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(File::get_path(&RString::new_utf8("a/b")).unwrap().to_str(), "a/b");
+    ///
+    /// VM::require("pathname");
+    /// let pathname = VM::eval("Pathname.new('/c/d')").unwrap();
+    /// assert_eq!(File::get_path(&pathname).unwrap().to_str(), "/c/d");
+    ///
+    /// let error = File::get_path(&Fixnum::new(1)).unwrap_err();
+    /// assert!(Class::type_error().case_equals(&error));
+    /// assert!(File::get_path(&RString::new_utf8("a\0b")).is_err());
+    /// ```
+    pub fn get_path<T: Object>(object: &T) -> Result<RString, AnyException> {
+        let object = object.value();
+
+        protect(|| io::get_path(object)).map(RString::from)
+    }
+
+    /// Returns the paths matching the glob `pattern`, like Ruby's
+    /// `Dir.glob(pattern)` (`rb_glob`), or the error Ruby raised while
+    /// matching.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{File, VM};
+    /// # VM::init();
+    ///
+    /// let directory = std::env::temp_dir().join(format!("rutie_glob_example_{}", std::process::id()));
+    /// std::fs::create_dir_all(&directory).unwrap();
+    /// for name in ["a.rb", "b.rb", "c.txt"] {
+    ///     std::fs::write(directory.join(name), "").unwrap();
+    /// }
+    ///
+    /// let pattern = format!("{}/*.rb", directory.to_str().unwrap().replace('\\', "/"));
+    /// let mut names: Vec<String> = File::glob(&pattern).unwrap().iter()
+    ///     .map(|path| path.to_str().rsplit('/').next().unwrap().to_string())
+    ///     .collect();
+    /// names.sort();
+    ///
+    /// assert_eq!(names, ["a.rb", "b.rb"]);
+    /// # std::fs::remove_dir_all(directory).unwrap();
+    /// ```
+    pub fn glob(pattern: &str) -> Result<Vec<RString>, AnyException> {
+        let pattern = CString::new(pattern)
+            .map_err(|_| AnyException::new("ArgumentError", Some("pattern contains a NUL byte")))?;
+
+        protect(|| io::glob(&pattern)).map(glob_results)
+    }
+
+    /// Like [`File::glob`](#method.glob), with `flags` (`File::FNM_*`, such
+    /// as `File::FNM_DOTMATCH`, 4, to match names starting with a dot), and
+    /// never raising (`ruby_glob`). A pattern with a NUL byte matches
+    /// nothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{File, VM};
+    /// # VM::init();
+    ///
+    /// let directory = std::env::temp_dir().join(format!("rutie_glob_flags_example_{}", std::process::id()));
+    /// std::fs::create_dir_all(&directory).unwrap();
+    /// for name in ["a.rb", "b.txt", ".hidden.rb"] {
+    ///     std::fs::write(directory.join(name), "").unwrap();
+    /// }
+    /// let directory_str = directory.to_str().unwrap().replace('\\', "/");
+    ///
+    /// let names = |paths: Vec<rutie::RString>| {
+    ///     let mut names: Vec<String> = paths.iter()
+    ///         .map(|path| path.to_str().rsplit('/').next().unwrap().to_string())
+    ///         .collect();
+    ///     names.sort();
+    ///     names
+    /// };
+    ///
+    /// let pattern = format!("{}/*.rb", directory_str);
+    /// assert_eq!(names(File::glob_with_flags(&pattern, 0)), ["a.rb"]);
+    /// assert_eq!(names(File::glob_with_flags(&pattern, 4)), [".hidden.rb", "a.rb"]);
+    ///
+    /// let pattern = format!("{}/*.{{rb,txt}}", directory_str);
+    /// assert_eq!(names(File::glob_with_flags(&pattern, 0)), ["a.rb", "b.txt"]);
+    /// # std::fs::remove_dir_all(directory).unwrap();
+    /// ```
+    pub fn glob_with_flags(pattern: &str, flags: i32) -> Vec<RString> {
+        match CString::new(pattern) {
+            Ok(pattern) => glob_results(io::glob_with_flags(&pattern, flags)),
+            Err(_) => Vec::new(),
+        }
     }
 }
 
@@ -1250,6 +1779,128 @@ mod tests {
 
             let mode = unsafe { rb_io_mode(stdin.value()) };
             assert_eq!(mode & (FMODE_READABLE | FMODE_WRITABLE), FMODE_READABLE);
+        });
+    }
+
+    #[test]
+    fn test_pipes_and_descriptors() {
+        crate::on_ruby_thread(|| {
+            let (reader, writer) = IO::pipe().unwrap();
+
+            // The write end is unbuffered, like `IO.pipe`'s.
+            writer
+                .printf(
+                    "%d-%s\n",
+                    &[Fixnum::new(4).into(), RString::new_utf8("x").into()],
+                )
+                .unwrap();
+            assert_eq!(reader.gets().unwrap().unwrap().to_str(), "4-x\n");
+
+            assert_eq!(writer.write_bytes(b"ab").unwrap(), 2);
+            assert_eq!(reader.getbyte().unwrap(), Some(b'a'));
+            reader.ungetbyte(b'z').unwrap();
+            assert_eq!(reader.getbyte().unwrap(), Some(b'z'));
+            assert_eq!(reader.getbyte().unwrap(), Some(b'b'));
+            assert!(writer.ungetbyte(b'z').is_err());
+            assert!(reader.write_bytes(b"z").is_err());
+            assert!(writer
+                .printf("%d", &[RString::new_utf8("no").into()])
+                .is_err());
+
+            assert_eq!(
+                IO::try_convert(&reader).unwrap(),
+                Some(IO::from(reader.value()))
+            );
+            assert_eq!(IO::try_convert(&Fixnum::new(1)).unwrap(), None);
+            assert!(IO::convert(&Fixnum::new(1)).is_err());
+            assert!(IO::convert(&writer).is_ok());
+
+            let (other_reader, other_writer) = IO::pipe().unwrap();
+            assert_eq!(reader.set_write_io(Some(&other_writer)).unwrap(), None);
+            reader.write(&RString::new_utf8("w")).unwrap();
+            assert_eq!(other_reader.getbyte().unwrap(), Some(b'w'));
+            assert_eq!(
+                reader.set_write_io(None).unwrap(),
+                Some(IO::from(other_writer.value()))
+            );
+            assert!(reader.write(&RString::new_utf8("w")).is_err());
+
+            let fd = unsafe { other_writer.send("fileno", &[]) }
+                .try_convert_to::<Fixnum>()
+                .unwrap()
+                .to_i32();
+            assert!(!IO::is_reserved_fd(fd));
+            unsafe { other_writer.send("autoclose=", &[crate::Boolean::new(false).into()]) };
+            let wrapped = unsafe { IO::fdopen(fd, 1, Some("pipe-end")) }.unwrap();
+            // A path other than "-" makes a File.
+            assert!(Class::file().case_equals(&wrapped));
+            wrapped.write(&RString::new_utf8("v")).unwrap();
+            wrapped.flush().unwrap();
+            assert_eq!(other_reader.getbyte().unwrap(), Some(b'v'));
+            assert!(unsafe { IO::fdopen(fd, 1, Some("nul\0")) }.is_err());
+
+            for io in [reader, writer, other_reader, wrapped] {
+                io.close().unwrap();
+            }
+
+            assert_eq!(IO::fmode("r+").unwrap(), 0x3);
+            assert_eq!(IO::fmode("ab").unwrap() & 0x46, 0x46);
+            assert!(IO::fmode("x").is_err());
+            assert!(IO::fmode("r\0").is_err());
+            assert_eq!(IO::fmode_from_oflags(IO::oflags("r+").unwrap()), 0x3);
+            assert!(IO::oflags("").is_err());
+        });
+    }
+
+    #[test]
+    fn test_file_paths_and_globs() {
+        crate::on_ruby_thread(|| {
+            let directory =
+                std::env::temp_dir().join(format!("rutie_glob_unit_test_{}", std::process::id()));
+            std::fs::create_dir_all(&directory).unwrap();
+            for name in ["one.rb", "two.rs", ".three.rb"] {
+                std::fs::write(directory.join(name), "").unwrap();
+            }
+            let base = directory.to_str().unwrap().replace('\\', "/");
+
+            assert!(File::is_directory(&base).unwrap());
+            assert!(!File::is_directory(&format!("{}/one.rb", base)).unwrap());
+            assert!(File::is_absolute_path(&base));
+            assert!(!File::is_absolute_path("one.rb"));
+            assert!(!File::is_absolute_path("/nul\0"));
+
+            let names = |paths: Vec<RString>| {
+                let mut names: Vec<String> = paths
+                    .iter()
+                    .map(|path| path.to_str().rsplit('/').next().unwrap().to_string())
+                    .collect();
+                names.sort();
+                names
+            };
+
+            assert_eq!(
+                names(File::glob(&format!("{}/*.rb", base)).unwrap()),
+                ["one.rb"]
+            );
+            assert!(File::glob("nul\0").is_err());
+            let braces = format!("{}/*.{{rb,rs}}", base);
+            assert_eq!(names(File::glob(&braces).unwrap()), ["one.rb", "two.rs"]);
+            assert_eq!(
+                names(File::glob_with_flags(&braces, 0)),
+                ["one.rb", "two.rs"]
+            );
+            assert_eq!(
+                names(File::glob_with_flags(&format!("{}/*.rb", base), 4)),
+                [".three.rb", "one.rb"]
+            );
+            assert!(File::glob_with_flags("nul\0", 0).is_empty());
+
+            let path = RString::new_utf8("a/b");
+            assert_eq!(File::encode_ospath(&path).unwrap().to_str(), "a/b");
+            assert_eq!(File::get_path(&path).unwrap().to_str(), "a/b");
+            assert!(File::get_path(&Fixnum::new(1)).is_err());
+
+            std::fs::remove_dir_all(directory).unwrap();
         });
     }
 }

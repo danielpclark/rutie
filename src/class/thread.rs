@@ -876,6 +876,58 @@ impl Thread {
     pub fn set_internal_specific(&self, key: InternalThreadSpecificKey, data: *mut c_void) {
         thread::internal_thread_specific_set(self.value(), key.0, data)
     }
+
+    /// Puts the current thread to sleep until another thread wakes it up
+    /// with [`wakeup`](#method.wakeup) or `run` (Ruby's `Thread.stop`,
+    /// `rb_thread_stop`).
+    ///
+    /// Returns the `ThreadError` when the current thread is the only one,
+    /// which would sleep forever, or the exception raised in the thread
+    /// while it slept.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, Thread, VM};
+    /// # VM::init();
+    ///
+    /// let error = Thread::stop().unwrap_err();
+    /// assert!(Class::from_existing("ThreadError").case_equals(&error));
+    ///
+    /// // A thread that wakes the main thread up once it has stopped.
+    /// VM::eval("main = Thread.current; Thread.new { Thread.pass until main.stop?; main.wakeup }").unwrap();
+    ///
+    /// assert!(Thread::stop().is_ok());
+    /// ```
+    pub fn stop() -> Result<(), AnyException> {
+        vm::protect_value(thread::stop)
+            .map(|_| ())
+            .map_err(AnyException::from)
+    }
+
+    /// Like [`wakeup`](#method.wakeup), but returns `false` for a thread
+    /// that is no longer alive instead of an error
+    /// (`rb_thread_wakeup_alive`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, Symbol, Thread, VM};
+    /// # VM::init();
+    ///
+    /// let sleeper = VM::eval("Thread.new { Thread.stop; :woke }").unwrap().try_convert_to::<Thread>().unwrap();
+    ///
+    /// while !unsafe { sleeper.send("stop?", &[]) }.value().is_true() {
+    ///     Thread::pass();
+    /// }
+    ///
+    /// assert!(sleeper.wakeup_alive());
+    /// assert_eq!(sleeper.join_value().unwrap().try_convert_to::<Symbol>(), Ok(Symbol::new("woke")));
+    /// assert!(!sleeper.wakeup_alive());
+    /// ```
+    pub fn wakeup_alive(&self) -> bool {
+        thread::wakeup_alive(self.value())
+    }
 }
 
 /// A thread event passed to a hook added with
@@ -1459,6 +1511,24 @@ mod tests {
             worker.join().unwrap();
             // A finished thread has no frames.
             assert!(worker.profile_frames(0, 10).is_empty());
+        });
+    }
+
+    #[test]
+    fn test_stop_and_wakeup_alive() {
+        crate::on_ruby_thread(|| {
+            assert!(Thread::stop().is_err());
+
+            VM::eval("main = Thread.current; $rutie_waker = Thread.new { Thread.pass until main.stop?; main.run }")
+                .unwrap();
+            assert!(Thread::stop().is_ok());
+            let waker = VM::eval("$rutie_waker")
+                .unwrap()
+                .try_convert_to::<Thread>()
+                .unwrap();
+            waker.join().unwrap();
+            assert!(!waker.wakeup_alive());
+            assert!(Thread::current().wakeup_alive());
         });
     }
 }
