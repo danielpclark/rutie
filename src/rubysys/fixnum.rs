@@ -1,4 +1,7 @@
-use crate::rubysys::{libc, types::Value};
+use crate::rubysys::{
+    libc,
+    types::{SignedValue, Value},
+};
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
@@ -43,4 +46,37 @@ extern "C" {
     // unsigned LONG_LONG
     // rb_num2ull(VALUE val)
     pub fn rb_num2ull(num: Value) -> libc::c_ulonglong;
+    // VALUE
+    // rb_int2big(intptr_t i)
+    //
+    // Always a Bignum, even for a value that fits a Fixnum.
+    pub fn rb_int2big(num: libc::intptr_t) -> Value;
+    // VALUE
+    // rb_uint2big(uintptr_t i)
+    //
+    // Always a Bignum, even for a value that fits a Fixnum.
+    pub fn rb_uint2big(num: libc::uintptr_t) -> Value;
+
+    // long
+    // rb_fix2int(VALUE num)
+    pub fn rb_fix2int(num: Value) -> libc::c_long;
+    // unsigned long
+    // rb_fix2uint(VALUE num)
+    //
+    // Like `rb_num2uint`, only defined where `int` is smaller than `long`;
+    // elsewhere `FIX2UINT` is `FIX2ULONG`.
+    #[cfg(not(any(windows, target_pointer_width = "32")))]
+    pub fn rb_fix2uint(num: Value) -> libc::c_ulong;
+    // short
+    // rb_fix2short(VALUE num)
+    pub fn rb_fix2short(num: Value) -> libc::c_short;
+    // unsigned short
+    // rb_fix2ushort(VALUE num)
+    pub fn rb_fix2ushort(num: Value) -> libc::c_ushort;
+    // void
+    // rb_out_of_int(SIGNED_VALUE num)
+    //
+    // Raises `RangeError`. Only defined where `int` is smaller than `long`.
+    #[cfg(not(any(windows, target_pointer_width = "32")))]
+    pub fn rb_out_of_int(num: SignedValue) -> !;
 }

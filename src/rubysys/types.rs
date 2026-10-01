@@ -1,7 +1,7 @@
 use crate::rubysys::libc::{intptr_t, uintptr_t};
 
 pub use crate::rubysys::{
-    libc::{c_char, c_double, c_int, c_long, c_uint, c_void, size_t, ssize_t},
+    libc::{c_char, c_double, c_int, c_long, c_uint, c_ulong, c_void, size_t, ssize_t},
     typed_data::{RbDataType, RbDataTypeFunction},
     value::{Value, ValueType},
 };
