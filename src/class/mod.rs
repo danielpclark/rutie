@@ -19,6 +19,7 @@ pub mod integer;
 pub mod io;
 pub mod io_buffer;
 pub mod marshal;
+pub mod memory_view;
 pub mod method;
 pub mod module;
 pub mod mutex;

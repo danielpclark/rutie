@@ -146,6 +146,7 @@ pub use crate::class::{
     io::{File, IO},
     io_buffer::IOBuffer,
     marshal::Marshal,
+    memory_view::MemoryView,
     method::Method,
     module::Module,
     mutex::{Mutex, MutexGuard},
