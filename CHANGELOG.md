@@ -70,8 +70,8 @@ on 0.11.x.
    `ruby_xcalloc`, `ruby_xrealloc`, `ruby_xrealloc2` and `ruby_xfree`),
    `rb_reg_onig_match` (Ruby 3.3+, with `ReRegisters` and
    `OnigMatchFunction`), `rb_st_init_existing_table_with_size` and
-   `rb_st_replace` (Ruby 3.3 only, with `StHashType`), and
-   `rb_debug_rstring_null_ptr`, thanks to @danielpclark
+   `rb_st_replace` (Ruby 3.3 only, with `StHashType`), `rb_io_mode` (Ruby
+   3.3+) and `rb_debug_rstring_null_ptr`, thanks to @danielpclark
  - `ValueType::Moved` (`T_MOVED`), and the `RbDataType` flags
    `RUBY_TYPED_FREE_IMMEDIATELY`, `RUBY_TYPED_FROZEN_SHAREABLE`,
    `RUBY_TYPED_WB_PROTECTED`, `RUBY_TYPED_EMBEDDABLE` (Ruby 3.3+) and

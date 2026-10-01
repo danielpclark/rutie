@@ -1240,4 +1240,21 @@ mod tests {
             assert_eq!(tilde.to_str(), format!("{}/~", base));
         });
     }
+
+    #[cfg(ruby_gte_3_3)]
+    #[test]
+    fn test_raw_io_mode() {
+        use crate::rubysys::io::{rb_io_mode, FMODE_READABLE, FMODE_WRITABLE};
+
+        crate::on_ruby_thread(|| {
+            let stdout = VM::eval("$stdout").unwrap();
+            let stdin = VM::eval("$stdin").unwrap();
+
+            let mode = unsafe { rb_io_mode(stdout.value()) };
+            assert_eq!(mode & (FMODE_READABLE | FMODE_WRITABLE), FMODE_WRITABLE);
+
+            let mode = unsafe { rb_io_mode(stdin.value()) };
+            assert_eq!(mode & (FMODE_READABLE | FMODE_WRITABLE), FMODE_READABLE);
+        });
+    }
 }

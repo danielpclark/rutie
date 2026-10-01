@@ -107,6 +107,12 @@ extern "C" {
     //
     // Raises `IOError` for a closed stream.
     pub fn rb_io_descriptor(io: Value) -> c_int;
+    // int
+    // rb_io_mode(VALUE io)
+    //
+    // Ruby 3.3+: the `FMODE_*` flags of `io`.
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_io_mode(io: Value) -> c_int;
     // VALUE
     // rb_io_maybe_wait(int error, VALUE io, VALUE events, VALUE timeout)
     //
