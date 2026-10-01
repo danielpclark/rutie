@@ -7,7 +7,11 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
-## [0.11.0] - Unreleased
+## [0.11.1] - 2026-09-30
+### Removed
+ - The README's "Migrating from Ruru to Rutie" section, thanks to @danielpclark
+
+## [0.11.0] - 2026-09-30
 Supports Ruby 3.0, 3.1 and 3.2; Ruby 2 stays on 0.10.x.
 
 ### Added
