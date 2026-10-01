@@ -8,47 +8,65 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [0.11.1] - 2026-09-30
+Adds macOS and Windows: supports Ruby 3.0, 3.1 and 3.2 on Linux, macOS and
+Windows. 0.11.0 was Linux only.
+
+### Added
+ - Windows support on Ruby 3: Rutie builds, links and passes its tests on
+   64-bit Windows with RubyInstaller's Ruby 3.0, 3.1 and 3.2, with both the
+   MSVC and the GNU Rust toolchains, for programs embedding Ruby and for Ruby
+   extensions. This is 0.10.2's Windows support (see its entry) on Ruby 3;
+   `VM::init` and `VM::try_init` call `ruby_sysinit` before booting, which
+   Ruby 3 needs, thanks to @danielpclark
+ - macOS support on Ruby 3: Rutie builds and passes its tests on macOS with
+   Ruby 3.0, 3.1 and 3.2, thanks to @danielpclark
+ - Static Ruby linking on Linux and macOS (`libruby-static.a`, `RUBY_STATIC`,
+   `RUBY_STATIC_PATH`), as in 0.10.2. Programs that embed a static Ruby must
+   export its functions (see the README); Rutie publishes the flag as
+   `DEP_RUBY_LINK_ARG` (and `DEP_RUBY_STATIC`) for their build scripts, as
+   `examples/rutie_rust_example/build.rs` uses, thanks to @danielpclark
+ - `rutie_callback!` defines a function for Ruby to call (a method body, an
+   allocator, ...) with the right ABI, or names its type: `extern "C"`, or
+   `extern "C-unwind"` on Windows, thanks to @danielpclark
+ - `Thread::wait_fd` and `Thread::wait_fd_writable` on Windows, where they take
+   a descriptor of Ruby's C runtime (`IO#fileno`), thanks to @danielpclark
+
 ### Changed
- - CI tests Ruby 3.0, 3.1 and 3.2 from `ruby/setup-ruby` on Linux, macOS
-   and Windows (MSVC and GNU toolchains), with stable and beta Rust, plus
-   static Rubies built with `ruby-build` on Linux and macOS, thanks to @danielpclark
- - A static Ruby's archive is no longer linked whole: with YJIT (Ruby 3.2)
-   it contains YJIT's Rust runtime, whose allocator symbols clashed with the
-   program's (`duplicate symbol: __rust_alloc`), thanks to @danielpclark
- - A static Ruby 3.2 built with YJIT can still fail to link with newer Rust
-   toolchains (`duplicate symbol: rust_eh_personality`, from YJIT's copy of
-   the standard library): `build.rs` now warns about it, the README says to
-   build a static Ruby with `--disable-yjit`, and CI does, thanks to @danielpclark
- - CI prints the end of `ruby-build`'s log when building a static Ruby
-   fails, and builds macOS's static Ruby 3.0 without `bigdecimal`, which
-   doesn't compile with the current Apple clang, thanks to @danielpclark
- - Windows: `VM::try_init` crashed on Ruby 3.1 and 3.2: it booted without
-   `ruby_sysinit`, which Ruby 3's boot needs; it now calls it like
-   `VM::init`, thanks to @danielpclark
+ - Windows: functions Ruby calls that a Ruby exception can pass through are
+   `extern "C-unwind"`: `methods!`/`unsafe_methods!` methods, the
+   `types::Callback` and `Class::define_alloc_func` types, and the `rubysys`
+   callback types. Windows needs Rust 1.71 or later; write hand-written
+   callbacks with `rutie_callback!`. Other platforms are unchanged,
+   thanks to @danielpclark
+ - `VM::init` and `VM::try_init` call `ruby_init_stack` on every platform, as
+   `ruby` does. Fibers always use native coroutines on Ruby 3, so 0.10.2's
+   Ruby 2.5/2.6 arm64 macOS workaround (`rutie_copy_stack_fibers`) is not
+   needed, thanks to @danielpclark
  - `VM::run_file` sets `$0` to the path `load` resolves (`rb_find_file`), so
    `__FILE__ == $0` also holds on Windows, where that path uses `/`,
    thanks to @danielpclark
- - Windows, macOS and static-Ruby support from 0.10.2 carry over to Ruby 3.
-   Fibers always use native coroutines there, so the Ruby 2.5/2.6 arm64 macOS
-   stack-copying workaround (`rutie_copy_stack_fibers`) is gone, and
-   `VM::init`/`VM::try_init` call `ruby_init_stack` on every platform, as
-   `ruby` does, thanks to @danielpclark
+ - A static Ruby's archive is not linked whole: with YJIT (Ruby 3.2) it
+   contains YJIT's Rust runtime, whose allocator symbols clash with the
+   program's (`duplicate symbol: __rust_alloc`). A static Ruby 3.2 built with
+   YJIT can still fail to link with newer Rust toolchains (`duplicate symbol:
+   rust_eh_personality`, from YJIT's copy of the standard library):
+   `build.rs` warns about it, and the README says to build a static Ruby with
+   `--disable-yjit`, thanks to @danielpclark
+ - CI tests Ruby 3.0, 3.1 and 3.2 from `ruby/setup-ruby` on Linux, macOS
+   and Windows (MSVC and GNU toolchains), with stable and beta Rust, plus
+   static Rubies built with `ruby-build` (without YJIT) on Linux and macOS.
+   It prints the end of `ruby-build`'s log when that fails, builds macOS's
+   static Ruby 3.0 without `bigdecimal`, which doesn't compile with the
+   current Apple clang, and builds the gem examples on macOS with
+   `NO_LINK_RUTIE`, so an extension uses the `ruby` process's libruby,
+   thanks to @danielpclark
 
 ### Removed
  - The README's "Migrating from Ruru to Rutie" section, thanks to @danielpclark
 
-### Fixed
- - Programs that depend on Rutie crashed at boot (`enc/encdb.bundle`) with
-   a static Ruby, such as `ruby/setup-ruby`'s macOS Ruby 3.1: only Rutie's own
-   targets exported libruby's functions. The static path now also publishes
-   its export flag as `DEP_RUBY_LINK_ARG` (and `DEP_RUBY_STATIC`) for their
-   build scripts, as `examples/rutie_rust_example/build.rs` does. On macOS, CI
-   builds the gem examples with `NO_LINK_RUTIE`, so an extension uses the
-   `ruby` process's libruby instead of carrying a second, unbooted VM,
-   thanks to @danielpclark
-
 ## [0.11.0] - 2026-09-30
-Supports Ruby 3.0, 3.1 and 3.2; Ruby 2 stays on 0.10.x.
+Supports Ruby 3.0, 3.1 and 3.2 on Linux (macOS and Windows came in 0.11.1);
+Ruby 2 stays on 0.10.x.
 
 ### Added
  - `build.rs` sets `ruby_3_0`/`ruby_3_1`/`ruby_3_2` and cumulative
