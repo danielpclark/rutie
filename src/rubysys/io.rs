@@ -74,6 +74,10 @@ extern "C" {
     // What `IO#binmode` calls: binary mode plus ASCII-8BIT external encoding.
     pub fn rb_io_ascii8bit_binmode(io: Value) -> Value;
     // VALUE
+    // rb_io_closed_p(VALUE io)
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_io_closed_p(io: Value) -> Value;
+    // VALUE
     // rb_io_wait(VALUE io, VALUE events, VALUE timeout)
     //
     // Returns the ready events as an Integer, or `Qfalse` on timeout.

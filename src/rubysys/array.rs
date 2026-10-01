@@ -186,7 +186,7 @@ mod tests {
         });
     }
 
-    // Arrays across the embedded/heap boundary (3 elements on Ruby 3.0/3.1,
+    // Arrays across the embedded/heap boundary (3 elements on Ruby 3.1,
     // the slot size on 3.2), made in several ways, including shared slices.
     #[test]
     fn test_direct_rarray_len() {

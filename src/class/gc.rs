@@ -225,22 +225,19 @@ impl GC {
         gc::enable().is_true()
     }
 
-    /// Forcibly GC object.
+    /// Forcibly GC object. On every Ruby Rutie 0.12 supports this does
+    /// nothing (`rb_gc_force_recycle` is a no-op from Ruby 3.1): the object
+    /// is freed by a later GC like any other.
     ///
-    /// The object must not be used afterwards.
-    ///
-    /// Ruby 3.0 frees the object at once. From Ruby 3.1 `rb_gc_force_recycle`
-    /// does nothing, so the object is freed by a later GC like any other.
-    /// Ruby 3.4 removes the function; Rutie 0.12 deprecates this method and
-    /// 0.13 removes it (see `docs/ruby3-upgrade-plan.md`).
+    /// **Deprecated:** Ruby 3.4 removes `rb_gc_force_recycle`, and Rutie 0.13
+    /// removes this method. Drop the call.
     ///
     /// # Examples
     ///
     /// ```
+    /// # #![allow(deprecated)]
     /// use rutie::{Fixnum, Hash, Module, Object, RString, Symbol, GC, VM};
     /// # VM::init();
-    ///
-    /// let recycles_now = VM::eval("RUBY_VERSION < '3.1'").unwrap().value().is_true();
     ///
     /// let live_strings = || {
     ///     let counts = unsafe { Module::from_existing("ObjectSpace").send("count_objects", &[]) };
@@ -256,15 +253,22 @@ impl GC {
     /// let before = live_strings();
     /// GC::force_recycle(obj);
     ///
-    /// let expected = if recycles_now { before - 1 } else { before };
-    /// assert_eq!(live_strings(), expected);
+    /// // Nothing was freed.
+    /// assert_eq!(live_strings(), before);
     /// GC::enable();
     /// ```
+    #[deprecated(
+        since = "0.12.0",
+        note = "a no-op from Ruby 3.1; Ruby 3.4 removes it, and so will Rutie 0.13"
+    )]
     pub fn force_recycle(object: impl Object) {
         gc::force_recycle(object.value())
     }
 
     /// Check if object is marked
+    ///
+    /// **Deprecated:** Ruby 3.4 no longer exports `rb_objspace_marked_object_p`,
+    /// and there is no replacement; Rutie 0.13 removes this method.
     ///
     /// CAUTION: THIS FUNCTION IS ENABLED *ONLY BEFORE* SWEEPING.
     /// This function is only for GC_END_MARK timing.
@@ -275,6 +279,7 @@ impl GC {
     /// marking. A panic there aborts the process, so record the result instead:
     ///
     /// ```
+    /// # #![allow(deprecated)]
     /// #[macro_use] extern crate rutie;
     /// #[macro_use] extern crate lazy_static;
     ///
@@ -309,6 +314,10 @@ impl GC {
     ///     assert_eq!(holder.get_data(&*HOLDER_WRAPPER).name.to_str(), "held");
     /// }
     /// ```
+    #[deprecated(
+        since = "0.12.0",
+        note = "Ruby 3.4 no longer exports rb_objspace_marked_object_p; Rutie 0.13 removes it"
+    )]
     pub unsafe fn is_marked(object: &impl Object) -> bool {
         gc::is_marked(object.value())
     }
@@ -743,6 +752,7 @@ mod tests {
             }
             // `is_marked` only means something during marking. A panic here
             // would abort, so the result is recorded instead.
+            #[allow(deprecated)]
             let marked = data.objects.iter().all(|object| unsafe { GC::is_marked(object) });
             HOLDER_CONTENTS_MARKED.store(marked, Ordering::SeqCst);
         }
@@ -836,6 +846,7 @@ mod tests {
 
             // `force_recycle` frees an object immediately; it must not be used again.
             let garbage = crate::RString::new_utf8("recycled");
+            #[allow(deprecated)]
             GC::force_recycle(garbage);
 
             let object = crate::RString::new_utf8("finalizable");

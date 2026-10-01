@@ -66,12 +66,13 @@ impl Thread {
     /// Ruby's C runtime, as Ruby's `IO#fileno` returns it (not a `HANDLE` or
     /// `SOCKET`).
     ///
-    /// Ruby deprecates `rb_thread_wait_fd` from 3.1; prefer
+    /// **Deprecated:** Ruby deprecates `rb_thread_wait_fd` from 3.1; use
     /// [`Thread::wait_readable`](#method.wait_readable).
     ///
     /// # Examples
     ///
     /// ```
+    /// # #![allow(deprecated)]
     /// use rutie::{Fixnum, Object, Thread, VM};
     /// # VM::init();
     ///
@@ -88,6 +89,7 @@ impl Thread {
     /// On Unix a descriptor from Rust works too:
     ///
     /// ```
+    /// # #![allow(deprecated)]
     /// # #[cfg(unix)] {
     /// use std::io::{Read, Write};
     /// use std::os::unix::io::AsRawFd;
@@ -108,6 +110,7 @@ impl Thread {
     /// # }
     /// ```
     #[cfg(any(unix, windows))]
+    #[deprecated(since = "0.12.0", note = "use Thread::wait_readable")]
     pub fn wait_fd(fd: RawFd) {
         thread::wait_fd(fd);
     }
@@ -368,12 +371,13 @@ impl Thread {
     ///
     /// The descriptor is as for [`Thread::wait_fd`](#method.wait_fd).
     ///
-    /// Ruby deprecates `rb_thread_fd_writable` from 3.1; prefer
+    /// **Deprecated:** Ruby deprecates `rb_thread_fd_writable` from 3.1; use
     /// [`Thread::wait_writable`](#method.wait_writable).
     ///
     /// # Examples
     ///
     /// ```
+    /// # #![allow(deprecated)]
     /// use rutie::{Fixnum, Object, Thread, VM};
     /// # VM::init();
     ///
@@ -387,6 +391,7 @@ impl Thread {
     /// On Unix a descriptor from Rust works too:
     ///
     /// ```
+    /// # #![allow(deprecated)]
     /// # #[cfg(unix)] {
     /// use std::io::{Read, Write};
     /// use std::os::unix::io::AsRawFd;
@@ -407,6 +412,7 @@ impl Thread {
     /// # }
     /// ```
     #[cfg(any(unix, windows))]
+    #[deprecated(since = "0.12.0", note = "use Thread::wait_writable")]
     pub fn wait_fd_writable(fd: RawFd) {
         thread::wait_fd_writable(fd);
     }
@@ -997,9 +1003,11 @@ mod tests {
                     .unwrap()
                     .to_i32()
             };
+            #[allow(deprecated)]
             Thread::wait_fd_writable(fd(1));
             VM::eval("$rutie_fd_pipe[1].write('x')").unwrap();
             // Returns once the reader has data.
+            #[allow(deprecated)]
             Thread::wait_fd(fd(0));
             VM::eval("$rutie_fd_pipe.each(&:close); $rutie_fd_pipe = nil").unwrap();
 
@@ -1010,9 +1018,11 @@ mod tests {
                 use std::os::unix::net::UnixStream;
 
                 let (mut writer, reader) = UnixStream::pair().unwrap();
+                #[allow(deprecated)]
                 Thread::wait_fd_writable(writer.as_raw_fd());
                 writer.write_all(b"x").unwrap();
                 // Returns once the reader has data.
+                #[allow(deprecated)]
                 Thread::wait_fd(reader.as_raw_fd());
             }
         });

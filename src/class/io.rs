@@ -303,7 +303,8 @@ impl IO {
         protect(|| io::close(io_value)).map(|_| ())
     }
 
-    /// Returns `true` if the stream is closed (Ruby's `closed?`).
+    /// Returns `true` if the stream is closed (Ruby's `closed?`,
+    /// `rb_io_closed_p` on Ruby 3.3+).
     ///
     /// # Examples
     ///
@@ -314,7 +315,7 @@ impl IO {
     /// assert!(!IO::stdout().is_closed());
     /// ```
     pub fn is_closed(&self) -> bool {
-        vm::call_method(self.value(), "closed?", &[]).is_true()
+        io::is_closed(self.value())
     }
 
     /// Returns `true` at the end of the stream, waiting for input on pipes

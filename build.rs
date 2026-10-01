@@ -42,20 +42,20 @@ fn try_rbconfig(key: &str) -> Result<String, std::io::Error> {
 // The Ruby versions this Rutie line supports (each Rutie minor supports three
 // Ruby minors; see the README's version roadmap). Each one gets an exact
 // `ruby_X_Y` cfg and a cumulative `ruby_gte_X_Y` cfg.
-const SUPPORTED_RUBIES: [(u32, u32); 3] = [(3, 0), (3, 1), (3, 2)];
+const SUPPORTED_RUBIES: [(u32, u32); 3] = [(3, 1), (3, 2), (3, 3)];
 
 // Which Rutie line supports a Ruby this one doesn't, for the error message.
 fn rutie_line_for(major: u32, minor: u32) -> &'static str {
     match (major, minor) {
         (2, 5..=7) => "Rutie 0.10",
-        (3, 3) => "Rutie 0.12 or 0.13",
+        (3, 0) => "Rutie 0.11",
         (3, 4) => "Rutie 0.13",
         _ => "no Rutie release yet",
     }
 }
 
-// Emits `ruby_3_0` / `ruby_3_1` / `ruby_3_2` for the exact version of the
-// Ruby found by `rbconfig` and `ruby_gte_3_0` / `ruby_gte_3_1` / `ruby_gte_3_2`
+// Emits `ruby_3_1` / `ruby_3_2` / `ruby_3_3` for the exact version of the
+// Ruby found by `rbconfig` and `ruby_gte_3_1` / `ruby_gte_3_2` / `ruby_gte_3_3`
 // for every version at or above those, so bindings can be gated with
 // `#[cfg(ruby_gte_3_2)]` instead of sniffing the version at runtime.
 //
