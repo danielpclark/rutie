@@ -15,14 +15,6 @@ pub type DebugInspectorFunction =
 // typedef void (*rb_postponed_job_func_t)(void *arg);
 pub type PostponedJobFunction = rutie_callback!(type fn(arg: *mut c_void));
 
-// typedef unsigned int rb_postponed_job_handle_t;
-#[cfg(ruby_gte_3_3)]
-pub type PostponedJobHandle = c_uint;
-
-// #define POSTPONED_JOB_HANDLE_INVALID ((rb_postponed_job_handle_t)UINT_MAX)
-#[cfg(ruby_gte_3_3)]
-pub const POSTPONED_JOB_HANDLE_INVALID: PostponedJobHandle = PostponedJobHandle::MAX;
-
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // Fills `buff` with up to `limit` frames of the current thread's stack,
@@ -36,18 +28,6 @@ extern "C" {
     // int
     // rb_profile_frames(int start, int limit, VALUE *buff, int *lines)
     pub fn rb_profile_frames(
-        start: c_int,
-        limit: c_int,
-        buff: *mut Value,
-        lines: *mut c_int,
-    ) -> c_int;
-    // Like `rb_profile_frames`, for `thread`.
-    //
-    // int
-    // rb_profile_thread_frames(VALUE thread, int start, int limit, VALUE *buff, int *lines)
-    #[cfg(ruby_gte_3_3)]
-    pub fn rb_profile_thread_frames(
-        thread: Value,
         start: c_int,
         limit: c_int,
         buff: *mut Value,
@@ -126,26 +106,6 @@ extern "C" {
     #[cfg(ruby_gte_3_2)]
     pub fn rb_debug_inspector_current_depth() -> Value;
 
-    // Registers `func` in the postponed job table (32 entries, never freed)
-    // and returns its handle, or `POSTPONED_JOB_HANDLE_INVALID` when the table
-    // is full. Registering the same `func` again replaces its `data` and
-    // returns the same handle. `flags` is unused.
-    //
-    // rb_postponed_job_handle_t
-    // rb_postponed_job_preregister(unsigned int flags, rb_postponed_job_func_t func, void *data)
-    #[cfg(ruby_gte_3_3)]
-    pub fn rb_postponed_job_preregister(
-        flags: c_uint,
-        func: PostponedJobFunction,
-        data: *mut c_void,
-    ) -> PostponedJobHandle;
-    // Makes Ruby run the job the next time it checks for interrupts, with
-    // the GVL held. Async signal safe; callable from any thread.
-    //
-    // void
-    // rb_postponed_job_trigger(rb_postponed_job_handle_t h)
-    #[cfg(ruby_gte_3_3)]
-    pub fn rb_postponed_job_trigger(handle: PostponedJobHandle);
     // Deprecated in Ruby 3.3 for `rb_postponed_job_preregister` and
     // `rb_postponed_job_trigger`. Returns 0 when the job could not be
     // registered.

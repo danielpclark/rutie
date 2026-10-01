@@ -375,6 +375,8 @@ impl Integer {
     /// Returns `base` raised to the power `exponent`, computed by Ruby
     /// without creating an `Integer` for `base` first (`rb_int_positive_pow`).
     ///
+    /// Ruby 3.1+.
+    ///
     /// Like [`pow`](#method.pow), the result is an `Integer`, except that
     /// Ruby gives `Infinity` (a `Float`, with a warning) when it would be
     /// enormous. A `base` that does not fit a C `long` (on Windows) or is its
@@ -395,6 +397,7 @@ impl Integer {
     /// assert_eq!(big.to_u128(), Some(1 << 100));
     /// assert_eq!(Integer::positive_pow(7, 0).try_convert_to::<Integer>().unwrap().to_i64(), 1);
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn positive_pow(base: i64, exponent: u32) -> AnyObject {
         match c_long::try_from(base) {
             Ok(base) if base != c_long::MIN => {
@@ -851,6 +854,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(ruby_gte_3_1)]
     fn test_positive_pow() {
         crate::on_ruby_thread(|| {
             let pow = |base: i64, exponent: u32| {

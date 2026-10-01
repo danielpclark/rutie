@@ -10,6 +10,7 @@ pub mod gc;
 pub mod global;
 pub mod hash;
 pub mod io;
+#[cfg(ruby_gte_3_1)]
 pub mod io_buffer;
 pub mod memory_view;
 pub mod module;

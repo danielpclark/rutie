@@ -89,13 +89,3 @@ pub fn warning(message: &str) {
 pub fn interrupt() -> ! {
     unsafe { exception::rb_interrupt() }
 }
-
-#[cfg(ruby_gte_3_3)]
-pub fn errno() -> c_int {
-    unsafe { exception::rb_errno() }
-}
-
-#[cfg(ruby_gte_3_3)]
-pub fn set_errno(errno: c_int) {
-    unsafe { exception::rb_errno_set(errno) }
-}

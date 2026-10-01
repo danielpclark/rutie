@@ -210,30 +210,6 @@ extern "C" {
         length: size_t,
     ) -> Value;
     // VALUE
-    // rb_fiber_scheduler_io_pread_memory(VALUE scheduler, VALUE io, rb_off_t from, void *base,
-    //                                    size_t size, size_t length)
-    #[cfg(ruby_gte_3_3)]
-    pub fn rb_fiber_scheduler_io_pread_memory(
-        scheduler: Value,
-        io: Value,
-        from: RbOff,
-        base: *mut c_void,
-        size: size_t,
-        length: size_t,
-    ) -> Value;
-    // VALUE
-    // rb_fiber_scheduler_io_pwrite_memory(VALUE scheduler, VALUE io, rb_off_t from,
-    //                                     const void *base, size_t size, size_t length)
-    #[cfg(ruby_gte_3_3)]
-    pub fn rb_fiber_scheduler_io_pwrite_memory(
-        scheduler: Value,
-        io: Value,
-        from: RbOff,
-        base: *const c_void,
-        size: size_t,
-        length: size_t,
-    ) -> Value;
-    // VALUE
     // rb_fiber_scheduler_io_close(VALUE scheduler, VALUE io)
     pub fn rb_fiber_scheduler_io_close(scheduler: Value, io: Value) -> Value;
     // VALUE

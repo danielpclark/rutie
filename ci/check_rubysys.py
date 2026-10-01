@@ -79,9 +79,22 @@ def split_args(text):
     return parts
 
 
+def inactive_modules(version):
+    """The `src/rubysys` modules whose `pub mod` line in `mod.rs` is gated off."""
+    text = open("src/rubysys/mod.rs").read()
+    inactive = set()
+    for cfgs, name in re.findall(r"((?:#\[cfg\(.*\)\]\s*)+)pub mod (\w+);", text):
+        if not all(cfg_active(c, version) for c in re.findall(r"#\[cfg\((.*)\)\]", cfgs)):
+            inactive.add(name)
+    return inactive
+
+
 def rust_declarations(version):
     """Yields (file, name, kind, rust_return, internal) for active declarations."""
+    inactive = inactive_modules(version)
     for path in sorted(glob.glob("src/rubysys/*.rs")):
+        if os.path.splitext(os.path.basename(path))[0] in inactive:
+            continue
         text = open(path).read()
         for block in re.finditer(r'((?:#\[[^\n]*\]\n)*)extern "C" \{(.*?)\n\}', text, re.S):
             block_cfgs = re.findall(r"#\[cfg\((.*)\)\]", block.group(1))

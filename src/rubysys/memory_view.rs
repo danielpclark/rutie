@@ -29,7 +29,6 @@ pub const RUBY_MEMORY_VIEW_INDIRECT: c_int = (1 << 6) | RUBY_MEMORY_VIEW_STRIDES
 // layout (MSVC, and MinGW's default `-mms-bitfields`) in a new `unsigned` at
 // offset 4. Read them with `native_size_p()` and `little_endian_p()`, which
 // also work on 3.3+, where they are `bool` fields.
-#[cfg(not(ruby_gte_3_3))]
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct rb_memory_view_item_component_t {
@@ -43,22 +42,6 @@ pub struct rb_memory_view_item_component_t {
     pub repeat: size_t,
 }
 
-#[cfg(ruby_gte_3_3)]
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct rb_memory_view_item_component_t {
-    // The pack-template specifier, such as `b'C'`.
-    pub format: c_char,
-    pub native_size_p: bool,
-    pub little_endian_p: bool,
-    // The component's offset and size in bytes.
-    pub offset: size_t,
-    pub size: size_t,
-    // How many times the component repeats ("CCC" is 3 `C`s).
-    pub repeat: size_t,
-}
-
-#[cfg(not(ruby_gte_3_3))]
 impl rb_memory_view_item_component_t {
     // Bit positions in `bitfields`: allocated from the low bit, except by
     // GCC on big-endian targets, which allocates from the high bit of the
@@ -78,17 +61,6 @@ impl rb_memory_view_item_component_t {
 
     pub fn little_endian_p(&self) -> bool {
         (self.bitfields as u32 >> Self::LITTLE_ENDIAN_BIT) & 1 == 1
-    }
-}
-
-#[cfg(ruby_gte_3_3)]
-impl rb_memory_view_item_component_t {
-    pub fn native_size_p(&self) -> bool {
-        self.native_size_p
-    }
-
-    pub fn little_endian_p(&self) -> bool {
-        self.little_endian_p
     }
 }
 
@@ -130,7 +102,8 @@ pub struct rb_memory_view_t {
     pub sub_offsets: *const ssize_t,
     // The exporter's own data.
     pub private_data: *mut c_void,
-    // Set by `rb_memory_view_get`; internal.
+    // Set by `rb_memory_view_get`; internal. Ruby 3.1+.
+    #[cfg(ruby_gte_3_1)]
     pub _memory_view_entry: *const rb_memory_view_entry_t,
 }
 

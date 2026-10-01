@@ -3,12 +3,15 @@
 //! looking constants up by name.
 
 use crate::{
-    rubysys::{builtins::*, exception::*, io_buffer::rb_cIOBuffer},
+    rubysys::{builtins::*, exception::*},
     Class, Module,
 };
 
+#[cfg(ruby_gte_3_1)]
+use crate::rubysys::io_buffer::rb_cIOBuffer;
+
 macro_rules! builtins {
-    ($target:ident, $kind:literal, $($name:ident => $global:ident, $ruby:literal;)*) => {
+    ($target:ident, $kind:literal, $($(#[$attribute:meta])* $name:ident => $global:ident, $ruby:literal;)*) => {
         impl $target {
             $(
                 #[doc = concat!("Returns Ruby's `", $ruby, "` ", $kind, " (`", stringify!($global), "`).")]
@@ -21,6 +24,7 @@ macro_rules! builtins {
                 #[doc = ""]
                 #[doc = concat!("assert_eq!(", stringify!($target), "::", stringify!($name), "().path().to_str(), \"", $ruby, "\");")]
                 #[doc = "```"]
+                $(#[$attribute])*
                 pub fn $name() -> $target {
                     $target::from(unsafe { $global })
                 }
@@ -45,6 +49,7 @@ builtins! {
     float => rb_cFloat, "Float";
     hash => rb_cHash, "Hash";
     io => rb_cIO, "IO";
+    #[cfg(ruby_gte_3_1)]
     io_buffer => rb_cIOBuffer, "IO::Buffer";
     integer => rb_cInteger, "Integer";
     match_data => rb_cMatch, "MatchData";
@@ -58,6 +63,7 @@ builtins! {
     random => rb_cRandom, "Random";
     range => rb_cRange, "Range";
     rational => rb_cRational, "Rational";
+    #[cfg(ruby_gte_3_1)]
     refinement => rb_cRefinement, "Refinement";
     regexp => rb_cRegexp, "Regexp";
     file_stat => rb_cStat, "File::Stat";
@@ -90,6 +96,7 @@ builtins! {
     math_domain_error => rb_eMathDomainError, "Math::DomainError";
     name_error => rb_eNameError, "NameError";
     no_matching_pattern_error => rb_eNoMatchingPatternError, "NoMatchingPatternError";
+    #[cfg(ruby_gte_3_1)]
     no_matching_pattern_key_error => rb_eNoMatchingPatternKeyError, "NoMatchingPatternKeyError";
     no_memory_error => rb_eNoMemError, "NoMemoryError";
     no_method_error => rb_eNoMethodError, "NoMethodError";
@@ -149,12 +156,7 @@ mod tests {
                 ),
                 (Class::file_stat(), "File::Stat"),
                 (Class::class_class(), "Class"),
-                (Class::refinement(), "Refinement"),
                 (Class::ractor(), "Ractor"),
-                (
-                    Class::no_matching_pattern_key_error(),
-                    "NoMatchingPatternKeyError",
-                ),
             ];
 
             for (class, path) in pairs.iter() {
@@ -164,11 +166,19 @@ mod tests {
 
             assert!(Module::kernel().is_equal(&VM::eval("Kernel").unwrap()));
             assert!(Class::zero_division_error().inherits(&Class::standard_error()) == Some(true));
-            assert!(
-                Class::no_matching_pattern_key_error()
-                    .inherits(&Class::no_matching_pattern_error())
-                    == Some(true)
-            );
+            // Ruby 3.1+.
+            #[cfg(ruby_gte_3_1)]
+            {
+                assert!(Class::refinement().is_equal(&VM::eval("Refinement").unwrap()));
+                assert!(Class::io_buffer().is_equal(&VM::eval("IO::Buffer").unwrap()));
+                assert!(Class::no_matching_pattern_key_error()
+                    .is_equal(&VM::eval("NoMatchingPatternKeyError").unwrap()));
+                assert!(
+                    Class::no_matching_pattern_key_error()
+                        .inherits(&Class::no_matching_pattern_error())
+                        == Some(true)
+                );
+            }
             assert!(Class::interrupt()
                 .inherits(&Class::standard_error())
                 .is_none());

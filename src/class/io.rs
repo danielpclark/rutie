@@ -399,6 +399,7 @@ impl IO {
     /// # pipe.at(1).try_convert_to::<IO>().unwrap().close().unwrap();
     /// ```
     #[cfg(any(unix, windows))]
+    #[cfg(ruby_gte_3_1)]
     pub fn descriptor(&self) -> Result<RawFd, AnyException> {
         let io_value = self.value();
         let mut fd = -1;
@@ -416,6 +417,8 @@ impl IO {
     /// [`IO::PRIORITY`](#associatedconstant.PRIORITY) and
     /// [`IO::WRITABLE`](#associatedconstant.WRITABLE)) if retrying makes
     /// sense (`rb_io_maybe_wait`).
+    ///
+    /// Ruby 3.1+.
     ///
     /// For `EAGAIN`/`EWOULDBLOCK` it waits like
     /// [`Thread::wait_readable`](struct.Thread.html#method.wait_readable) and
@@ -453,6 +456,7 @@ impl IO {
     /// # reader.close().unwrap();
     /// # writer.close().unwrap();
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn maybe_wait(
         &self,
         errno: i32,
@@ -477,6 +481,8 @@ impl IO {
     /// (or `errno` is `EINTR`), `Ok(false)` on timeout or for an error that
     /// waiting does not help with.
     ///
+    /// Ruby 3.1+.
+    ///
     /// # Examples
     ///
     /// ```
@@ -498,6 +504,7 @@ impl IO {
     /// # reader.close().unwrap();
     /// # writer.close().unwrap();
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn maybe_wait_readable(
         &self,
         errno: i32,
@@ -520,6 +527,8 @@ impl IO {
     /// (`rb_io_maybe_wait_writable`); see
     /// [`IO::maybe_wait_readable`](#method.maybe_wait_readable).
     ///
+    /// Ruby 3.1+.
+    ///
     /// # Examples
     ///
     /// ```
@@ -541,6 +550,7 @@ impl IO {
     /// assert!(writer.maybe_wait_writable(errno("EAGAIN"), None).is_err());
     /// # pipe.at(0).try_convert_to::<IO>().unwrap().close().unwrap();
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn maybe_wait_writable(
         &self,
         errno: i32,
@@ -637,69 +647,6 @@ impl IO {
         let timeout = timeout_value(timeout);
 
         protect(|| io::set_timeout(io_value, timeout)).map(|_| ())
-    }
-
-    /// Wraps the open file descriptor `fd` in a new `IO`
-    /// (`rb_io_open_descriptor`). Ruby 3.3+.
-    ///
-    /// `readable` and `writable` say what the stream may be used for. With
-    /// `autoclose`, the `IO` owns `fd`: closing it, or the garbage collector
-    /// freeing it, closes `fd`. Without it (`FMODE_EXTERNAL`,
-    /// `IO#autoclose?` false), `fd` stays open and is still the caller's to
-    /// close.
-    ///
-    /// # Safety
-    ///
-    /// `fd` must be an open descriptor that allows the reads and writes
-    /// `readable` and `writable` ask for. With `autoclose`, ownership of `fd`
-    /// moves to Ruby, so nothing else may close it or use it after the `IO`
-    /// closes it. Without `autoclose`, `fd` must stay open, referring to the
-    /// same file, for as long as the `IO` is used.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rutie::{Object, RString, IO, VM};
-    /// # VM::init();
-    ///
-    /// let pipe = VM::eval("IO.pipe").unwrap().try_convert_to::<rutie::Array>().unwrap();
-    /// let reader = pipe.at(0).try_convert_to::<IO>().unwrap();
-    /// let writer = pipe.at(1).try_convert_to::<IO>().unwrap();
-    ///
-    /// // A second IO for the writer's descriptor, which `writer` keeps owning.
-    /// let borrowed = unsafe { IO::from_raw_fd(writer.descriptor().unwrap(), false, true, false) };
-    ///
-    /// borrowed.write(&RString::new_utf8("via fd\n")).unwrap();
-    /// borrowed.flush().unwrap();
-    /// borrowed.close().unwrap();
-    ///
-    /// // Closing `borrowed` left the descriptor open.
-    /// writer.write(&RString::new_utf8("via writer\n")).unwrap();
-    ///
-    /// assert_eq!(reader.gets().unwrap().unwrap().to_str(), "via fd\n");
-    /// assert_eq!(reader.gets().unwrap().unwrap().to_str(), "via writer\n");
-    /// # reader.close().unwrap();
-    /// # writer.close().unwrap();
-    /// ```
-    #[cfg(all(ruby_gte_3_3, any(unix, windows)))]
-    pub unsafe fn from_raw_fd(fd: RawFd, readable: bool, writable: bool, autoclose: bool) -> Self {
-        use crate::rubysys::io::{FMODE_EXTERNAL, FMODE_READABLE, FMODE_WRITABLE};
-
-        let mut mode = 0;
-
-        if readable {
-            mode |= FMODE_READABLE;
-        }
-
-        if writable {
-            mode |= FMODE_WRITABLE;
-        }
-
-        if !autoclose {
-            mode |= FMODE_EXTERNAL;
-        }
-
-        IO::from(io::open_descriptor(fd as _, mode))
     }
 }
 
@@ -863,6 +810,8 @@ impl File {
     /// (Ruby's `File#size`, `rb_file_size`), or the error, such as
     /// `IOError` for a closed file.
     ///
+    /// Ruby 3.1+.
+    ///
     /// # Examples
     ///
     /// ```
@@ -882,6 +831,7 @@ impl File {
     /// assert!(file.size().is_err());
     /// # std::fs::remove_file(path).unwrap();
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn size(&self) -> Result<u64, AnyException> {
         let file = self.value();
         let mut size = 0;
@@ -971,6 +921,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(ruby_gte_3_1)]
     fn test_io_descriptor_and_maybe_wait() {
         crate::on_ruby_thread(|| {
             let (reader, writer) = pipe();
@@ -1049,92 +1000,8 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_3)]
     #[test]
-    fn test_io_from_raw_fd_owning() {
-        crate::on_ruby_thread(|| {
-            let (reader, writer) = pipe();
-            let fd = writer.descriptor().unwrap();
-
-            // Let go of the descriptor, then hand it to a new IO that owns it.
-            unsafe { writer.send("autoclose=", &[crate::Boolean::new(false).into()]) };
-            writer.close().unwrap();
-
-            let owner = unsafe { IO::from_raw_fd(fd, false, true, true) };
-            assert!(unsafe { owner.send("autoclose?", &[]) }.value().is_true());
-            assert_eq!(owner.descriptor(), Ok(fd));
-            owner.write(&RString::new_utf8("owned\n")).unwrap();
-            owner.close().unwrap();
-
-            // Closing the owner closed the descriptor: the pipe is at its end.
-            assert_eq!(reader.gets().unwrap().unwrap().to_str(), "owned\n");
-            assert!(reader.gets().unwrap().is_none());
-            reader.close().unwrap();
-
-            // An IO that may not write.
-            let (reader, writer) = pipe();
-            let read_only =
-                unsafe { IO::from_raw_fd(reader.descriptor().unwrap(), true, false, false) };
-            assert!(read_only.write(&RString::new_utf8("x")).is_err());
-            read_only.close().unwrap();
-            reader.close().unwrap();
-            writer.close().unwrap();
-        });
-    }
-
-    #[cfg(ruby_gte_3_3)]
-    #[test]
-    fn test_process_status_wait() {
-        crate::on_ruby_thread(|| {
-            VM::require("rbconfig");
-            let pid = VM::eval("Process.spawn(RbConfig.ruby, '-e', 'exit 3')")
-                .unwrap()
-                .try_convert_to::<Fixnum>()
-                .unwrap()
-                .to_i64();
-
-            let status = unsafe { crate::rubysys::io::rb_process_status_wait(pid as _, 0) };
-            let status = crate::AnyObject::from(status);
-
-            assert!(Class::from_existing("Process")
-                .get_nested_class("Status")
-                .case_equals(&status));
-            assert_eq!(
-                unsafe { status.send("exitstatus", &[]) }.try_convert_to::<Fixnum>(),
-                Ok(Fixnum::new(3))
-            );
-            assert_eq!(
-                unsafe { status.send("pid", &[]) }.try_convert_to::<Fixnum>(),
-                Ok(Fixnum::new(pid))
-            );
-
-            // Still running: nothing to reap with WNOHANG.
-            let pid = VM::eval("Process.spawn(RbConfig.ruby, '-e', 'sleep 30')")
-                .unwrap()
-                .try_convert_to::<Fixnum>()
-                .unwrap()
-                .to_i64();
-            let wnohang = VM::eval("Process::WNOHANG")
-                .unwrap()
-                .try_convert_to::<Fixnum>()
-                .unwrap()
-                .to_i64();
-
-            let status =
-                unsafe { crate::rubysys::io::rb_process_status_wait(pid as _, wnohang as _) };
-            assert!(status.is_nil());
-
-            VM::eval(&format!("Process.kill(:KILL, {})", pid)).unwrap();
-            let status = unsafe { crate::rubysys::io::rb_process_status_wait(pid as _, 0) };
-            assert_eq!(
-                unsafe { crate::AnyObject::from(status).send("pid", &[]) }
-                    .try_convert_to::<Fixnum>(),
-                Ok(Fixnum::new(pid))
-            );
-        });
-    }
-
-    #[test]
+    #[cfg(ruby_gte_3_1)]
     fn test_file_size() {
         crate::on_ruby_thread(|| {
             let path =

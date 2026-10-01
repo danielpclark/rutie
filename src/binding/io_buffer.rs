@@ -40,11 +40,6 @@ pub fn free(buffer: Value) -> Value {
     unsafe { io_buffer::rb_io_buffer_free(buffer) }
 }
 
-#[cfg(ruby_gte_3_3)]
-pub fn free_locked(buffer: Value) -> Value {
-    unsafe { io_buffer::rb_io_buffer_free_locked(buffer) }
-}
-
 // The memory, its size and the flags; a null pointer, `0` and `0` for a
 // buffer with no (valid) memory. Never raises.
 pub fn get_bytes(buffer: Value) -> (*mut u8, usize, rb_io_buffer_flags) {
