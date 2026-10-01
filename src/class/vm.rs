@@ -1,8 +1,10 @@
+use std::ffi::CString;
+
 use crate::{
     binding::{class, exception, hash, io, object, symbol, variable, vm},
     helpers::scan_args::{KeywordArgs, ScanArgsFormat, ScannedArgs},
     rubysys::{exception::rb_eStandardError, rproc},
-    types::{Argc, Id, Value, VmPointer},
+    types::{c_void, Argc, Id, Value, VmPointer},
 };
 
 use crate::{
@@ -2085,6 +2087,42 @@ impl VM {
         exception::syserr_fail(exception::os_error_to_errno(code), message)
     }
 
+    /// Returns the calling thread's C `errno` (`rb_errno`): the error number
+    /// left by the last failed system call.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// VM::set_errno(2);
+    ///
+    /// assert_eq!(VM::errno(), 2);
+    /// ```
+    #[cfg(ruby_gte_3_3)]
+    pub fn errno() -> i32 {
+        exception::errno()
+    }
+
+    /// Sets the calling thread's C `errno` (`rb_errno_set`), for example
+    /// before [`VM::sys_fail`](#method.sys_fail)-like code that reads it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// VM::set_errno(0);
+    ///
+    /// assert_eq!(VM::errno(), 0);
+    /// ```
+    #[cfg(ruby_gte_3_3)]
+    pub fn set_errno(errno: i32) {
+        exception::set_errno(errno)
+    }
+
     /// Splits the `arguments` of a Ruby method call according to an
     /// `rb_scan_args` format, checking the number of arguments.
     ///
@@ -2757,6 +2795,44 @@ impl VM {
     /// ```
     pub fn find_file(name: &str) -> Option<RString> {
         io::find_file(RString::new_utf8(name).value()).map(RString::from)
+    }
+
+    /// Looks up the C symbol `symbol` (such as a function) in the native
+    /// extension loaded for `feature` (`rb_ext_resolve_symbol`), so one
+    /// extension can call functions another exports. Returns its address, or
+    /// `None` if the feature is not loaded, is not a native extension, or
+    /// does not define the symbol.
+    ///
+    /// Casting the address to the right function type, and calling it, is up
+    /// to the caller (and `unsafe`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    /// # VM::init_loadpath();
+    ///
+    /// assert!(VM::ext_resolve_symbol("etc", "Init_etc").is_none());
+    ///
+    /// VM::require("etc");
+    ///
+    /// assert!(VM::ext_resolve_symbol("etc", "Init_etc").is_some());
+    /// assert!(VM::ext_resolve_symbol("etc", "rutie_no_such_symbol").is_none());
+    /// ```
+    #[cfg(ruby_gte_3_3)]
+    pub fn ext_resolve_symbol(feature: &str, symbol: &str) -> Option<*mut c_void> {
+        let (feature, symbol) = match (CString::new(feature), CString::new(symbol)) {
+            (Ok(feature), Ok(symbol)) => (feature, symbol),
+            _ => return None,
+        };
+        let address = vm::ext_resolve_symbol(&feature, &symbol);
+
+        if address.is_null() {
+            None
+        } else {
+            Some(address)
+        }
     }
 
     /// Invalidates Ruby's inline caches of constant lookups for the constant
@@ -3840,6 +3916,26 @@ mod tests {
             VM::set_script_name(&original_name);
             VM::set_argv(&[]);
             std::fs::remove_dir_all(&dir).unwrap();
+        });
+    }
+
+    #[cfg(ruby_gte_3_3)]
+    #[test]
+    fn test_errno_and_ext_resolve_symbol() {
+        crate::on_ruby_thread(|| {
+            VM::set_errno(13);
+            assert_eq!(VM::errno(), 13);
+
+            // The same `errno` Rust's standard library reads.
+            #[cfg(unix)]
+            assert_eq!(std::io::Error::last_os_error().raw_os_error(), Some(13));
+
+            VM::set_errno(0);
+            assert_eq!(VM::errno(), 0);
+
+            assert!(VM::ext_resolve_symbol("rutie_no_such_feature", "Init_x").is_none());
+            assert!(VM::ext_resolve_symbol("et\0c", "Init_etc").is_none());
+            assert!(VM::ext_resolve_symbol("etc", "Init\0etc").is_none());
         });
     }
 

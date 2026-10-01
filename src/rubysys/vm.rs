@@ -255,4 +255,12 @@ extern "C" {
     // Invalidates the inline caches of constant lookups for the name `id`.
     #[cfg(ruby_gte_3_2)]
     pub fn rb_clear_constant_cache_for_id(id: Id);
+    // void *
+    // rb_ext_resolve_symbol(const char *feature, const char *symbol)
+    //
+    // The address of `symbol` in the native extension loaded for `feature`
+    // (such as `"json/ext/parser"`); null when the feature is not loaded, is
+    // not a native extension, or has no such symbol.
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_ext_resolve_symbol(feature: *const c_char, symbol: *const c_char) -> *mut c_void;
 }

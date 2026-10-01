@@ -1,4 +1,7 @@
-use crate::rubysys::types::{c_char, c_double, c_int, c_void, size_t, Id, Value};
+use crate::rubysys::{
+    libc::c_ulong,
+    types::{c_char, c_double, c_int, c_long, c_void, size_t, ssize_t, Id, Value},
+};
 
 pub const INTEGER_PACK_MSWORD_FIRST: c_int = 0x01;
 pub const INTEGER_PACK_LSWORD_FIRST: c_int = 0x02;
@@ -144,4 +147,78 @@ extern "C" {
     // VALUE
     // rb_str2inum(VALUE str, int base)
     pub fn rb_str2inum(string: Value, base: c_int) -> Value;
+    // VALUE
+    // rb_int_positive_pow(long x, unsigned long y)
+    //
+    // `x ** y`; a `Float` (`Infinity`, with a warning) when the result is
+    // enormous. Negates `x` internally, so `x` must not be `LONG_MIN`.
+    pub fn rb_int_positive_pow(x: c_long, y: c_ulong) -> Value;
+}
+
+// `ruby/util.h`
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // RUBY_EXTERN const char ruby_hexdigits[];
+    //
+    // `"0123456789abcdef0123456789ABCDEF"`, with its terminating NUL: the
+    // lowercase digits, then the uppercase ones from index 16.
+    pub static ruby_hexdigits: [c_char; 33];
+    // unsigned long
+    // ruby_scan_digits(const char *str, ssize_t len, int base, size_t *retlen, int *overflow)
+    //
+    // Parses the digits of `base` (2 to 36) at `str`, stopping at the first
+    // other byte or after `len` bytes (a negative `len` has no limit). Stores
+    // the number of digits read in `*retlen`, and sets `*overflow` when the
+    // value does not fit.
+    pub fn ruby_scan_digits(
+        str: *const c_char,
+        len: ssize_t,
+        base: c_int,
+        retlen: *mut size_t,
+        overflow: *mut c_int,
+    ) -> c_ulong;
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::CStr;
+
+    use super::*;
+
+    #[test]
+    fn test_ruby_hexdigits() {
+        let digits = unsafe { CStr::from_ptr(ruby_hexdigits.as_ptr()) };
+
+        assert_eq!(digits.to_str(), Ok("0123456789abcdef0123456789ABCDEF"));
+    }
+
+    #[test]
+    fn test_ruby_scan_digits() {
+        crate::on_ruby_thread(|| {
+            let scan = |text: &[u8], len: ssize_t, base: c_int| {
+                let (mut read, mut overflow) = (0, 0);
+                let value = unsafe {
+                    ruby_scan_digits(
+                        text.as_ptr() as *const c_char,
+                        len,
+                        base,
+                        &mut read,
+                        &mut overflow,
+                    )
+                };
+
+                (value as u64, read, overflow)
+            };
+
+            assert_eq!(scan(b"ffz\0", -1, 16), (255, 2, 0));
+            assert_eq!(scan(b"1234\0", 2, 10), (12, 2, 0));
+            assert_eq!(scan(b"777\0", -1, 8), (511, 3, 0));
+            assert_eq!(scan(b"9\0", -1, 8), (0, 0, 0));
+            assert_eq!(scan(b"zz\0", -1, 36), (35 * 36 + 35, 2, 0));
+
+            let (_, read, overflow) = scan(b"999999999999999999999999999999\0", -1, 10);
+
+            assert_eq!((read, overflow), (30, 1));
+        });
+    }
 }

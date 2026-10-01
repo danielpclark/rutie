@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     binding::{fixnum, float, numeric, vm},
-    types::{Value, ValueType},
+    types::{c_long, Value, ValueType},
     AnyException, AnyObject, Exception, Fixnum, Object, RString, VerifiedObject,
 };
 
@@ -370,6 +370,38 @@ impl Integer {
         let exponent = Integer::from(exponent);
 
         AnyObject::from(vm::call_method(self.value(), "**", &[exponent.value()]))
+    }
+
+    /// Returns `base` raised to the power `exponent`, computed by Ruby
+    /// without creating an `Integer` for `base` first (`rb_int_positive_pow`).
+    ///
+    /// Like [`pow`](#method.pow), the result is an `Integer`, except that
+    /// Ruby gives `Infinity` (a `Float`, with a warning) when it would be
+    /// enormous. A `base` that does not fit a C `long` (on Windows) or is its
+    /// minimum is computed with `**` instead.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, Object, VM};
+    /// # VM::init();
+    ///
+    /// let power = Integer::positive_pow(-3, 3).try_convert_to::<Integer>().unwrap();
+    ///
+    /// assert_eq!(power.to_i64(), -27);
+    ///
+    /// let big = Integer::positive_pow(2, 100).try_convert_to::<Integer>().unwrap();
+    ///
+    /// assert_eq!(big.to_u128(), Some(1 << 100));
+    /// assert_eq!(Integer::positive_pow(7, 0).try_convert_to::<Integer>().unwrap().to_i64(), 1);
+    /// ```
+    pub fn positive_pow(base: i64, exponent: u32) -> AnyObject {
+        match c_long::try_from(base) {
+            Ok(base) if base != c_long::MIN => {
+                AnyObject::from(numeric::int_positive_pow(base, exponent.into()))
+            }
+            _ => Integer::new(base).pow(exponent),
+        }
     }
 
     /// Compares two integers of any size.
@@ -815,6 +847,29 @@ mod tests {
                 .try_convert_to::<Integer>()
                 .unwrap();
             assert!(big.is_bignum());
+        });
+    }
+
+    #[test]
+    fn test_positive_pow() {
+        crate::on_ruby_thread(|| {
+            let pow = |base: i64, exponent: u32| {
+                Integer::positive_pow(base, exponent)
+                    .try_convert_to::<Integer>()
+                    .unwrap()
+            };
+
+            assert_eq!(pow(0, 0).to_i64(), 1);
+            assert_eq!(pow(5, 1).to_i64(), 5);
+            assert_eq!(pow(-2, 63).to_i128(), Some(-(1 << 63)));
+            assert_eq!(pow(-2, 64).to_i128(), Some(1 << 64));
+            assert_eq!(pow(i64::MAX, 1).to_i64(), i64::MAX);
+            assert_eq!(pow(i64::MIN, 1).to_i64(), i64::MIN);
+            assert_eq!(
+                pow(i64::MIN, 2).to_u128(),
+                Some((i64::MIN as i128 * i64::MIN as i128) as u128)
+            );
+            assert!(pow(10, 40).is_bignum());
         });
     }
 }

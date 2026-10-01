@@ -5,7 +5,7 @@ use crate::{
     rubysys::numeric::{
         self, INTEGER_PACK_2COMP, INTEGER_PACK_LSWORD_FIRST, INTEGER_PACK_NATIVE_BYTE_ORDER,
     },
-    types::{c_int, c_void, Value},
+    types::{c_int, c_long, c_void, Value},
 };
 
 const PACK_FLAGS: c_int = INTEGER_PACK_LSWORD_FIRST | INTEGER_PACK_NATIVE_BYTE_ORDER;
@@ -155,4 +155,9 @@ pub fn coerce_relop(x: Value, y: Value, operator: &str) -> Value {
 
 pub fn complex_from_parts(real: Value, imaginary: Value) -> Value {
     unsafe { numeric::rb_Complex(real, imaginary) }
+}
+
+// `x ** y`; `x` must not be `c_long::MIN`, which Ruby negates.
+pub fn int_positive_pow(x: c_long, y: libc::c_ulong) -> Value {
+    unsafe { numeric::rb_int_positive_pow(x, y) }
 }

@@ -227,4 +227,30 @@ extern "C" {
     //
     // Raises `NameError` when `mod` does not define the constant itself.
     pub fn rb_deprecate_constant(module: Value, name: *const c_char);
+    // void
+    // rb_obj_freeze_inline(VALUE obj)
+    //
+    // `RB_OBJ_FREEZE`: freezes `obj` (and its singleton class) without
+    // calling `freeze`.
+    #[cfg(ruby_gte_3_2)]
+    pub fn rb_obj_freeze_inline(object: Value);
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Object, RString};
+
+    #[cfg(ruby_gte_3_2)]
+    #[test]
+    fn test_obj_freeze_inline() {
+        crate::on_ruby_thread(|| {
+            let string = RString::new_utf8("thaw");
+
+            assert!(!string.is_frozen());
+
+            unsafe { super::rb_obj_freeze_inline(string.value()) };
+
+            assert!(string.is_frozen());
+        });
+    }
 }
