@@ -97,3 +97,31 @@ where
         )
     }
 }
+
+pub fn global_variables() -> Value {
+    unsafe { variable::rb_f_global_variables() }
+}
+
+// `alias $new_name $old_name`; `name`s include the `$`.
+pub fn alias_global_variable(new_name: &str, old_name: &str) {
+    unsafe {
+        variable::rb_alias_variable(symbol::internal_id(new_name), symbol::internal_id(old_name))
+    }
+}
+
+// Calls `command` (a `Proc`) with the new value on each assignment of the
+// global variable `name`. Raises `NameError` for an undefined variable.
+pub fn trace_var(name: &str, command: Value) {
+    let arguments = [symbol::id_to_sym(symbol::internal_id(name)), command];
+    let (argc, argv) = util::process_arguments(&arguments);
+
+    unsafe { variable::rb_f_trace_var(argc, argv) };
+}
+
+// Removes every trace of `name`, returning the removed commands (or `nil`).
+pub fn untrace_var(name: &str) -> Value {
+    let arguments = [symbol::id_to_sym(symbol::internal_id(name))];
+    let (argc, argv) = util::process_arguments(&arguments);
+
+    unsafe { variable::rb_f_untrace_var(argc, argv) }
+}

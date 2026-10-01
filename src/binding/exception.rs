@@ -1,6 +1,8 @@
+use std::hint::black_box;
+
 use crate::{
-    binding::{string, vm},
-    rubysys::exception,
+    binding::{string, symbol, vm},
+    rubysys::{exception, string::rb_string_value_cstr},
     types::{c_char, c_int, Value, ValueType},
     util,
 };
@@ -96,4 +98,140 @@ pub fn errno() -> c_int {
 
 pub fn set_errno(errno: c_int) {
     unsafe { exception::rb_errno_set(errno) }
+}
+
+// A NUL-terminated copy of a message owned by Ruby (cut at the message's
+// first NUL), for C functions that take a `const char *` and may raise: a
+// Rust `CString` would leak when they jump out of the caller's frame.
+//
+// Keep it in a local of the frame making the call. `as_ptr` lets its
+// address escape (`black_box`, and `rb_string_value_cstr` takes a pointer to
+// it), so the string stays on that frame's stack, where the GC finds it, as
+// `RB_GC_GUARD` does in C.
+struct RubyCStr {
+    string: Value,
+}
+
+impl RubyCStr {
+    fn new(text: &str) -> Self {
+        let end = text.find('\0').unwrap_or(text.len());
+
+        RubyCStr {
+            string: string::new_utf8(&text[..end]),
+        }
+    }
+
+    fn as_ptr(&self) -> *const c_char {
+        black_box(self);
+
+        unsafe { rb_string_value_cstr(&self.string) }
+    }
+}
+
+fn percent_s() -> *const c_char {
+    PERCENT_S.as_ptr() as *const c_char
+}
+
+pub fn category_warn(category: c_int, message: &str) {
+    let message = RubyCStr::new(message);
+
+    unsafe { exception::rb_category_warn(category, percent_s(), message.as_ptr()) }
+}
+
+pub fn category_warning(category: c_int, message: &str) {
+    let message = RubyCStr::new(message);
+
+    unsafe { exception::rb_category_warning(category, percent_s(), message.as_ptr()) }
+}
+
+pub fn compile_warn(file: &str, line: c_int, message: &str) {
+    let (file, message) = (RubyCStr::new(file), RubyCStr::new(message));
+
+    unsafe { exception::rb_compile_warn(file.as_ptr(), line, percent_s(), message.as_ptr()) }
+}
+
+pub fn compile_warning(file: &str, line: c_int, message: &str) {
+    let (file, message) = (RubyCStr::new(file), RubyCStr::new(message));
+
+    unsafe { exception::rb_compile_warning(file.as_ptr(), line, percent_s(), message.as_ptr()) }
+}
+
+pub fn category_compile_warn(category: c_int, file: &str, line: c_int, message: &str) {
+    let (file, message) = (RubyCStr::new(file), RubyCStr::new(message));
+
+    unsafe {
+        exception::rb_category_compile_warn(
+            category,
+            file.as_ptr(),
+            line,
+            percent_s(),
+            message.as_ptr(),
+        )
+    }
+}
+
+pub fn sys_warning(message: &str) {
+    let message = RubyCStr::new(message);
+
+    unsafe { exception::rb_sys_warning(percent_s(), message.as_ptr()) }
+}
+
+pub fn fatal(message: &str) -> ! {
+    let message = RubyCStr::new(message);
+
+    unsafe { exception::rb_fatal(percent_s(), message.as_ptr()) }
+}
+
+pub fn syserr_fail_str(errno: c_int, message: &str) -> ! {
+    let message = string::new_utf8(message);
+
+    unsafe { exception::rb_syserr_fail_str(errno, message) }
+}
+
+pub fn mod_syserr_fail_str(module: Value, errno: c_int, message: &str) -> ! {
+    let message = string::new_utf8(message);
+
+    unsafe { exception::rb_mod_syserr_fail_str(module, errno, message) }
+}
+
+pub fn readwrite_syserr_fail(waiting: c_int, errno: c_int, message: &str) -> ! {
+    let message = RubyCStr::new(message);
+
+    unsafe { exception::rb_readwrite_syserr_fail(waiting, errno, message.as_ptr()) }
+}
+
+pub fn loaderror(message: &str) -> ! {
+    let message = RubyCStr::new(message);
+
+    unsafe { exception::rb_loaderror(percent_s(), message.as_ptr()) }
+}
+
+pub fn loaderror_with_path(path: &str, message: &str) -> ! {
+    let path = string::new_utf8(path);
+    let message = RubyCStr::new(message);
+
+    unsafe { exception::rb_loaderror_with_path(path, percent_s(), message.as_ptr()) }
+}
+
+pub fn name_error(name: &str, message: &str) -> ! {
+    let name = symbol::id_to_sym(symbol::internal_id(name));
+    let message = RubyCStr::new(message);
+
+    unsafe { exception::rb_name_error_str(name, percent_s(), message.as_ptr()) }
+}
+
+pub fn error_frozen(what: &str) -> ! {
+    let what = RubyCStr::new(what);
+
+    unsafe { exception::rb_error_frozen(what.as_ptr()) }
+}
+
+pub fn invalid_str(value: &str, type_name: &str) -> ! {
+    let (value, type_name) = (RubyCStr::new(value), RubyCStr::new(type_name));
+
+    unsafe { exception::rb_invalid_str(value.as_ptr(), type_name.as_ptr()) }
+}
+
+pub fn unexpected_type(object: Value, value_type: ValueType) -> ! {
+    unsafe { exception::rb_unexpected_type(object, value_type as c_int) }
 }

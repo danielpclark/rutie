@@ -8,7 +8,9 @@ use std::{
 use crate::{
     binding::{class, exception, global::RubySpecialConsts, symbol::internal_id},
     rubysys::{exception::rb_eRuntimeError, thread, vm},
-    types::{c_char, c_int, c_void, CallbackMutPtr, CallbackPtr, InternalValue, Value, VmPointer},
+    types::{
+        c_char, c_int, c_void, CallbackMutPtr, CallbackPtr, Id, InternalValue, Value, VmPointer,
+    },
     util, AnyObject,
 };
 
@@ -799,4 +801,103 @@ pub fn ext_resolve_symbol(feature: &CStr, symbol: &CStr) -> *mut c_void {
 
 pub fn free_at_exit() -> bool {
     unsafe { vm::ruby_free_at_exit_p() }
+}
+
+pub fn make_backtrace() -> Value {
+    unsafe { vm::rb_make_backtrace() }
+}
+
+pub fn print_backtrace() {
+    unsafe { vm::rb_backtrace() }
+}
+
+// The file and line of the Ruby code running, if any.
+pub fn source_location() -> Option<(String, i32)> {
+    let file = unsafe { vm::rb_sourcefile() };
+
+    if file.is_null() {
+        return None;
+    }
+
+    let file = unsafe { std::ffi::CStr::from_ptr(file) }
+        .to_string_lossy()
+        .into_owned();
+
+    Some((file, unsafe { vm::rb_sourceline() }))
+}
+
+fn id_to_symbol(id: Id) -> Option<Value> {
+    if id == 0 {
+        None
+    } else {
+        Some(crate::binding::symbol::id_to_sym(id))
+    }
+}
+
+pub fn frame_this_func() -> Option<Value> {
+    id_to_symbol(unsafe { vm::rb_frame_this_func() })
+}
+
+pub fn frame_callee() -> Option<Value> {
+    id_to_symbol(unsafe { vm::rb_frame_callee() })
+}
+
+// The name and the defining class (or module) of the method running.
+pub fn frame_method_id_and_class() -> Option<(Value, Value)> {
+    let mut id: Id = 0;
+    let mut klass = nil();
+
+    if util::c_int_to_bool(unsafe { vm::rb_frame_method_id_and_class(&mut id, &mut klass) }) {
+        id_to_symbol(id).map(|name| (name, klass))
+    } else {
+        None
+    }
+}
+
+// Raises `RuntimeError` outside a method.
+pub fn current_receiver() -> Value {
+    unsafe { vm::rb_current_receiver() }
+}
+
+// Evaluates `string` under an anonymous module (like `load(file, true)`),
+// returning the exception it raises as `Err`.
+pub fn eval_string_wrap(string: &str) -> Result<Value, Value> {
+    let string = util::str_to_cstring(string);
+    let mut state = 0;
+    let value = unsafe { vm::rb_eval_string_wrap(string.as_ptr(), &mut state) };
+
+    if state == 0 {
+        Ok(value)
+    } else {
+        let exception = errinfo();
+        set_errinfo(nil());
+
+        Err(exception)
+    }
+}
+
+// The last argument must be a `Hash`; it is passed as keywords.
+pub fn call_super_with_keywords(arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { vm::rb_call_super_kw(argc, argv, 1) }
+}
+
+// The last value must be a `Hash`; it is passed as keywords.
+pub fn yield_values_with_keywords(values: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(values);
+
+    unsafe { vm::rb_yield_values_kw(argc, argv, 1) }
+}
+
+pub fn argv() -> Value {
+    unsafe { vm::rb_get_argv() }
+}
+
+// The exception `raise(*arguments)` would raise, or `nil` for no arguments.
+// Raises `TypeError` or `ArgumentError` for arguments `raise` refuses.
+pub fn make_exception(arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { vm::rb_make_exception(argc, argv) }
 }

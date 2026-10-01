@@ -164,7 +164,7 @@ pub use crate::class::{
     symbol::Symbol,
     thread::Thread,
     time::Time,
-    vm::VM,
+    vm::{IoWait, WarningCategory, VM},
 };
 
 pub use crate::class::thread::{InternalThreadEvent, InternalThreadEventHook};

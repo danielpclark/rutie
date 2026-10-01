@@ -8,9 +8,39 @@ use crate::{
 };
 
 use crate::{
-    util, AnyException, AnyObject, Array, Class, Exception, GlobalVariable, Hash, NilClass, Object,
-    Proc, ProfileFrame, RString, TryConvert,
+    types::{Callback, ValueType},
+    util, AnyException, AnyObject, Array, Class, Exception, GlobalVariable, Hash, Module, NilClass,
+    Object, Proc, ProfileFrame, RString, Symbol, TryConvert,
 };
+
+/// The category of a warning, for [`VM::warn_category`](struct.VM.html#method.warn_category)
+/// and friends (`rb_warning_category_t`). Ruby prints a category's warnings
+/// only while it is enabled (`Warning[:deprecated] = true`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum WarningCategory {
+    /// Deprecated features (`:deprecated`, disabled by default).
+    Deprecated = crate::rubysys::exception::RB_WARN_CATEGORY_DEPRECATED,
+    /// Experimental features (`:experimental`).
+    Experimental = crate::rubysys::exception::RB_WARN_CATEGORY_EXPERIMENTAL,
+    /// Performance issues (`:performance`, disabled by default).
+    Performance = crate::rubysys::exception::RB_WARN_CATEGORY_PERFORMANCE,
+    /// Blocks passed to methods that do not use them (`:strict_unused_block`,
+    /// disabled by default).
+    StrictUnusedBlock = crate::rubysys::exception::RB_WARN_CATEGORY_STRICT_UNUSED_BLOCK,
+}
+
+/// What a non-blocking IO operation would have waited for, for
+/// [`VM::raise_wait_syserr`](struct.VM.html#method.raise_wait_syserr)
+/// (`enum rb_io_wait_readwrite`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum IoWait {
+    /// Waiting to read: the exception is extended with `IO::WaitReadable`.
+    Readable = crate::rubysys::exception::RB_IO_WAIT_READABLE,
+    /// Waiting to write: the exception is extended with `IO::WaitWritable`.
+    Writable = crate::rubysys::exception::RB_IO_WAIT_WRITABLE,
+}
 
 /// Virtual Machine and helpers
 pub struct VM;
@@ -2186,6 +2216,887 @@ impl VM {
         exception::set_errno(errno)
     }
 
+    /// Emits a warning of `category` (`rb_category_warn`), printed like
+    /// [`VM::warn`](#method.warn) unless warnings are disabled (`$VERBOSE`
+    /// is `nil`) or the category is (`Warning[:deprecated] = false`).
+    /// `Warning.warn` receives the category as its `category:` keyword.
+    ///
+    /// `message` is never interpreted as a format string. It is cut at its
+    /// first NUL byte, if any.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM, WarningCategory};
+    /// # VM::init();
+    ///
+    /// VM::eval("$warnings = []
+    ///           def Warning.warn(message, category: nil); $warnings << \"#{category}: #{message}\"; end
+    ///           Warning[:deprecated] = true").unwrap();
+    ///
+    /// VM::warn_category(WarningCategory::Deprecated, "old_api is deprecated");
+    ///
+    /// let warnings = VM::eval("$warnings.join").unwrap().try_convert_to::<RString>().unwrap();
+    ///
+    /// assert!(warnings.to_str().starts_with("deprecated: "));
+    /// assert!(warnings.to_str().ends_with("warning: old_api is deprecated\n"));
+    /// ```
+    pub fn warn_category(category: WarningCategory, message: &str) {
+        exception::category_warn(category as i32, message);
+    }
+
+    /// Emits a warning of `category` only in verbose mode (`$VERBOSE` is
+    /// `true`) and when the category is enabled (`rb_category_warning`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM, WarningCategory};
+    /// # VM::init();
+    ///
+    /// VM::eval("$warnings = []; def Warning.warn(message, category: nil); $warnings << message; end").unwrap();
+    ///
+    /// VM::eval("$VERBOSE = false").unwrap();
+    /// VM::warning_category(WarningCategory::Experimental, "quiet");
+    ///
+    /// VM::eval("$VERBOSE = true").unwrap();
+    /// VM::warning_category(WarningCategory::Experimental, "loud");
+    ///
+    /// let warnings = VM::eval("$warnings.join").unwrap().try_convert_to::<RString>().unwrap();
+    ///
+    /// assert!(!warnings.to_str().contains("quiet"));
+    /// assert!(warnings.to_str().ends_with("warning: loud\n"));
+    /// ```
+    pub fn warning_category(category: WarningCategory, message: &str) {
+        exception::category_warning(category as i32, message);
+    }
+
+    /// Emits a warning located at `file:line`, as Ruby does for its parser's
+    /// warnings (`rb_compile_warn`), unless warnings are disabled
+    /// (`$VERBOSE` is `nil`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("$warnings = []; def Warning.warn(message, category: nil); $warnings << message; end").unwrap();
+    ///
+    /// VM::compile_warn("template.erb", 12, "unused variable");
+    ///
+    /// let warnings = VM::eval("$warnings.join").unwrap().try_convert_to::<RString>().unwrap();
+    ///
+    /// assert_eq!(warnings.to_str(), "template.erb:12: warning: unused variable\n");
+    /// ```
+    pub fn compile_warn(file: &str, line: i32, message: &str) {
+        exception::compile_warn(file, line, message);
+    }
+
+    /// Like [`VM::compile_warn`](#method.compile_warn), but only in verbose
+    /// mode (`$VERBOSE` is `true`) (`rb_compile_warning`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("$warnings = []; def Warning.warn(message, category: nil); $warnings << message; end").unwrap();
+    ///
+    /// VM::eval("$VERBOSE = false").unwrap();
+    /// VM::compile_warning("a.rb", 1, "quiet");
+    ///
+    /// VM::eval("$VERBOSE = true").unwrap();
+    /// VM::compile_warning("a.rb", 2, "loud");
+    ///
+    /// let warnings = VM::eval("$warnings.join").unwrap().try_convert_to::<RString>().unwrap();
+    ///
+    /// assert_eq!(warnings.to_str(), "a.rb:2: warning: loud\n");
+    /// ```
+    pub fn compile_warning(file: &str, line: i32, message: &str) {
+        exception::compile_warning(file, line, message);
+    }
+
+    /// Like [`VM::compile_warn`](#method.compile_warn), for a warning of
+    /// `category`, which must be enabled (`rb_category_compile_warn`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM, WarningCategory};
+    /// # VM::init();
+    ///
+    /// VM::eval("$warnings = []
+    ///           def Warning.warn(message, category: nil); $warnings << \"#{category}: #{message}\"; end").unwrap();
+    ///
+    /// VM::compile_warn_category(WarningCategory::Experimental, "query.rb", 3, "pattern matching");
+    ///
+    /// let warnings = VM::eval("$warnings.join").unwrap().try_convert_to::<RString>().unwrap();
+    ///
+    /// assert_eq!(warnings.to_str(), "experimental: query.rb:3: warning: pattern matching\n");
+    /// ```
+    pub fn compile_warn_category(category: WarningCategory, file: &str, line: i32, message: &str) {
+        exception::category_compile_warn(category as i32, file, line, message);
+    }
+
+    /// Emits a warning made of `message` and the description of the current
+    /// OS error (`errno`), in verbose mode (`$VERBOSE` is `true`), like
+    /// [`VM::sys_fail`](#method.sys_fail) without raising
+    /// (`rb_sys_warning`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("$warnings = []; def Warning.warn(message, category: nil); $warnings << message; end").unwrap();
+    /// VM::eval("$VERBOSE = true").unwrap();
+    ///
+    /// VM::sys_warning("closing the log");
+    ///
+    /// let warnings = VM::eval("$warnings.join").unwrap().try_convert_to::<RString>().unwrap();
+    ///
+    /// assert!(warnings.to_str().contains("closing the log"));
+    /// ```
+    pub fn sys_warning(message: &str) {
+        exception::sys_warning(message);
+    }
+
+    /// Raises `fatal`, the exception Ruby uses for unrecoverable errors
+    /// (`rb_fatal`): `rescue` cannot catch it, so it ends the program unless
+    /// Rust code catches it with [`VM::protect`](#method.protect).
+    ///
+    /// `message` is never interpreted as a format string. It is cut at its
+    /// first NUL byte, if any.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| VM::raise_fatal("state is corrupt"));
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    ///
+    /// assert_eq!(error.class().name().unwrap().to_str(), "fatal");
+    /// assert_eq!(error.message(), "state is corrupt");
+    /// ```
+    pub fn raise_fatal(message: &str) -> ! {
+        exception::fatal(message)
+    }
+
+    /// Raises the `SystemCallError` subclass for the OS error number
+    /// `errno` (such as `Errno::ENOENT`), with `message` added to its
+    /// message (`rb_syserr_fail_str`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let enoent = VM::eval("Errno::ENOENT::Errno").unwrap().try_convert_to::<rutie::Fixnum>().unwrap();
+    ///
+    /// let result = VM::protect(|| VM::raise_syserr(enoent.to_i64() as i32, "config.toml"));
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    ///
+    /// assert!(Class::from_existing("Errno").get_nested_class("ENOENT").case_equals(&error));
+    /// assert_eq!(error.message(), "No such file or directory - config.toml");
+    /// ```
+    pub fn raise_syserr(errno: i32, message: &str) -> ! {
+        exception::syserr_fail_str(errno, message)
+    }
+
+    /// Like [`VM::raise_syserr`](#method.raise_syserr), with the exception
+    /// extended with `module` so callers can rescue errors of one library
+    /// by that module (`rb_mod_syserr_fail_str`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// let storage_error = Module::new("StorageError");
+    /// let eacces = VM::eval("Errno::EACCES::Errno").unwrap().try_convert_to::<rutie::Fixnum>().unwrap();
+    ///
+    /// let result = VM::protect(|| {
+    ///     VM::raise_syserr_with_module(&storage_error, eacces.to_i64() as i32, "/var/db")
+    /// });
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    ///
+    /// assert!(storage_error.case_equals(&error));
+    /// assert!(Class::from_existing("Errno").get_nested_class("EACCES").case_equals(&error));
+    /// ```
+    pub fn raise_syserr_with_module(module: &Module, errno: i32, message: &str) -> ! {
+        exception::mod_syserr_fail_str(module.value(), errno, message)
+    }
+
+    /// Raises the `SystemCallError` for `errno` extended with
+    /// `IO::WaitReadable` or `IO::WaitWritable` (`IO::EAGAINWaitReadable`
+    /// for `EAGAIN`, ...), as non-blocking IO methods do when they would
+    /// block (`rb_readwrite_syserr_fail`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, IoWait, Object, VM};
+    /// # VM::init();
+    ///
+    /// let eagain = VM::eval("Errno::EAGAIN::Errno").unwrap().try_convert_to::<rutie::Fixnum>().unwrap();
+    ///
+    /// let result = VM::protect(|| {
+    ///     VM::raise_wait_syserr(IoWait::Readable, eagain.to_i64() as i32, "read would block")
+    /// });
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    ///
+    /// assert!(Class::from_existing("IO").get_nested_class("EAGAINWaitReadable").case_equals(&error));
+    /// ```
+    pub fn raise_wait_syserr(wait: IoWait, errno: i32, message: &str) -> ! {
+        exception::readwrite_syserr_fail(wait as i32, errno, message)
+    }
+
+    /// Raises `LoadError` with `message` (`rb_loaderror`), and with `path`
+    /// as its `path` when given (`rb_loaderror_with_path`).
+    ///
+    /// `message` is never interpreted as a format string. It is cut at its
+    /// first NUL byte, if any.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| VM::raise_load_error("cannot load plugin", Some("plugins/x.so")));
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    /// let path = unsafe { error.send("path", &[]) };
+    ///
+    /// assert!(Class::from_existing("LoadError").case_equals(&error));
+    /// assert_eq!(error.message(), "cannot load plugin");
+    /// assert_eq!(path.try_convert_to::<RString>().unwrap().to_str(), "plugins/x.so");
+    /// ```
+    pub fn raise_load_error(message: &str, path: Option<&str>) -> ! {
+        match path {
+            Some(path) => exception::loaderror_with_path(path, message),
+            None => exception::loaderror(message),
+        }
+    }
+
+    /// Raises `NameError` with `message`, for the name `name`, which becomes
+    /// the exception's `name` (`rb_name_error_str`).
+    ///
+    /// `message` is never interpreted as a format string. It is cut at its
+    /// first NUL byte, if any.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| VM::raise_name_error("colour", "unknown setting colour"));
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    /// let name = unsafe { error.send("name", &[]) };
+    ///
+    /// assert!(Class::from_existing("NameError").case_equals(&error));
+    /// assert_eq!(error.message(), "unknown setting colour");
+    /// assert_eq!(name.try_convert_to::<Symbol>(), Ok(Symbol::new("colour")));
+    /// ```
+    pub fn raise_name_error(name: &str, message: &str) -> ! {
+        exception::name_error(name, message)
+    }
+
+    /// Raises `FrozenError` with the message "can't modify frozen `what`"
+    /// (`rb_error_frozen`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| VM::raise_frozen_error("Config"));
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    ///
+    /// assert!(Class::from_existing("FrozenError").case_equals(&error));
+    /// assert_eq!(error.message(), "can't modify frozen Config");
+    /// ```
+    pub fn raise_frozen_error(what: &str) -> ! {
+        exception::error_frozen(what)
+    }
+
+    /// Raises `ArgumentError` with the message "invalid value for
+    /// `type_name`: `value`", as `Integer("abc")` does (`rb_invalid_str`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| VM::raise_invalid_value("tomorrow", "Date"));
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    ///
+    /// assert!(Class::argument_error().case_equals(&error));
+    /// assert_eq!(error.message(), "invalid value for Date: \"tomorrow\"");
+    /// ```
+    pub fn raise_invalid_value(value: &str, type_name: &str) -> ! {
+        exception::invalid_str(value, type_name)
+    }
+
+    /// Raises `TypeError` for `object` not being of the type `expected`,
+    /// with Ruby's usual message (`rb_unexpected_type`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Fixnum, Object, VM};
+    /// use rutie::types::ValueType;
+    /// # VM::init();
+    ///
+    /// let result = VM::protect(|| VM::raise_unexpected_type(&Fixnum::new(1), ValueType::RString));
+    ///
+    /// assert!(result.is_err());
+    ///
+    /// let error = VM::error_pop().unwrap();
+    ///
+    /// assert!(Class::from_existing("TypeError").case_equals(&error));
+    /// assert_eq!(error.message(), "wrong argument type Integer (expected String)");
+    /// ```
+    pub fn raise_unexpected_type<T: Object>(object: &T, expected: ValueType) -> ! {
+        exception::unexpected_type(object.value(), expected)
+    }
+
+    /// Builds the exception `raise(*arguments)` would raise, without
+    /// raising it (`rb_make_exception`): a message alone makes a
+    /// `RuntimeError`, a class (with an optional message) an instance of it.
+    ///
+    /// Returns `None` for no arguments, and the `TypeError` or
+    /// `ArgumentError` `raise` would raise for invalid ones.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Exception, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let error = VM::make_exception(&[RString::new_utf8("boom").into()]).unwrap().unwrap();
+    ///
+    /// assert!(Class::from_existing("RuntimeError").case_equals(&error));
+    /// assert_eq!(error.message(), "boom");
+    ///
+    /// let error = VM::make_exception(&[
+    ///     Class::argument_error().into(),
+    ///     RString::new_utf8("bad").into(),
+    /// ])
+    /// .unwrap()
+    /// .unwrap();
+    ///
+    /// assert!(Class::argument_error().case_equals(&error));
+    /// assert!(VM::make_exception(&[]).unwrap().is_none());
+    /// assert!(VM::make_exception(&[Class::from_existing("String").into()]).is_err());
+    /// ```
+    pub fn make_exception(arguments: &[AnyObject]) -> Result<Option<AnyException>, AnyException> {
+        let arguments = util::arguments_to_values(arguments);
+
+        vm::protect_value(|| vm::make_exception(&arguments))
+            .map(|exception| {
+                if exception.is_nil() {
+                    None
+                } else {
+                    Some(AnyException::from(exception))
+                }
+            })
+            .map_err(AnyException::from)
+    }
+
+    /// Returns the names of all global variables as an `Array` of `Symbol`s
+    /// (Ruby's `global_variables`, `rb_f_global_variables`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("$rutie_setting = 1").unwrap();
+    ///
+    /// let names = VM::global_variables();
+    ///
+    /// assert!(names.into_iter().any(|name| name.try_convert_to::<Symbol>() == Ok(Symbol::new("$rutie_setting"))));
+    /// ```
+    pub fn global_variables() -> Array {
+        Array::from(variable::global_variables())
+    }
+
+    /// Makes the global variable `new_name` an alias of `old_name` (both
+    /// with their `$`), like Ruby's `alias $new $old`
+    /// (`rb_alias_variable`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("$rutie_old = 1").unwrap();
+    /// VM::alias_global_variable("$rutie_new", "$rutie_old").unwrap();
+    /// VM::eval("$rutie_new = 2").unwrap();
+    ///
+    /// let old = VM::eval("$rutie_old").unwrap();
+    ///
+    /// assert_eq!(old.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+    /// ```
+    pub fn alias_global_variable(new_name: &str, old_name: &str) -> Result<(), AnyException> {
+        vm::protect_value(|| {
+            variable::alias_global_variable(new_name, old_name);
+
+            NilClass::new().value()
+        })
+        .map(|_| ())
+        .map_err(AnyException::from)
+    }
+
+    /// Calls `handler` with the new value each time the global variable
+    /// `name` (with its `$`) is assigned (Ruby's `trace_var`,
+    /// `rb_f_trace_var`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, Proc, VM};
+    /// # VM::init();
+    ///
+    /// let handler = VM::eval("$rutie_seen = []; proc { |value| $rutie_seen << value }")
+    ///     .unwrap()
+    ///     .try_convert_to::<Proc>()
+    ///     .unwrap();
+    ///
+    /// VM::trace_global_variable("$rutie_level", &handler).unwrap();
+    /// VM::eval("$rutie_level = 3").unwrap();
+    ///
+    /// let seen = VM::eval("$rutie_seen").unwrap().try_convert_to::<Array>().unwrap();
+    ///
+    /// assert_eq!(seen.at(0).try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+    /// ```
+    pub fn trace_global_variable(name: &str, handler: &Proc) -> Result<(), AnyException> {
+        let handler = handler.value();
+
+        vm::protect_value(|| {
+            variable::trace_var(name, handler);
+
+            NilClass::new().value()
+        })
+        .map(|_| ())
+        .map_err(AnyException::from)
+    }
+
+    /// Removes every handler added with
+    /// [`VM::trace_global_variable`](#method.trace_global_variable) for the
+    /// global variable `name`, returning them (Ruby's `untrace_var`,
+    /// `rb_f_untrace_var`), or the `NameError` for an undefined variable.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, Proc, VM};
+    /// # VM::init();
+    ///
+    /// let handler = VM::eval("proc { |value| raise 'traced' }").unwrap().try_convert_to::<Proc>().unwrap();
+    ///
+    /// VM::trace_global_variable("$rutie_mode", &handler).unwrap();
+    ///
+    /// let removed = VM::untrace_global_variable("$rutie_mode").unwrap();
+    ///
+    /// assert_eq!(removed.length(), 1);
+    /// assert!(VM::eval("$rutie_mode = 1").is_ok());
+    /// assert!(VM::untrace_global_variable("$rutie_never_defined").is_err());
+    /// ```
+    pub fn untrace_global_variable(name: &str) -> Result<Array, AnyException> {
+        vm::protect_value(|| variable::untrace_var(name))
+            .map(|removed| {
+                if removed.is_nil() {
+                    Array::new()
+                } else {
+                    Array::from(removed)
+                }
+            })
+            .map_err(AnyException::from)
+    }
+
+    /// Returns the current Ruby backtrace as an `Array` of `String`s
+    /// (Ruby's `caller(0)`, `rb_make_backtrace`), empty outside Ruby code.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Array, Class, Object, VM};
+    ///
+    /// class!(Tracer);
+    ///
+    /// methods!(
+    ///     Tracer,
+    ///     rtself,
+    ///
+    ///     fn tracer_trace() -> Array {
+    ///         VM::backtrace()
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Tracer", None).define(|klass| {
+    ///         klass.def_self("trace", tracer_trace);
+    ///     });
+    ///
+    ///     let lines = VM::eval("def outer; Tracer.trace; end; outer").unwrap();
+    ///     let lines = lines.try_convert_to::<Array>().unwrap();
+    ///
+    ///     assert!(lines.length() >= 2);
+    ///     assert!(lines.at(1).inspect_object().to_str().contains("outer"));
+    /// }
+    /// ```
+    pub fn backtrace() -> Array {
+        Array::from(vm::make_backtrace())
+    }
+
+    /// Prints the current Ruby backtrace to `$stderr` (`rb_backtrace`), one
+    /// `from` line per frame.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// // Prints nothing outside Ruby code.
+    /// VM::print_backtrace();
+    /// ```
+    pub fn print_backtrace() {
+        vm::print_backtrace();
+    }
+
+    /// Returns the file and line of the Ruby code running, like
+    /// `__FILE__` and `__LINE__` (`rb_sourcefile`, `rb_sourceline`), or
+    /// `None` when there is none. Outside any Ruby code, Ruby reports the
+    /// script name and line `0`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, VM};
+    ///
+    /// class!(Locator);
+    ///
+    /// methods!(
+    ///     Locator,
+    ///     rtself,
+    ///
+    ///     fn locator_line() -> Fixnum {
+    ///         let (_file, line) = VM::source_location().unwrap();
+    ///
+    ///         Fixnum::new(line as i64)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Locator", None).define(|klass| {
+    ///         klass.def_self("line", locator_line);
+    ///     });
+    ///
+    ///     let line = VM::eval("\n\nLocator.line").unwrap();
+    ///
+    ///     assert_eq!(line.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+    /// }
+    /// ```
+    pub fn source_location() -> Option<(String, i32)> {
+        vm::source_location()
+    }
+
+    /// Returns the original name of the method running (Ruby's
+    /// `__method__`, `rb_frame_this_func`), or `None` outside a method. For
+    /// a method called through an alias, this is the name it was defined
+    /// with; see [`VM::current_callee_name`](#method.current_callee_name).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Object, Symbol, VM};
+    ///
+    /// class!(Named);
+    ///
+    /// methods!(
+    ///     Named,
+    ///     rtself,
+    ///
+    ///     fn named_who() -> Symbol {
+    ///         VM::current_method_name().unwrap()
+    ///     }
+    ///
+    ///     fn named_called_as() -> Symbol {
+    ///         VM::current_callee_name().unwrap()
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Named", None).define(|klass| {
+    ///         klass.def("who", named_who);
+    ///         klass.def("called_as", named_called_as);
+    ///         klass.define_alias("alias_of_who", "who");
+    ///         klass.define_alias("alias_of_called_as", "called_as");
+    ///     });
+    ///
+    ///     let who = VM::eval("Named.new.alias_of_who").unwrap();
+    ///     let called_as = VM::eval("Named.new.alias_of_called_as").unwrap();
+    ///
+    ///     assert_eq!(who.try_convert_to::<Symbol>(), Ok(Symbol::new("who")));
+    ///     assert_eq!(called_as.try_convert_to::<Symbol>(), Ok(Symbol::new("alias_of_called_as")));
+    /// }
+    /// ```
+    pub fn current_method_name() -> Option<Symbol> {
+        vm::frame_this_func().map(Symbol::from)
+    }
+
+    /// Returns the name the method running was called by, which is the
+    /// alias for a method called through one (Ruby's `__callee__`,
+    /// `rb_frame_callee`), or `None` outside a method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// // Not inside a method.
+    /// assert!(VM::current_callee_name().is_none());
+    /// ```
+    pub fn current_callee_name() -> Option<Symbol> {
+        vm::frame_callee().map(Symbol::from)
+    }
+
+    /// Returns the original name of the method running and the class or
+    /// module that defines it (`rb_frame_method_id_and_class`), or `None`
+    /// outside a method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{AnyObject, Array, Class, Object, VM};
+    ///
+    /// class!(Owner);
+    ///
+    /// methods!(
+    ///     Owner,
+    ///     rtself,
+    ///
+    ///     fn owner_where() -> Array {
+    ///         let (name, owner) = VM::current_method().unwrap();
+    ///
+    ///         Array::new().push(name).push(owner)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Owner", None).define(|klass| {
+    ///         klass.def("where", owner_where);
+    ///     });
+    ///
+    ///     let found = VM::eval("class SubOwner < Owner; end; SubOwner.new.where.inspect").unwrap();
+    ///
+    ///     assert_eq!(found.try_convert_to::<rutie::RString>().unwrap().to_str(), "[:where, Owner]");
+    /// }
+    /// ```
+    pub fn current_method() -> Option<(Symbol, AnyObject)> {
+        vm::frame_method_id_and_class()
+            .map(|(name, owner)| (Symbol::from(name), AnyObject::from(owner)))
+    }
+
+    /// Returns `self` of the Ruby code or method running
+    /// (`rb_current_receiver`): inside a method defined with `methods!`, the
+    /// object the method was called on; at the top level, `main`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, VM};
+    /// # VM::init();
+    ///
+    /// let main = VM::current_receiver().unwrap();
+    ///
+    /// assert_eq!(main.as_string().to_str(), "main");
+    /// ```
+    pub fn current_receiver() -> Result<AnyObject, AnyException> {
+        vm::protect_value(vm::current_receiver)
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Evaluates `code` with its own anonymous module as the place where
+    /// methods and constants it defines go, the way `load(file, true)` runs
+    /// a file (`rb_eval_string_wrap`), returning the result or the
+    /// exception raised.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let result = VM::eval_wrapped("LIMIT = 5; LIMIT * 2").unwrap();
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(10)));
+    ///
+    /// // The constant stayed in the wrapping module.
+    /// assert!(VM::eval("defined?(LIMIT)").unwrap().is_nil());
+    ///
+    /// assert_eq!(VM::eval_wrapped("raise 'no'").unwrap_err().message(), "no");
+    /// ```
+    pub fn eval_wrapped(code: &str) -> Result<AnyObject, AnyException> {
+        vm::eval_string_wrap(code)
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns `ARGV`, the command line arguments of the Ruby program
+    /// (`rb_get_argv`). See [`VM::set_argv`](#method.set_argv).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::set_argv(&["--verbose", "input.txt"]);
+    ///
+    /// let argv = VM::argv();
+    ///
+    /// assert_eq!(argv.length(), 2);
+    /// assert_eq!(argv.at(1).try_convert_to::<RString>().unwrap().to_str(), "input.txt");
+    /// ```
+    pub fn argv() -> Array {
+        Array::from(vm::argv())
+    }
+
+    /// Defines a global function: a private method of `Kernel` callable
+    /// from anywhere, like `puts` (`rb_define_global_function`).
+    ///
+    /// Use `methods!` macro to define a `callback`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Fixnum, Object, VM};
+    ///
+    /// class!(Kernel);
+    ///
+    /// methods!(
+    ///     Kernel,
+    ///     rtself,
+    ///
+    ///     fn double(number: Fixnum) -> Fixnum {
+    ///         Fixnum::new(number.unwrap().to_i64() * 2)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     VM::define_global_function("double", double);
+    ///
+    ///     let result = VM::eval("class Anywhere; def run; double(21); end; end; Anywhere.new.run").unwrap();
+    ///
+    ///     assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    /// }
+    /// ```
+    pub fn define_global_function<I: Object, O: Object>(name: &str, callback: Callback<I, O>) {
+        class::define_global_function(name, callback);
+    }
+
+    /// Yields `values` and `keywords` (as keyword arguments) to the block
+    /// of the method running (`rb_yield_values_kw`), like Ruby's
+    /// `yield(*values, **keywords)`, and returns the block's result.
+    ///
+    /// Like [`VM::yield_values`](#method.yield_values), an exception (or a
+    /// `break`) in the block is not caught.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{AnyObject, Class, Fixnum, Hash, Object, Symbol, VM};
+    ///
+    /// class!(Emitter);
+    ///
+    /// methods!(
+    ///     Emitter,
+    ///     rtself,
+    ///
+    ///     fn emitter_emit() -> AnyObject {
+    ///         let mut keywords = Hash::new();
+    ///         keywords.store(Symbol::new("scale"), Fixnum::new(10));
+    ///
+    ///         VM::yield_values_with_keywords(&[Fixnum::new(4).into()], keywords)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::new("Emitter", None).define(|klass| {
+    ///         klass.def("emit", emitter_emit);
+    ///     });
+    ///
+    ///     let result = VM::eval("Emitter.new.emit { |value, scale: 1| value * scale }").unwrap();
+    ///
+    ///     assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(40)));
+    /// }
+    /// ```
+    pub fn yield_values_with_keywords(values: &[AnyObject], keywords: Hash) -> AnyObject {
+        let mut values = util::arguments_to_values(values);
+        values.push(keywords.value());
+
+        AnyObject::from(vm::yield_values_with_keywords(&values))
+    }
+
     /// Splits the `arguments` of a Ruby method call according to an
     /// `rb_scan_args` format, checking the number of arguments.
     ///
@@ -3051,13 +3962,63 @@ impl VM {
 
         AnyObject::from(result)
     }
+
+    /// Calls the superclass's version of the method running with
+    /// `arguments` and `keywords` as keyword arguments, like Ruby's
+    /// `super(*arguments, **keywords)` (`rb_call_super_kw`).
+    ///
+    /// # Safety
+    ///
+    /// Like [`VM::call_super`](#method.call_super), an exception raised by
+    /// the superclass method is not caught.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{AnyObject, Class, Fixnum, Hash, Object, Symbol, VM};
+    ///
+    /// class!(Rounder);
+    ///
+    /// methods!(
+    ///     Rounder,
+    ///     rtself,
+    ///
+    ///     fn rounder_round(number: Fixnum) -> AnyObject {
+    ///         let mut keywords = Hash::new();
+    ///         keywords.store(Symbol::new("digits"), Fixnum::new(2));
+    ///
+    ///         unsafe { VM::call_super_with_keywords(&[number.unwrap().into()], keywords) }
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     VM::eval("class BaseRounder; def round(number, digits: 0); digits; end; end").unwrap();
+    ///
+    ///     Class::new("Rounder", Some(&Class::from_existing("BaseRounder"))).define(|klass| {
+    ///         klass.def("round", rounder_round);
+    ///     });
+    ///
+    ///     let digits = VM::eval("Rounder.new.round(7)").unwrap();
+    ///
+    ///     assert_eq!(digits.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+    /// }
+    /// ```
+    pub unsafe fn call_super_with_keywords(arguments: &[AnyObject], keywords: Hash) -> AnyObject {
+        let mut arguments = util::arguments_to_values(arguments);
+        arguments.push(keywords.value());
+
+        AnyObject::from(vm::call_super_with_keywords(&arguments))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::ValueType, AnyObject, Array, Class, Exception, Fixnum, Hash, NilClass, Object,
-        RString, Symbol, VM,
+        types::ValueType, AnyObject, Array, Boolean, Class, Exception, Fixnum, Hash, IoWait,
+        Module, NilClass, Object, Proc, RString, Symbol, WarningCategory, VM,
     };
     use std::{
         cell::Cell,
@@ -4043,6 +5004,337 @@ mod tests {
 
             let value = VM::eval("rutie_cached").unwrap();
             assert_eq!(value.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+        });
+    }
+
+    #[test]
+    fn test_category_and_compile_warnings() {
+        crate::on_ruby_thread(|| {
+            VM::eval(
+                "$rutie_cat_warnings = []
+                 $rutie_cat_verbose = $VERBOSE
+                 $rutie_cat_deprecated = Warning[:deprecated]
+                 $rutie_cat_experimental = Warning[:experimental]
+                 Warning.singleton_class.send(:alias_method, :rutie_cat_original_warn, :warn)
+                 def Warning.warn(message, category: nil)
+                   $rutie_cat_warnings << \"#{category.inspect} #{message}\"
+                 end",
+            )
+            .unwrap();
+
+            let take = || {
+                VM::eval("$rutie_cat_warnings.join.tap { $rutie_cat_warnings.clear }")
+                    .unwrap()
+                    .try_convert_to::<RString>()
+                    .unwrap()
+                    .to_string()
+            };
+
+            // Other tests turn `:experimental` off, for Ractor.
+            VM::eval(
+                "$VERBOSE = false; Warning[:deprecated] = false; Warning[:experimental] = true",
+            )
+            .unwrap();
+            VM::warn_category(WarningCategory::Deprecated, "disabled category");
+            VM::warning_category(WarningCategory::Experimental, "not verbose");
+            VM::compile_warning("f.rb", 1, "not verbose");
+            assert_eq!(take(), "");
+
+            // Outside Ruby code, Ruby puts the script name before `warning:`.
+            VM::warn_category(WarningCategory::Experimental, "%s 100%\0 cut");
+            let warning = take();
+            assert!(warning.starts_with(":experimental "), "{}", warning);
+            assert!(warning.ends_with(" warning: %s 100%\n"), "{}", warning);
+
+            VM::compile_warn("f.rb", 7, "%d");
+            assert_eq!(take(), "nil f.rb:7: warning: %d\n");
+
+            VM::eval("Warning[:deprecated] = true; $VERBOSE = true").unwrap();
+            VM::warn_category(WarningCategory::Deprecated, "now on");
+            VM::warning_category(WarningCategory::Deprecated, "verbose");
+            VM::compile_warning("g.rb", 2, "verbose");
+            VM::compile_warn_category(WarningCategory::Deprecated, "h.rb", 3, "both");
+            let warnings = take();
+            let lines: Vec<&str> = warnings.lines().collect();
+            assert_eq!(lines.len(), 4, "{}", warnings);
+            assert!(lines[0].starts_with(":deprecated ") && lines[0].ends_with(" warning: now on"));
+            assert!(
+                lines[1].starts_with(":deprecated ") && lines[1].ends_with(" warning: verbose")
+            );
+            assert_eq!(lines[2], "nil g.rb:2: warning: verbose");
+            assert_eq!(lines[3], ":deprecated h.rb:3: warning: both");
+
+            VM::eval("$VERBOSE = nil").unwrap();
+            VM::warn_category(WarningCategory::Deprecated, "silenced");
+            VM::compile_warn("f.rb", 1, "silenced");
+            VM::sys_warning("silenced");
+            assert_eq!(take(), "");
+
+            VM::eval(
+                "Warning.singleton_class.send(:alias_method, :warn, :rutie_cat_original_warn)
+                 Warning[:deprecated] = $rutie_cat_deprecated
+                 Warning[:experimental] = $rutie_cat_experimental
+                 $VERBOSE = $rutie_cat_verbose",
+            )
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_more_raising_helpers() {
+        crate::on_ruby_thread(|| {
+            let errno = |name: &str| {
+                VM::eval(&format!("Errno::{}::Errno", name))
+                    .unwrap()
+                    .try_convert_to::<Fixnum>()
+                    .unwrap()
+                    .to_i64() as i32
+            };
+            let raised = |result: Result<AnyObject, i32>| {
+                assert!(result.is_err());
+                VM::error_pop().unwrap()
+            };
+
+            let error = raised(VM::protect(|| VM::raise_fatal("%s\0hidden")));
+            assert_eq!(
+                error.class(),
+                Class::from_existing("Object").get_nested_class("fatal")
+            );
+            assert_eq!(error.message(), "%s");
+            // `rescue` cannot catch `fatal`.
+            assert!(VM::eval("begin; raise Exception; rescue Exception; :caught; end").is_ok());
+
+            let error = raised(VM::protect(|| VM::raise_syserr(errno("EPIPE"), "%d pipe")));
+            assert!(Class::from_existing("Errno")
+                .get_nested_class("EPIPE")
+                .case_equals(&error));
+            assert!(error.message().ends_with(" - %d pipe"));
+
+            let marker = Module::new("RutieSyserrMarker");
+            let error = raised(VM::protect(|| {
+                VM::raise_syserr_with_module(&marker, errno("ENOENT"), "missing")
+            }));
+            assert!(marker.case_equals(&error));
+
+            let error = raised(VM::protect(|| {
+                VM::raise_wait_syserr(IoWait::Writable, errno("EAGAIN"), "full")
+            }));
+            assert!(Class::from_existing("IO")
+                .get_nested_class("EAGAINWaitWritable")
+                .case_equals(&error));
+            let error = raised(VM::protect(|| {
+                VM::raise_wait_syserr(IoWait::Readable, errno("EINTR"), "other")
+            }));
+            assert!(Module::from_existing("IO")
+                .get_nested_module("WaitReadable")
+                .case_equals(&error));
+
+            let error = raised(VM::protect(|| VM::raise_load_error("%s no", None)));
+            assert!(Class::from_existing("LoadError").case_equals(&error));
+            assert_eq!(error.message(), "%s no");
+            assert!(unsafe { error.send("path", &[]) }.is_nil());
+
+            let error = raised(VM::protect(|| VM::raise_name_error("@@x", "bad %p")));
+            assert_eq!(error.message(), "bad %p");
+            assert_eq!(
+                unsafe { error.send("name", &[]) }.try_convert_to::<Symbol>(),
+                Ok(Symbol::new("@@x"))
+            );
+
+            let error = raised(VM::protect(|| VM::raise_frozen_error("%s")));
+            assert_eq!(error.message(), "can't modify frozen %s");
+
+            let error = raised(VM::protect(|| VM::raise_invalid_value("1\02", "Integer")));
+            assert_eq!(error.message(), "invalid value for Integer: \"1\"");
+
+            let error = raised(VM::protect(|| {
+                VM::raise_unexpected_type(&NilClass::new(), ValueType::Array)
+            }));
+            assert_eq!(error.message(), "wrong argument type nil (expected Array)");
+
+            let error = VM::make_exception(&[
+                Class::from_existing("KeyError").into(),
+                RString::new_utf8("k").into(),
+            ])
+            .unwrap()
+            .unwrap();
+            assert!(Class::from_existing("KeyError").case_equals(&error));
+            assert!(VM::make_exception(&[Fixnum::new(1).into()]).is_err());
+        });
+    }
+
+    #[test]
+    fn test_global_variable_tracing_and_listing() {
+        crate::on_ruby_thread(|| {
+            VM::eval("$rutie_gv_source = :one").unwrap();
+            VM::alias_global_variable("$rutie_gv_alias", "$rutie_gv_source").unwrap();
+            assert_eq!(
+                VM::eval("$rutie_gv_alias")
+                    .unwrap()
+                    .try_convert_to::<Symbol>(),
+                Ok(Symbol::new("one"))
+            );
+
+            let names = VM::global_variables();
+            for name in ["$rutie_gv_source", "$rutie_gv_alias", "$stdout"] {
+                assert!(names
+                    .dup()
+                    .into_iter()
+                    .any(|n| n.try_convert_to::<Symbol>() == Ok(Symbol::new(name))));
+            }
+
+            let handler = Proc::new(|values| {
+                VM::eval("$rutie_gv_traced += 1").unwrap();
+
+                values[0].clone()
+            });
+            VM::eval("$rutie_gv_traced = 0").unwrap();
+            VM::trace_global_variable("$rutie_gv_source", &handler).unwrap();
+            VM::trace_global_variable("$rutie_gv_source", &handler).unwrap();
+            VM::eval("$rutie_gv_alias = :two").unwrap();
+            assert_eq!(
+                VM::eval("$rutie_gv_traced")
+                    .unwrap()
+                    .try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(2))
+            );
+
+            assert_eq!(
+                VM::untrace_global_variable("$rutie_gv_source")
+                    .unwrap()
+                    .length(),
+                2
+            );
+            assert_eq!(
+                VM::untrace_global_variable("$rutie_gv_source")
+                    .unwrap()
+                    .length(),
+                0
+            );
+            VM::eval("$rutie_gv_source = :three").unwrap();
+            assert_eq!(
+                VM::eval("$rutie_gv_traced")
+                    .unwrap()
+                    .try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(2))
+            );
+        });
+    }
+
+    crate::class!(RutieFrameProbe);
+
+    crate::methods!(
+        RutieFrameProbe,
+        rtself,
+        fn rutie_frame_info() -> Array {
+            let (name, owner) = VM::current_method().unwrap();
+            let (file, line) = VM::source_location().unwrap();
+            let receiver = VM::current_receiver().unwrap();
+
+            Array::new()
+                .push(name)
+                .push(owner)
+                .push(VM::current_method_name().unwrap())
+                .push(VM::current_callee_name().unwrap())
+                .push(RString::new_utf8(&file))
+                .push(Fixnum::new(line as i64))
+                .push(Boolean::new(receiver.equals(&rtself)))
+                .push(Fixnum::new(VM::backtrace().length() as i64))
+        },
+        fn rutie_frame_emit() -> AnyObject {
+            let keywords = VM::eval("{ factor: 3 }")
+                .unwrap()
+                .try_convert_to::<Hash>()
+                .unwrap();
+
+            VM::yield_values_with_keywords(
+                &[Fixnum::new(2).into(), Fixnum::new(5).into()],
+                keywords,
+            )
+        },
+        fn rutie_frame_super(value: Fixnum) -> AnyObject {
+            let keywords = VM::eval("{ extra: 10 }")
+                .unwrap()
+                .try_convert_to::<Hash>()
+                .unwrap();
+
+            unsafe { VM::call_super_with_keywords(&[value.unwrap().into()], keywords) }
+        }
+    );
+
+    #[test]
+    fn test_frame_information_yield_and_super_with_keywords() {
+        crate::on_ruby_thread(|| {
+            VM::eval("class RutieFrameBase; def sum(a, extra: 0); a + extra; end; end").unwrap();
+
+            Class::new(
+                "RutieFrameProbe",
+                Some(&Class::from_existing("RutieFrameBase")),
+            )
+            .define(|klass| {
+                klass.def("info", rutie_frame_info);
+                klass.define_alias("info_alias", "info");
+                klass.def("emit", rutie_frame_emit);
+                klass.def("sum", rutie_frame_super);
+            });
+
+            let info = VM::eval("\nRutieFrameProbe.new.info_alias.inspect")
+                .unwrap()
+                .try_convert_to::<RString>()
+                .unwrap()
+                .to_string();
+            assert!(
+                info.starts_with(
+                    "[:info, RutieFrameProbe, :info, :info_alias, \"eval\", 2, true, "
+                ),
+                "{}",
+                info
+            );
+
+            let emitted =
+                VM::eval("RutieFrameProbe.new.emit { |a, b, factor:| (a + b) * factor }").unwrap();
+            assert_eq!(emitted.try_convert_to::<Fixnum>(), Ok(Fixnum::new(21)));
+
+            let sum = VM::eval("RutieFrameProbe.new.sum(1)").unwrap();
+            assert_eq!(sum.try_convert_to::<Fixnum>(), Ok(Fixnum::new(11)));
+
+            assert!(VM::current_method().is_none());
+            assert!(VM::current_method_name().is_none());
+        });
+    }
+
+    crate::class!(RutieGlobalFunctions);
+
+    crate::methods!(
+        RutieGlobalFunctions,
+        rtself,
+        fn rutie_global_triple(number: Fixnum) -> Fixnum {
+            Fixnum::new(number.unwrap().to_i64() * 3)
+        }
+    );
+
+    #[test]
+    fn test_eval_wrapped_argv_and_global_functions() {
+        crate::on_ruby_thread(|| {
+            let result =
+                VM::eval_wrapped("def rutie_wrapped_helper; 1; end; RUTIE_WRAPPED = 2; self")
+                    .unwrap();
+            assert_eq!(result.as_string().to_str(), "main");
+            assert!(VM::eval("defined?(RUTIE_WRAPPED)").unwrap().is_nil());
+            assert!(VM::eval_wrapped("RUTIE_WRAPPED").is_err());
+            let error = VM::eval_wrapped("raise ArgumentError, 'wrapped'").unwrap_err();
+            assert!(Class::argument_error().case_equals(&error));
+            assert!(VM::error_info().is_err());
+
+            assert!(VM::argv().equals(&VM::eval("ARGV").unwrap()));
+
+            VM::define_global_function("rutie_global_triple", rutie_global_triple);
+            let result = VM::eval("rutie_global_triple(5)").unwrap();
+            assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(15)));
+            assert!(VM::eval("Object.new.rutie_global_triple(1)").is_err());
+            assert!(VM::eval("Kernel.rutie_global_triple(1)").is_ok());
+
+            assert!(VM::backtrace().length() == 0);
         });
     }
 }
