@@ -21,6 +21,25 @@ Supports Ruby 4.0 on Linux, macOS and Windows; Ruby 3.2–3.4 stay on 0.13.x.
    @danielpclark
  - `Thread::has_gvl` (`ruby_thread_has_gvl_p`). `Thread::call_with_gvl` may
    also be called with the GVL held on Ruby 4.0, thanks to @danielpclark
+ - `Random`: `new`, `with_seed`, `seed`, `int32`, `real`, `ulong_limited`,
+   `bytes`, the default generator's `default_int32`, `default_real`,
+   `default_ulong_limited` and `reset_default_seed`, and `int_pair_to_real`,
+   thanks to @danielpclark
+ - `Integer::bit_and`, `bit_or`, `bit_xor`, `shift_left`, `shift_right`,
+   `divmod`, `abs_num_words`, `abs_is_power_of_two`, `to_long_words` and
+   `Integer::from_long_words`, thanks to @danielpclark
+ - `Fixnum::try_to_i16`, `try_to_u16`, `try_to_i32` and `try_to_u32`, which
+   return the `RangeError` instead of raising it, thanks to @danielpclark
+ - `Float::rationalize_with_precision`, and `PartialOrd` for `Float`,
+   thanks to @danielpclark
+ - `Complex::add`, `sub`, `mul`, `div`, `pow`, `neg` and `conjugate`,
+   thanks to @danielpclark
+ - `rubysys` bindings for the rest of Ruby 4.0's numeric C API: `bignum.h`,
+   `rbignum.h`, `complex.h`, `rational.h`, `numeric.h`, the arithmetic
+   headers, `intern/random.h` and `ruby/random.h` (with `rb_random_t`,
+   `rb_random_interface_t` and `rb_random_data_type`), the numeric parsers of
+   `util.h` and `ctype.h`, the remaining `INTEGER_PACK_*` flags, and
+   `types::c_ulong`, thanks to @danielpclark
 
 ### Changed
  - `build.rs` warns about a static Ruby built with ZJIT as well as YJIT; both
@@ -31,6 +50,7 @@ Supports Ruby 4.0 on Linux, macOS and Windows; Ruby 3.2–3.4 stay on 0.13.x.
    @danielpclark
  - `rubysys::constant::FL_EXIVAR` is 0, as Ruby 4.0's `RUBY_FL_EXIVAR` is,
    thanks to @danielpclark
+ - `Complex::from_f64` uses `rb_dbl_complex_new`, thanks to @danielpclark
 
 ### Removed
  - Ruby 3.2, 3.3 and 3.4 support, the `ruby_3_*`/`ruby_gte_3_*` cfg flags, and
