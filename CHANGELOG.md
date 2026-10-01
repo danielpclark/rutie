@@ -72,6 +72,10 @@ on 0.11.x.
    `OnigMatchFunction`), `rb_st_init_existing_table_with_size` and
    `rb_st_replace` (Ruby 3.3 only, with `StHashType`), and
    `rb_debug_rstring_null_ptr`, thanks to @danielpclark
+ - `ValueType::Moved` (`T_MOVED`), and the `RbDataType` flags
+   `RUBY_TYPED_FREE_IMMEDIATELY`, `RUBY_TYPED_FROZEN_SHAREABLE`,
+   `RUBY_TYPED_WB_PROTECTED`, `RUBY_TYPED_EMBEDDABLE` (Ruby 3.3+) and
+   `RUBY_TYPED_DECL_MARKING` (Ruby 3.3+), thanks to @danielpclark
 
 ### Changed
  - `IO::is_closed` calls `rb_io_closed_p` on Ruby 3.3, thanks to @danielpclark
@@ -91,6 +95,11 @@ on 0.11.x.
    thanks to @danielpclark
 
 ### Fixed
+ - `rubysys::constant::FL_PROMOTED` is bit 5 alone on Ruby 3.3, which
+   dropped `FL_PROMOTED0`/`FL_PROMOTED1` and left bit 6 unused; those two
+   constants now exist only before 3.3, thanks to @danielpclark
+ - `rubysys::io::rb_pid_t` is 64-bit with 64-bit MinGW, where `pid_t` is,
+   thanks to @danielpclark
  - Linking a static Ruby failed when a library it needs is outside the
    linker's default search path: ruby-build's macOS Ruby 3.3 uses Homebrew's
    GMP (`ld: library 'gmp' not found`). `build.rs` now adds the absolute `-L`

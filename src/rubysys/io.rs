@@ -43,9 +43,9 @@ pub struct rb_io_encoding {
     pub ecopts: Value,
 }
 
-// `rb_pid_t`: `pid_t`, or `int` on Windows.
+// `rb_pid_t`: `pid_t` (see `scheduler::RbPid`).
 #[allow(non_camel_case_types)]
-pub type rb_pid_t = c_int;
+pub type rb_pid_t = crate::rubysys::scheduler::RbPid;
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {

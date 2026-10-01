@@ -1,7 +1,14 @@
 pub const FL_WB_PROTECTED: isize = 1 << 5;
+// The object is in the old generation. Two bits before Ruby 3.3, one since
+// (bit 6 is unused there).
+#[cfg(not(ruby_gte_3_3))]
 pub const FL_PROMOTED0: isize = 1 << 5;
+#[cfg(not(ruby_gte_3_3))]
 pub const FL_PROMOTED1: isize = 1 << 6;
+#[cfg(not(ruby_gte_3_3))]
 pub const FL_PROMOTED: isize = FL_PROMOTED0 | FL_PROMOTED1;
+#[cfg(ruby_gte_3_3)]
+pub const FL_PROMOTED: isize = 1 << 5;
 pub const FL_FINALIZE: isize = 1 << 7;
 // Bit 8 was `FL_TAINT` in Ruby 2; Ruby 3 uses it for Ractor-shareable objects.
 pub const FL_SHAREABLE: isize = 1 << 8;
