@@ -3,7 +3,7 @@
 //! looking constants up by name.
 
 use crate::{
-    rubysys::{builtins::*, exception::*},
+    rubysys::{builtins::*, exception::*, io_buffer::rb_cIOBuffer},
     Class, Module,
 };
 
@@ -45,6 +45,7 @@ builtins! {
     float => rb_cFloat, "Float";
     hash => rb_cHash, "Hash";
     io => rb_cIO, "IO";
+    io_buffer => rb_cIOBuffer, "IO::Buffer";
     integer => rb_cInteger, "Integer";
     match_data => rb_cMatch, "MatchData";
     method_class => rb_cMethod, "Method";

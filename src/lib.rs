@@ -144,6 +144,7 @@ pub use crate::class::{
     hash::{Hash, HashIterator},
     integer::Integer,
     io::{File, IO},
+    io_buffer::IOBuffer,
     marshal::Marshal,
     method::Method,
     module::Module,

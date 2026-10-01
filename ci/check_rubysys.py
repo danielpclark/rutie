@@ -135,7 +135,9 @@ def header_declarations():
         if re.search(r"\b(return|else|if|case|do|goto)\b", ret):
             continue
         functions.setdefault(m.group(2), ret)
-    for m in re.finditer(r"\b(?:RUBY_EXTERN|extern)\s+(?:const\s+)?(?:struct\s+)?\w+[\s\*]+((?:rb|ruby)_\w+(?:\s*,\s*\*?\s*(?:rb|ruby)_\w+)*)\s*(?:\[[^\]]*\])?\s*;", text):
+    # Variables are `rb_*` or `ruby_*`, and a few `RUBY_*` (`RUBY_IO_BUFFER_PAGE_SIZE`);
+    # some are structs (`RUBY_EXTERN const struct T name;`).
+    for m in re.finditer(r"\b(?:RUBY_EXTERN|extern)\s+(?:const\s+)?(?:struct\s+)?\w+[\s\*]+((?:rb|ruby|RUBY)_\w+(?:\s*,\s*\*?\s*(?:rb|ruby|RUBY)_\w+)*)\s*(?:\[[^\]]*\])?\s*;", text):
         variables.update(n.strip(" *") for n in m.group(1).split(","))
     return functions, variables
 
