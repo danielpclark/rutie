@@ -475,8 +475,9 @@ impl IO {
     /// Like [`IO::maybe_wait`](#method.maybe_wait) for
     /// [`IO::READABLE`](#associatedconstant.READABLE)
     /// (`rb_io_maybe_wait_readable`): `Ok(true)` when the stream is readable
-    /// (or `errno` is `EINTR`), `Ok(false)` on timeout or for an error that
-    /// waiting does not help with.
+    /// (or `errno` is `EINTR`), and `Ok(false)` for an error that waiting
+    /// does not help with. On timeout it is `Ok(false)` on Ruby 3.2 and 3.3,
+    /// and `Err` with Ruby 3.4's `IO::TimeoutError`.
     ///
     /// # Examples
     ///
@@ -990,10 +991,14 @@ mod tests {
                 reader.maybe_wait(errno("EAGAIN"), IO::READABLE, short),
                 Ok(None)
             );
-            assert_eq!(
-                reader.maybe_wait_readable(errno("EAGAIN"), short),
-                Ok(false)
-            );
+            // Ruby 3.4 raises `IO::TimeoutError` where 3.2 and 3.3 return false.
+            let timed_out = reader.maybe_wait_readable(errno("EAGAIN"), short);
+            if cfg!(ruby_gte_3_4) {
+                let error = timed_out.unwrap_err();
+                assert_eq!(error.class().name().unwrap().to_str(), "IO::TimeoutError");
+            } else {
+                assert_eq!(timed_out, Ok(false));
+            }
 
             assert_eq!(
                 writer.maybe_wait(errno("EAGAIN"), IO::WRITABLE, None),

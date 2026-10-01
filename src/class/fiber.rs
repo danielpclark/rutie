@@ -1149,7 +1149,13 @@ mod tests {
                 };
                 assert_eq!(last(3), "[:io_select, 1, 2, 3, 4]");
                 assert_eq!(last(2), "[:io_select, 5, 6, 7, 8]");
-                assert_eq!(last(1), "[:fiber, {:blocking=>false}]");
+                // `Hash#inspect` changed in Ruby 3.4.
+                let expected = if cfg!(ruby_gte_3_4) {
+                    "[:fiber, {blocking: false}]"
+                } else {
+                    "[:fiber, {:blocking=>false}]"
+                };
+                assert_eq!(last(1), expected);
             }
         });
     }

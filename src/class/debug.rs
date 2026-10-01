@@ -60,7 +60,9 @@ fn optional(value: Value) -> Option<Value> {
 ///     let label = |i| labels.at(i).try_convert_to::<RString>().unwrap().to_string();
 ///     assert_eq!(label(0), "Object#profile_labels");
 ///     assert_eq!(label(1), "Report.build");
-///     assert_eq!(label(2), "<main>");
+///     // The top frame of `VM::eval` code: `<compiled>` from Ruby 3.4.
+///     let top = if cfg!(ruby_gte_3_4) { "<compiled>" } else { "<main>" };
+///     assert_eq!(label(2), top);
 /// }
 /// ```
 #[derive(Debug, Clone, Copy)]
@@ -595,7 +597,8 @@ impl DebugInspector {
     ///         klass.def_private("locations", locations);
     ///     });
     ///
-    ///     let labels = VM::eval("def outer = locations; outer.map(&:label)").unwrap();
+    ///     // `base_label`: Ruby 3.4's `label` adds the owner (`Object#outer`).
+    ///     let labels = VM::eval("def outer = locations; outer.map(&:base_label)").unwrap();
     ///     let labels = labels.try_convert_to::<Array>().unwrap();
     ///
     ///     assert_eq!(labels.at(0).try_convert_to::<RString>().unwrap().to_str(), "locations");
@@ -1150,8 +1153,15 @@ mod tests {
             assert_eq!(string(ruby.at(9)).unwrap(), "collect");
             assert_eq!(string(ruby.at(10)).unwrap(), "RutieProfile::Sample.collect");
 
+            // Ruby 3.4 labels the top frame of `rb_eval_string` code
+            // `<compiled>`; 3.2 and 3.3 call it `<main>`.
             let top = row(2);
-            assert_eq!(string(top.at(3)).unwrap(), "<main>");
+            let top_label = if cfg!(ruby_gte_3_4) {
+                "<compiled>"
+            } else {
+                "<main>"
+            };
+            assert_eq!(string(top.at(3)).unwrap(), top_label);
             assert!(top.at(9).is_nil());
 
             // Outside Ruby code there is no Ruby frame (Ruby 3.1 has one
