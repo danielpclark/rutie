@@ -53,6 +53,7 @@ builtins! {
     numeric => rb_cNumeric, "Numeric";
     object => rb_cObject, "Object";
     proc => rb_cProc, "Proc";
+    ractor => rb_cRactor, "Ractor";
     random => rb_cRandom, "Random";
     range => rb_cRange, "Range";
     rational => rb_cRational, "Rational";
@@ -141,6 +142,7 @@ mod tests {
                 (Class::file_stat(), "File::Stat"),
                 (Class::class_class(), "Class"),
                 (Class::refinement(), "Refinement"),
+                (Class::ractor(), "Ractor"),
                 (
                     Class::no_matching_pattern_key_error(),
                     "NoMatchingPatternKeyError",

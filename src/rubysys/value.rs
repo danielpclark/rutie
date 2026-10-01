@@ -168,7 +168,7 @@ impl Value {
         !self.is_special_const() && !self.is_node()
     }
 
-    fn is_special_const(&self) -> bool {
+    pub(crate) fn is_special_const(&self) -> bool {
         self.is_immediate() || !self.is_test()
     }
 
