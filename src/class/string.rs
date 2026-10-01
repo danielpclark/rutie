@@ -1,6 +1,7 @@
 use std::{
     cmp::Ordering,
     convert::From,
+    ffi::CStr,
     panic::{self, AssertUnwindSafe},
 };
 
@@ -896,6 +897,589 @@ impl RString {
             Err(payload) => panic::resume_unwind(payload),
         }
     }
+
+    /// Creates a string from `bytes` read from outside Ruby (a file, the
+    /// environment, ...), in the default external encoding, transcoded to
+    /// the default internal encoding when one is set
+    /// (`rb_external_str_new`). When the external encoding is US-ASCII,
+    /// non-ASCII bytes make a binary (`ASCII-8BIT`) string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_external(b"input");
+    ///
+    /// assert_eq!(string.to_str(), "input");
+    /// assert_eq!(string.encoding(), Encoding::default_external());
+    /// ```
+    pub fn new_external(bytes: &[u8]) -> Self {
+        Self::from(string::new_external(bytes))
+    }
+
+    /// Creates a string from `bytes` read from outside Ruby in encoding
+    /// `enc`, transcoded to the default internal encoding when one is set
+    /// (`rb_external_str_new_with_enc`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_external_with_encoding("é".as_bytes(), &Encoding::utf8());
+    ///
+    /// assert_eq!(string.to_str(), "é");
+    /// assert_eq!(string.encoding(), Encoding::utf8());
+    /// ```
+    pub fn new_external_with_encoding(bytes: &[u8], enc: &Encoding) -> Self {
+        Self::from(string::new_external_with_encoding(bytes, enc.value()))
+    }
+
+    /// Creates a string from `bytes` in the locale's encoding
+    /// (`rb_locale_str_new`), handled as
+    /// [`new_external`](#method.new_external) does.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_locale(b"text");
+    ///
+    /// assert_eq!(string.to_str(), "text");
+    /// assert_eq!(string.encoding(), Encoding::locale());
+    /// ```
+    pub fn new_locale(bytes: &[u8]) -> Self {
+        Self::from(string::new_locale(bytes))
+    }
+
+    /// Creates a string from `bytes` in the filesystem encoding, as for a
+    /// file name (`rb_filesystem_str_new`), handled as
+    /// [`new_external`](#method.new_external) does.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_filesystem(b"notes.txt");
+    ///
+    /// assert_eq!(string.to_str(), "notes.txt");
+    /// assert_eq!(string.encoding(), Encoding::filesystem());
+    /// ```
+    pub fn new_filesystem(bytes: &[u8]) -> Self {
+        Self::from(string::new_filesystem(bytes))
+    }
+
+    /// Creates a UTF-8 string that uses the bytes of `string` in place
+    /// instead of copying them (`rb_utf8_str_new_static`). Ruby copies them
+    /// only if the string is modified.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, RString, VM};
+    /// use std::ffi::CStr;
+    /// # VM::init();
+    ///
+    /// let text = CStr::from_bytes_with_nul(b"static text\0").unwrap();
+    /// let mut string = RString::new_static(text);
+    ///
+    /// assert_eq!(string.to_str(), "static text");
+    /// assert_eq!(string.encoding(), Encoding::utf8());
+    ///
+    /// string.concat("!");
+    /// assert_eq!(string.to_str(), "static text!");
+    /// ```
+    pub fn new_static(string: &'static CStr) -> Self {
+        Self::from(string::new_static_utf8(string))
+    }
+
+    /// Creates a string in encoding `enc` that uses the bytes of `string` in
+    /// place instead of copying them (`rb_enc_str_new_static`). Strings in
+    /// ASCII-incompatible encodings, such as UTF-16, are copied, since Ruby
+    /// would read past the NUL looking for their wider terminator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, RString, VM};
+    /// use std::ffi::CStr;
+    /// # VM::init();
+    ///
+    /// let bytes = CStr::from_bytes_with_nul(b"\xFF\xFE\0").unwrap();
+    /// let string = RString::new_static_with_encoding(bytes, &Encoding::ascii_8bit());
+    ///
+    /// assert_eq!(string.to_bytes_unchecked(), b"\xFF\xFE");
+    /// assert_eq!(string.encoding(), Encoding::ascii_8bit());
+    /// ```
+    pub fn new_static_with_encoding(string: &'static CStr, enc: &Encoding) -> Self {
+        Self::from(string::new_static(string, enc.value()))
+    }
+
+    /// Returns the frozen, deduplicated UTF-8 string with the contents
+    /// `string`, the one Ruby uses for equal string literals
+    /// (`rb_enc_interned_str`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let first = RString::interned("shared");
+    /// let second = RString::interned("shared");
+    ///
+    /// assert!(first.is_frozen());
+    /// assert!(first.equals(&second));
+    /// assert_eq!(first.value().value, second.value().value);
+    /// ```
+    pub fn interned(string: &str) -> Self {
+        Self::interned_bytes(string.as_bytes(), &Encoding::utf8())
+    }
+
+    /// Returns the frozen, deduplicated string with the contents `bytes` in
+    /// encoding `enc` (`rb_enc_interned_str`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let interned = RString::interned_bytes(b"abc", &Encoding::us_ascii());
+    ///
+    /// assert!(interned.is_frozen());
+    /// assert_eq!(interned.encoding(), Encoding::us_ascii());
+    /// ```
+    pub fn interned_bytes(bytes: &[u8], enc: &Encoding) -> Self {
+        Self::from(string::interned(bytes, enc.value()))
+    }
+
+    /// Returns the frozen, deduplicated copy of the string (Ruby's `-str`,
+    /// `rb_str_to_interned_str`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_utf8("dedup me");
+    /// let interned = string.to_interned();
+    ///
+    /// assert!(interned.is_frozen());
+    /// assert!(!string.is_frozen());
+    /// assert_eq!(interned.value().value, RString::interned("dedup me").value().value);
+    /// ```
+    pub fn to_interned(&self) -> RString {
+        RString::from(string::to_interned(self.value()))
+    }
+
+    /// Appends `other`, choosing the result's encoding the way Ruby's `<<`
+    /// does (`rb_str_append`). Returns the error (such as
+    /// `Encoding::CompatibilityError` or `FrozenError`) if it cannot.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("crab: ");
+    /// string.append(&RString::new_utf8("🦀")).unwrap();
+    ///
+    /// assert_eq!(string.to_str(), "crab: 🦀");
+    ///
+    /// let mut binary = RString::from_bytes(b"\xFF", &Encoding::ascii_8bit());
+    /// assert!(binary.append(&RString::new_utf8("é")).is_err());
+    /// ```
+    pub fn append(&mut self, other: &RString) -> Result<(), AnyException> {
+        let (string, other) = (self.value(), other.value());
+
+        vm::protect_value(|| string::append(string, other))
+            .map(|_| ())
+            .map_err(AnyException::from)
+    }
+
+    /// Appends the character with code point `code` in the string's
+    /// encoding (Ruby's `<<` with an Integer, `rb_str_concat`). Returns the
+    /// `RangeError` if the encoding cannot represent it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("caf");
+    /// string.concat_codepoint(0xE9).unwrap();
+    ///
+    /// assert_eq!(string.to_str(), "café");
+    /// assert!(string.concat_codepoint(0xD800).is_err());
+    /// ```
+    pub fn concat_codepoint(&mut self, code: u32) -> Result<(), AnyException> {
+        let (string, code) = (self.value(), Integer::from(code).value());
+
+        vm::protect_value(|| string::concat_object(string, code))
+            .map(|_| ())
+            .map_err(AnyException::from)
+    }
+
+    /// Returns `true` if the two strings' encodings allow comparing their
+    /// bytes, such as two ASCII-only strings in ASCII-compatible encodings
+    /// (`rb_str_comparable`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, RString, VM};
+    /// # VM::init();
+    ///
+    /// let utf8 = RString::new_utf8("é");
+    /// let ascii = RString::new_utf8("abc");
+    /// let binary = RString::from_bytes(b"\xFF", &Encoding::ascii_8bit());
+    ///
+    /// assert!(utf8.is_comparable(&ascii));
+    /// assert!(!utf8.is_comparable(&binary));
+    /// ```
+    pub fn is_comparable(&self, other: &RString) -> bool {
+        string::is_comparable(self.value(), other.value())
+    }
+
+    /// Returns `true` if the strings have the same bytes in comparable
+    /// encodings, as Ruby's `eql?` and Hash keys compare them
+    /// (`rb_str_hash_cmp`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, RString, VM};
+    /// # VM::init();
+    ///
+    /// let utf8 = RString::new_utf8("é");
+    /// let binary = RString::from_bytes("é".as_bytes(), &Encoding::ascii_8bit());
+    ///
+    /// assert!(utf8.is_eql(&RString::new_utf8("é")));
+    /// assert!(!utf8.is_eql(&binary));
+    /// ```
+    pub fn is_eql(&self, other: &RString) -> bool {
+        string::is_eql(self.value(), other.value())
+    }
+
+    /// Makes room for at least `additional` more bytes without changing the
+    /// contents (`rb_str_modify_expand`). Returns the error if the string
+    /// cannot be modified.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("abc");
+    /// string.reserve(1000).unwrap();
+    ///
+    /// assert!(string.capacity() >= 1003);
+    /// assert_eq!(string.to_str(), "abc");
+    /// ```
+    pub fn reserve(&mut self, additional: usize) -> Result<(), AnyException> {
+        let string = self.value();
+
+        vm::protect_value(|| {
+            string::modify_expand(string, additional);
+
+            string
+        })
+        .map(|_| ())
+        .map_err(AnyException::from)
+    }
+
+    /// Removes the first `count` bytes, or every byte if there are fewer
+    /// (`rb_str_drop_bytes`). Returns the error if the string cannot be
+    /// modified.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("prefix:value");
+    /// string.drop_bytes(7).unwrap();
+    ///
+    /// assert_eq!(string.to_str(), "value");
+    ///
+    /// string.drop_bytes(100).unwrap();
+    /// assert_eq!(string.to_str(), "");
+    ///
+    /// let mut frozen = RString::new_utf8("frozen").freeze();
+    /// assert!(frozen.drop_bytes(1).is_err());
+    /// ```
+    pub fn drop_bytes(&mut self, count: usize) -> Result<(), AnyException> {
+        let string = self.value();
+
+        vm::protect_value(|| string::drop_bytes(string, count))
+            .map(|_| ())
+            .map_err(AnyException::from)
+    }
+
+    /// Replaces `len` characters starting at character `start` (counting
+    /// from the end when negative) with `other` (Ruby's
+    /// `str[start, len] = other`, `rb_str_update`). Returns the
+    /// `IndexError` when `start` is outside the string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut string = RString::new_utf8("héllo world");
+    /// string.splice(0, 5, &RString::new_utf8("goodbye")).unwrap();
+    ///
+    /// assert_eq!(string.to_str(), "goodbye world");
+    ///
+    /// string.splice(-5, 5, &RString::new_utf8("crab")).unwrap();
+    /// assert_eq!(string.to_str(), "goodbye crab");
+    ///
+    /// assert!(string.splice(100, 1, &RString::new_utf8("x")).is_err());
+    /// ```
+    pub fn splice(&mut self, start: i64, len: usize, other: &RString) -> Result<(), AnyException> {
+        let (string, other) = (self.value(), other.value());
+
+        vm::protect_value(|| {
+            string::update(string, start, len, other);
+
+            string
+        })
+        .map(|_| ())
+        .map_err(AnyException::from)
+    }
+
+    /// Returns the byte offset of character `char_index`, or the byte size
+    /// when the string is shorter (`rb_str_offset`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_utf8("añb");
+    ///
+    /// assert_eq!(string.byte_offset(1), 1);
+    /// assert_eq!(string.byte_offset(2), 3);
+    /// assert_eq!(string.byte_offset(10), 4);
+    /// ```
+    pub fn byte_offset(&self, char_index: usize) -> usize {
+        string::byte_offset(self.value(), char_index)
+    }
+
+    /// Returns how many characters the first `byte_offset` bytes hold (all
+    /// of the string when it is shorter, `rb_str_sublen`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// let string = RString::new_utf8("añb");
+    ///
+    /// assert_eq!(string.char_index(3), 2);
+    /// assert_eq!(string.char_index(100), 3);
+    /// ```
+    pub fn char_index(&self, byte_offset: usize) -> usize {
+        string::char_index(self.value(), byte_offset)
+    }
+
+    /// Returns the successor of the string, incrementing its rightmost
+    /// alphanumeric (Ruby's `succ`, `rb_str_succ`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(RString::new_utf8("az").succ().to_str(), "ba");
+    /// assert_eq!(RString::new_utf8("zz99").succ().to_str(), "aaa00");
+    /// ```
+    pub fn succ(&self) -> RString {
+        RString::from(string::succ(self.value()))
+    }
+
+    /// Returns the string with its non-printable characters escaped, in
+    /// double quotes (Ruby's `dump`, `rb_str_dump`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(RString::new_utf8("tab\t é").dump().to_str(), r#""tab\t \u00E9""#);
+    /// ```
+    pub fn dump(&self) -> RString {
+        RString::from(string::dump(self.value()))
+    }
+
+    /// Returns the `Encoding::CompatibilityError` if the string's encoding is
+    /// not ASCII compatible, such as UTF-16 (`rb_must_asciicompat`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, RString, VM};
+    /// # VM::init();
+    /// VM::init_loadpath(); // Needed for the encoding database
+    /// VM::require("enc/encdb");
+    ///
+    /// assert!(RString::new_utf8("text").check_ascii_compatible().is_ok());
+    ///
+    /// let utf16 = RString::from_bytes(b"a\x00", &Encoding::find("UTF-16LE").unwrap());
+    /// assert!(utf16.check_ascii_compatible().is_err());
+    /// ```
+    pub fn check_ascii_compatible(&self) -> Result<(), AnyException> {
+        let string = self.value();
+
+        vm::protect_value(|| {
+            string::must_ascii_compatible(string);
+
+            string
+        })
+        .map(|_| ())
+        .map_err(AnyException::from)
+    }
+
+    /// Returns the string converted to the default external encoding, as
+    /// for writing it outside Ruby (`rb_str_export`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, RString, VM};
+    /// # VM::init();
+    ///
+    /// let exported = RString::new_utf8("out").export();
+    ///
+    /// assert_eq!(exported.to_str(), "out");
+    /// assert_eq!(exported.encoding(), Encoding::default_external());
+    /// ```
+    pub fn export(&self) -> RString {
+        RString::from(string::export(self.value()))
+    }
+
+    /// Converts `object` to a `String` with its `to_str` method, as Ruby
+    /// does where a string is expected (`rb_str_to_str`). Unlike
+    /// [`RString::convert`](#method.convert), `to_s` is not used; returns the
+    /// `TypeError` when `object` has no `to_str`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let path = VM::eval("Struct.new(:to_str).new('a/path')").unwrap();
+    ///
+    /// assert_eq!(RString::implicit_convert(&path).unwrap().to_str(), "a/path");
+    /// assert!(RString::implicit_convert(&Fixnum::new(1)).is_err());
+    /// ```
+    pub fn implicit_convert<T: Object>(object: &T) -> Result<Self, AnyException> {
+        let object = object.value();
+
+        vm::protect_value(|| string::to_str(object))
+            .map(Self::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Formats `arguments` with the format string `format`, as Ruby's
+    /// `format` (`Kernel#sprintf`, `rb_f_sprintf`) does. Returns the error
+    /// (such as `ArgumentError`) for a bad format or arguments.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Float, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let formatted = RString::format(
+    ///     "%-5s|%03d|%.2f",
+    ///     &[RString::new_utf8("ab").into(), Fixnum::new(7).into(), Float::new(3.14159).into()],
+    /// )
+    /// .unwrap();
+    ///
+    /// assert_eq!(formatted.to_str(), "ab   |007|3.14");
+    /// assert!(RString::format("%d", &[]).is_err());
+    /// ```
+    pub fn format(format: &str, arguments: &[AnyObject]) -> Result<RString, AnyException> {
+        let format = string::new_utf8(format);
+        let mut values = Vec::with_capacity(arguments.len() + 1);
+        values.push(format);
+        values.extend(arguments.iter().map(Object::value));
+
+        let result = vm::protect_value(|| string::format(&values))
+            .map(RString::from)
+            .map_err(AnyException::from);
+
+        // `values` is on the heap, out of the GC's sight: keep `format` on
+        // the stack until Ruby is done with it.
+        unsafe { std::ptr::read_volatile(&format) };
+
+        result
+    }
+
+    /// Returns the last component of the string as a path, without trailing
+    /// separators, as Ruby's `File.basename` does (`ruby_enc_find_basename`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(RString::new_utf8("/home/crab/notes.txt").path_basename().to_str(), "notes.txt");
+    /// assert_eq!(RString::new_utf8("dir/sub/").path_basename().to_str(), "sub");
+    /// assert_eq!(RString::new_utf8("/").path_basename().to_str(), "/");
+    /// ```
+    pub fn path_basename(&self) -> RString {
+        let bytes = self.to_bytes_unchecked();
+
+        match string::path_basename(bytes, self.encoding().value()) {
+            Some((start, len, _)) => self.byte_slice(start, len).unwrap(),
+            None => self.byte_slice(0, bytes.len()).unwrap(),
+        }
+    }
+
+    /// Returns the extension (with its dot) of the string's last path
+    /// component, or an empty string, as Ruby's `File.extname` does
+    /// (`ruby_enc_find_extname`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{RString, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(RString::new_utf8("/src/lib.rs").path_extname().to_str(), ".rs");
+    /// assert_eq!(RString::new_utf8("archive.tar.gz").path_extname().to_str(), ".gz");
+    /// assert_eq!(RString::new_utf8(".profile").path_extname().to_str(), "");
+    /// ```
+    pub fn path_extname(&self) -> RString {
+        let bytes = self.to_bytes_unchecked();
+
+        match string::path_extname(bytes, self.encoding().value()) {
+            Some((start, len)) => self.byte_slice(start, len).unwrap(),
+            None => self.byte_slice(0, 0).unwrap(),
+        }
+    }
 }
 
 /// What a string's bytes are in its encoding; see
@@ -1252,9 +1836,10 @@ impl PartialEq for RString {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CodeRange, Encoding, EncodingSupport, Object, RString, VM};
+    use crate::{CodeRange, Encoding, EncodingSupport, Exception, Object, RString, VM};
     use std::{
         cmp::Ordering,
+        ffi::CStr,
         panic::{self, AssertUnwindSafe},
     };
 
@@ -1390,6 +1975,233 @@ mod tests {
                 .unwrap();
             assert_eq!(binary.bytesize(), 2);
             assert_eq!(binary.to_bytes_unchecked(), &[0xFF, 0xFE]);
+        });
+    }
+
+    fn ruby_string(code: &str) -> RString {
+        VM::eval(code).unwrap().try_convert_to::<RString>().unwrap()
+    }
+
+    #[test]
+    fn test_string_constructors_and_interning() {
+        crate::on_ruby_thread(|| {
+            let external = RString::new_external(b"plain");
+            assert_eq!(external.to_str(), "plain");
+            assert_eq!(external.encoding(), Encoding::default_external());
+
+            // Non-ASCII bytes cannot be US-ASCII: Ruby makes them binary.
+            let external = RString::new_external("é".as_bytes());
+            assert_eq!(external.to_bytes_unchecked(), "é".as_bytes());
+            if Encoding::default_external() == Encoding::us_ascii() {
+                assert_eq!(external.encoding(), Encoding::ascii_8bit());
+            }
+
+            assert_eq!(RString::new_locale(b"x").encoding(), Encoding::locale());
+            assert_eq!(
+                RString::new_filesystem(b"x").encoding(),
+                Encoding::filesystem()
+            );
+            let tagged = RString::new_external_with_encoding(b"\xFF", &Encoding::ascii_8bit());
+            assert_eq!(tagged.encoding(), Encoding::ascii_8bit());
+
+            static BYTES: [u8; 4] = [1, 2, 3, 0];
+            let bytes = CStr::from_bytes_with_nul(&BYTES).unwrap();
+            let mut fixed = RString::new_static_with_encoding(bytes, &Encoding::ascii_8bit());
+            fixed.concat_bytes(&[4], &Encoding::ascii_8bit()).unwrap();
+            assert_eq!(fixed.to_bytes_unchecked(), &[1, 2, 3, 4]);
+            // Modifying the string copied the bytes rather than writing them.
+            assert_eq!(BYTES, [1, 2, 3, 0]);
+
+            let literal = RString::new_static(CStr::from_bytes_with_nul(b"lit\0").unwrap());
+            assert!(!literal.is_frozen());
+            assert_eq!(literal.to_str(), "lit");
+
+            // Copied: UTF-16 needs a two-byte terminator.
+            VM::init_loadpath();
+            VM::require("enc/encdb");
+            let utf16 = Encoding::find("UTF-16LE").unwrap();
+            let wide = RString::new_static_with_encoding(
+                CStr::from_bytes_with_nul(b"a\x01\0").unwrap(),
+                &utf16,
+            );
+            assert_eq!(wide.to_bytes_unchecked(), b"a\x01");
+            assert_eq!(wide.encoding(), utf16);
+            assert_eq!(wide.to_string_unchecked(), "a\u{1}");
+
+            let interned = RString::interned("rutie interned");
+            assert!(interned.is_frozen());
+            assert_eq!(interned.encoding(), Encoding::utf8());
+            assert_eq!(
+                RString::new_utf8("rutie interned")
+                    .to_interned()
+                    .value()
+                    .value,
+                interned.value().value
+            );
+            // Equal bytes in another encoding are another string.
+            let binary = RString::interned_bytes(b"rutie interned", &Encoding::ascii_8bit());
+            assert_ne!(binary.value().value, interned.value().value);
+            assert_eq!(binary.encoding(), Encoding::ascii_8bit());
+        });
+    }
+
+    #[test]
+    fn test_string_editing() {
+        crate::on_ruby_thread(|| {
+            let mut string = RString::new_utf8("ab");
+            string.append(&RString::new_utf8("ç")).unwrap();
+            string.concat_codepoint(0x1F980).unwrap();
+            assert_eq!(string.to_str(), "abç🦀");
+
+            let mut ascii = RString::from_bytes(b"x", &Encoding::us_ascii());
+            ascii.append(&RString::new_utf8("é")).unwrap();
+            assert_eq!(ascii.encoding(), Encoding::utf8());
+            let mut binary = RString::from_bytes(b"x", &Encoding::ascii_8bit());
+            binary.concat_codepoint(0xFF).unwrap();
+            assert_eq!(binary.to_bytes_unchecked(), b"x\xFF");
+            assert!(binary.concat_codepoint(0x100).is_err());
+
+            let mut frozen = RString::new_utf8("f").freeze();
+            assert!(frozen.append(&RString::new_utf8("x")).is_err());
+            assert!(frozen.reserve(10).is_err());
+            assert!(frozen.splice(0, 1, &RString::new_utf8("x")).is_err());
+            assert!(frozen.concat_codepoint(0x41).is_err());
+
+            let mut buffer = RString::new_utf8("");
+            buffer.reserve(4096).unwrap();
+            assert!(buffer.capacity() >= 4096);
+            assert_eq!(buffer.bytesize(), 0);
+
+            let mut multibyte = RString::new_utf8("éa");
+            multibyte.drop_bytes(1).unwrap();
+            assert_eq!(multibyte.coderange(), CodeRange::Broken);
+            multibyte.drop_bytes(usize::MAX).unwrap();
+            assert_eq!(multibyte.bytesize(), 0);
+
+            let mut spliced = RString::new_utf8("añb");
+            spliced.splice(1, 1, &RString::new_utf8("NN")).unwrap();
+            assert_eq!(spliced.to_str(), "aNNb");
+            spliced
+                .splice(4, usize::MAX, &RString::new_utf8("!"))
+                .unwrap();
+            assert_eq!(spliced.to_str(), "aNNb!");
+            spliced
+                .splice(0, usize::MAX, &RString::new_utf8(""))
+                .unwrap();
+            assert_eq!(spliced.to_str(), "");
+            assert!(spliced.splice(-1, 0, &RString::new_utf8("x")).is_err());
+            let binary = RString::from_bytes(b"\xFF", &Encoding::ascii_8bit());
+            let mut utf8 = RString::new_utf8("é");
+            assert!(utf8.splice(0, 0, &binary).is_err());
+        });
+    }
+
+    #[test]
+    fn test_string_offsets_and_comparison() {
+        crate::on_ruby_thread(|| {
+            let string = RString::new_utf8("aé🦀b");
+            let offsets: Vec<usize> = (0..6).map(|i| string.byte_offset(i)).collect();
+            assert_eq!(offsets, [0, 1, 3, 7, 8, 8]);
+            assert_eq!(string.byte_offset(usize::MAX), 8);
+            let indexes: Vec<usize> = [0, 1, 3, 7, 8, 9]
+                .iter()
+                .map(|&b| string.char_index(b))
+                .collect();
+            assert_eq!(indexes, [0, 1, 2, 3, 4, 4]);
+            assert_eq!(string.char_index(usize::MAX), 4);
+            assert_eq!(RString::new_utf8("").byte_offset(3), 0);
+
+            let ascii = RString::new_utf8("abc");
+            let ascii_binary = RString::from_bytes(b"abc", &Encoding::ascii_8bit());
+            assert!(ascii.is_comparable(&ascii_binary));
+            assert!(ascii.is_eql(&ascii_binary));
+            assert!(RString::new_utf8("")
+                .is_comparable(&RString::from_bytes(b"\xFF", &Encoding::ascii_8bit())));
+            assert!(!ascii.is_eql(&RString::new_utf8("abd")));
+
+            assert_eq!(RString::new_utf8("Az").succ().to_str(), "Ba");
+            assert_eq!(RString::new_utf8("").succ().to_str(), "");
+            assert_eq!(RString::new_utf8("a\0\"").dump().to_str(), r#""a\x00\"""#);
+        });
+    }
+
+    #[test]
+    fn test_string_conversions_and_format() {
+        crate::on_ruby_thread(|| {
+            assert!(RString::new_utf8("x").check_ascii_compatible().is_ok());
+            let utf16 =
+                ruby_string("'x'.encode('UTF-16LE') rescue 'x'.dup.force_encoding('UTF-16LE')");
+            assert!(utf16.check_ascii_compatible().is_err());
+
+            let exported = RString::new_utf8("e").export();
+            assert_eq!(exported.encoding(), Encoding::default_external());
+
+            let string = RString::new_utf8("same");
+            let converted = RString::implicit_convert(&string).unwrap();
+            assert!(converted.is_equal(&string));
+            let error = RString::implicit_convert(&crate::Symbol::new("sym")).unwrap_err();
+            assert!(crate::Class::from_existing("TypeError").case_equals(&error));
+
+            let formatted = RString::format(
+                "%s and %p: %x",
+                &[
+                    RString::new_utf8("str").into(),
+                    crate::Symbol::new("sym").into(),
+                    crate::Fixnum::new(255).into(),
+                ],
+            )
+            .unwrap();
+            assert_eq!(formatted.to_str(), "str and :sym: ff");
+            assert!(RString::format("%d", &[RString::new_utf8("x").into()]).is_err());
+            assert_eq!(RString::format("100%%", &[]).unwrap().to_str(), "100%");
+        });
+    }
+
+    #[test]
+    fn test_string_paths_match_file() {
+        crate::on_ruby_thread(|| {
+            let paths = [
+                "",
+                "/",
+                "//",
+                "a",
+                "a/",
+                "/a/b.rb",
+                "a/b/",
+                "dir/.hidden",
+                ".hidden.rb",
+                "a.tar.gz",
+                "a/b.",
+                "a/.b.c",
+                "x//y//",
+                "é/ü.ñ",
+                "a/b c.d e",
+                "...",
+                "a..b",
+            ];
+
+            for path in paths.iter() {
+                let string = RString::new_utf8(path);
+                let basename = ruby_string(&format!("File.basename({:?})", path));
+                let extname = ruby_string(&format!("File.extname({:?})", path));
+
+                assert_eq!(
+                    string.path_basename().to_str(),
+                    basename.to_str(),
+                    "basename of {:?}",
+                    path
+                );
+                assert_eq!(
+                    string.path_extname().to_str(),
+                    extname.to_str(),
+                    "extname of {:?}",
+                    path
+                );
+            }
+
+            // Bytes after a NUL are not part of the path.
+            let nul = RString::from_bytes(b"a.b\0.c", &Encoding::utf8());
+            assert_eq!(nul.path_extname().to_str(), ".b");
         });
     }
 }

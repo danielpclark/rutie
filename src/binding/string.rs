@@ -1,3 +1,5 @@
+use std::ffi::CStr;
+
 use crate::{
     rubysys::{encoding, string},
     types::{c_char, c_int, c_long, Value},
@@ -188,4 +190,207 @@ pub fn to_integer(value: Value, base: u32, strict: bool) -> Value {
 
 pub fn coderange(value: Value) -> c_int {
     unsafe { encoding::rb_enc_str_coderange(value) }
+}
+
+fn bytes_ptr(bytes: &[u8]) -> (*const c_char, c_long) {
+    (bytes.as_ptr() as *const c_char, bytes.len() as c_long)
+}
+
+pub fn new_external(bytes: &[u8]) -> Value {
+    let (ptr, len) = bytes_ptr(bytes);
+
+    unsafe { string::rb_external_str_new(ptr, len) }
+}
+
+pub fn new_external_with_encoding(bytes: &[u8], enc: Value) -> Value {
+    let (ptr, len) = bytes_ptr(bytes);
+
+    unsafe { string::rb_external_str_new_with_enc(ptr, len, encoding::rb_to_encoding(enc)) }
+}
+
+pub fn new_locale(bytes: &[u8]) -> Value {
+    let (ptr, len) = bytes_ptr(bytes);
+
+    unsafe { string::rb_locale_str_new(ptr, len) }
+}
+
+pub fn new_filesystem(bytes: &[u8]) -> Value {
+    let (ptr, len) = bytes_ptr(bytes);
+
+    unsafe { string::rb_filesystem_str_new(ptr, len) }
+}
+
+// Ruby uses the bytes in place, so they must live for the whole program,
+// and reads the byte after them (the NUL). Wider terminators (UTF-16, ...)
+// would be read past it, so ASCII-incompatible encodings get a copy.
+pub fn new_static(string: &'static CStr, enc: Value) -> Value {
+    let (ptr, len) = bytes_ptr(string.to_bytes());
+
+    unsafe {
+        let enc = encoding::rb_to_encoding(enc);
+
+        if encoding::enc_asciicompat(enc) {
+            string::rb_enc_str_new_static(ptr, len, enc)
+        } else {
+            string::rb_enc_str_new(ptr, len, enc)
+        }
+    }
+}
+
+pub fn new_static_utf8(string: &'static CStr) -> Value {
+    let (ptr, len) = bytes_ptr(string.to_bytes());
+
+    unsafe { string::rb_utf8_str_new_static(ptr, len) }
+}
+
+pub fn interned(bytes: &[u8], enc: Value) -> Value {
+    let (ptr, len) = bytes_ptr(bytes);
+
+    unsafe { string::rb_enc_interned_str(ptr, len, encoding::rb_to_encoding(enc)) }
+}
+
+pub fn to_interned(value: Value) -> Value {
+    unsafe { string::rb_str_to_interned_str(value) }
+}
+
+pub fn append(value: Value, other: Value) -> Value {
+    unsafe { string::rb_str_append(value, other) }
+}
+
+// `other` is a String or an Integer code point.
+pub fn concat_object(value: Value, other: Value) -> Value {
+    unsafe { string::rb_str_concat(value, other) }
+}
+
+pub fn is_comparable(value: Value, other: Value) -> bool {
+    util::c_int_to_bool(unsafe { string::rb_str_comparable(value, other) })
+}
+
+pub fn is_eql(value: Value, other: Value) -> bool {
+    unsafe { string::rb_str_hash_cmp(value, other) == 0 }
+}
+
+pub fn modify_expand(value: Value, additional: usize) {
+    let additional = additional.min(c_long::MAX as usize) as c_long;
+
+    unsafe { string::rb_str_modify_expand(value, additional) }
+}
+
+pub fn drop_bytes(value: Value, count: usize) -> Value {
+    // Ruby stops at the end of the string.
+    let count = count.min(bytesize(value) as usize) as c_long;
+
+    unsafe { string::rb_str_drop_bytes(value, count) }
+}
+
+// Raises `IndexError` when `start` is outside the string.
+pub fn update(value: Value, start: i64, len: usize, other: Value) {
+    let len = len.min(c_long::MAX as usize) as c_long;
+
+    unsafe { string::rb_str_update(value, start as c_long, len, other) }
+}
+
+pub fn byte_offset(value: Value, char_index: usize) -> usize {
+    // A string has at most as many characters as bytes.
+    let char_index = char_index.min(bytesize(value) as usize) as c_long;
+
+    unsafe { string::rb_str_offset(value, char_index) as usize }
+}
+
+pub fn char_index(value: Value, byte_offset: usize) -> usize {
+    // `rb_str_sublen` reads `byte_offset` bytes without checking the length.
+    let byte_offset = byte_offset.min(bytesize(value) as usize) as c_long;
+
+    unsafe { string::rb_str_sublen(value, byte_offset) as usize }
+}
+
+pub fn succ(value: Value) -> Value {
+    unsafe { string::rb_str_succ(value) }
+}
+
+pub fn dump(value: Value) -> Value {
+    unsafe { string::rb_str_dump(value) }
+}
+
+pub fn must_ascii_compatible(value: Value) {
+    unsafe { string::rb_must_asciicompat(value) }
+}
+
+pub fn export(value: Value) -> Value {
+    unsafe { string::rb_str_export(value) }
+}
+
+// Raises `TypeError` when `value` has no `to_str`.
+pub fn to_str(value: Value) -> Value {
+    unsafe { string::rb_str_to_str(value) }
+}
+
+// `Kernel#format`: `arguments[0]` is the format string.
+pub fn format(arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { string::rb_f_sprintf(argc, argv) }
+}
+
+// The byte range of the last path component (without trailing separators)
+// of `bytes`, and of that component without its extension.
+pub fn path_basename(bytes: &[u8], enc: Value) -> Option<(usize, usize, usize)> {
+    if bytes.is_empty() {
+        return None;
+    }
+
+    // Ruby reads up to a NUL.
+    let mut name = bytes.to_vec();
+    name.push(0);
+
+    let start = name.as_ptr() as *const c_char;
+    let mut baselen: c_long = 0;
+    let mut alllen: c_long = bytes.len() as c_long;
+
+    let found = unsafe {
+        encoding::ruby_enc_find_basename(
+            start,
+            &mut baselen,
+            &mut alllen,
+            encoding::rb_to_encoding(enc),
+        )
+    };
+
+    // Only separators: Ruby points at the last one (`alllen` is -1).
+    if alllen < 0 {
+        alllen = baselen;
+    }
+
+    let offset = (found as isize).wrapping_sub(start as isize);
+
+    if found.is_null()
+        || offset < 0
+        || baselen < 0
+        || offset as usize + alllen as usize > bytes.len()
+        || baselen > alllen
+    {
+        return None;
+    }
+
+    Some((offset as usize, alllen as usize, baselen as usize))
+}
+
+// The byte range of the extension (with its dot) of `bytes`.
+pub fn path_extname(bytes: &[u8], enc: Value) -> Option<(usize, usize)> {
+    let mut name = bytes.to_vec();
+    name.push(0);
+
+    let start = name.as_ptr() as *const c_char;
+    let mut len: c_long = bytes.len() as c_long;
+
+    let found =
+        unsafe { encoding::ruby_enc_find_extname(start, &mut len, encoding::rb_to_encoding(enc)) };
+
+    let offset = (found as isize).wrapping_sub(start as isize);
+
+    if found.is_null() || len <= 0 || offset < 0 || offset as usize + len as usize > bytes.len() {
+        return None;
+    }
+
+    Some((offset as usize, len as usize))
 }
