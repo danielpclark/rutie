@@ -94,12 +94,10 @@ pub fn maybe_wait_writable(error: c_int, io: Value, timeout: Value) -> c_int {
     unsafe { io::rb_io_maybe_wait_writable(error, io, timeout) }
 }
 
-#[cfg(ruby_gte_3_2)]
 pub fn timeout(io: Value) -> Value {
     unsafe { io::rb_io_timeout(io) }
 }
 
-#[cfg(ruby_gte_3_2)]
 pub fn set_timeout(io: Value, timeout: Value) -> Value {
     unsafe { io::rb_io_set_timeout(io, timeout) }
 }

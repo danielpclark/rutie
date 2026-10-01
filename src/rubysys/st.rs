@@ -46,7 +46,6 @@ extern "C" {
     // rb_st_table_size(const struct st_table *tbl)
     //
     // The number of entries in `tbl` (`st_table_size`).
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_st_table_size(table: *const StTable) -> size_t;
     // st_table *
     // rb_st_init_existing_table_with_size(st_table *tab, const struct st_hash_type *type, st_index_t size)
@@ -84,7 +83,6 @@ mod tests {
             assert_eq!(rb_st_insert(table, 2, 20), 0);
             assert_eq!(rb_st_insert(table, 1, 11), 1);
 
-            #[cfg(ruby_gte_3_2)]
             assert_eq!(rb_st_table_size(table), 2);
 
             rb_st_free_table(table);

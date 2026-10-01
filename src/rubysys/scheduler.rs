@@ -4,7 +4,7 @@
 
 use crate::rubysys::{
     libc::timeval,
-    types::{c_int, c_void, size_t, Argc, Value},
+    types::{c_int, c_void, size_t, Argc, CallbackPtr, Value},
 };
 
 // `rb_pid_t`: `pid_t`, which is `int` on Unix and with Visual C++, and a
@@ -91,7 +91,6 @@ extern "C" {
     // VALUE
     // rb_fiber_scheduler_io_select(VALUE scheduler, VALUE readables, VALUE writables,
     //                              VALUE exceptables, VALUE timeout)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_fiber_scheduler_io_select(
         scheduler: Value,
         readables: Value,
@@ -101,21 +100,12 @@ extern "C" {
     ) -> Value;
     // VALUE
     // rb_fiber_scheduler_io_selectv(VALUE scheduler, int argc, VALUE *argv)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_fiber_scheduler_io_selectv(scheduler: Value, argc: Argc, argv: *mut Value) -> Value;
     // VALUE
     // rb_fiber_scheduler_io_read(VALUE scheduler, VALUE io, VALUE buffer, size_t length)
-    #[cfg(not(ruby_gte_3_2))]
-    pub fn rb_fiber_scheduler_io_read(
-        scheduler: Value,
-        io: Value,
-        buffer: Value,
-        length: size_t,
-    ) -> Value;
     // VALUE
     // rb_fiber_scheduler_io_read(VALUE scheduler, VALUE io, VALUE buffer, size_t length,
     //                            size_t offset)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_fiber_scheduler_io_read(
         scheduler: Value,
         io: Value,
@@ -125,17 +115,9 @@ extern "C" {
     ) -> Value;
     // VALUE
     // rb_fiber_scheduler_io_write(VALUE scheduler, VALUE io, VALUE buffer, size_t length)
-    #[cfg(not(ruby_gte_3_2))]
-    pub fn rb_fiber_scheduler_io_write(
-        scheduler: Value,
-        io: Value,
-        buffer: Value,
-        length: size_t,
-    ) -> Value;
     // VALUE
     // rb_fiber_scheduler_io_write(VALUE scheduler, VALUE io, VALUE buffer, size_t length,
     //                             size_t offset)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_fiber_scheduler_io_write(
         scheduler: Value,
         io: Value,
@@ -146,18 +128,9 @@ extern "C" {
     // VALUE
     // rb_fiber_scheduler_io_pread(VALUE scheduler, VALUE io, VALUE buffer, size_t length,
     //                             off_t offset)
-    #[cfg(not(ruby_gte_3_2))]
-    pub fn rb_fiber_scheduler_io_pread(
-        scheduler: Value,
-        io: Value,
-        buffer: Value,
-        length: size_t,
-        offset: RbOff,
-    ) -> Value;
     // VALUE
     // rb_fiber_scheduler_io_pread(VALUE scheduler, VALUE io, rb_off_t from, VALUE buffer,
     //                             size_t length, size_t offset)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_fiber_scheduler_io_pread(
         scheduler: Value,
         io: Value,
@@ -169,18 +142,9 @@ extern "C" {
     // VALUE
     // rb_fiber_scheduler_io_pwrite(VALUE scheduler, VALUE io, VALUE buffer, size_t length,
     //                              off_t offset)
-    #[cfg(not(ruby_gte_3_2))]
-    pub fn rb_fiber_scheduler_io_pwrite(
-        scheduler: Value,
-        io: Value,
-        buffer: Value,
-        length: size_t,
-        offset: RbOff,
-    ) -> Value;
     // VALUE
     // rb_fiber_scheduler_io_pwrite(VALUE scheduler, VALUE io, rb_off_t from, VALUE buffer,
     //                              size_t length, size_t offset)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_fiber_scheduler_io_pwrite(
         scheduler: Value,
         io: Value,
@@ -244,11 +208,41 @@ extern "C" {
     //
     // VALUE
     // rb_fiber_scheduler_fiber(VALUE scheduler, int argc, VALUE *argv, int kw_splat)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_fiber_scheduler_fiber(
         scheduler: Value,
         argc: Argc,
         argv: *mut Value,
         kw_splat: c_int,
+    ) -> Value;
+}
+
+// What `rb_fiber_scheduler_blocking_operation_wait` reports back (Ruby 3.4).
+#[cfg(ruby_gte_3_4)]
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub struct RbFiberSchedulerBlockingOperationState {
+    pub result: *mut c_void,
+    pub saved_errno: c_int,
+}
+
+#[cfg(ruby_gte_3_4)]
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // Runs `function(data)` (a blocking operation that does not need the GVL)
+    // through the scheduler's `blocking_operation_wait` hook, which may run it
+    // on another thread; `flags` are `rb_nogvl` flags.
+    //
+    // VALUE
+    // rb_fiber_scheduler_blocking_operation_wait(VALUE scheduler, void* (*function)(void *),
+    //     void *data, rb_unblock_function_t *unblock_function, void *data2, int flags,
+    //     struct rb_fiber_scheduler_blocking_operation_state *state)
+    pub fn rb_fiber_scheduler_blocking_operation_wait(
+        scheduler: Value,
+        function: CallbackPtr,
+        data: *mut c_void,
+        unblock_function: CallbackPtr,
+        data2: *mut c_void,
+        flags: c_int,
+        state: *mut RbFiberSchedulerBlockingOperationState,
     ) -> Value;
 }

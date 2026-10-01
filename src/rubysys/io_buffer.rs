@@ -12,7 +12,6 @@ pub const RB_IO_BUFFER_INTERNAL: rb_io_buffer_flags = 2;
 // The memory is mapped; a non-private mapping is also `EXTERNAL`.
 pub const RB_IO_BUFFER_MAPPED: rb_io_buffer_flags = 4;
 // A mapped buffer that is also shared.
-#[cfg(ruby_gte_3_2)]
 pub const RB_IO_BUFFER_SHARED: rb_io_buffer_flags = 8;
 // The base address and size can't change (usually during a system call).
 pub const RB_IO_BUFFER_LOCKED: rb_io_buffer_flags = 32;
@@ -136,30 +135,9 @@ extern "C" {
 
 // Reading and writing return the byte count as an Integer, or a negative
 // `errno` (they do not raise for a failed system call).
-#[cfg(ruby_3_1)]
-#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
-extern "C" {
-    // VALUE
-    // rb_io_buffer_read(VALUE self, VALUE io, size_t length)
-    //
-    // One `read(2)` of up to the buffer's size; `length` is only checked
-    // against the size.
-    pub fn rb_io_buffer_read(buffer: Value, io: Value, length: size_t) -> Value;
-    // VALUE
-    // rb_io_buffer_pread(VALUE self, VALUE io, size_t length, off_t offset)
-    pub fn rb_io_buffer_pread(buffer: Value, io: Value, length: size_t, offset: rb_off_t) -> Value;
-    // VALUE
-    // rb_io_buffer_write(VALUE self, VALUE io, size_t length)
-    pub fn rb_io_buffer_write(buffer: Value, io: Value, length: size_t) -> Value;
-    // VALUE
-    // rb_io_buffer_pwrite(VALUE self, VALUE io, size_t length, off_t offset)
-    pub fn rb_io_buffer_pwrite(buffer: Value, io: Value, length: size_t, offset: rb_off_t)
-        -> Value;
-}
 
 // `from` is the file offset and `offset` the offset in the buffer; `length`
 // is the minimum to read or write.
-#[cfg(ruby_gte_3_2)]
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE

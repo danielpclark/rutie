@@ -23,6 +23,13 @@ themselves.
  - Ruby 3.4 support: `ruby_3_4`/`ruby_gte_3_4` cfg flags; every `rubysys`
    declaration checked against Ruby 3.4's headers and `libruby` exports,
    thanks to @danielpclark
+ - `Thread::lock_native_thread` (`rb_thread_lock_native_thread`) and
+   `VM::free_at_exit` (`ruby_free_at_exit_p`), Ruby 3.4+, thanks to
+   @danielpclark
+ - Raw bindings for the rest of Ruby 3.4's additions:
+   `rb_fiber_scheduler_blocking_operation_wait` (with
+   `RbFiberSchedulerBlockingOperationState`), `ruby_malloc_add_size_overflow`
+   and `rb_assert_failure_detail`, thanks to @danielpclark
 
 ### Changed
  - `Fiber::with_storage` is available on every supported Ruby, and

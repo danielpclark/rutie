@@ -789,7 +789,6 @@ pub fn need_block() {
     unsafe { vm::rb_need_block() }
 }
 
-#[cfg(ruby_gte_3_2)]
 pub fn clear_constant_cache_for(name: &str) {
     unsafe { vm::rb_clear_constant_cache_for_id(internal_id(name)) }
 }
@@ -797,4 +796,9 @@ pub fn clear_constant_cache_for(name: &str) {
 #[cfg(ruby_gte_3_3)]
 pub fn ext_resolve_symbol(feature: &CStr, symbol: &CStr) -> *mut c_void {
     unsafe { vm::rb_ext_resolve_symbol(feature.as_ptr(), symbol.as_ptr()) }
+}
+
+#[cfg(ruby_gte_3_4)]
+pub fn free_at_exit() -> bool {
+    unsafe { vm::ruby_free_at_exit_p() }
 }

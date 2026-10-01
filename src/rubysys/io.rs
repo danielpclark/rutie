@@ -133,13 +133,11 @@ extern "C" {
     // rb_io_timeout(VALUE io)
     //
     // `Qnil`, or the timeout as it was set.
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_io_timeout(io: Value) -> Value;
     // VALUE
     // rb_io_set_timeout(VALUE io, VALUE timeout)
     //
     // `timeout` is `Qnil` (no timeout) or responds to `to_f`.
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_io_set_timeout(io: Value, timeout: Value) -> Value;
     // VALUE
     // rb_io_open_descriptor(VALUE klass, int descriptor, int mode, VALUE path, VALUE timeout, struct rb_io_encoding *encoding)

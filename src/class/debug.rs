@@ -852,7 +852,6 @@ impl DebugInspector {
     ///     assert!(depth(0) > depth(1) && depth(1) > depth(2));
     /// }
     /// ```
-    #[cfg(ruby_gte_3_2)]
     pub fn frame_depth(&self, index: usize) -> Option<i64> {
         self.frame(index, |context, index| unsafe {
             debug::debug_inspector_frame_depth(context, index)
@@ -896,7 +895,6 @@ impl DebugInspector {
     ///     assert_eq!(at(1), at(0) + 1);
     /// }
     /// ```
-    #[cfg(ruby_gte_3_2)]
     pub fn current_depth() -> i64 {
         Integer::from(debug::debug_inspector_current_depth()).to_i64()
     }
@@ -1081,7 +1079,6 @@ mod tests {
                     rows.push(row);
                 }
 
-                #[cfg(ruby_gte_3_2)]
                 {
                     assert!(inspector.frame_depth(count).is_none());
                     assert_eq!(

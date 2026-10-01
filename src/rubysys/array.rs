@@ -115,7 +115,6 @@ extern "C" {
     // An empty array with room for `capa` elements and no class, invisible
     // to `ObjectSpace` (`rb_ary_tmp_new`). For C-level buffers only: it
     // must never reach Ruby code.
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_ary_hidden_new(capacity: c_long) -> Value;
 }
 

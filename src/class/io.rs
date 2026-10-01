@@ -587,7 +587,6 @@ impl IO {
     /// # reader.close().unwrap();
     /// # pipe.at(1).try_convert_to::<IO>().unwrap().close().unwrap();
     /// ```
-    #[cfg(ruby_gte_3_2)]
     pub fn timeout(&self) -> Result<Option<Duration>, AnyException> {
         let io_value = self.value();
         let mut seconds = None;
@@ -632,7 +631,6 @@ impl IO {
     /// # reader.close().unwrap();
     /// # pipe.at(1).try_convert_to::<IO>().unwrap().close().unwrap();
     /// ```
-    #[cfg(ruby_gte_3_2)]
     pub fn set_timeout(&self, timeout: Option<Duration>) -> Result<(), AnyException> {
         let io_value = self.value();
         let timeout = timeout_value(timeout);
@@ -1016,7 +1014,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_2)]
     #[test]
     fn test_io_timeout() {
         crate::on_ruby_thread(|| {

@@ -1275,7 +1275,6 @@ impl Class {
     /// assert!(singleton.attached_object().unwrap().is_equal(&object));
     /// assert!(Class::string().attached_object().is_err());
     /// ```
-    #[cfg(ruby_gte_3_2)]
     pub fn attached_object(&self) -> Result<AnyObject, AnyException> {
         let klass = self.value();
 
@@ -1882,7 +1881,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_2)]
     #[test]
     fn test_class_attached_object() {
         crate::on_ruby_thread(|| {

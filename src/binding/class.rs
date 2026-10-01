@@ -341,7 +341,6 @@ pub fn subclasses(klass: Value) -> Value {
 }
 
 // Raises `TypeError` unless `klass` is a singleton class.
-#[cfg(ruby_gte_3_2)]
 pub fn attached_object(klass: Value) -> Value {
     unsafe { class::rb_class_attached_object(klass) }
 }

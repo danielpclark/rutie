@@ -418,7 +418,6 @@ pub fn fiber_scheduler_make_timeout(timeout: Option<std::time::Duration>) -> Val
 // `func` is called with the event and its data, on any native thread and
 // mostly without the GVL; a panic in it is caught and dropped (it cannot
 // unwind into Ruby, nor be raised without the GVL).
-#[cfg(ruby_gte_3_2)]
 rutie_callback! {
     fn internal_thread_event_callback<F>(
         event: u32,
@@ -438,7 +437,6 @@ rutie_callback! {
 // the boxed `func`, which must be passed to
 // `internal_thread_remove_event_hook` exactly once, or `None` where Ruby does
 // not implement hooks (Windows).
-#[cfg(ruby_gte_3_2)]
 pub fn internal_thread_add_event_hook<F>(
     events: u32,
     func: F,
@@ -466,7 +464,6 @@ where
 
 // Ruby takes its hook list's write lock to unregister, so no call of `func`
 // is running once this returns, and `func` is dropped.
-#[cfg(ruby_gte_3_2)]
 pub unsafe fn internal_thread_remove_event_hook<F>(
     hook: *mut thread::InternalThreadEventHook,
     func: *mut F,
@@ -503,4 +500,9 @@ pub fn internal_thread_specific_set(
     data: *mut c_void,
 ) {
     unsafe { thread::rb_internal_thread_specific_set(thread, key, data) }
+}
+
+#[cfg(ruby_gte_3_4)]
+pub fn lock_native_thread() -> bool {
+    unsafe { thread::rb_thread_lock_native_thread() }
 }

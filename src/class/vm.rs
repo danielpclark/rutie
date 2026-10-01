@@ -2151,6 +2151,26 @@ impl VM {
         exception::errno()
     }
 
+    /// Returns `true` if Ruby frees all of its memory when the VM shuts
+    /// down (`ruby_free_at_exit_p`), which the `RUBY_FREE_AT_EXIT`
+    /// environment variable turns on for memory checkers such as Valgrind.
+    /// Ruby 3.4+.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::VM;
+    /// # VM::init();
+    ///
+    /// let expected = std::env::var_os("RUBY_FREE_AT_EXIT").map_or(false, |value| value == "1");
+    ///
+    /// assert_eq!(VM::free_at_exit(), expected);
+    /// ```
+    #[cfg(ruby_gte_3_4)]
+    pub fn free_at_exit() -> bool {
+        vm::free_at_exit()
+    }
+
     /// Sets the calling thread's C `errno` (`rb_errno_set`), for example
     /// before [`VM::sys_fail`](#method.sys_fail)-like code that reads it.
     ///
@@ -2900,7 +2920,6 @@ impl VM {
     ///
     /// assert_eq!(VM::eval("limit").unwrap().try_convert_to::<Fixnum>(), Ok(Fixnum::new(5)));
     /// ```
-    #[cfg(ruby_gte_3_2)]
     pub fn clear_constant_cache_for(name: &str) {
         vm::clear_constant_cache_for(name)
     }
@@ -3985,7 +4004,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_2)]
     #[test]
     fn test_clear_constant_cache_for() {
         crate::on_ruby_thread(|| {

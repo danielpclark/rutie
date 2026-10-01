@@ -90,61 +90,20 @@ pub fn clear(buffer: Value, value: u8, offset: usize, length: usize) {
     unsafe { io_buffer::rb_io_buffer_clear(buffer, value, offset, length) }
 }
 
-// Ruby 3.1 always reads into and writes from the start of the buffer, so an
-// offset is a slice of the buffer from `offset` (which shares its memory).
-// The caller checks that `offset` is within the buffer.
-#[cfg(ruby_3_1)]
-fn from_offset(buffer: Value, offset: usize) -> Value {
-    if offset == 0 {
-        return buffer;
-    }
-
-    let (_, size, _) = get_bytes(buffer);
-    let arguments = [
-        fixnum::usize_to_num(offset),
-        fixnum::usize_to_num(size - offset),
-    ];
-
-    crate::binding::vm::call_method(buffer, "slice", &arguments)
-}
-
-// The byte count as an Integer, or a negative `errno`.
-#[cfg(ruby_3_1)]
-pub fn read(buffer: Value, io: Value, length: usize, offset: usize) -> Value {
-    unsafe { io_buffer::rb_io_buffer_read(from_offset(buffer, offset), io, length) }
-}
-
-#[cfg(ruby_gte_3_2)]
+// The byte count as an Integer, or a negative `errno`. The caller checks that
+// `offset` is within the buffer.
 pub fn read(buffer: Value, io: Value, length: usize, offset: usize) -> Value {
     unsafe { io_buffer::rb_io_buffer_read(buffer, io, length, offset) }
 }
 
-#[cfg(ruby_3_1)]
-pub fn pread(buffer: Value, io: Value, from: i64, length: usize, offset: usize) -> Value {
-    unsafe { io_buffer::rb_io_buffer_pread(from_offset(buffer, offset), io, length, from) }
-}
-
-#[cfg(ruby_gte_3_2)]
 pub fn pread(buffer: Value, io: Value, from: i64, length: usize, offset: usize) -> Value {
     unsafe { io_buffer::rb_io_buffer_pread(buffer, io, from, length, offset) }
 }
 
-#[cfg(ruby_3_1)]
-pub fn write(buffer: Value, io: Value, length: usize, offset: usize) -> Value {
-    unsafe { io_buffer::rb_io_buffer_write(from_offset(buffer, offset), io, length) }
-}
-
-#[cfg(ruby_gte_3_2)]
 pub fn write(buffer: Value, io: Value, length: usize, offset: usize) -> Value {
     unsafe { io_buffer::rb_io_buffer_write(buffer, io, length, offset) }
 }
 
-#[cfg(ruby_3_1)]
-pub fn pwrite(buffer: Value, io: Value, from: i64, length: usize, offset: usize) -> Value {
-    unsafe { io_buffer::rb_io_buffer_pwrite(from_offset(buffer, offset), io, length, from) }
-}
-
-#[cfg(ruby_gte_3_2)]
 pub fn pwrite(buffer: Value, io: Value, from: i64, length: usize, offset: usize) -> Value {
     unsafe { io_buffer::rb_io_buffer_pwrite(buffer, io, from, length, offset) }
 }

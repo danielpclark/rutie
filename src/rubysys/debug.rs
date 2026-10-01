@@ -117,13 +117,11 @@ extern "C" {
     //
     // VALUE
     // rb_debug_inspector_frame_depth(const rb_debug_inspector_t *dc, long index)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_debug_inspector_frame_depth(dc: *const DebugInspector, index: c_long) -> Value;
     // The stack depth of the current frame (an `Integer`).
     //
     // VALUE
     // rb_debug_inspector_current_depth(void)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_debug_inspector_current_depth() -> Value;
 
     // Registers `func` in the postponed job table (32 entries, never freed)

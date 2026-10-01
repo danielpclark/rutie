@@ -253,7 +253,6 @@ extern "C" {
     // rb_clear_constant_cache_for_id(ID id)
     //
     // Invalidates the inline caches of constant lookups for the name `id`.
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_clear_constant_cache_for_id(id: Id);
     // void *
     // rb_ext_resolve_symbol(const char *feature, const char *symbol)
@@ -263,4 +262,36 @@ extern "C" {
     // not a native extension, or has no such symbol.
     #[cfg(ruby_gte_3_3)]
     pub fn rb_ext_resolve_symbol(feature: *const c_char, symbol: *const c_char) -> *mut c_void;
+}
+
+#[cfg(ruby_gte_3_4)]
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // Whether Ruby frees all of its memory when the VM shuts down (the
+    // `RUBY_FREE_AT_EXIT` environment variable, for memory checkers). Ruby
+    // 3.4+.
+    //
+    // bool
+    // ruby_free_at_exit_p(void)
+    pub fn ruby_free_at_exit_p() -> bool;
+    // Raises the `NoMemoryError`-style "malloc: possible integer overflow"
+    // error for `x + y`. Ruby 3.4+.
+    //
+    // void
+    // ruby_malloc_add_size_overflow(size_t x, size_t y)
+    pub fn ruby_malloc_add_size_overflow(x: size_t, y: size_t) -> !;
+    // Reports a failed `RUBY_ASSERT` with a printf-style detail message and
+    // aborts. Ruby 3.4+.
+    //
+    // void
+    // rb_assert_failure_detail(const char *file, int line, const char *name,
+    //                          const char *expr, const char *fmt, ...)
+    pub fn rb_assert_failure_detail(
+        file: *const c_char,
+        line: c_int,
+        name: *const c_char,
+        expr: *const c_char,
+        fmt: *const c_char,
+        ...
+    ) -> !;
 }

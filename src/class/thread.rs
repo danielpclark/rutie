@@ -227,6 +227,29 @@ impl Thread {
         thread::call_with_gvl(func)
     }
 
+    /// Gives the current Ruby thread a dedicated native thread when Ruby
+    /// runs Ruby threads on fewer native threads (the M:N thread scheduler,
+    /// `RUBY_MN_THREADS=1`), for code that relies on thread-local storage
+    /// (`rb_thread_lock_native_thread`). Returns `false` if the thread
+    /// already had one, which is always the case without M:N threads, and
+    /// `true` if it was given one now. Ruby 3.4+.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Thread, VM};
+    /// # VM::init();
+    ///
+    /// Thread::lock_native_thread();
+    ///
+    /// // From now on the thread keeps its own native thread.
+    /// assert!(!Thread::lock_native_thread());
+    /// ```
+    #[cfg(ruby_gte_3_4)]
+    pub fn lock_native_thread() -> bool {
+        thread::lock_native_thread()
+    }
+
     /// Like [`call_without_gvl`](#method.call_without_gvl), with Ruby's
     /// `RUBY_UBF_IO` unblocking function: when the thread must stop (it is
     /// killed, or an exception is raised in it), Ruby interrupts a blocking
@@ -743,7 +766,6 @@ impl Thread {
     /// VM::eval("Thread.new { 1 + 1 }.join").unwrap();
     /// assert!(started.load(Ordering::SeqCst) <= 1);
     /// ```
-    #[cfg(ruby_gte_3_2)]
     pub fn add_internal_event_hook<F>(events: u32, func: F) -> Option<InternalThreadEventHook>
     where
         F: Fn(&InternalThreadEvent) + Send + Sync + 'static,
@@ -860,7 +882,6 @@ impl Thread {
 /// }
 /// assert!(seen.iter().all(|flag| flag & InternalThreadEvent::ALL == *flag));
 /// ```
-#[cfg(ruby_gte_3_2)]
 #[derive(Debug, Clone, Copy)]
 pub struct InternalThreadEvent {
     flag: u32,
@@ -868,7 +889,6 @@ pub struct InternalThreadEvent {
     thread: Value,
 }
 
-#[cfg(ruby_gte_3_2)]
 impl InternalThreadEvent {
     /// A thread started.
     pub const STARTED: u32 = rubysys_thread::RUBY_INTERNAL_THREAD_EVENT_STARTED;
@@ -997,21 +1017,18 @@ impl InternalThreadEvent {
 /// // The closure was dropped with the hook.
 /// assert_eq!(Arc::strong_count(&calls), 1);
 /// ```
-#[cfg(ruby_gte_3_2)]
 pub struct InternalThreadEventHook {
     remove: Box<dyn FnMut()>,
     // Removing a hook from a hook deadlocks.
     _not_send: PhantomData<*mut ()>,
 }
 
-#[cfg(ruby_gte_3_2)]
 impl Drop for InternalThreadEventHook {
     fn drop(&mut self) {
         (self.remove)()
     }
 }
 
-#[cfg(ruby_gte_3_2)]
 impl fmt::Debug for InternalThreadEventHook {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("InternalThreadEventHook")
@@ -1255,7 +1272,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_2)]
     #[test]
     fn test_internal_event_hook() {
         use crate::InternalThreadEvent;

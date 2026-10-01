@@ -164,7 +164,6 @@ pub use crate::class::{
     vm::VM,
 };
 
-#[cfg(ruby_gte_3_2)]
 pub use crate::class::thread::{InternalThreadEvent, InternalThreadEventHook};
 
 #[cfg(ruby_gte_3_3)]

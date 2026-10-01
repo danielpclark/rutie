@@ -208,7 +208,6 @@ extern "C" {
     //
     // The object the singleton class `klass` is attached to; raises
     // `TypeError` for any other class.
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_class_attached_object(klass: Value) -> Value;
     // VALUE
     // rb_refinement_new(void)
@@ -232,7 +231,6 @@ extern "C" {
     //
     // `RB_OBJ_FREEZE`: freezes `obj` (and its singleton class) without
     // calling `freeze`.
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_obj_freeze_inline(object: Value);
 }
 
@@ -240,7 +238,6 @@ extern "C" {
 mod tests {
     use crate::{Object, RString};
 
-    #[cfg(ruby_gte_3_2)]
     #[test]
     fn test_obj_freeze_inline() {
         crate::on_ruby_thread(|| {

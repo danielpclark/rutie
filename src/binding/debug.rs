@@ -132,12 +132,10 @@ pub unsafe fn debug_inspector_frame_iseq(dc: *const DebugInspector, index: usize
     debug::rb_debug_inspector_frame_iseq_get(dc, index as c_long)
 }
 
-#[cfg(ruby_gte_3_2)]
 pub unsafe fn debug_inspector_frame_depth(dc: *const DebugInspector, index: usize) -> Value {
     debug::rb_debug_inspector_frame_depth(dc, index as c_long)
 }
 
-#[cfg(ruby_gte_3_2)]
 pub fn debug_inspector_current_depth() -> Value {
     unsafe { debug::rb_debug_inspector_current_depth() }
 }

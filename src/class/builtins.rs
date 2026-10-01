@@ -111,7 +111,6 @@ builtins! {
     zero_division_error => rb_eZeroDivError, "ZeroDivisionError";
 }
 
-#[cfg(ruby_gte_3_2)]
 builtins! {
     Class,
     "exception class (Ruby 3.2+)",

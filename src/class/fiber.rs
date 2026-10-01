@@ -1029,21 +1029,9 @@ mod tests {
                     raw::rb_fiber_scheduler_io_wait(s, io, int(1), int(9)),
                     raw::rb_fiber_scheduler_io_wait_readable(s, io),
                     raw::rb_fiber_scheduler_io_wait_writable(s, io),
-                    #[cfg(not(ruby_gte_3_2))]
-                    raw::rb_fiber_scheduler_io_read(s, io, nil, 10),
-                    #[cfg(ruby_gte_3_2)]
                     raw::rb_fiber_scheduler_io_read(s, io, nil, 10, 11),
-                    #[cfg(not(ruby_gte_3_2))]
-                    raw::rb_fiber_scheduler_io_write(s, io, nil, 12),
-                    #[cfg(ruby_gte_3_2)]
                     raw::rb_fiber_scheduler_io_write(s, io, nil, 12, 13),
-                    #[cfg(not(ruby_gte_3_2))]
-                    raw::rb_fiber_scheduler_io_pread(s, io, nil, 14, 1 << 40),
-                    #[cfg(ruby_gte_3_2)]
                     raw::rb_fiber_scheduler_io_pread(s, io, 1 << 40, nil, 14, 15),
-                    #[cfg(not(ruby_gte_3_2))]
-                    raw::rb_fiber_scheduler_io_pwrite(s, io, nil, 16, 1 << 41),
-                    #[cfg(ruby_gte_3_2)]
                     raw::rb_fiber_scheduler_io_pwrite(s, io, 1 << 41, nil, 16, 17),
                     raw::rb_fiber_scheduler_io_close(s, io),
                     raw::rb_fiber_scheduler_address_resolve(
@@ -1080,14 +1068,6 @@ mod tests {
                 "[:io_wait, #<IO:<STDOUT>>, 1, nil]",
                 "[:io_wait, #<IO:<STDOUT>>, 4, nil]",
             ];
-            #[cfg(not(ruby_gte_3_2))]
-            expected.extend([
-                "[:io_read, #<IO:<STDOUT>>, nil, 10]",
-                "[:io_write, #<IO:<STDOUT>>, nil, 12]",
-                "[:io_pread, #<IO:<STDOUT>>, nil, 14, 1099511627776]",
-                "[:io_pwrite, #<IO:<STDOUT>>, nil, 16, 2199023255552]",
-            ]);
-            #[cfg(ruby_gte_3_2)]
             expected.extend([
                 "[:io_read, #<IO:<STDOUT>>, nil, 10, 11]",
                 "[:io_write, #<IO:<STDOUT>>, nil, 12, 13]",
@@ -1139,7 +1119,6 @@ mod tests {
                 assert_eq!(name(before + 3), Symbol::new("io_pwrite").into());
             }
 
-            #[cfg(ruby_gte_3_2)]
             unsafe {
                 let select = raw::rb_fiber_scheduler_io_select(s, int(1), int(2), int(3), int(4));
                 assert_eq!(select, Symbol::new("io_select").value());

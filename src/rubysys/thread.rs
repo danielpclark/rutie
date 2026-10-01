@@ -298,22 +298,16 @@ pub const RUBY_UBF_PROCESS: usize = usize::MAX;
 // `rb_event_flag_t` mask.
 //
 // Thread started.
-#[cfg(ruby_gte_3_2)]
 pub const RUBY_INTERNAL_THREAD_EVENT_STARTED: u32 = 1 << 0;
 // Acquiring the GVL; the hook runs without it.
-#[cfg(ruby_gte_3_2)]
 pub const RUBY_INTERNAL_THREAD_EVENT_READY: u32 = 1 << 1;
 // Acquired the GVL; the hook runs with it.
-#[cfg(ruby_gte_3_2)]
 pub const RUBY_INTERNAL_THREAD_EVENT_RESUMED: u32 = 1 << 2;
 // Released the GVL; the hook runs without it.
-#[cfg(ruby_gte_3_2)]
 pub const RUBY_INTERNAL_THREAD_EVENT_SUSPENDED: u32 = 1 << 3;
 // Thread terminated; the hook runs without the GVL.
-#[cfg(ruby_gte_3_2)]
 pub const RUBY_INTERNAL_THREAD_EVENT_EXITED: u32 = 1 << 4;
 // All thread events.
-#[cfg(ruby_gte_3_2)]
 pub const RUBY_INTERNAL_THREAD_EVENT_MASK: u32 = 0xff;
 
 // typedef void rb_internal_thread_event_data_t; // for future extension.
@@ -337,7 +331,6 @@ pub struct InternalThreadEventData {
 // typedef void (*rb_internal_thread_event_callback)(rb_event_flag_t event,
 //               const rb_internal_thread_event_data_t *event_data,
 //               void *user_data);
-#[cfg(ruby_gte_3_2)]
 pub type InternalThreadEventCallback = rutie_callback!(type fn(
     event: u32,
     event_data: *const InternalThreadEventData,
@@ -345,7 +338,6 @@ pub type InternalThreadEventCallback = rutie_callback!(type fn(
 ));
 
 // typedef struct rb_internal_thread_event_hook rb_internal_thread_event_hook_t;
-#[cfg(ruby_gte_3_2)]
 #[repr(C)]
 pub struct InternalThreadEventHook {
     _private: [u8; 0],
@@ -368,7 +360,6 @@ extern "C" {
     // rb_internal_thread_event_hook_t *
     // rb_internal_thread_add_event_hook(rb_internal_thread_event_callback func,
     //                                   rb_event_flag_t events, void *data)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_internal_thread_add_event_hook(
         func: InternalThreadEventCallback,
         events: u32,
@@ -379,7 +370,6 @@ extern "C" {
     //
     // bool
     // rb_internal_thread_remove_event_hook(rb_internal_thread_event_hook_t * hook)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_internal_thread_remove_event_hook(hook: *mut InternalThreadEventHook) -> bool;
     // Raises a `ThreadError` once `RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX` keys
     // exist. (Ruby 3.3 and 3.4 check this one key too late and return
@@ -409,4 +399,17 @@ extern "C" {
         key: InternalThreadSpecificKey,
         data: *mut c_void,
     );
+}
+
+#[cfg(ruby_gte_3_4)]
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // Gives the current Ruby thread a dedicated native thread under the M:N
+    // thread scheduler (`RUBY_MN_THREADS=1`), for code that relies on
+    // thread-local storage. `false` if it already had one (always so
+    // without M:N threads), `true` if it got one now. Ruby 3.4+.
+    //
+    // bool
+    // rb_thread_lock_native_thread(void)
+    pub fn rb_thread_lock_native_thread() -> bool;
 }
