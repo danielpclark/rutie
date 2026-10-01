@@ -358,3 +358,93 @@ pub fn fiber_scheduler_make_timeout(timeout: Option<std::time::Duration>) -> Val
         None => unsafe { scheduler::rb_fiber_scheduler_make_timeout(ptr::null_mut()) },
     }
 }
+
+// `func` is called with the event and its data, on any native thread and
+// mostly without the GVL; a panic in it is caught and dropped (it cannot
+// unwind into Ruby, nor be raised without the GVL).
+#[cfg(ruby_gte_3_2)]
+rutie_callback! {
+    fn internal_thread_event_callback<F>(
+        event: u32,
+        event_data: *const thread::InternalThreadEventData,
+        user_data: *mut c_void,
+    )
+    where
+        F: Fn(u32, *const thread::InternalThreadEventData) + Send + Sync + 'static,
+    {
+        let func = unsafe { &*(user_data as *const F) };
+
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| func(event, event_data)));
+    }
+}
+
+// Registers `func` for the thread events in `events`. Returns the hook and
+// the boxed `func`, which must be passed to
+// `internal_thread_remove_event_hook` exactly once, or `None` where Ruby does
+// not implement hooks (Windows).
+#[cfg(ruby_gte_3_2)]
+pub fn internal_thread_add_event_hook<F>(
+    events: u32,
+    func: F,
+) -> Option<(*mut thread::InternalThreadEventHook, *mut F)>
+where
+    F: Fn(u32, *const thread::InternalThreadEventData) + Send + Sync + 'static,
+{
+    let data = Box::into_raw(Box::new(func));
+    let hook = unsafe {
+        thread::rb_internal_thread_add_event_hook(
+            internal_thread_event_callback::<F>,
+            events,
+            data as *mut c_void,
+        )
+    };
+
+    if hook.is_null() {
+        drop(unsafe { Box::from_raw(data) });
+
+        None
+    } else {
+        Some((hook, data))
+    }
+}
+
+// Ruby takes its hook list's write lock to unregister, so no call of `func`
+// is running once this returns, and `func` is dropped.
+#[cfg(ruby_gte_3_2)]
+pub unsafe fn internal_thread_remove_event_hook<F>(
+    hook: *mut thread::InternalThreadEventHook,
+    func: *mut F,
+) -> bool {
+    let removed = thread::rb_internal_thread_remove_event_hook(hook);
+
+    // A hook Ruby did not find may still be called; keep `func` then.
+    if removed {
+        drop(Box::from_raw(func));
+    }
+
+    removed
+}
+
+#[cfg(ruby_gte_3_3)]
+pub fn internal_thread_specific_key_create() -> thread::InternalThreadSpecificKey {
+    unsafe { thread::rb_internal_thread_specific_key_create() }
+}
+
+// `key` must come from `internal_thread_specific_key_create` (and be in
+// range), and `thread` must be a `Thread`. Ruby only stores `data`.
+#[cfg(ruby_gte_3_3)]
+pub fn internal_thread_specific_get(
+    thread: Value,
+    key: thread::InternalThreadSpecificKey,
+) -> *mut c_void {
+    unsafe { thread::rb_internal_thread_specific_get(thread, key) }
+}
+
+#[cfg(ruby_gte_3_3)]
+pub fn internal_thread_specific_set(
+    thread: Value,
+    key: thread::InternalThreadSpecificKey,
+    data: *mut c_void,
+) {
+    unsafe { thread::rb_internal_thread_specific_set(thread, key, data) }
+}
