@@ -98,6 +98,22 @@ extern "C" {
     // VALUE
     // rb_syserr_new(int n, const char *mesg)
     pub fn rb_syserr_new(errno: c_int, message: *const c_char) -> Value;
+    // int
+    // rb_errno(void)
+    //
+    // The calling thread's `errno`.
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_errno() -> c_int;
+    // void
+    // rb_errno_set(int err)
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_errno_set(err: c_int);
+    // int *
+    // rb_errno_ptr(void)
+    //
+    // The location of the calling thread's `errno`.
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_errno_ptr() -> *mut c_int;
     // void
     // rb_warn(const char *fmt, ...)
     pub fn rb_warn(fmt: *const c_char, ...);

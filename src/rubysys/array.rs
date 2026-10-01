@@ -109,6 +109,14 @@ extern "C" {
     // VALUE
     // rb_ary_unshift(VALUE ary, VALUE item)
     pub fn rb_ary_unshift(array: Value, item: Value) -> Value;
+    // VALUE
+    // rb_ary_hidden_new(long capa)
+    //
+    // An empty array with room for `capa` elements and no class, invisible
+    // to `ObjectSpace` (`rb_ary_tmp_new`). For C-level buffers only: it
+    // must never reach Ruby code.
+    #[cfg(ruby_gte_3_2)]
+    pub fn rb_ary_hidden_new(capacity: c_long) -> Value;
 }
 
 // #[link_name = "ruby_rarray_flags"]
@@ -159,6 +167,24 @@ pub unsafe fn rb_ary_len(value: Value) -> c_long {
 mod tests {
     use super::rb_ary_len;
     use crate::{Array, Fixnum, Object, VM};
+
+    // A hidden array has no class, and holds what is pushed onto it.
+    #[cfg(ruby_gte_3_2)]
+    #[test]
+    fn test_ary_hidden_new() {
+        use super::{rb_ary_hidden_new, rb_ary_push, RBasic};
+
+        crate::on_ruby_thread(|| unsafe {
+            let array = rb_ary_hidden_new(4);
+
+            assert_eq!((*(array.value as *const RBasic)).klass, 0);
+            assert_eq!(rb_ary_len(array), 0);
+
+            rb_ary_push(array, Fixnum::new(7).value());
+
+            assert_eq!(rb_ary_len(array), 1);
+        });
+    }
 
     // Arrays across the embedded/heap boundary (3 elements on Ruby 3.0/3.1,
     // the slot size on 3.2), made in several ways, including shared slices.

@@ -18,6 +18,7 @@ pub mod range;
 pub mod regexp;
 pub mod rproc;
 pub mod rstruct;
+pub mod st;
 pub mod string;
 pub mod symbol;
 pub mod thread;
