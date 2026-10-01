@@ -94,9 +94,15 @@ from Ruru to Rutie → 0.11" in the README.
 ### Removed
  - Ruby 2.5, 2.6 and 2.7 support, and the `ruby_2_*` cfg flags,
    thanks to @danielpclark
+ - The Travis CI badge from `Cargo.toml`: CI runs on GitHub Actions, and
+   crates.io no longer shows badges, thanks to @danielpclark
  - `Class::data`: Ruby 3 does not export `rb_cData`, thanks to @danielpclark
 
 ### Fixed
+ - `unexpected cfg condition name: rutie_dllimport` warnings, one per
+   `rubysys` `extern` block, when a build didn't get the cfg's declaration
+   from `build.rs`: `Cargo.toml` now declares it too (`[lints.rust]`),
+   thanks to @danielpclark
  - Programs that depend on Rutie crashed at boot (`enc/encdb.bundle`) with
    a static Ruby, such as `ruby/setup-ruby`'s macOS Ruby 3.1: only Rutie's own
    targets exported libruby's functions. The static path now also publishes

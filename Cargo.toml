@@ -24,6 +24,11 @@ no-link = [] # tells build.rs to not link to libruby
 libc = "0.2.151"
 lazy_static = "1.4.0"
 
+# `build.rs` sets `rutie_dllimport` on Windows and declares it, but rustc warns
+# about every `extern` block in `rubysys` whenever a build doesn't get that
+# declaration from the build script, so it is declared here as well.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(rutie_dllimport)"] }
+
 [badges]
-travis-ci = { repository = "danielpclark/rutie", branch = "master" }
 maintenance = { status = "actively-developed" }
