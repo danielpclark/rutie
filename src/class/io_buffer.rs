@@ -537,7 +537,6 @@ impl IOBuffer {
     /// unsafe { buffer.free_locked() };
     /// assert!(buffer.is_null());
     /// ```
-    #[cfg(ruby_gte_3_3)]
     pub unsafe fn free_locked(&self) {
         io_buffer::free_locked(self.value());
     }
@@ -1128,7 +1127,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_3)]
     #[test]
     fn test_io_buffer_free_locked() {
         crate::on_ruby_thread(|| {
@@ -1196,19 +1194,11 @@ mod tests {
 
             // A private mapping does not write to the file.
             let private = unsafe { IOBuffer::map(&file, 10, 0, false, true) };
-            #[cfg(ruby_gte_3_3)]
             {
                 let private = private.unwrap();
                 assert!(private.is_mapped() && !private.is_readonly());
                 private.set_string(&RString::new_utf8("AB"), 0).unwrap();
                 assert_eq!(private.get_string(0, 3).unwrap().to_str(), "AB2");
-                private.free().unwrap();
-            }
-            // Ruby 3.1 and 3.2 pass flags Linux's `mmap` rejects.
-            #[cfg(all(not(ruby_gte_3_3), target_os = "linux"))]
-            assert!(Class::system_call_error().case_equals(&private.unwrap_err()));
-            #[cfg(all(not(ruby_gte_3_3), not(target_os = "linux")))]
-            if let Ok(private) = private {
                 private.free().unwrap();
             }
 

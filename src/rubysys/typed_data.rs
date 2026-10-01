@@ -41,14 +41,12 @@ unsafe impl Sync for RbDataTypeFunction {}
 // `dfree` runs during the sweep instead of being deferred.
 pub const RUBY_TYPED_FREE_IMMEDIATELY: InternalValue = 1;
 // Ruby 3.3+: the struct may be embedded in the object's slot.
-#[cfg(ruby_gte_3_3)]
 pub const RUBY_TYPED_EMBEDDABLE: InternalValue = 2;
 // Frozen objects of this type are Ractor-shareable.
 pub const RUBY_TYPED_FROZEN_SHAREABLE: InternalValue = constant::FL_SHAREABLE as InternalValue;
 // `dmark` and writes to the struct's `VALUE`s use write barriers.
 pub const RUBY_TYPED_WB_PROTECTED: InternalValue = constant::FL_WB_PROTECTED as InternalValue;
 // Ruby 3.3+: `dmark` is a `RUBY_REFERENCES` list of offsets, not a function.
-#[cfg(ruby_gte_3_3)]
 pub const RUBY_TYPED_DECL_MARKING: InternalValue = constant::FL_USER_2 as InternalValue;
 
 #[repr(C)]

@@ -60,9 +60,8 @@ fn optional(value: Value) -> Option<Value> {
 ///     let label = |i| labels.at(i).try_convert_to::<RString>().unwrap().to_string();
 ///     assert_eq!(label(0), "Object#profile_labels");
 ///     assert_eq!(label(1), "Report.build");
-///     // The top frame of `VM::eval` code: `<compiled>` from Ruby 3.4.
-///     let top = if cfg!(ruby_gte_3_4) { "<compiled>" } else { "<main>" };
-///     assert_eq!(label(2), top);
+///     // The top frame of `VM::eval` code.
+///     assert_eq!(label(2), "<compiled>");
 /// }
 /// ```
 #[derive(Debug, Clone, Copy)]
@@ -935,11 +934,9 @@ impl DebugInspector {
 /// Thread::check_interrupts();
 /// assert_eq!(runs.load(Ordering::SeqCst), 1);
 /// ```
-#[cfg(ruby_gte_3_3)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PostponedJob(rubysys_debug::PostponedJobHandle);
 
-#[cfg(ruby_gte_3_3)]
 impl PostponedJob {
     /// Registers `func` as a postponed job (`rb_postponed_job_preregister`).
     /// Returns `None` when Ruby's job table (32 entries for the whole
@@ -1153,15 +1150,9 @@ mod tests {
             assert_eq!(string(ruby.at(9)).unwrap(), "collect");
             assert_eq!(string(ruby.at(10)).unwrap(), "RutieProfile::Sample.collect");
 
-            // Ruby 3.4 labels the top frame of `rb_eval_string` code
-            // `<compiled>`; 3.2 and 3.3 call it `<main>`.
+            // The top frame of `rb_eval_string` code.
             let top = row(2);
-            let top_label = if cfg!(ruby_gte_3_4) {
-                "<compiled>"
-            } else {
-                "<main>"
-            };
-            assert_eq!(string(top.at(3)).unwrap(), top_label);
+            assert_eq!(string(top.at(3)).unwrap(), "<compiled>");
             assert!(top.at(9).is_nil());
 
             // Outside Ruby code there is no Ruby frame (Ruby 3.1 has one
@@ -1219,7 +1210,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_3)]
     #[test]
     fn test_postponed_job() {
         use crate::{PostponedJob, Thread};

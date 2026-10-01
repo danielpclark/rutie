@@ -40,7 +40,6 @@ pub fn free(buffer: Value) -> Value {
     unsafe { io_buffer::rb_io_buffer_free(buffer) }
 }
 
-#[cfg(ruby_gte_3_3)]
 pub fn free_locked(buffer: Value) -> Value {
     unsafe { io_buffer::rb_io_buffer_free_locked(buffer) }
 }

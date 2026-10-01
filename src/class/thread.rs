@@ -732,7 +732,6 @@ impl Thread {
     /// VM::eval("$rutie_queue << 1").unwrap();
     /// worker.join().unwrap();
     /// ```
-    #[cfg(ruby_gte_3_3)]
     pub fn profile_frames(&self, start: usize, limit: usize) -> Vec<ProfileFrame> {
         ProfileFrame::from_frames(debug::profile_thread_frames(self.value(), start, limit))
     }
@@ -844,7 +843,6 @@ impl Thread {
     /// thread.set_internal_specific(key, std::ptr::null_mut());
     /// # drop(unsafe { Box::from_raw(counter) });
     /// ```
-    #[cfg(ruby_gte_3_3)]
     pub fn internal_specific(&self, key: InternalThreadSpecificKey) -> *mut c_void {
         thread::internal_thread_specific_get(self.value(), key.0)
     }
@@ -875,7 +873,6 @@ impl Thread {
     /// # worker.kill();
     /// # worker.join().unwrap();
     /// ```
-    #[cfg(ruby_gte_3_3)]
     pub fn set_internal_specific(&self, key: InternalThreadSpecificKey, data: *mut c_void) {
         thread::internal_thread_specific_set(self.value(), key.0, data)
     }
@@ -918,7 +915,6 @@ impl Thread {
 #[derive(Debug, Clone, Copy)]
 pub struct InternalThreadEvent {
     flag: u32,
-    #[cfg(ruby_gte_3_3)]
     thread: Value,
 }
 
@@ -937,12 +933,8 @@ impl InternalThreadEvent {
     pub const ALL: u32 = rubysys_thread::RUBY_INTERNAL_THREAD_EVENT_MASK;
 
     fn new(flag: u32, data: *const rubysys_thread::InternalThreadEventData) -> Self {
-        #[cfg(not(ruby_gte_3_3))]
-        let _ = data;
-
         InternalThreadEvent {
             flag,
-            #[cfg(ruby_gte_3_3)]
             thread: unsafe { (*data).thread },
         }
     }
@@ -1011,7 +1003,6 @@ impl InternalThreadEvent {
     ///     assert_eq!(*started.lock().unwrap(), vec![thread.value()]);
     /// }
     /// ```
-    #[cfg(ruby_gte_3_3)]
     pub fn thread(&self) -> Thread {
         Thread::from(self.thread)
     }
@@ -1087,11 +1078,9 @@ impl fmt::Debug for InternalThreadEventHook {
 /// Thread::current().set_internal_specific(first, 7 as *mut _);
 /// assert!(Thread::current().internal_specific(second).is_null());
 /// ```
-#[cfg(ruby_gte_3_3)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InternalThreadSpecificKey(rubysys_thread::InternalThreadSpecificKey);
 
-#[cfg(ruby_gte_3_3)]
 impl InternalThreadSpecificKey {
     /// Creates a key (`rb_internal_thread_specific_key_create`). Returns the
     /// `ThreadError` once the process has 8 keys, or when the first key is
@@ -1387,7 +1376,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_3)]
     #[test]
     fn test_internal_specific_and_event_thread() {
         use crate::{InternalThreadEvent, InternalThreadSpecificKey};
@@ -1437,7 +1425,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_3)]
     #[test]
     fn test_profile_frames_of_another_thread() {
         crate::on_ruby_thread(|| {

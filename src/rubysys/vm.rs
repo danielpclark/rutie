@@ -260,11 +260,9 @@ extern "C" {
     // The address of `symbol` in the native extension loaded for `feature`
     // (such as `"json/ext/parser"`); null when the feature is not loaded, is
     // not a native extension, or has no such symbol.
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_ext_resolve_symbol(feature: *const c_char, symbol: *const c_char) -> *mut c_void;
 }
 
-#[cfg(ruby_gte_3_4)]
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // Whether Ruby frees all of its memory when the VM shuts down (the

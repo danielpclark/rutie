@@ -1093,9 +1093,7 @@ mod tests {
             unsafe {
                 raw::rb_fiber_scheduler_io_read_memory(s, io, memory_ptr, 16, 4);
                 raw::rb_fiber_scheduler_io_write_memory(s, io, memory_ptr as *const c_void, 16, 4);
-                #[cfg(ruby_gte_3_3)]
                 raw::rb_fiber_scheduler_io_pread_memory(s, io, 99, memory_ptr, 16, 4);
-                #[cfg(ruby_gte_3_3)]
                 raw::rb_fiber_scheduler_io_pwrite_memory(
                     s,
                     io,
@@ -1113,7 +1111,6 @@ mod tests {
             let name = |i: usize| log.at(i as i64).try_convert_to::<Array>().unwrap().at(0);
             assert_eq!(name(before), Symbol::new("io_read").into());
             assert_eq!(name(before + 1), Symbol::new("io_write").into());
-            #[cfg(ruby_gte_3_3)]
             {
                 assert_eq!(name(before + 2), Symbol::new("io_pread").into());
                 assert_eq!(name(before + 3), Symbol::new("io_pwrite").into());
@@ -1149,13 +1146,7 @@ mod tests {
                 };
                 assert_eq!(last(3), "[:io_select, 1, 2, 3, 4]");
                 assert_eq!(last(2), "[:io_select, 5, 6, 7, 8]");
-                // `Hash#inspect` changed in Ruby 3.4.
-                let expected = if cfg!(ruby_gte_3_4) {
-                    "[:fiber, {blocking: false}]"
-                } else {
-                    "[:fiber, {:blocking=>false}]"
-                };
-                assert_eq!(last(1), expected);
+                assert_eq!(last(1), "[:fiber, {blocking: false}]");
             }
         });
     }

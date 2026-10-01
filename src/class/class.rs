@@ -1311,7 +1311,6 @@ impl Class {
     /// assert!(Class::data_define(None, &["x", "x"]).is_err());
     /// assert!(Class::data_define(Some(&Class::string()), &["x"]).is_err());
     /// ```
-    #[cfg(ruby_gte_3_3)]
     pub fn data_define(
         superclass: Option<&Class>,
         members: &[&str],
@@ -1894,7 +1893,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_3)]
     #[test]
     fn test_class_data_define() {
         crate::on_ruby_thread(|| {

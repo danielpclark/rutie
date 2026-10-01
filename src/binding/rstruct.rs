@@ -1,7 +1,5 @@
-#[cfg(ruby_gte_3_3)]
 use std::{ffi::CStr, ptr};
 
-#[cfg(ruby_gte_3_3)]
 use crate::types::c_char;
 use crate::{binding::symbol, rubysys::rstruct, types::Value};
 
@@ -36,12 +34,10 @@ pub fn size(object: Value) -> Value {
 // The most members one `rb_data_define` call takes here: it is variadic, so
 // the call always passes this many name pointers and a terminator, with null
 // pointers after the last member (C ignores arguments after the terminator).
-#[cfg(ruby_gte_3_3)]
 pub const DATA_DEFINE_MAX_MEMBERS: usize = 32;
 
 // Raises `ArgumentError` for a duplicate member, so the caller owns the
 // names. Panics with more than `DATA_DEFINE_MAX_MEMBERS` members.
-#[cfg(ruby_gte_3_3)]
 pub fn data_define(superclass: Value, members: &[&CStr]) -> Value {
     assert!(members.len() <= DATA_DEFINE_MAX_MEMBERS);
 

@@ -45,6 +45,5 @@ extern "C" {
     // An anonymous `Data` class (`Data.define`) under `super` (a `Data`
     // class, or 0 for `Data`). Member names are `const char *`, terminated
     // by a null pointer; raises `ArgumentError` for a duplicate.
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_data_define(superclass: Value, ...) -> Value;
 }

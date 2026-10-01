@@ -476,8 +476,7 @@ impl IO {
     /// [`IO::READABLE`](#associatedconstant.READABLE)
     /// (`rb_io_maybe_wait_readable`): `Ok(true)` when the stream is readable
     /// (or `errno` is `EINTR`), and `Ok(false)` for an error that waiting
-    /// does not help with. On timeout it is `Ok(false)` on Ruby 3.2 and 3.3,
-    /// and `Err` with Ruby 3.4's `IO::TimeoutError`.
+    /// does not help with. On timeout it is `Err` with `IO::TimeoutError`.
     ///
     /// # Examples
     ///
@@ -681,7 +680,7 @@ impl IO {
     /// # reader.close().unwrap();
     /// # writer.close().unwrap();
     /// ```
-    #[cfg(all(ruby_gte_3_3, any(unix, windows)))]
+    #[cfg(any(unix, windows))]
     pub unsafe fn from_raw_fd(fd: RawFd, readable: bool, writable: bool, autoclose: bool) -> Self {
         use crate::rubysys::io::{FMODE_EXTERNAL, FMODE_READABLE, FMODE_WRITABLE};
 
@@ -991,14 +990,11 @@ mod tests {
                 reader.maybe_wait(errno("EAGAIN"), IO::READABLE, short),
                 Ok(None)
             );
-            // Ruby 3.4 raises `IO::TimeoutError` where 3.2 and 3.3 return false.
-            let timed_out = reader.maybe_wait_readable(errno("EAGAIN"), short);
-            if cfg!(ruby_gte_3_4) {
-                let error = timed_out.unwrap_err();
-                assert_eq!(error.class().name().unwrap().to_str(), "IO::TimeoutError");
-            } else {
-                assert_eq!(timed_out, Ok(false));
-            }
+            // A timeout raises `IO::TimeoutError`.
+            let error = reader
+                .maybe_wait_readable(errno("EAGAIN"), short)
+                .unwrap_err();
+            assert_eq!(error.class().name().unwrap().to_str(), "IO::TimeoutError");
 
             assert_eq!(
                 writer.maybe_wait(errno("EAGAIN"), IO::WRITABLE, None),
@@ -1052,7 +1048,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_3)]
     #[test]
     fn test_io_from_raw_fd_owning() {
         crate::on_ruby_thread(|| {
@@ -1085,7 +1080,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_3)]
     #[test]
     fn test_process_status_wait() {
         crate::on_ruby_thread(|| {
@@ -1243,7 +1237,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_3)]
     #[test]
     fn test_raw_io_mode() {
         use crate::rubysys::io::{rb_io_mode, FMODE_READABLE, FMODE_WRITABLE};

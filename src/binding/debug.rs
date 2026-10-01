@@ -34,7 +34,6 @@ pub fn profile_frames(start: usize, limit: usize) -> Vec<(Value, c_int)> {
     })
 }
 
-#[cfg(ruby_gte_3_3)]
 pub fn profile_thread_frames(thread: Value, start: usize, limit: usize) -> Vec<(Value, c_int)> {
     collect_frames(start, limit, |total, frames, lines| unsafe {
         debug::rb_profile_thread_frames(thread, 0, total, frames, lines)
@@ -147,7 +146,6 @@ pub fn debug_inspector_current_depth() -> Value {
 // `rb_postponed_job_flush` reads a non-`volatile` local after `longjmp`, so
 // where the compiler keeps it in a register (clang on arm64 macOS) Ruby
 // re-triggers the job that raised and runs it again.
-#[cfg(ruby_gte_3_3)]
 rutie_callback! {
     fn postponed_job_callback<F>(data: *mut c_void)
     where
@@ -164,7 +162,6 @@ rutie_callback! {
 }
 
 // Returns the job's handle, or `None` when Ruby's job table is full.
-#[cfg(ruby_gte_3_3)]
 pub fn postponed_job_preregister<F>(func: F) -> Option<debug::PostponedJobHandle>
 where
     F: Fn() + Send + Sync + 'static,
@@ -184,7 +181,6 @@ where
 }
 
 // `handle` must come from `postponed_job_preregister`.
-#[cfg(ruby_gte_3_3)]
 pub unsafe fn postponed_job_trigger(handle: debug::PostponedJobHandle) {
     debug::rb_postponed_job_trigger(handle)
 }

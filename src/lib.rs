@@ -169,7 +169,6 @@ pub use crate::class::{
 
 pub use crate::class::thread::{InternalThreadEvent, InternalThreadEventHook};
 
-#[cfg(ruby_gte_3_3)]
 pub use crate::class::{debug::PostponedJob, thread::InternalThreadSpecificKey};
 
 pub use crate::class::traits::{

@@ -24,13 +24,11 @@ pub const FMODE_TEXTMODE: c_int = 0x0000_1000;
 // The descriptor is owned outside Ruby, which does not close it
 // (`IO#autoclose?` is false). Named in the headers from 3.3 (`FMODE_PREP`
 // inside Ruby before that).
-#[cfg(ruby_gte_3_3)]
 pub const FMODE_EXTERNAL: c_int = 0x0001_0000;
 pub const FMODE_SETENC_BY_BOM: c_int = 0x0010_0000;
 
 // `struct rb_io_encoding` (3.3; `struct rb_io_enc_t` before), the decomposed
 // encoding settings of an IO.
-#[cfg(ruby_gte_3_3)]
 #[repr(C)]
 pub struct rb_io_encoding {
     // Internal encoding.
@@ -109,8 +107,7 @@ extern "C" {
     // int
     // rb_io_mode(VALUE io)
     //
-    // Ruby 3.3+: the `FMODE_*` flags of `io`.
-    #[cfg(ruby_gte_3_3)]
+    // The `FMODE_*` flags of `io`.
     pub fn rb_io_mode(io: Value) -> c_int;
     // VALUE
     // rb_io_maybe_wait(int error, VALUE io, VALUE events, VALUE timeout)
@@ -143,7 +140,6 @@ extern "C" {
     //
     // An IO of class `klass` for the open `descriptor`, which Ruby closes
     // unless `mode` has `FMODE_EXTERNAL`; `encoding` may be null.
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_io_open_descriptor(
         klass: Value,
         descriptor: c_int,
@@ -188,7 +184,6 @@ extern "C" {
 }
 
 // Processes
-#[cfg(ruby_gte_3_3)]
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE

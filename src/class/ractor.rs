@@ -268,7 +268,7 @@ impl Ractor {
 ///     // A new Ractor starts without a value, and its own does not leak out.
 ///     let seen = VM::eval(
 ///         "Warning[:experimental] = false
-///          Ractor.new { before = Labels.label; Labels.label = 'other'; [before, Labels.label] }.take.inspect",
+///          Ractor.new { before = Labels.label; Labels.label = 'other'; [before, Labels.label] }.value.inspect",
 ///     )
 ///     .unwrap();
 ///
@@ -402,7 +402,7 @@ mod tests {
                      [before, RutieRactorLocal.get, RutieRactorLocal.shareable?(1), RutieRactorLocal.shareable?([])]
                    end
                  end
-                 rs.map(&:take).inspect",
+                 rs.map(&:value).inspect",
             )
             .unwrap()
             .try_convert_to::<RString>()

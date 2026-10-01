@@ -16,11 +16,9 @@ pub type DebugInspectorFunction =
 pub type PostponedJobFunction = rutie_callback!(type fn(arg: *mut c_void));
 
 // typedef unsigned int rb_postponed_job_handle_t;
-#[cfg(ruby_gte_3_3)]
 pub type PostponedJobHandle = c_uint;
 
 // #define POSTPONED_JOB_HANDLE_INVALID ((rb_postponed_job_handle_t)UINT_MAX)
-#[cfg(ruby_gte_3_3)]
 pub const POSTPONED_JOB_HANDLE_INVALID: PostponedJobHandle = PostponedJobHandle::MAX;
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
@@ -45,7 +43,6 @@ extern "C" {
     //
     // int
     // rb_profile_thread_frames(VALUE thread, int start, int limit, VALUE *buff, int *lines)
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_profile_thread_frames(
         thread: Value,
         start: c_int,
@@ -131,7 +128,6 @@ extern "C" {
     //
     // rb_postponed_job_handle_t
     // rb_postponed_job_preregister(unsigned int flags, rb_postponed_job_func_t func, void *data)
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_postponed_job_preregister(
         flags: c_uint,
         func: PostponedJobFunction,
@@ -142,7 +138,6 @@ extern "C" {
     //
     // void
     // rb_postponed_job_trigger(rb_postponed_job_handle_t h)
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_postponed_job_trigger(handle: PostponedJobHandle);
     // Deprecated in Ruby 3.3 for `rb_postponed_job_preregister` and
     // `rb_postponed_job_trigger`. Returns 0 when the job could not be

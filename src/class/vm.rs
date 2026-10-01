@@ -2146,7 +2146,6 @@ impl VM {
     ///
     /// assert_eq!(VM::errno(), 2);
     /// ```
-    #[cfg(ruby_gte_3_3)]
     pub fn errno() -> i32 {
         exception::errno()
     }
@@ -2166,7 +2165,6 @@ impl VM {
     ///
     /// assert_eq!(VM::free_at_exit(), expected);
     /// ```
-    #[cfg(ruby_gte_3_4)]
     pub fn free_at_exit() -> bool {
         vm::free_at_exit()
     }
@@ -2184,7 +2182,6 @@ impl VM {
     ///
     /// assert_eq!(VM::errno(), 0);
     /// ```
-    #[cfg(ruby_gte_3_3)]
     pub fn set_errno(errno: i32) {
         exception::set_errno(errno)
     }
@@ -2886,7 +2883,6 @@ impl VM {
     /// assert!(VM::ext_resolve_symbol("etc", "Init_etc").is_some());
     /// assert!(VM::ext_resolve_symbol("etc", "rutie_no_such_symbol").is_none());
     /// ```
-    #[cfg(ruby_gte_3_3)]
     pub fn ext_resolve_symbol(feature: &str, symbol: &str) -> Option<*mut c_void> {
         let (feature, symbol) = match (CString::new(feature), CString::new(symbol)) {
             (Ok(feature), Ok(symbol)) => (feature, symbol),
@@ -4018,7 +4014,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_3)]
     #[test]
     fn test_errno_and_ext_resolve_symbol() {
         crate::on_ruby_thread(|| {

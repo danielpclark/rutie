@@ -482,14 +482,12 @@ pub unsafe fn internal_thread_remove_event_hook<F>(
     removed
 }
 
-#[cfg(ruby_gte_3_3)]
 pub fn internal_thread_specific_key_create() -> thread::InternalThreadSpecificKey {
     unsafe { thread::rb_internal_thread_specific_key_create() }
 }
 
 // `key` must come from `internal_thread_specific_key_create` (and be in
 // range), and `thread` must be a `Thread`. Ruby only stores `data`.
-#[cfg(ruby_gte_3_3)]
 pub fn internal_thread_specific_get(
     thread: Value,
     key: thread::InternalThreadSpecificKey,
@@ -497,7 +495,6 @@ pub fn internal_thread_specific_get(
     unsafe { thread::rb_internal_thread_specific_get(thread, key) }
 }
 
-#[cfg(ruby_gte_3_3)]
 pub fn internal_thread_specific_set(
     thread: Value,
     key: thread::InternalThreadSpecificKey,
@@ -506,7 +503,6 @@ pub fn internal_thread_specific_set(
     unsafe { thread::rb_internal_thread_specific_set(thread, key, data) }
 }
 
-#[cfg(ruby_gte_3_4)]
 pub fn lock_native_thread() -> bool {
     unsafe { thread::rb_thread_lock_native_thread() }
 }

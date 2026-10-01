@@ -176,7 +176,6 @@ extern "C" {
     // VALUE
     // rb_fiber_scheduler_io_pread_memory(VALUE scheduler, VALUE io, rb_off_t from, void *base,
     //                                    size_t size, size_t length)
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_fiber_scheduler_io_pread_memory(
         scheduler: Value,
         io: Value,
@@ -188,7 +187,6 @@ extern "C" {
     // VALUE
     // rb_fiber_scheduler_io_pwrite_memory(VALUE scheduler, VALUE io, rb_off_t from,
     //                                     const void *base, size_t size, size_t length)
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_fiber_scheduler_io_pwrite_memory(
         scheduler: Value,
         io: Value,
@@ -225,11 +223,9 @@ pub const RB_NOGVL_INTR_FAIL: c_int = 0x1;
 pub const RB_NOGVL_UBF_ASYNC_SAFE: c_int = 0x2;
 // Ruby 3.4+: the function may be offloaded to another thread by the
 // scheduler's `blocking_operation_wait`.
-#[cfg(ruby_gte_3_4)]
 pub const RB_NOGVL_OFFLOAD_SAFE: c_int = 0x4;
 
 // What `rb_fiber_scheduler_blocking_operation_wait` reports back (Ruby 3.4).
-#[cfg(ruby_gte_3_4)]
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct RbFiberSchedulerBlockingOperationState {
@@ -237,7 +233,6 @@ pub struct RbFiberSchedulerBlockingOperationState {
     pub saved_errno: c_int,
 }
 
-#[cfg(ruby_gte_3_4)]
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // Runs `function(data)` (a blocking operation that does not need the GVL)

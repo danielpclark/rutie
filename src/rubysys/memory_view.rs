@@ -29,21 +29,7 @@ pub const RUBY_MEMORY_VIEW_INDIRECT: c_int = (1 << 6) | RUBY_MEMORY_VIEW_STRIDES
 // layout (MSVC, and MinGW's default `-mms-bitfields`) in a new `unsigned` at
 // offset 4. Read them with `native_size_p()` and `little_endian_p()`, which
 // also work on 3.3+, where they are `bool` fields.
-#[cfg(not(ruby_gte_3_3))]
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct rb_memory_view_item_component_t {
-    pub format: c_char,
-    #[cfg(not(windows))]
-    pub bitfields: u8,
-    #[cfg(windows)]
-    pub bitfields: u32,
-    pub offset: size_t,
-    pub size: size_t,
-    pub repeat: size_t,
-}
 
-#[cfg(ruby_gte_3_3)]
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct rb_memory_view_item_component_t {
@@ -58,30 +44,6 @@ pub struct rb_memory_view_item_component_t {
     pub repeat: size_t,
 }
 
-#[cfg(not(ruby_gte_3_3))]
-impl rb_memory_view_item_component_t {
-    // Bit positions in `bitfields`: allocated from the low bit, except by
-    // GCC on big-endian targets, which allocates from the high bit of the
-    // `unsigned` (whose second byte is `bitfields`).
-    #[cfg(any(windows, target_endian = "little"))]
-    const NATIVE_SIZE_BIT: u32 = 0;
-    #[cfg(any(windows, target_endian = "little"))]
-    const LITTLE_ENDIAN_BIT: u32 = 1;
-    #[cfg(all(not(windows), target_endian = "big"))]
-    const NATIVE_SIZE_BIT: u32 = 7;
-    #[cfg(all(not(windows), target_endian = "big"))]
-    const LITTLE_ENDIAN_BIT: u32 = 6;
-
-    pub fn native_size_p(&self) -> bool {
-        (self.bitfields as u32 >> Self::NATIVE_SIZE_BIT) & 1 == 1
-    }
-
-    pub fn little_endian_p(&self) -> bool {
-        (self.bitfields as u32 >> Self::LITTLE_ENDIAN_BIT) & 1 == 1
-    }
-}
-
-#[cfg(ruby_gte_3_3)]
 impl rb_memory_view_item_component_t {
     pub fn native_size_p(&self) -> bool {
         self.native_size_p

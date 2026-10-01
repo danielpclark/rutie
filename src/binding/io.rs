@@ -69,11 +69,6 @@ pub fn is_closed(io: Value) -> bool {
     unsafe { io::rb_io_closed_p(io) }.is_true()
 }
 
-#[cfg(not(ruby_gte_3_3))]
-pub fn is_closed(io: Value) -> bool {
-    crate::binding::vm::call_method(io, "closed?", &[]).is_true()
-}
-
 // Raises `IOError` for a closed stream.
 pub fn descriptor(io: Value) -> c_int {
     unsafe { io::rb_io_descriptor(io) }
@@ -101,7 +96,6 @@ pub fn set_timeout(io: Value, timeout: Value) -> Value {
 }
 
 // An `IO` for `fd`, with no path, timeout or encodings.
-#[cfg(ruby_gte_3_3)]
 pub unsafe fn open_descriptor(fd: c_int, mode: c_int) -> Value {
     io::rb_io_open_descriptor(
         crate::rubysys::builtins::rb_cIO,

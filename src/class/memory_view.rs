@@ -24,7 +24,8 @@ use crate::{
 /// use rutie::{MemoryView, VM};
 /// # VM::init();
 ///
-/// VM::require("fiddle");
+/// // Fiddle is a bundled gem in Ruby 4.0, which only RubyGems' `require` finds.
+/// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
 /// let pointer = VM::eval("Fiddle::Pointer[$rutie_view_bytes = 'abcd'.b.freeze]").unwrap();
 ///
 /// let view = MemoryView::new(&pointer).unwrap();
@@ -53,7 +54,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, RString, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer[$rutie_view_new = 'xyz'.b.freeze]").unwrap();
     ///
     /// assert_eq!(MemoryView::new(&pointer).unwrap().byte_size(), 3);
@@ -83,7 +84,7 @@ impl MemoryView {
     /// use rutie::{Fixnum, MemoryView, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer.malloc(8, Fiddle::RUBY_FREE)").unwrap();
     ///
     /// assert!(MemoryView::is_available(&pointer));
@@ -133,7 +134,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, Object, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer.malloc(2, Fiddle::RUBY_FREE)").unwrap();
     ///
     /// assert!(MemoryView::new(&pointer).unwrap().object().equals(&pointer));
@@ -150,7 +151,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer.malloc(6, Fiddle::RUBY_FREE)").unwrap();
     ///
     /// assert_eq!(MemoryView::new(&pointer).unwrap().byte_size(), 6);
@@ -167,7 +168,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, Object, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("$rutie_view_pointer = Fiddle::Pointer.malloc(1, Fiddle::RUBY_FREE)").unwrap();
     /// let view = MemoryView::new(&pointer).unwrap();
     ///
@@ -188,7 +189,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer.malloc(4, Fiddle::RUBY_FREE)").unwrap();
     /// let view = MemoryView::new(&pointer).unwrap();
     ///
@@ -213,7 +214,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer.malloc(4, Fiddle::RUBY_FREE)").unwrap();
     ///
     /// assert_eq!(MemoryView::new(&pointer).unwrap().item_size(), 1);
@@ -230,7 +231,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer.malloc(4, Fiddle::RUBY_FREE)").unwrap();
     ///
     /// assert_eq!(MemoryView::new(&pointer).unwrap().ndim(), 1);
@@ -261,7 +262,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer.malloc(5, Fiddle::RUBY_FREE)").unwrap();
     ///
     /// assert_eq!(MemoryView::new(&pointer).unwrap().shape(), [5]);
@@ -284,7 +285,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer.malloc(5, Fiddle::RUBY_FREE)").unwrap();
     ///
     /// assert_eq!(MemoryView::new(&pointer).unwrap().strides(), [1]);
@@ -312,7 +313,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer.malloc(3, Fiddle::RUBY_FREE)").unwrap();
     ///
     /// assert!(MemoryView::new(&pointer).unwrap().is_contiguous());
@@ -360,7 +361,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer[$rutie_view_copy = \"\\x01\\x02\".b.freeze]").unwrap();
     ///
     /// assert_eq!(MemoryView::new(&pointer).unwrap().to_vec(), Some(vec![1, 2]));
@@ -395,7 +396,7 @@ impl MemoryView {
     /// use rutie::{MemoryView, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer[$rutie_view_slice = 'slice'.b.freeze]").unwrap();
     /// let view = MemoryView::new(&pointer).unwrap();
     ///
@@ -417,7 +418,7 @@ impl MemoryView {
     /// use rutie::{Fixnum, MemoryView, Object, VM};
     /// # VM::init();
     ///
-    /// VM::require("fiddle");
+    /// VM::eval("require 'rubygems'; require 'fiddle'").unwrap();
     /// let pointer = VM::eval("Fiddle::Pointer[$rutie_view_item = \"\\x05\\xff\".b.freeze]").unwrap();
     /// let view = MemoryView::new(&pointer).unwrap();
     ///

@@ -315,19 +315,12 @@ pub const RUBY_INTERNAL_THREAD_EVENT_EXITED: u32 = 1 << 4;
 // All thread events.
 pub const RUBY_INTERNAL_THREAD_EVENT_MASK: u32 = 0xff;
 
-// typedef void rb_internal_thread_event_data_t; // for future extension.
-//
-// Ruby 3.2 passes no event data (a null pointer).
-#[cfg(all(ruby_gte_3_2, not(ruby_gte_3_3)))]
-pub type InternalThreadEventData = c_void;
-
 // typedef struct rb_internal_thread_event_data {
 //    VALUE thread;
 // } rb_internal_thread_event_data_t;
 //
 // `thread` is the Ruby thread the event is about; the hook may run on
 // another native thread.
-#[cfg(ruby_gte_3_3)]
 #[repr(C)]
 pub struct InternalThreadEventData {
     pub thread: Value,
@@ -349,11 +342,9 @@ pub struct InternalThreadEventHook {
 }
 
 // typedef int rb_internal_thread_specific_key_t;
-#[cfg(ruby_gte_3_3)]
 pub type InternalThreadSpecificKey = c_int;
 
 // #define RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX 8
-#[cfg(ruby_gte_3_3)]
 pub const RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX: c_int = 8;
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
@@ -382,13 +373,11 @@ extern "C" {
     //
     // rb_internal_thread_specific_key_t
     // rb_internal_thread_specific_key_create(void)
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_internal_thread_specific_key_create() -> InternalThreadSpecificKey;
     // Async signal safe and thread safe.
     //
     // void *
     // rb_internal_thread_specific_get(VALUE thread_val, rb_internal_thread_specific_key_t key)
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_internal_thread_specific_get(
         thread: Value,
         key: InternalThreadSpecificKey,
@@ -398,7 +387,6 @@ extern "C" {
     // void
     // rb_internal_thread_specific_set(VALUE thread_val, rb_internal_thread_specific_key_t key,
     //                                 void *data)
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_internal_thread_specific_set(
         thread: Value,
         key: InternalThreadSpecificKey,
@@ -406,7 +394,6 @@ extern "C" {
     );
 }
 
-#[cfg(ruby_gte_3_4)]
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // Gives the current Ruby thread a dedicated native thread under the M:N
