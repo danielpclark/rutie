@@ -37,3 +37,18 @@ extern "C" {
     // rb_time_utc_offset(VALUE time)
     pub fn rb_time_utc_offset(time: Value) -> Value;
 }
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // struct timespec
+    // rb_time_timespec_interval(VALUE num)
+    //
+    // Raises `ArgumentError` for a negative interval, `TypeError` for a
+    // non-numeric one.
+    pub fn rb_time_timespec_interval(number: Value) -> timespec;
+    // void
+    // rb_timespec_now(struct timespec *ts)
+    //
+    // The realtime clock (`CLOCK_REALTIME`).
+    pub fn rb_timespec_now(timespec: *mut timespec);
+}

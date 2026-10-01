@@ -251,3 +251,168 @@ mod tests {
         });
     }
 }
+
+// `rb_alloc_func_t` as returned by `rb_get_alloc_func`: null when the class
+// has no allocator.
+pub type MaybeAllocFunction = Option<AllocFunction>;
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // void
+    // rb_check_inheritable(VALUE super)
+    //
+    // Raises `TypeError` unless `super` can be subclassed.
+    pub fn rb_check_inheritable(superclass: Value);
+    // VALUE
+    // rb_class_new(VALUE super)
+    //
+    // An anonymous subclass of `super`; `inherited` is not called.
+    pub fn rb_class_new(superclass: Value) -> Value;
+    // VALUE
+    // rb_class_private_instance_methods(int argc, const VALUE *argv, VALUE mod)
+    pub fn rb_class_private_instance_methods(
+        argc: Argc,
+        argv: *const Value,
+        module: Value,
+    ) -> Value;
+    // VALUE
+    // rb_class_protected_instance_methods(int argc, const VALUE *argv, VALUE mod)
+    pub fn rb_class_protected_instance_methods(
+        argc: Argc,
+        argv: *const Value,
+        module: Value,
+    ) -> Value;
+    // VALUE
+    // rb_class_public_instance_methods(int argc, const VALUE *argv, VALUE mod)
+    pub fn rb_class_public_instance_methods(argc: Argc, argv: *const Value, module: Value)
+        -> Value;
+    // VALUE
+    // rb_define_class_id(ID id, VALUE super)
+    //
+    // An anonymous class (`id` is not used) with its own metaclass; no
+    // constant is set and `inherited` is not called.
+    pub fn rb_define_class_id(name: Id, superclass: Value) -> Value;
+    // VALUE
+    // rb_define_class_id_under(VALUE outer, ID id, VALUE super)
+    pub fn rb_define_class_id_under(outer: Value, name: Id, superclass: Value) -> Value;
+    // VALUE
+    // rb_define_module_id(ID id)
+    //
+    // An anonymous module (`id` is not used).
+    pub fn rb_define_module_id(name: Id) -> Value;
+    // VALUE
+    // rb_define_module_id_under(VALUE outer, ID id)
+    pub fn rb_define_module_id_under(outer: Value, name: Id) -> Value;
+    // void
+    // rb_define_protected_method(VALUE klass, const char *mid, VALUE (*func)(ANYARGS), int arity)
+    pub fn rb_define_protected_method(
+        klass: Value,
+        name: *const c_char,
+        callback: CallbackPtr,
+        argc: Argc,
+    );
+    // void
+    // rb_define_global_function(const char *mid, VALUE (*func)(ANYARGS), int arity)
+    //
+    // A module function of `Kernel`.
+    pub fn rb_define_global_function(name: *const c_char, callback: CallbackPtr, argc: Argc);
+    // VALUE
+    // rb_mod_included_modules(VALUE mod)
+    pub fn rb_mod_included_modules(module: Value) -> Value;
+    // VALUE
+    // rb_mod_init_copy(VALUE clone, VALUE orig)
+    //
+    // `Module#initialize_copy`.
+    pub fn rb_mod_init_copy(clone: Value, original: Value) -> Value;
+    // VALUE
+    // rb_module_new(void)
+    pub fn rb_module_new() -> Value;
+    // VALUE
+    // rb_obj_singleton_methods(int argc, const VALUE *argv, VALUE obj)
+    pub fn rb_obj_singleton_methods(argc: Argc, argv: *const Value, object: Value) -> Value;
+    // void
+    // rb_undef(VALUE mod, ID mid)
+    //
+    // The `undef` keyword: raises `NameError` for an undefined method.
+    pub fn rb_undef(module: Value, name: Id);
+    // VALUE
+    // rb_class_get_superclass(VALUE klass)
+    //
+    // The raw superclass pointer: may be an include class (iclass) or `0`.
+    pub fn rb_class_get_superclass(klass: Value) -> Value;
+    // void
+    // rb_copy_generic_ivar(VALUE clone, VALUE obj)
+    pub fn rb_copy_generic_ivar(clone: Value, object: Value);
+    // VALUE
+    // rb_obj_setup(VALUE obj, VALUE klass, VALUE type)
+    //
+    // Fills the `RBasic` header of a newly allocated object.
+    pub fn rb_obj_setup(object: Value, klass: Value, value_type: Value) -> Value;
+    // void
+    // rb_singleton_class_attached(VALUE klass, VALUE obj)
+    pub fn rb_singleton_class_attached(klass: Value, object: Value);
+    // VALUE
+    // rb_singleton_class_clone(VALUE obj)
+    pub fn rb_singleton_class_clone(object: Value) -> Value;
+    // VALUE
+    // rb_obj_hide(VALUE obj)
+    //
+    // Clears the object's class so Ruby code (`ObjectSpace`) cannot see it.
+    pub fn rb_obj_hide(object: Value) -> Value;
+    // VALUE
+    // rb_obj_reveal(VALUE obj, VALUE klass)
+    //
+    // Undoes `rb_obj_hide`, setting the class to `klass`.
+    pub fn rb_obj_reveal(object: Value, klass: Value) -> Value;
+    // void
+    // rb_freeze_singleton_class(VALUE klass)
+    pub fn rb_freeze_singleton_class(klass: Value);
+    // VALUE
+    // rb_class_new_instance_kw(int argc, const VALUE *argv, VALUE klass, int kw_splat)
+    pub fn rb_class_new_instance_kw(
+        argc: Argc,
+        argv: *const Value,
+        klass: Value,
+        kw_splat: c_int,
+    ) -> Value;
+    // VALUE
+    // rb_class_new_instance_pass_kw(int argc, const VALUE *argv, VALUE klass)
+    //
+    // Passes keywords when the method running was called with keywords.
+    pub fn rb_class_new_instance_pass_kw(argc: Argc, argv: *const Value, klass: Value) -> Value;
+    // VALUE
+    // rb_class_real(VALUE klass)
+    //
+    // Skips singleton classes and include classes.
+    pub fn rb_class_real(klass: Value) -> Value;
+    // VALUE
+    // rb_obj_alloc(VALUE klass)
+    pub fn rb_obj_alloc(klass: Value) -> Value;
+    // void
+    // rb_alias(VALUE klass, ID dst, ID src)
+    pub fn rb_alias(klass: Value, new_name: Id, old_name: Id);
+    // void
+    // rb_attr(VALUE klass, ID name, int need_reader, int need_writer, int honour_visibility)
+    pub fn rb_attr(klass: Value, name: Id, read: c_int, write: c_int, honour_visibility: c_int);
+    // rb_alloc_func_t
+    // rb_get_alloc_func(VALUE klass)
+    pub fn rb_get_alloc_func(klass: Value) -> MaybeAllocFunction;
+    // int
+    // rb_method_basic_definition_p(VALUE klass, ID mid)
+    //
+    // Whether `mid` is still the built-in definition (not redefined).
+    pub fn rb_method_basic_definition_p(klass: Value, name: Id) -> c_int;
+    // VALUE
+    // rb_mod_module_exec(int argc, const VALUE *argv, VALUE mod)
+    //
+    // Needs a Ruby block.
+    pub fn rb_mod_module_exec(argc: Argc, argv: *const Value, module: Value) -> Value;
+    // void
+    // rb_remove_method(VALUE klass, const char *name)
+    //
+    // Raises `NameError` unless `klass` itself defines the method.
+    pub fn rb_remove_method(klass: Value, name: *const c_char);
+    // void
+    // rb_remove_method_id(VALUE klass, ID mid)
+    pub fn rb_remove_method_id(klass: Value, name: Id);
+}

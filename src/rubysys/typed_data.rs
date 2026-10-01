@@ -23,6 +23,44 @@ extern "C" {
     ) -> Value;
 }
 
+// `RUBY_DATA_FUNC`: void (*)(void *), the mark and free functions of an
+// untyped `RData` object.
+pub type DataFunction = Option<extern "C" fn(*mut c_void)>;
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // VALUE
+    // rb_data_object_wrap(VALUE klass, void *datap, RUBY_DATA_FUNC dmark, RUBY_DATA_FUNC dfree)
+    //
+    // An untyped `RData` object; prefer `rb_data_typed_object_wrap`.
+    pub fn rb_data_object_wrap(
+        klass: Value,
+        data: *mut c_void,
+        dmark: DataFunction,
+        dfree: DataFunction,
+    ) -> Value;
+    // VALUE
+    // rb_data_object_zalloc(VALUE klass, size_t size, RUBY_DATA_FUNC dmark, RUBY_DATA_FUNC dfree)
+    //
+    // `rb_data_object_wrap` with `size` zeroed bytes from `ruby_xcalloc`.
+    pub fn rb_data_object_zalloc(
+        klass: Value,
+        size: size_t,
+        dmark: DataFunction,
+        dfree: DataFunction,
+    ) -> Value;
+    // VALUE
+    // rb_data_typed_object_zalloc(VALUE klass, size_t size, const rb_data_type_t *type)
+    //
+    // `rb_data_typed_object_wrap` with `size` zeroed bytes from
+    // `ruby_xcalloc`; `type`'s `dfree` must release them (`RUBY_TYPED_DEFAULT_FREE`).
+    pub fn rb_data_typed_object_zalloc(
+        klass: Value,
+        size: size_t,
+        data_type: *const RbDataType,
+    ) -> Value;
+}
+
 #[repr(C)]
 pub struct RbDataTypeFunction {
     pub dmark: Option<extern "C" fn(*mut c_void)>,

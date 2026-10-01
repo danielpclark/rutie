@@ -1,4 +1,4 @@
-use crate::rubysys::types::{c_char, c_int, c_long, Value};
+use crate::rubysys::types::{c_char, c_int, c_long, Id, Value};
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
@@ -119,6 +119,152 @@ extern "C" {
     // void
     // rb_warning(const char *fmt, ...)
     pub fn rb_warning(fmt: *const c_char, ...);
+}
+
+// `rb_warning_category_t` values.
+pub const RB_WARN_CATEGORY_NONE: c_int = 0;
+pub const RB_WARN_CATEGORY_DEPRECATED: c_int = 1;
+pub const RB_WARN_CATEGORY_EXPERIMENTAL: c_int = 2;
+pub const RB_WARN_CATEGORY_PERFORMANCE: c_int = 3;
+pub const RB_WARN_CATEGORY_STRICT_UNUSED_BLOCK: c_int = 4;
+
+// `enum rb_io_wait_readwrite` values.
+pub const RB_IO_WAIT_READABLE: c_int = 0;
+pub const RB_IO_WAIT_WRITABLE: c_int = 1;
+
+// The printf-style functions below take a format: never pass untrusted text
+// as `fmt` (use `"%s"` and pass the text as an argument).
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // void
+    // rb_bug_errno(const char *msg, int err)
+    //
+    // Aborts the process with a bug report. Library code must never call it.
+    pub fn rb_bug_errno(message: *const c_char, errno: c_int) -> !;
+    // void
+    // rb_category_compile_warn(rb_warning_category_t cat, const char *file, int line,
+    //                          const char *fmt, ...)
+    pub fn rb_category_compile_warn(
+        category: c_int,
+        file: *const c_char,
+        line: c_int,
+        fmt: *const c_char,
+        ...
+    );
+    // void
+    // rb_category_warn(rb_warning_category_t cat, const char *fmt, ...)
+    //
+    // Prints unless `$VERBOSE` is `nil` and the category is enabled
+    // (`Warning[category]`).
+    pub fn rb_category_warn(category: c_int, fmt: *const c_char, ...);
+    // void
+    // rb_category_warning(rb_warning_category_t cat, const char *fmt, ...)
+    //
+    // Prints only when `$VERBOSE` is `true` and the category is enabled.
+    pub fn rb_category_warning(category: c_int, fmt: *const c_char, ...);
+    // void
+    // rb_compile_warn(const char *file, int line, const char *fmt, ...)
+    //
+    // Prints `file:line: warning: ...` unless `$VERBOSE` is `nil`.
+    pub fn rb_compile_warn(file: *const c_char, line: c_int, fmt: *const c_char, ...);
+    // void
+    // rb_compile_warning(const char *file, int line, const char *fmt, ...)
+    //
+    // `rb_compile_warn` that prints only when `$VERBOSE` is `true`.
+    pub fn rb_compile_warning(file: *const c_char, line: c_int, fmt: *const c_char, ...);
+    // void
+    // rb_fatal(const char *fmt, ...)
+    //
+    // Raises `fatal`, which `rescue` cannot catch.
+    pub fn rb_fatal(fmt: *const c_char, ...) -> !;
+    // void
+    // rb_mod_sys_fail(VALUE mod, const char *msg)
+    //
+    // Uses `errno`, and calls `rb_bug` (aborting the process) when it is `0`.
+    pub fn rb_mod_sys_fail(module: Value, message: *const c_char) -> !;
+    // void
+    // rb_mod_sys_fail_str(VALUE mod, VALUE msg)
+    //
+    // Uses `errno`, and calls `rb_bug` (aborting the process) when it is `0`.
+    pub fn rb_mod_sys_fail_str(module: Value, message: Value) -> !;
+    // void
+    // rb_mod_syserr_fail_str(VALUE mod, int err, VALUE msg)
+    //
+    // Raises the `SystemCallError` for `err`, extended with `mod`.
+    pub fn rb_mod_syserr_fail_str(module: Value, errno: c_int, message: Value) -> !;
+    // void
+    // rb_readwrite_sys_fail(enum rb_io_wait_readwrite waiting, const char *msg)
+    //
+    // Uses `errno`, and calls `rb_bug` (aborting the process) when it is `0`.
+    pub fn rb_readwrite_sys_fail(waiting: c_int, message: *const c_char) -> !;
+    // void
+    // rb_readwrite_syserr_fail(enum rb_io_wait_readwrite waiting, int err, const char *msg)
+    //
+    // Raises the `SystemCallError` for `err` extended with `IO::WaitReadable`
+    // or `IO::WaitWritable` (`IO::EAGAINWaitReadable` for `EAGAIN`, ...).
+    pub fn rb_readwrite_syserr_fail(waiting: c_int, errno: c_int, message: *const c_char) -> !;
+    // VALUE *
+    // rb_ruby_debug_ptr(void)
+    //
+    // The storage of `$DEBUG` for the current Ractor.
+    pub fn rb_ruby_debug_ptr() -> *mut Value;
+    // VALUE *
+    // rb_ruby_verbose_ptr(void)
+    //
+    // The storage of `$VERBOSE` for the current Ractor.
+    pub fn rb_ruby_verbose_ptr() -> *mut Value;
+    // void
+    // rb_sys_fail_str(VALUE msg)
+    //
+    // Uses `errno`, and calls `rb_bug` (aborting the process) when it is `0`.
+    pub fn rb_sys_fail_str(message: Value) -> !;
+    // void
+    // rb_sys_warning(const char *fmt, ...)
+    //
+    // Warns (when `$VERBOSE` is `true`) with the message for `errno`.
+    pub fn rb_sys_warning(fmt: *const c_char, ...);
+    // void
+    // rb_syserr_fail_str(int err, VALUE msg)
+    pub fn rb_syserr_fail_str(errno: c_int, message: Value) -> !;
+    // VALUE
+    // rb_syserr_new_str(int n, VALUE arg)
+    pub fn rb_syserr_new_str(errno: c_int, message: Value) -> Value;
+    // void
+    // rb_unexpected_type(VALUE self, int t)
+    //
+    // Raises `TypeError` ("wrong argument type X (expected Y)").
+    pub fn rb_unexpected_type(object: Value, value_type: c_int) -> !;
+    // void
+    // rb_check_copyable(VALUE obj, VALUE orig)
+    //
+    // Raises `FrozenError` if `obj` is frozen (for `initialize_copy`).
+    pub fn rb_check_copyable(object: Value, original: Value);
+    // void
+    // rb_error_frozen(const char *what)
+    //
+    // Raises `FrozenError` ("can't modify frozen <what>").
+    pub fn rb_error_frozen(what: *const c_char) -> !;
+    // void
+    // rb_invalid_str(const char *str, const char *type)
+    //
+    // Raises `ArgumentError` ("invalid value for <type>: <str>").
+    pub fn rb_invalid_str(string: *const c_char, type_name: *const c_char) -> !;
+    // void
+    // rb_loaderror(const char *fmt, ...)
+    pub fn rb_loaderror(fmt: *const c_char, ...) -> !;
+    // void
+    // rb_loaderror_with_path(VALUE path, const char *fmt, ...)
+    //
+    // Raises `LoadError` whose `path` is `path`.
+    pub fn rb_loaderror_with_path(path: Value, fmt: *const c_char, ...) -> !;
+    // void
+    // rb_name_error(ID name, const char *fmt, ...)
+    //
+    // Raises `NameError` whose `name` is `name`.
+    pub fn rb_name_error(name: Id, fmt: *const c_char, ...) -> !;
+    // void
+    // rb_name_error_str(VALUE name, const char *fmt, ...)
+    pub fn rb_name_error_str(name: Value, fmt: *const c_char, ...) -> !;
 }
 
 // Win32 error codes (`GetLastError`) are not `errno` values; Ruby maps them

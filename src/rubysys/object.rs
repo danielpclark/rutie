@@ -1,4 +1,4 @@
-use crate::rubysys::types::{c_int, Argc, Id, Value};
+use crate::rubysys::types::{c_char, c_double, c_int, Argc, Id, Value};
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
@@ -64,4 +64,90 @@ extern "C" {
     // VALUE
     // rb_String(VALUE val)
     pub fn rb_String(object: Value) -> Value;
+}
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // VALUE
+    // rb_any_to_s(VALUE obj)
+    //
+    // The default `#<ClassName:0x...>` form of `Kernel#to_s`.
+    pub fn rb_any_to_s(object: Value) -> Value;
+    // VALUE
+    // rb_check_convert_type(VALUE val, int type, const char *name, const char *mid)
+    //
+    // `nil` when `val` does not respond to `mid`; raises `TypeError` when
+    // `mid` returns something not of `type`.
+    pub fn rb_check_convert_type(
+        object: Value,
+        value_type: c_int,
+        class_name: *const c_char,
+        method: *const c_char,
+    ) -> Value;
+    // VALUE
+    // rb_check_to_float(VALUE val)
+    //
+    // `nil` unless `val` is a `Numeric` that converts with `to_f`.
+    pub fn rb_check_to_float(object: Value) -> Value;
+    // VALUE
+    // rb_check_to_int(VALUE val)
+    //
+    // `nil` unless `to_int` returns an `Integer`.
+    pub fn rb_check_to_int(object: Value) -> Value;
+    // VALUE
+    // rb_check_to_integer(VALUE val, const char *mid)
+    //
+    // `nil` unless `mid` returns an `Integer`.
+    pub fn rb_check_to_integer(object: Value, method: *const c_char) -> Value;
+    // VALUE
+    // rb_convert_type(VALUE val, int type, const char *name, const char *mid)
+    //
+    // Raises `TypeError` when `val` cannot be converted.
+    pub fn rb_convert_type(
+        object: Value,
+        value_type: c_int,
+        class_name: *const c_char,
+        method: *const c_char,
+    ) -> Value;
+    // double
+    // rb_cstr_to_dbl(const char *str, int mode)
+    //
+    // A nonzero `mode` raises `ArgumentError` for malformed input (and
+    // accepts hexadecimal floats); `0` parses as much as it can.
+    pub fn rb_cstr_to_dbl(string: *const c_char, badcheck: c_int) -> c_double;
+    // VALUE
+    // rb_obj_init_copy(VALUE src, VALUE dst)
+    //
+    // `Kernel#initialize_copy`: raises unless `dst` is unfrozen and of the
+    // same class as `src`.
+    pub fn rb_obj_init_copy(object: Value, original: Value) -> Value;
+    // VALUE
+    // rb_to_int(VALUE val)
+    //
+    // Raises `TypeError` unless `to_int` returns an `Integer`.
+    pub fn rb_to_int(object: Value) -> Value;
+    // int
+    // rb_obj_respond_to(VALUE obj, ID mid, int private_p)
+    pub fn rb_obj_respond_to(object: Value, method: Id, include_private: c_int) -> c_int;
+    // VALUE
+    // rb_obj_instance_exec(int argc, const VALUE *argv, VALUE recv)
+    //
+    // Needs a Ruby block.
+    pub fn rb_obj_instance_exec(argc: Argc, argv: *const Value, object: Value) -> Value;
+    // VALUE
+    // rb_check_funcall_kw(VALUE recv, ID mid, int argc, const VALUE *argv, int kw_splat)
+    //
+    // Returns `Qundef` when `recv` does not respond to `mid`.
+    pub fn rb_check_funcall_kw(
+        receiver: Value,
+        method: Id,
+        argc: Argc,
+        argv: *const Value,
+        kw_splat: c_int,
+    ) -> Value;
+    // VALUE
+    // rb_apply(VALUE recv, ID mid, VALUE args)
+    //
+    // Calls `mid` with the elements of the `Array` `args`.
+    pub fn rb_apply(receiver: Value, method: Id, arguments: Value) -> Value;
 }

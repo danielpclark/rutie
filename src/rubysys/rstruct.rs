@@ -1,4 +1,7 @@
-use crate::rubysys::types::{c_char, Id, Value};
+use crate::rubysys::{
+    class::MaybeAllocFunction,
+    types::{c_char, Id, Value},
+};
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
@@ -46,4 +49,40 @@ extern "C" {
     // class, or 0 for `Data`). Member names are `const char *`, terminated
     // by a null pointer; raises `ArgumentError` for a duplicate.
     pub fn rb_data_define(superclass: Value, ...) -> Value;
+}
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // VALUE
+    // rb_struct_alloc_noinit(VALUE klass)
+    //
+    // An instance with every member `nil`; `initialize` is not called.
+    pub fn rb_struct_alloc_noinit(klass: Value) -> Value;
+    // VALUE
+    // rb_struct_define_without_accessor(const char *name, VALUE super,
+    //                                   rb_alloc_func_t func, ...)
+    //
+    // Member names are `const char *`, terminated by a null pointer. No
+    // accessor methods are defined; a null `name` makes an anonymous class.
+    pub fn rb_struct_define_without_accessor(
+        name: *const c_char,
+        superclass: Value,
+        alloc: MaybeAllocFunction,
+        ...
+    ) -> Value;
+    // VALUE
+    // rb_struct_define_without_accessor_under(VALUE outer, const char *class_name,
+    //                                         VALUE super, rb_alloc_func_t alloc, ...)
+    pub fn rb_struct_define_without_accessor_under(
+        outer: Value,
+        name: *const c_char,
+        superclass: Value,
+        alloc: MaybeAllocFunction,
+        ...
+    ) -> Value;
+    // VALUE
+    // rb_struct_initialize(VALUE self, VALUE values)
+    //
+    // `Struct#initialize` with the members' values in the `Array` `values`.
+    pub fn rb_struct_initialize(object: Value, values: Value) -> Value;
 }

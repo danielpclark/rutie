@@ -86,3 +86,36 @@ pub fn check_arity(argc: c_int, min: c_int, max: c_int) -> Result<c_int, AnyExce
 
     Ok(argc)
 }
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // VALUE
+    // rb_method_call_kw(int argc, const VALUE *argv, VALUE recv, int kw_splat)
+    pub fn rb_method_call_kw(
+        argc: Argc,
+        argv: *const Value,
+        method: Value,
+        kw_splat: c_int,
+    ) -> Value;
+    // VALUE
+    // rb_method_call_with_block_kw(int argc, const VALUE *argv, VALUE recv, VALUE proc, int kw_splat)
+    pub fn rb_method_call_with_block_kw(
+        argc: Argc,
+        argv: *const Value,
+        method: Value,
+        pass_procval: Value,
+        kw_splat: c_int,
+    ) -> Value;
+    // VALUE
+    // rb_proc_call_kw(VALUE recv, VALUE args, int kw_splat)
+    pub fn rb_proc_call_kw(rproc: Value, arguments: Value, kw_splat: c_int) -> Value;
+    // VALUE
+    // rb_proc_call_with_block_kw(VALUE recv, int argc, const VALUE *argv, VALUE proc, int kw_splat)
+    pub fn rb_proc_call_with_block_kw(
+        rproc: Value,
+        argc: Argc,
+        argv: *const Value,
+        pass_procval: Value,
+        kw_splat: c_int,
+    ) -> Value;
+}

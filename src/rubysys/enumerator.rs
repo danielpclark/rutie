@@ -17,3 +17,33 @@ extern "C" {
     // rb_enumeratorize(VALUE obj, VALUE meth, int argc, const VALUE *argv)
     pub fn rb_enumeratorize(object: Value, method: Value, argc: Argc, argv: *const Value) -> Value;
 }
+
+// VALUE (*)(VALUE recv, VALUE args, VALUE eobj), the
+// `rb_enumerator_size_func` computing an enumerator's `size`.
+pub type EnumeratorSizeFunction =
+    rutie_callback!(type fn(receiver: Value, arguments: Value, enumerator: Value) -> Value);
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // VALUE
+    // rb_enumeratorize_with_size(VALUE recv, VALUE meth, int argc, const VALUE *argv,
+    //                            rb_enumerator_size_func *func)
+    pub fn rb_enumeratorize_with_size(
+        object: Value,
+        method: Value,
+        argc: Argc,
+        argv: *const Value,
+        size: Option<EnumeratorSizeFunction>,
+    ) -> Value;
+    // VALUE
+    // rb_enumeratorize_with_size_kw(VALUE recv, VALUE meth, int argc, const VALUE *argv,
+    //                               rb_enumerator_size_func *func, int kw_splat)
+    pub fn rb_enumeratorize_with_size_kw(
+        object: Value,
+        method: Value,
+        argc: Argc,
+        argv: *const Value,
+        size: Option<EnumeratorSizeFunction>,
+        kw_splat: c_int,
+    ) -> Value;
+}

@@ -196,6 +196,11 @@ extern "C" {
 }
 
 // `Marshal`
+// VALUE (*dumper)(VALUE) and VALUE (*loader)(VALUE, VALUE) of
+// `rb_marshal_define_compat`.
+pub type MarshalDumper = rutie_callback!(type fn(object: Value) -> Value);
+pub type MarshalLoader = rutie_callback!(type fn(object: Value, old: Value) -> Value);
+
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
     // VALUE
@@ -204,6 +209,19 @@ extern "C" {
     // VALUE
     // rb_marshal_load(VALUE port)
     pub fn rb_marshal_load(port: Value) -> Value;
+    // void
+    // rb_marshal_define_compat(VALUE newclass, VALUE oldclass,
+    //                          VALUE (*dumper)(VALUE), VALUE (*loader)(VALUE, VALUE))
+    //
+    // Instances of `newclass` are dumped as `oldclass`: `dumper` turns one
+    // into an `oldclass` object, `loader(new_object, old_object)` fills a
+    // newly allocated `newclass` object back from it.
+    pub fn rb_marshal_define_compat(
+        new_class: Value,
+        old_class: Value,
+        dumper: MarshalDumper,
+        loader: MarshalLoader,
+    );
 }
 
 // Loading code

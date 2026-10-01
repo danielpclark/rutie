@@ -293,3 +293,178 @@ extern "C" {
         ...
     ) -> !;
 }
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // void
+    // rb_backtrace(void)
+    //
+    // Prints the current backtrace to `$stderr`.
+    pub fn rb_backtrace();
+    // VALUE
+    // rb_f_notimplement(int argc, const VALUE *argv, VALUE obj, VALUE marker)
+    //
+    // Never returns (raises `NotImplementedError`). Defining a method with
+    // this function as its body (arity -1) makes `respond_to?` false for it.
+    pub fn rb_f_notimplement(argc: Argc, argv: *const Value, object: Value, marker: Value)
+        -> Value;
+    // int
+    // rb_frame_method_id_and_class(ID *idp, VALUE *klassp)
+    //
+    // `0` outside a method; either pointer may be null.
+    pub fn rb_frame_method_id_and_class(id: *mut Id, klass: *mut Value) -> c_int;
+    // VALUE
+    // rb_make_backtrace(void)
+    pub fn rb_make_backtrace() -> Value;
+    // const char *
+    // rb_sourcefile(void)
+    //
+    // Null outside Ruby code.
+    pub fn rb_sourcefile() -> *const c_char;
+    // int
+    // rb_sourceline(void)
+    pub fn rb_sourceline() -> c_int;
+    // VALUE
+    // rb_call_super_kw(int argc, const VALUE *argv, int kw_splat)
+    pub fn rb_call_super_kw(argc: Argc, argv: *const Value, kw_splat: c_int) -> Value;
+    // VALUE
+    // rb_current_receiver(void)
+    //
+    // Raises `RuntimeError` outside a method.
+    pub fn rb_current_receiver() -> Value;
+    // VALUE
+    // rb_eval_string_wrap(const char *str, int *state)
+    //
+    // `rb_eval_string_protect` under an anonymous module, like
+    // `load(file, true)`. The exception stays in `$!` on failure.
+    pub fn rb_eval_string_wrap(string: *const c_char, state: *mut c_int) -> Value;
+    // VALUE
+    // rb_extract_keywords(VALUE *orighash)
+    //
+    // Returns a new hash of the Symbol-keyed entries of `*orighash` (or `0`
+    // when there are none), and sets `*orighash` to a new hash of the other
+    // entries (or `0` when there are none). The hash itself is unchanged.
+    pub fn rb_extract_keywords(original: *mut Value) -> Value;
+    // VALUE
+    // rb_funcall(VALUE recv, ID mid, int n, ...)
+    //
+    // The variadic arguments are `n` `VALUE`s.
+    pub fn rb_funcall(receiver: Value, method: Id, n: c_int, ...) -> Value;
+    // VALUE
+    // rb_funcall_passing_block(VALUE recv, ID mid, int argc, const VALUE *argv)
+    //
+    // Passes the block given to the method running.
+    pub fn rb_funcall_passing_block(
+        receiver: Value,
+        method: Id,
+        argc: Argc,
+        argv: *const Value,
+    ) -> Value;
+    // VALUE
+    // rb_funcall_passing_block_kw(VALUE recv, ID mid, int argc, const VALUE *argv, int kw_splat)
+    pub fn rb_funcall_passing_block_kw(
+        receiver: Value,
+        method: Id,
+        argc: Argc,
+        argv: *const Value,
+        kw_splat: c_int,
+    ) -> Value;
+    // VALUE
+    // rb_funcall_with_block_kw(VALUE recv, ID mid, int argc, const VALUE *argv, VALUE procval, int kw_splat)
+    pub fn rb_funcall_with_block_kw(
+        receiver: Value,
+        method: Id,
+        argc: Argc,
+        argv: *const Value,
+        procval: Value,
+        kw_splat: c_int,
+    ) -> Value;
+    // VALUE
+    // rb_funcallv_public_kw(VALUE recv, ID mid, int argc, const VALUE *argv, int kw_splat)
+    pub fn rb_funcallv_public_kw(
+        receiver: Value,
+        method: Id,
+        argc: Argc,
+        argv: *const Value,
+        kw_splat: c_int,
+    ) -> Value;
+    // VALUE
+    // rb_f_exit(int argc, const VALUE *argv)
+    //
+    // `Kernel#exit`: never returns (raises `SystemExit`).
+    pub fn rb_f_exit(argc: Argc, argv: *const Value) -> Value;
+    // ID
+    // rb_frame_callee(void)
+    //
+    // The name the method running was called by (an alias); `0` outside a
+    // method.
+    pub fn rb_frame_callee() -> Id;
+    // ID
+    // rb_frame_this_func(void)
+    //
+    // The original name of the method running; `0` outside a method.
+    pub fn rb_frame_this_func() -> Id;
+    // VALUE
+    // rb_make_exception(int argc, const VALUE *argv)
+    //
+    // Builds the exception `raise(*argv)` would raise; `nil` for no
+    // arguments.
+    pub fn rb_make_exception(argc: Argc, argv: *const Value) -> Value;
+    // void
+    // rb_obj_call_init_kw(VALUE, int, const VALUE*, int)
+    pub fn rb_obj_call_init_kw(object: Value, argc: Argc, argv: *const Value, kw_splat: c_int);
+    // VALUE
+    // rb_block_call_kw(VALUE obj, ID mid, int argc, const VALUE *argv,
+    //                  rb_block_call_func_t proc, VALUE data2, int kw_splat)
+    pub fn rb_block_call_kw(
+        obj: Value,
+        method_id: Id,
+        argc: Argc,
+        argv: *const Value,
+        block: BlockCallFunction,
+        outer_scope: Value,
+        kw_splat: c_int,
+    ) -> Value;
+    // VALUE
+    // rb_each(VALUE obj)
+    //
+    // Calls `obj.each` with the block given to the method running.
+    pub fn rb_each(object: Value) -> Value;
+    // VALUE
+    // rb_yield_block(RB_BLOCK_CALL_FUNC_ARGLIST(yielded_arg, callback_arg))
+    //
+    // A block function (for `rb_block_call`) that yields its arguments to
+    // the block of the method running.
+    pub fn rb_yield_block(
+        yielded_arg: Value,
+        callback_arg: Value,
+        argc: c_int,
+        argv: *const Value,
+        block_arg: Value,
+    ) -> Value;
+    // VALUE
+    // rb_yield_splat_kw(VALUE ary, int kw_splat)
+    pub fn rb_yield_splat_kw(values: Value, kw_splat: c_int) -> Value;
+    // VALUE
+    // rb_yield_values(int n, ...)
+    //
+    // The variadic arguments are `n` `VALUE`s.
+    pub fn rb_yield_values(n: c_int, ...) -> Value;
+    // VALUE
+    // rb_yield_values_kw(int n, const VALUE *argv, int kw_splat)
+    pub fn rb_yield_values_kw(argc: Argc, argv: *const Value, kw_splat: c_int) -> Value;
+    // VALUE
+    // rb_get_argv(void)
+    //
+    // `ARGV`.
+    pub fn rb_get_argv() -> Value;
+    // void *
+    // rb_load_file(const char *file)
+    //
+    // Parses (does not run) a script, returning the node for
+    // `ruby_exec_node`, or null after printing the syntax error.
+    pub fn rb_load_file(file: *const c_char) -> *mut c_void;
+    // void *
+    // rb_load_file_str(VALUE file)
+    pub fn rb_load_file_str(file: Value) -> *mut c_void;
+}

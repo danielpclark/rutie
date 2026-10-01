@@ -118,6 +118,74 @@ extern "C" {
     pub fn rb_ary_hidden_new(capacity: c_long) -> Value;
 }
 
+// VALUE (*func)(VALUE obj, long oidx), for `rb_get_values_at`.
+pub type ValuesAtFunction = extern "C" fn(object: Value, index: c_long) -> Value;
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // VALUE
+    // rb_ary_cat(VALUE ary, const VALUE *train, long len)
+    pub fn rb_ary_cat(array: Value, items: *const Value, len: c_long) -> Value;
+    // VALUE
+    // rb_ary_each(VALUE ary)
+    //
+    // Needs a Ruby block.
+    pub fn rb_ary_each(array: Value) -> Value;
+    // void
+    // rb_ary_free(VALUE ary)
+    //
+    // Frees the array's buffer; only for arrays that are never used again.
+    pub fn rb_ary_free(array: Value);
+    // void
+    // rb_ary_modify(VALUE ary)
+    //
+    // Raises `FrozenError` for a frozen array and unshares a shared one,
+    // before writing to its buffer directly.
+    pub fn rb_ary_modify(array: Value);
+    // VALUE
+    // rb_ary_new_from_args(long n, ...)
+    //
+    // The variadic arguments are `n` `VALUE`s.
+    pub fn rb_ary_new_from_args(n: c_long, ...) -> Value;
+    // VALUE
+    // rb_ary_resurrect(VALUE ary)
+    //
+    // A visible copy of a (possibly hidden) array.
+    pub fn rb_ary_resurrect(array: Value) -> Value;
+    // VALUE
+    // rb_ary_shared_with_p(VALUE lhs, VALUE rhs)
+    pub fn rb_ary_shared_with_p(array: Value, other: Value) -> Value;
+    // VALUE
+    // rb_assoc_new(VALUE car, VALUE cdr)
+    //
+    // `[car, cdr]`.
+    pub fn rb_assoc_new(first: Value, second: Value) -> Value;
+    // VALUE
+    // rb_get_values_at(VALUE obj, long olen, int argc, const VALUE *argv,
+    //                  VALUE (*func)(VALUE obj, long oidx))
+    pub fn rb_get_values_at(
+        object: Value,
+        length: c_long,
+        argc: c_int,
+        argv: *const Value,
+        func: ValuesAtFunction,
+    ) -> Value;
+    // void
+    // rb_mem_clear(VALUE *buf, long len)
+    //
+    // Fills `buf` with `nil`.
+    pub fn rb_mem_clear(buffer: *mut Value, len: c_long);
+    // void
+    // rb_ary_ptr_use_end(VALUE a)
+    pub fn rb_ary_ptr_use_end(array: Value);
+    // VALUE *
+    // rb_ary_ptr_use_start(VALUE ary)
+    //
+    // The array's buffer, valid until `rb_ary_ptr_use_end`; the array must
+    // not be resized meanwhile.
+    pub fn rb_ary_ptr_use_start(array: Value) -> *mut Value;
+}
+
 // #[link_name = "ruby_rarray_flags"]
 #[derive(Debug, PartialEq)]
 #[repr(C)]

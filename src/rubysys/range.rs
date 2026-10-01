@@ -50,3 +50,22 @@ extern "C" {
         components: *mut ArithmeticSequenceComponents,
     ) -> c_int;
 }
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // VALUE
+    // rb_arithmetic_sequence_beg_len_step(VALUE as, long *begp, long *lenp, long *stepp,
+    //                                     long len, int err)
+    //
+    // `rb_range_beg_len` for a `Range` or an arithmetic sequence (`(1..9) %
+    // 2`), also giving the step: `Qfalse` when `as` is neither, `Qnil` when
+    // out of range (with `err == 0`), `Qtrue` otherwise.
+    pub fn rb_arithmetic_sequence_beg_len_step(
+        sequence: Value,
+        begin: *mut c_long,
+        length: *mut c_long,
+        step: *mut c_long,
+        total: c_long,
+        err: c_int,
+    ) -> Value;
+}

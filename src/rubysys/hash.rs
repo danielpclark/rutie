@@ -1,4 +1,7 @@
-use crate::rubysys::types::{c_long, CallbackMutPtr, CallbackPtr, Value};
+use crate::rubysys::{
+    libc::uintptr_t,
+    types::{c_char, c_int, c_long, c_void, size_t, CallbackMutPtr, CallbackPtr, Value},
+};
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
@@ -63,4 +66,35 @@ extern "C" {
     //
     // With a null `func`, values from `hash2` overwrite.
     pub fn rb_hash_update_by(hash: Value, other: Value, func: CallbackPtr) -> Value;
+}
+
+// int (*func)(st_data_t key, st_data_t val, st_data_t arg), the
+// `st_foreach_callback_func` of `rb_st_foreach_safe`.
+pub type StForeachCallback =
+    extern "C" fn(key: uintptr_t, value: uintptr_t, arg: uintptr_t) -> c_int;
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // VALUE
+    // rb_env_clear(void)
+    //
+    // `ENV.clear`: removes every environment variable of the process.
+    pub fn rb_env_clear() -> Value;
+    // void
+    // rb_hash_bulk_insert(long argc, const VALUE *argv, VALUE hash)
+    //
+    // `argv` holds `argc / 2` key, value pairs (`argc` must be even). The
+    // hash is not checked for being frozen.
+    pub fn rb_hash_bulk_insert(argc: c_long, argv: *const Value, hash: Value);
+    // void
+    // rb_st_foreach_safe(struct st_table *st, st_foreach_callback_func *func, st_data_t arg)
+    pub fn rb_st_foreach_safe(table: *mut c_void, func: StForeachCallback, arg: uintptr_t);
+    // size_t
+    // rb_hash_size_num(VALUE hash)
+    pub fn rb_hash_size_num(hash: Value) -> size_t;
+    // struct st_table *
+    // rb_hash_tbl(VALUE hash, const char *file, int line)
+    //
+    // The hash's `st_table`, converting a small (array) table first.
+    pub fn rb_hash_tbl(hash: Value, file: *const c_char, line: c_int) -> *mut c_void;
 }
