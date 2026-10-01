@@ -1,5 +1,6 @@
 pub mod array;
 pub mod class;
+pub mod debug;
 pub mod encoding;
 pub mod enumerator;
 pub mod exception;

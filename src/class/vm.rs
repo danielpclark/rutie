@@ -1,7 +1,7 @@
 use std::ffi::CString;
 
 use crate::{
-    binding::{class, exception, hash, io, object, symbol, variable, vm},
+    binding::{class, debug, exception, hash, io, object, symbol, variable, vm},
     helpers::scan_args::{KeywordArgs, ScanArgsFormat, ScannedArgs},
     rubysys::{exception::rb_eStandardError, rproc},
     types::{c_void, Argc, Id, Value, VmPointer},
@@ -9,7 +9,7 @@ use crate::{
 
 use crate::{
     util, AnyException, AnyObject, Array, Class, Exception, GlobalVariable, Hash, NilClass, Object,
-    Proc, RString, TryConvert,
+    Proc, ProfileFrame, RString, TryConvert,
 };
 
 /// Virtual Machine and helpers
@@ -1483,6 +1483,52 @@ impl VM {
     /// ```
     pub fn stack_length() -> usize {
         vm::stack_length()
+    }
+
+    /// Returns up to `limit` frames of the current thread's Ruby stack,
+    /// skipping the `start` innermost ones (`rb_profile_frames`), for
+    /// sampling profilers. The innermost frame, a method written in Rust
+    /// calling this, is frame 0.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[macro_use] extern crate rutie;
+    ///
+    /// use rutie::{Class, Fixnum, Object, RString, VM};
+    ///
+    /// methods!(
+    ///     rutie::AnyObject,
+    ///     _rtself,
+    ///     fn stack_size() -> Fixnum {
+    ///         let frames = VM::profile_frames(0, 100);
+    ///         assert_eq!(frames[0].method_name().unwrap().to_str(), "stack_size");
+    ///
+    ///         // Skipping frames.
+    ///         let caller = &VM::profile_frames(1, 1)[0];
+    ///         assert_eq!(caller.method_name().unwrap().to_str(), "nested");
+    ///
+    ///         Fixnum::new(frames.len() as i64)
+    ///     }
+    /// );
+    ///
+    /// fn main() {
+    ///     # VM::init();
+    ///     Class::from_existing("Object").define(|klass| {
+    ///         klass.def_private("stack_size", stack_size);
+    ///     });
+    ///
+    ///     // `stack_size`, `nested` and the top level (and, before Ruby 3.2, a frame for the
+    ///     // embedding program).
+    ///     let size = VM::eval("def nested = stack_size; nested").unwrap();
+    ///     let size = size.try_convert_to::<Fixnum>().unwrap().to_i64();
+    ///     assert!(size == 3 || size == 4);
+    ///
+    ///     assert!(VM::profile_frames(0, 0).is_empty());
+    /// }
+    /// ```
+    pub fn profile_frames(start: usize, limit: usize) -> Vec<ProfileFrame> {
+        ProfileFrame::from_frames(debug::profile_frames(start, limit))
     }
 
     /// Registers `func` to be called while the VM is being freed at the end

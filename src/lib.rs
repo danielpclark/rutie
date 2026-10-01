@@ -133,6 +133,7 @@ pub use crate::class::{
     boolean::Boolean,
     class::Class,
     complex::Complex,
+    debug::{DebugInspector, ProfileFrame},
     encoding::Encoding,
     enumerator::{Enumerator, EnumeratorIterator},
     fiber::Fiber,
@@ -165,7 +166,7 @@ pub use crate::class::{
 pub use crate::class::thread::{InternalThreadEvent, InternalThreadEventHook};
 
 #[cfg(ruby_gte_3_3)]
-pub use crate::class::thread::InternalThreadSpecificKey;
+pub use crate::class::{debug::PostponedJob, thread::InternalThreadSpecificKey};
 
 pub use crate::class::traits::{
     encoding_support::EncodingSupport, exception::Exception, object::Object,
