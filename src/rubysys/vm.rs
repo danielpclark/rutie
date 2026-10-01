@@ -249,4 +249,10 @@ extern "C" {
     // size_t
     // ruby_stack_length(VALUE **p)
     pub fn ruby_stack_length(p: *mut *mut Value) -> size_t;
+    // void
+    // rb_clear_constant_cache_for_id(ID id)
+    //
+    // Invalidates the inline caches of constant lookups for the name `id`.
+    #[cfg(ruby_gte_3_2)]
+    pub fn rb_clear_constant_cache_for_id(id: Id);
 }

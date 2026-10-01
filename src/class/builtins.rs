@@ -56,6 +56,7 @@ builtins! {
     random => rb_cRandom, "Random";
     range => rb_cRange, "Range";
     rational => rb_cRational, "Rational";
+    refinement => rb_cRefinement, "Refinement";
     regexp => rb_cRegexp, "Regexp";
     file_stat => rb_cStat, "File::Stat";
     string => rb_cString, "String";
@@ -86,6 +87,8 @@ builtins! {
     local_jump_error => rb_eLocalJumpError, "LocalJumpError";
     math_domain_error => rb_eMathDomainError, "Math::DomainError";
     name_error => rb_eNameError, "NameError";
+    no_matching_pattern_error => rb_eNoMatchingPatternError, "NoMatchingPatternError";
+    no_matching_pattern_key_error => rb_eNoMatchingPatternKeyError, "NoMatchingPatternKeyError";
     no_memory_error => rb_eNoMemError, "NoMemoryError";
     no_method_error => rb_eNoMethodError, "NoMethodError";
     not_implemented_error => rb_eNotImpError, "NotImplementedError";
@@ -137,6 +140,11 @@ mod tests {
                 ),
                 (Class::file_stat(), "File::Stat"),
                 (Class::class_class(), "Class"),
+                (Class::refinement(), "Refinement"),
+                (
+                    Class::no_matching_pattern_key_error(),
+                    "NoMatchingPatternKeyError",
+                ),
             ];
 
             for (class, path) in pairs.iter() {
@@ -146,6 +154,11 @@ mod tests {
 
             assert!(Module::kernel().is_equal(&VM::eval("Kernel").unwrap()));
             assert!(Class::zero_division_error().inherits(&Class::standard_error()) == Some(true));
+            assert!(
+                Class::no_matching_pattern_key_error()
+                    .inherits(&Class::no_matching_pattern_error())
+                    == Some(true)
+            );
             assert!(Class::interrupt()
                 .inherits(&Class::standard_error())
                 .is_none());

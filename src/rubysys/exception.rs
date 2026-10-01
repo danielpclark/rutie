@@ -20,6 +20,8 @@ extern "C" {
     pub static rb_eMathDomainError: Value;
     pub static rb_eNameError: Value;
     pub static rb_eNoMemError: Value;
+    pub static rb_eNoMatchingPatternError: Value;
+    pub static rb_eNoMatchingPatternKeyError: Value;
     pub static rb_eNoMethodError: Value;
     pub static rb_eNotImpError: Value;
     pub static rb_eRangeError: Value;
