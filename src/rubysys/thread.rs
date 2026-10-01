@@ -294,6 +294,71 @@ extern "C" {
     pub fn rb_thread_wakeup(thread: Value) -> Value;
 }
 
+// The function `rb_exec_recursive` and its variants call: `obj` and `arg`
+// as given, and `recursive` non-zero when `obj` (or the pair) is already
+// being processed further up the stack.
+pub type ExecRecursiveFunction =
+    rutie_callback!(type fn(obj: Value, arg: Value, recursive: c_int) -> Value);
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // VALUE
+    // rb_exec_recursive(VALUE (*f)(VALUE g, VALUE h, int r), VALUE g, VALUE h)
+    //
+    // Calls `f(g, h, recursive)`, detecting recursion on `g` (as `inspect`
+    // does for `[a = []] << a`).
+    pub fn rb_exec_recursive(f: ExecRecursiveFunction, obj: Value, arg: Value) -> Value;
+    // VALUE
+    // rb_exec_recursive_outer(VALUE (*f)(VALUE g, VALUE h, int r), VALUE g, VALUE h)
+    //
+    // Like `rb_exec_recursive`, but on recursion it throws back to the
+    // outermost call, which then calls `f` again with `recursive` set.
+    pub fn rb_exec_recursive_outer(f: ExecRecursiveFunction, obj: Value, arg: Value) -> Value;
+    // VALUE
+    // rb_exec_recursive_paired(VALUE (*f)(VALUE g, VALUE h, int r), VALUE g, VALUE p,
+    //                          VALUE h)
+    //
+    // Like `rb_exec_recursive`, detecting recursion on the pair `{g, p}` (as
+    // `==` does for two arrays).
+    pub fn rb_exec_recursive_paired(
+        f: ExecRecursiveFunction,
+        obj: Value,
+        paired: Value,
+        arg: Value,
+    ) -> Value;
+    // VALUE
+    // rb_exec_recursive_paired_outer(VALUE (*f)(VALUE g, VALUE h, int r), VALUE g, VALUE p,
+    //                                VALUE h)
+    pub fn rb_exec_recursive_paired_outer(
+        f: ExecRecursiveFunction,
+        obj: Value,
+        paired: Value,
+        arg: Value,
+    ) -> Value;
+    // void
+    // rb_thread_atfork_before_exec(void)
+    pub fn rb_thread_atfork_before_exec();
+    // void
+    // rb_thread_sleep_deadly(void)
+    //
+    // Sleeps until woken up, like `rb_thread_sleep_forever`, but counts the
+    // thread as stuck for the deadlock check (which raises a `fatal` error
+    // when every thread is).
+    pub fn rb_thread_sleep_deadly();
+    // VALUE
+    // rb_thread_stop(void)
+    //
+    // `Thread.stop`: sleeps until woken up; raises a `ThreadError` when the
+    // current thread is the only one. Returns `Qnil`.
+    pub fn rb_thread_stop() -> Value;
+    // VALUE
+    // rb_thread_wakeup_alive(VALUE thread)
+    //
+    // Like `rb_thread_wakeup`, returning `Qnil` for a dead thread instead of
+    // raising.
+    pub fn rb_thread_wakeup_alive(thread: Value) -> Value;
+}
+
 // `RUBY_UBF_IO` / `RUBY_UBF_PROCESS`: `(rb_unblock_function_t *)-1`, which
 // makes Ruby interrupt a blocking system call when the thread must stop.
 pub const RUBY_UBF_IO: usize = usize::MAX;
@@ -404,4 +469,39 @@ extern "C" {
     // bool
     // rb_thread_lock_native_thread(void)
     pub fn rb_thread_lock_native_thread() -> bool;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::binding::vm;
+
+    rutie_callback! {
+        fn report_recursion(_object: Value, _arg: Value, recursive: c_int) -> Value {
+            crate::util::bool_to_value(recursive != 0)
+        }
+    }
+
+    #[test]
+    fn test_sleep_deadly_and_recursion() {
+        crate::on_ruby_thread(|| unsafe {
+            // Woken up by another thread once it sleeps.
+            vm::eval_string("main = Thread.current; $rutie_deadly = Thread.new { Thread.pass until main.stop?; main.wakeup }");
+            rb_thread_sleep_deadly();
+            vm::eval_string("$rutie_deadly.join");
+
+            let object = vm::eval_string("Object.new");
+            assert!(!rb_exec_recursive(report_recursion, object, object).is_true());
+            assert!(!rb_exec_recursive_outer(report_recursion, object, object).is_true());
+            assert!(!rb_exec_recursive_paired(report_recursion, object, object, object).is_true());
+            assert!(
+                !rb_exec_recursive_paired_outer(report_recursion, object, object, object).is_true()
+            );
+
+            assert!(rb_thread_wakeup_alive(rb_thread_current()).value == rb_thread_current().value);
+            let finished = vm::eval_string("Thread.new {}.tap(&:join)");
+            assert!(rb_thread_wakeup_alive(finished).is_nil());
+            assert!(vm::protect_value(|| rb_thread_stop()).is_err());
+        });
+    }
 }
