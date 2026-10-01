@@ -1,5 +1,5 @@
 use crate::{
-    rubysys::symbol,
+    rubysys::{encoding, symbol},
     types::{c_char, c_long, Id, Value},
     util,
 };
@@ -76,4 +76,59 @@ pub fn is_instance_variable_name(symbol: Value) -> bool {
 
 pub fn is_class_variable_name(symbol: Value) -> bool {
     util::c_int_to_bool(unsafe { symbol::rb_is_class_id(sym_to_id(symbol)) })
+}
+
+// Raises `EncodingError` for bytes that are invalid in `enc`.
+pub fn intern_with_encoding(name: &[u8], enc: Value) -> Value {
+    let (ptr, len) = (name.as_ptr() as *const c_char, name.len() as c_long);
+
+    unsafe { id_to_sym(symbol::rb_intern3(ptr, len, encoding::rb_to_encoding(enc))) }
+}
+
+// The existing symbol, or `nil`; raises `EncodingError` for invalid bytes.
+pub fn check_symbol_with_encoding(name: &[u8], enc: Value) -> Value {
+    let (ptr, len) = (name.as_ptr() as *const c_char, name.len() as c_long);
+
+    unsafe { symbol::rb_check_symbol_cstr(ptr, len, encoding::rb_to_encoding(enc)) }
+}
+
+pub fn is_symbol_name(name: &[u8], enc: Value) -> bool {
+    let (ptr, len) = (name.as_ptr() as *const c_char, name.len() as c_long);
+
+    util::c_int_to_bool(unsafe {
+        symbol::rb_enc_symname2_p(ptr, len, encoding::rb_to_encoding(enc))
+    })
+}
+
+// Raises `NameError` for names without a setter form (operators, ...).
+pub fn attrset(symbol: Value) -> Value {
+    unsafe { id_to_sym(symbol::rb_id_attrset(sym_to_id(symbol))) }
+}
+
+pub fn is_attrset_name(symbol: Value) -> bool {
+    util::c_int_to_bool(unsafe { symbol::rb_is_attrset_id(sym_to_id(symbol)) })
+}
+
+pub fn is_global_name(symbol: Value) -> bool {
+    util::c_int_to_bool(unsafe { symbol::rb_is_global_id(sym_to_id(symbol)) })
+}
+
+pub fn is_local_name(symbol: Value) -> bool {
+    util::c_int_to_bool(unsafe { symbol::rb_is_local_id(sym_to_id(symbol)) })
+}
+
+pub fn is_junk_name(symbol: Value) -> bool {
+    util::c_int_to_bool(unsafe { symbol::rb_is_junk_id(sym_to_id(symbol)) })
+}
+
+pub fn all_symbols() -> Value {
+    unsafe { symbol::rb_sym_all_symbols() }
+}
+
+pub fn last_line() -> Value {
+    unsafe { symbol::rb_lastline_get() }
+}
+
+pub fn set_last_line(value: Value) {
+    unsafe { symbol::rb_lastline_set(value) }
 }

@@ -2924,6 +2924,40 @@ impl VM {
         vm::clear_constant_cache_for(name)
     }
 
+    /// Returns `$_`, the last line read by `gets` in the calling Ruby frame
+    /// (`rb_lastline_get`); `nil` when unset.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::set_last_line(&RString::new_utf8("a line\n"));
+    ///
+    /// assert_eq!(VM::last_line().try_convert_to::<RString>().unwrap().to_str(), "a line\n");
+    /// ```
+    pub fn last_line() -> AnyObject {
+        AnyObject::from(symbol::last_line())
+    }
+
+    /// Sets `$_` for the calling Ruby frame (`rb_lastline_set`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{NilClass, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// VM::set_last_line(&RString::new_utf8("x"));
+    /// VM::set_last_line(&NilClass::new());
+    ///
+    /// assert!(VM::last_line().is_nil());
+    /// ```
+    pub fn set_last_line<T: Object>(value: &T) {
+        symbol::set_last_line(value.value())
+    }
+
     /// Call super
     ///
     /// # Examples
