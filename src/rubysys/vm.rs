@@ -469,6 +469,35 @@ extern "C" {
     pub fn rb_load_file_str(file: Value) -> *mut c_void;
 }
 
+// `ruby/version.h`: the running Ruby's version strings (NUL-terminated,
+// read them through `as_ptr`).
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // RUBY_EXTERN const int ruby_api_version[3];
+    pub static ruby_api_version: [c_int; 3];
+    // RUBY_EXTERN const char ruby_version[];
+    //
+    // `RUBY_VERSION`, such as `"4.0.7"`.
+    pub static ruby_version: [c_char; 0];
+    // RUBY_EXTERN const char ruby_release_date[];
+    pub static ruby_release_date: [c_char; 0];
+    // RUBY_EXTERN const char ruby_platform[];
+    pub static ruby_platform: [c_char; 0];
+    // RUBY_EXTERN const int  ruby_patchlevel;
+    pub static ruby_patchlevel: c_int;
+    // RUBY_EXTERN const char ruby_description[];
+    //
+    // `RUBY_DESCRIPTION` as Ruby was built (without the YJIT/ZJIT marker
+    // a running Ruby adds when they are enabled).
+    pub static ruby_description: [c_char; 0];
+    // RUBY_EXTERN const char ruby_copyright[];
+    pub static ruby_copyright: [c_char; 0];
+    // RUBY_EXTERN const char ruby_engine[];
+    //
+    // `"ruby"`.
+    pub static ruby_engine: [c_char; 0];
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -594,6 +623,30 @@ mod tests {
             });
             assert!(copy.is_err());
             let _ = Symbol::new("unused");
+        });
+    }
+
+    // The version globals match what Ruby reports.
+    #[test]
+    fn test_version_globals() {
+        use std::ffi::CStr;
+
+        crate::on_ruby_thread(|| unsafe {
+            let read = |string: &[c_char; 0]| CStr::from_ptr(string.as_ptr()).to_str().unwrap();
+            let eval = |code: &str| VM::eval(code).unwrap().try_convert_to::<RString>().unwrap();
+
+            assert_eq!(read(&ruby_version), eval("RUBY_VERSION").to_str());
+            assert_eq!(read(&ruby_release_date), eval("RUBY_RELEASE_DATE").to_str());
+            assert_eq!(read(&ruby_platform), eval("RUBY_PLATFORM").to_str());
+            assert_eq!(read(&ruby_copyright), eval("RUBY_COPYRIGHT").to_str());
+            assert_eq!(read(&ruby_engine), "ruby");
+            assert!(read(&ruby_description).starts_with("ruby 4.0"));
+
+            let patchlevel = VM::eval("RUBY_PATCHLEVEL")
+                .unwrap()
+                .try_convert_to::<Fixnum>();
+            assert_eq!(patchlevel.unwrap().to_i64(), ruby_patchlevel as i64);
+            assert_eq!(&ruby_api_version[..2], &[4, 0]);
         });
     }
 }

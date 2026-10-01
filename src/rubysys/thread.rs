@@ -103,6 +103,21 @@ extern "C" {
     ) -> *mut c_void;
 
     // void *
+    // rb_nogvl(void *(*func)(void *), void *data1, rb_unblock_function_t *ubf,
+    //          void *data2, int flags)
+    //
+    // `rb_thread_call_without_gvl` with `RB_NOGVL_*` flags
+    // (`rubysys::scheduler`); hands `func` to the fiber scheduler's
+    // `blocking_operation_wait` when `RB_NOGVL_OFFLOAD_SAFE` is set.
+    pub fn rb_nogvl(
+        func: CallbackPtr,
+        data1: *mut c_void,
+        ubf: CallbackPtr,
+        data2: *mut c_void,
+        flags: c_int,
+    ) -> *mut c_void;
+
+    // void *
     // rb_thread_call_without_gvl2(void *(*func)(void *), void *data1,
     //                             rb_unblock_function_t *ubf, void *data2)
     pub fn rb_thread_call_without_gvl2(
@@ -502,6 +517,32 @@ mod tests {
             let finished = vm::eval_string("Thread.new {}.tap(&:join)");
             assert!(rb_thread_wakeup_alive(finished).is_nil());
             assert!(vm::protect_value(|| rb_thread_stop()).is_err());
+        });
+    }
+
+    rutie_callback! {
+        fn add_one(data: *mut c_void) -> *mut c_void {
+            unsafe { *(data as *mut u32) += 1 };
+
+            data
+        }
+    }
+
+    #[test]
+    fn test_nogvl() {
+        crate::on_ruby_thread(|| unsafe {
+            let mut number = 41u32;
+            let data = &mut number as *mut u32 as *mut c_void;
+            let result = rb_nogvl(
+                add_one as CallbackPtr,
+                data,
+                std::ptr::null(),
+                std::ptr::null_mut(),
+                crate::rubysys::scheduler::RB_NOGVL_UBF_ASYNC_SAFE,
+            );
+
+            assert_eq!(result, data);
+            assert_eq!(number, 42);
         });
     }
 }

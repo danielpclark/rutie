@@ -49,6 +49,26 @@ pub use crate::rubysys::process::rb_pid_t;
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
+    // RUBY_EXTERN VALUE rb_fs;
+    //
+    // `$;`, the default separator of `String#split` (`nil`).
+    pub static rb_fs: Value;
+    // RUBY_EXTERN VALUE rb_output_fs;
+    //
+    // `$,`, written between the arguments of `IO#print` (`nil`).
+    pub static rb_output_fs: Value;
+    // RUBY_EXTERN VALUE rb_rs;
+    //
+    // `$/`, the input record separator (`"\n"`).
+    pub static rb_rs: Value;
+    // RUBY_EXTERN VALUE rb_default_rs;
+    //
+    // `"\n"`, the default of `$/`.
+    pub static rb_default_rs: Value;
+    // RUBY_EXTERN VALUE rb_output_rs;
+    //
+    // `$\`, written after `IO#print`'s arguments (`nil`).
+    pub static rb_output_rs: Value;
     pub static rb_cFile: Value;
     pub static rb_cIO: Value;
     // The values behind `$stdin`, `$stdout` and `$stderr`.
@@ -901,6 +921,16 @@ mod tests {
             for fd in [plain, fds[0], fds[1]] {
                 libc::close(fd);
             }
+        });
+    }
+
+    // The separator globals are what `$/`, `$;`, `$,` and `$\` read.
+    #[test]
+    fn test_separator_globals() {
+        crate::on_ruby_thread(|| unsafe {
+            assert_eq!(rb_rs.value, vm::eval_string("$/").value);
+            assert_eq!(rb_default_rs.value, vm::eval_string("$/").value);
+            assert!(rb_fs.is_nil() && rb_output_fs.is_nil() && rb_output_rs.is_nil());
         });
     }
 }

@@ -136,6 +136,11 @@ through RubyGems' `require`, so load a bundled gem with
    event hook/TracePoint C API; the `RUBY_IO_MODE_*` names, and
    `RB_WARN_CATEGORY_DEFAULT_BITS` and `RB_WARN_CATEGORY_ALL_BITS`,
    thanks to @danielpclark
+ - `rubysys` declarations for `rb_nogvl`, the `ruby/version.h` globals
+   (`ruby_version`, `ruby_release_date`, `ruby_platform`, `ruby_patchlevel`,
+   `ruby_description`, `ruby_copyright`, `ruby_engine`, `ruby_api_version`)
+   and the `$/`, `$;`, `$,` and `$\` globals (`rb_rs`, `rb_default_rs`,
+   `rb_fs`, `rb_output_fs`, `rb_output_rs`), thanks to @danielpclark
 
 ### Changed
  - `build.rs` warns about a static Ruby built with ZJIT as well as YJIT; both
