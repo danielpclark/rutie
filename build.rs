@@ -346,6 +346,14 @@ fn static_linker_args() {
     library.parse_libs_cflags(rbconfig("MAINLIBS").as_bytes(), false);
     library.parse_libs_cflags(rbconfig("LIBS").as_bytes(), false);
 
+    // Those libraries can live outside the linker's default search path,
+    // such as Homebrew's GMP for ruby-build's macOS Ruby 3.3 (`-lgmp`, with
+    // `-L/opt/homebrew/opt/gmp/lib` only in `LDFLAGS`). Relative entries
+    // (`-L.`, Ruby's build directory) mean nothing here.
+    for dir in ldflags_search_dirs(&rbconfig("LDFLAGS")) {
+        println!("cargo:rustc-link-search=native={}", dir);
+    }
+
     // On macOS, the frameworks the archive needs are only listed in
     // `LIBRUBYARG_STATIC` (`-framework Security` for `SecRandomCopyBytes`,
     // `-framework Foundation`). Its `-l` entries are the archive and
@@ -517,6 +525,28 @@ impl Library {
             }
         }
     }
+}
+
+// The absolute `-L` directories in linker flags, as `-L<dir>` or `-L <dir>`.
+fn ldflags_search_dirs(flags: &str) -> Vec<String> {
+    let words = split_flags(flags.as_bytes());
+    let mut dirs = Vec::new();
+
+    for (i, word) in words.iter().enumerate() {
+        let dir = match word.strip_prefix("-L") {
+            Some("") => words.get(i + 1).map(String::as_str),
+            Some(dir) => Some(dir),
+            None => None,
+        };
+
+        if let Some(dir) = dir {
+            if Path::new(dir).is_absolute() && !dirs.iter().any(|known| known == dir) {
+                dirs.push(dir.to_string());
+            }
+        }
+    }
+
+    dirs
 }
 
 fn split_flags(output: &[u8]) -> Vec<String> {
