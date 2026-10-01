@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    binding::{fixnum, float, numeric, vm},
-    types::{c_long, Value, ValueType},
+    binding::{array, fixnum, float, numeric, vm},
+    types::{c_long, c_ulong, Value, ValueType},
     AnyException, AnyObject, Exception, Fixnum, Object, RString, VerifiedObject,
 };
 
@@ -422,6 +422,224 @@ impl Integer {
         let result = vm::call_method(self.value(), "<=>", &[other.value()]);
 
         Fixnum::from(result).to_i64().cmp(&0)
+    }
+
+    /// Returns `self & other`, the bitwise and of the two's complements
+    /// (Ruby's `&`, `rb_big_and`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Integer::new(0b1100).bit_and(&Integer::new(0b1010)).to_i64(), 0b1000);
+    ///
+    /// let big = Integer::from(u128::MAX);
+    /// assert_eq!(big.bit_and(&Integer::new(-256)).to_u128(), Some(u128::MAX - 255));
+    /// ```
+    pub fn bit_and(&self, other: &Integer) -> Integer {
+        Integer::from(numeric::integer_and(self.value(), other.value()))
+    }
+
+    /// Returns `self | other`, the bitwise or of the two's complements
+    /// (Ruby's `|`, `rb_big_or`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Integer::new(0b1100).bit_or(&Integer::new(0b1010)).to_i64(), 0b1110);
+    ///
+    /// let high = Integer::from(1u128 << 100);
+    /// assert_eq!(high.bit_or(&Integer::new(1)).to_u128(), Some((1 << 100) | 1));
+    /// ```
+    pub fn bit_or(&self, other: &Integer) -> Integer {
+        Integer::from(numeric::integer_or(self.value(), other.value()))
+    }
+
+    /// Returns `self ^ other`, the bitwise exclusive or of the two's
+    /// complements (Ruby's `^`, `rb_big_xor`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Integer::new(0b1100).bit_xor(&Integer::new(0b1010)).to_i64(), 0b0110);
+    ///
+    /// assert_eq!(Integer::new(-1).bit_xor(&Integer::new(5)).to_i64(), -6);
+    ///
+    /// let big = Integer::from(u128::MAX);
+    /// assert_eq!(big.bit_xor(&big).to_i64(), 0);
+    /// ```
+    pub fn bit_xor(&self, other: &Integer) -> Integer {
+        Integer::from(numeric::integer_xor(self.value(), other.value()))
+    }
+
+    /// Returns `self` shifted left by `bits` (Ruby's `<<`, `rb_big_lshift`);
+    /// a negative `bits` shifts right. Returns the exception, a
+    /// `NoMemoryError`, when the result is too big to allocate.
+    ///
+    /// Ruby treats a `NoMemoryError` caught outside Ruby code as still
+    /// being raised, so a second one in the same process aborts it; avoid
+    /// shifts by absurd amounts rather than relying on the error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Integer::new(1).shift_left(100).unwrap().to_u128(), Some(1 << 100));
+    /// assert_eq!(Integer::new(-12).shift_left(-2).unwrap().to_i64(), -3);
+    /// ```
+    pub fn shift_left(&self, bits: i64) -> Result<Integer, AnyException> {
+        let integer = self.value();
+
+        vm::protect_value(|| numeric::integer_lshift(integer, bits))
+            .map(Integer::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns `self` shifted right by `bits`, rounding towards negative
+    /// infinity (Ruby's `>>`, `rb_big_rshift`). A negative `bits` shifts
+    /// left, which returns the exception when the result is too big, as
+    /// [`shift_left`](#method.shift_left) does.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Integer::from(1u128 << 100).shift_right(98).unwrap().to_i64(), 4);
+    /// assert_eq!(Integer::new(-5).shift_right(1).unwrap().to_i64(), -3);
+    /// assert_eq!(Integer::new(-5).shift_right(1000).unwrap().to_i64(), -1);
+    /// ```
+    pub fn shift_right(&self, bits: i64) -> Result<Integer, AnyException> {
+        let integer = self.value();
+
+        vm::protect_value(|| numeric::integer_rshift(integer, bits))
+            .map(Integer::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns the quotient rounded towards negative infinity and the
+    /// modulus with the sign of `other` (Ruby's `divmod`, `rb_big_divmod`),
+    /// or the `ZeroDivisionError` when `other` is zero.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, VM};
+    /// # VM::init();
+    ///
+    /// let (quotient, modulus) = Integer::new(5).divmod(&Integer::new(-3)).unwrap();
+    /// assert_eq!((quotient.to_i64(), modulus.to_i64()), (-2, -1));
+    ///
+    /// let (quotient, modulus) = Integer::from(u128::MAX).divmod(&Integer::from(u64::MAX)).unwrap();
+    /// assert_eq!(quotient.to_u128(), Some(u64::MAX as u128 + 2));
+    /// assert_eq!(modulus.to_i64(), 0);
+    ///
+    /// assert!(Integer::new(1).divmod(&Integer::new(0)).is_err());
+    /// ```
+    pub fn divmod(&self, other: &Integer) -> Result<(Integer, Integer), AnyException> {
+        let (integer, other) = (self.value(), other.value());
+
+        let pair = vm::protect_value(|| numeric::integer_divmod(integer, other))
+            .map_err(AnyException::from)?;
+
+        Ok((
+            Integer::from(array::entry(pair, 0)),
+            Integer::from(array::entry(pair, 1)),
+        ))
+    }
+
+    /// Returns how many `word_bits`-bit words the absolute value needs
+    /// (`rb_absint_numwords`), or `None` when `word_bits` is zero or the
+    /// count does not fit a `usize`. Zero needs no words.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Integer::new(255).abs_num_words(8), Some(1));
+    /// assert_eq!(Integer::new(-256).abs_num_words(8), Some(2));
+    /// assert_eq!(Integer::from(u128::MAX).abs_num_words(1), Some(128));
+    /// assert_eq!(Integer::new(0).abs_num_words(64), Some(0));
+    /// assert_eq!(Integer::new(1).abs_num_words(0), None);
+    /// ```
+    pub fn abs_num_words(&self, word_bits: usize) -> Option<usize> {
+        numeric::integer_abs_num_words(self.value(), word_bits)
+    }
+
+    /// Returns `true` if the absolute value is a power of two, that is
+    /// has exactly one bit set (`rb_absint_singlebit_p`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Integer, VM};
+    /// # VM::init();
+    ///
+    /// assert!(Integer::new(-8).abs_is_power_of_two());
+    /// assert!(Integer::from(1u128 << 100).abs_is_power_of_two());
+    /// assert!(!Integer::new(6).abs_is_power_of_two());
+    /// assert!(!Integer::new(0).abs_is_power_of_two());
+    /// ```
+    pub fn abs_is_power_of_two(&self) -> bool {
+        numeric::integer_abs_is_single_bit(self.value())
+    }
+
+    /// Returns the lowest `count` C `unsigned long` words of the integer's
+    /// two's complement, least significant first (`rb_big_pack`). Bits that
+    /// do not fit are dropped.
+    ///
+    /// A C `long` is 32 bits on Windows and 32-bit platforms, 64 bits
+    /// elsewhere.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{types::c_ulong, Integer, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Integer::new(5).to_long_words(2), vec![5, 0]);
+    /// assert_eq!(Integer::new(-1).to_long_words(2), vec![c_ulong::MAX; 2]);
+    ///
+    /// let wide = Integer::from(1u128 << 64).to_long_words(4);
+    /// assert_eq!(Integer::from_long_words(&wide).to_u128(), Some(1 << 64));
+    /// ```
+    pub fn to_long_words(&self, count: usize) -> Vec<c_ulong> {
+        let mut words = vec![0; count];
+
+        numeric::integer_pack_longs(self.value(), &mut words);
+
+        words
+    }
+
+    /// Creates the integer whose two's complement is `words`, C `unsigned
+    /// long`s least significant first (`rb_big_unpack`). The most
+    /// significant bit of the last word is the sign.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{types::c_ulong, Integer, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Integer::from_long_words(&[7, 0]).to_i64(), 7);
+    /// assert_eq!(Integer::from_long_words(&[c_ulong::MAX, c_ulong::MAX]).to_i64(), -1);
+    /// assert_eq!(Integer::from_long_words(&[]).to_i64(), 0);
+    /// ```
+    pub fn from_long_words(words: &[c_ulong]) -> Integer {
+        Integer::from(numeric::integer_unpack_longs(words))
     }
 }
 
@@ -870,6 +1088,215 @@ mod tests {
                 Some((i64::MIN as i128 * i64::MIN as i128) as u128)
             );
             assert!(pow(10, 40).is_bignum());
+        });
+    }
+
+    #[test]
+    fn test_integer_bit_operations() {
+        crate::on_ruby_thread(|| {
+            let ruby = |code: &str| str_to_num(code).unwrap();
+            let operands = ["0", "5", "-6", "2**70 + 3", "-(2**70) - 5", "2**64 - 1"];
+
+            for x in operands.iter() {
+                for y in operands.iter() {
+                    let (a, b) = (ruby(x), ruby(y));
+
+                    for (op, result) in [
+                        ("&", a.bit_and(&b)),
+                        ("|", a.bit_or(&b)),
+                        ("^", a.bit_xor(&b)),
+                    ] {
+                        assert_eq!(
+                            result,
+                            ruby(&format!("({}) {} ({})", x, op, y)),
+                            "{} {} {}",
+                            x,
+                            op,
+                            y
+                        );
+                    }
+
+                    if b.to_i128() != Some(0) {
+                        let (quotient, modulus) = a.divmod(&b).unwrap();
+                        assert_eq!(quotient, ruby(&format!("({}).div({})", x, y)));
+                        assert_eq!(modulus, ruby(&format!("({}) % ({})", x, y)));
+                    } else {
+                        assert!(a.divmod(&b).is_err());
+                    }
+                }
+
+                let a = ruby(x);
+                for &bits in &[0i64, 1, 63, 64, 100, -1, -64, -200] {
+                    assert_eq!(
+                        a.shift_left(bits).unwrap(),
+                        ruby(&format!("({}) << {}", x, bits))
+                    );
+                    assert_eq!(
+                        a.shift_right(bits).unwrap(),
+                        ruby(&format!("({}) >> {}", x, bits))
+                    );
+                }
+
+                let words = a.to_long_words(4);
+                assert_eq!(Integer::from_long_words(&words), a, "{}", x);
+            }
+
+            // Fixnum results are normalised back to Fixnums.
+            let big = ruby("2**70 + 3");
+            let small = big.bit_and(&Integer::new(0xff));
+            assert!(!small.is_bignum());
+            assert_eq!(small.to_i64(), 3);
+
+            assert_eq!(Integer::new(-1).shift_right(i64::MAX).unwrap().to_i64(), -1);
+        });
+    }
+
+    #[test]
+    fn test_integer_words() {
+        crate::on_ruby_thread(|| {
+            use crate::types::c_ulong;
+
+            let bits = c_ulong::BITS as i64;
+            let two_words = str_to_num(&format!("2**{} + 5", bits)).unwrap();
+            assert_eq!(two_words.to_long_words(3), vec![5, 1, 0]);
+            assert_eq!(two_words.to_long_words(1), vec![5]);
+            assert_eq!(two_words.to_long_words(0), Vec::<c_ulong>::new());
+            assert_eq!(
+                Integer::new(-2).to_long_words(2),
+                vec![c_ulong::MAX - 1, c_ulong::MAX]
+            );
+            assert_eq!(Integer::from_long_words(&[5, 1]), two_words);
+            assert_eq!(Integer::from_long_words(&[c_ulong::MAX]).to_i64(), -1);
+            assert_eq!(
+                Integer::from_long_words(&[c_ulong::MAX, 0]).to_u64(),
+                c_ulong::MAX as u64
+            );
+
+            assert_eq!(two_words.abs_num_words(c_ulong::BITS as usize), Some(2));
+            assert_eq!(two_words.abs_num_words(1), Some(bits as usize + 1));
+            assert_eq!(Integer::new(-1).abs_num_words(1), Some(1));
+            assert_eq!(Integer::new(1).abs_num_words(0), None);
+
+            assert!(Integer::new(1).abs_is_power_of_two());
+            assert!(Integer::new(-1).abs_is_power_of_two());
+            assert!(str_to_num("-(2**200)").unwrap().abs_is_power_of_two());
+            assert!(!str_to_num("2**200 + 1").unwrap().abs_is_power_of_two());
+        });
+    }
+
+    #[test]
+    fn test_bignum_raw_functions() {
+        crate::on_ruby_thread(|| {
+            use crate::{
+                rubysys::{fixnum::*, numeric::*},
+                types::c_ulong,
+            };
+            use std::ffi::CString;
+
+            unsafe {
+                let big = rb_int2big(5);
+                assert_eq!(big.ty(), crate::types::ValueType::Bignum);
+                assert_eq!(rb_big_sign(big), 1);
+                assert_eq!(rb_bigzero_p(big), 0);
+                assert_eq!(rb_big2long(big), 5);
+                assert_eq!(rb_big2ulong(big), 5);
+                assert!(rb_big_norm(big).is_fixnum());
+
+                let negative = rb_int2big(-5);
+                assert_eq!(rb_big_sign(negative), 0);
+                assert_eq!(Integer::from(rb_big_norm(negative)).to_i64(), -5);
+
+                let unsigned = rb_uint2big(usize::MAX);
+                assert_eq!(Integer::from(unsigned).to_u64(), usize::MAX as u64);
+
+                let clone = rb_big_clone(big);
+                assert!(rb_big_eql(big, clone).is_true());
+                assert!(!rb_big_eql(big, Integer::new(5).value()).is_true());
+                assert_eq!(
+                    Integer::from(rb_big_idiv(big, Integer::new(2).value())).to_i64(),
+                    2
+                );
+
+                // A zero-filled, frozen Bignum: write nothing, then normalise.
+                let zero = rb_big_new(0, 1);
+                assert_eq!(rb_bigzero_p(zero), 1);
+                assert_eq!(Integer::from(rb_big_norm(zero)).to_i64(), 0);
+
+                // Keeping only the least significant digit of 2**100 + 5.
+                let copy = rb_big_clone(str_to_num("2**100 + 5").unwrap().value());
+                rb_big_resize(copy, 1);
+                assert_eq!(Integer::from(rb_big_norm(rb_big_clone(copy))).to_i64(), 5);
+                rb_big_2comp(copy);
+                assert!(Integer::from(copy) > Integer::new(5));
+
+                let mut words: [c_ulong; 2] = [7, 0];
+                let unpacked = rb_big_unpack(words.as_mut_ptr(), 2);
+                rb_big_pack(Integer::new(-1).value(), words.as_mut_ptr(), 2);
+                assert_eq!(Integer::from(unpacked).to_i64(), 7);
+                assert_eq!(words, [c_ulong::MAX; 2]);
+
+                let digits = CString::new("ff").unwrap();
+                assert_eq!(
+                    Integer::from(rb_cstr2inum(digits.as_ptr(), 16)).to_i64(),
+                    255
+                );
+
+                let mut buffer = [0 as crate::types::c_char; 6];
+                assert_eq!(rb_uv_to_utf8(buffer.as_mut_ptr(), 0x20ac), 3);
+                let bytes: Vec<u8> = buffer[..3].iter().map(|&b| b as u8).collect();
+                assert_eq!(bytes, "\u{20ac}".as_bytes());
+
+                assert_eq!(Integer::from(rb_int_positive_pow(3, 4)).to_i64(), 81);
+                assert_eq!(
+                    Integer::from(rb_int_positive_pow(2, 100)).to_u128(),
+                    Some(1 << 100)
+                );
+
+                let id = crate::binding::symbol::internal_id("&");
+                let and = rb_num_coerce_bit(Integer::new(6).value(), Integer::new(3).value(), id);
+                assert_eq!(Integer::from(and).to_i64(), 2);
+            }
+        });
+    }
+
+    #[test]
+    fn test_numeric_parsing_raw_functions() {
+        crate::on_ruby_thread(|| {
+            use crate::rubysys::numeric::*;
+            use std::{ffi::CString, ptr};
+
+            unsafe {
+                let text = CString::new("0x1p4 rest").unwrap();
+                let mut end = ptr::null_mut();
+                assert_eq!(ruby_strtod(text.as_ptr(), &mut end), 16.0);
+                assert_eq!(end as usize - text.as_ptr() as usize, 5);
+
+                let text = CString::new("  -12z").unwrap();
+                let mut end = ptr::null_mut();
+                assert_eq!(ruby_strtoul(text.as_ptr(), &mut end, 10) as i64 as i32, -12);
+                assert_eq!(*end as u8, b'z');
+                assert_eq!(
+                    ruby_strtoul(text.as_ptr(), ptr::null_mut(), 36) as i64 as i32,
+                    -1403
+                );
+
+                let mut consumed = 0;
+                assert_eq!(ruby_scan_hex(b"fFg".as_ptr() as _, 3, &mut consumed), 255);
+                assert_eq!(consumed, 2);
+                assert_eq!(ruby_scan_oct(b"778".as_ptr() as _, 3, &mut consumed), 63);
+                assert_eq!(consumed, 2);
+
+                let mut overflow = 0;
+                let text = b"zz!";
+                assert_eq!(
+                    ruby_scan_digits(text.as_ptr() as _, 3, 36, &mut consumed, &mut overflow),
+                    35 * 36 + 35
+                );
+                assert_eq!((consumed, overflow), (2, 0));
+                let text = CString::new("1".repeat(100)).unwrap();
+                ruby_scan_digits(text.as_ptr(), -1, 10, &mut consumed, &mut overflow);
+                assert_eq!((consumed, overflow), (100, 1));
+            }
         });
     }
 }

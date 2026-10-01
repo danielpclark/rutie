@@ -69,3 +69,27 @@ pub fn num_to_i64(num: Value) -> i64 {
 pub fn num_to_u64(num: Value) -> u64 {
     unsafe { fixnum::rb_num2ull(num) }
 }
+
+// The `fix_to_*` conversions raise `RangeError` when the number does not fit.
+pub fn fix_to_i16(num: Value) -> i16 {
+    unsafe { fixnum::rb_fix2short(num) as i16 }
+}
+
+pub fn fix_to_u16(num: Value) -> u16 {
+    unsafe { fixnum::rb_fix2ushort(num) as u16 }
+}
+
+pub fn fix_to_i32(num: Value) -> i32 {
+    unsafe { fixnum::rb_fix2int(num) as i32 }
+}
+
+#[cfg(not(any(windows, target_pointer_width = "32")))]
+pub fn fix_to_u32(num: Value) -> u32 {
+    unsafe { fixnum::rb_fix2uint(num) as u32 }
+}
+
+// No `rb_fix2uint` here (see `num_to_u32`).
+#[cfg(any(windows, target_pointer_width = "32"))]
+pub fn fix_to_u32(num: Value) -> u32 {
+    unsafe { fixnum::rb_num2ulong(num) as u32 }
+}

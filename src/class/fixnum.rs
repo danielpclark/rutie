@@ -1,9 +1,9 @@
 use std::convert::From;
 
 use crate::{
-    binding::fixnum,
+    binding::{fixnum, vm},
     types::{Value, ValueType},
-    AnyObject, Object, VerifiedObject,
+    AnyException, AnyObject, NilClass, Object, VerifiedObject,
 };
 
 /// `Fixnum`
@@ -123,6 +123,94 @@ impl Fixnum {
     pub fn to_u32(&self) -> u32 {
         fixnum::num_to_u32(self.value())
     }
+
+    /// Returns the number as an `i16`, or the `RangeError` when it does
+    /// not fit (`rb_fix2short`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Fixnum::new(-300).try_to_i16(), Ok(-300));
+    /// assert!(Fixnum::new(40_000).try_to_i16().is_err());
+    /// ```
+    pub fn try_to_i16(&self) -> Result<i16, AnyException> {
+        protect_conversion(self.value(), fixnum::fix_to_i16)
+    }
+
+    /// Returns the number as a `u16`, or the `RangeError` when it does not
+    /// fit (`rb_fix2ushort`).
+    ///
+    /// Like C's conversion, a negative number down to `-32768` wraps around.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Fixnum::new(40_000).try_to_u16(), Ok(40_000));
+    /// assert_eq!(Fixnum::new(-1).try_to_u16(), Ok(u16::MAX));
+    /// assert!(Fixnum::new(70_000).try_to_u16().is_err());
+    /// ```
+    pub fn try_to_u16(&self) -> Result<u16, AnyException> {
+        protect_conversion(self.value(), fixnum::fix_to_u16)
+    }
+
+    /// Returns the number as an `i32`, or the `RangeError` when it does
+    /// not fit (`rb_fix2int`). Unlike [`to_i32`](#method.to_i32), the
+    /// exception is returned instead of raised.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Fixnum::new(i32::MIN as i64).try_to_i32(), Ok(i32::MIN));
+    /// assert!(Fixnum::new(i32::MAX as i64 + 1).try_to_i32().is_err());
+    /// ```
+    pub fn try_to_i32(&self) -> Result<i32, AnyException> {
+        protect_conversion(self.value(), fixnum::fix_to_i32)
+    }
+
+    /// Returns the number as a `u32`, or the `RangeError` when it does not
+    /// fit (`rb_fix2uint`). Unlike [`to_u32`](#method.to_u32), the
+    /// exception is returned instead of raised.
+    ///
+    /// Like C's conversion, a negative number wraps around.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, VM};
+    /// # VM::init();
+    ///
+    /// assert_eq!(Fixnum::new(u32::MAX as i64).try_to_u32(), Ok(u32::MAX));
+    /// assert_eq!(Fixnum::new(-1).try_to_u32(), Ok(u32::MAX));
+    /// assert!(Fixnum::new(u32::MAX as i64 + 1).try_to_u32().is_err());
+    /// ```
+    pub fn try_to_u32(&self) -> Result<u32, AnyException> {
+        protect_conversion(self.value(), fixnum::fix_to_u32)
+    }
+}
+
+// Runs a conversion that raises `RangeError`, returning the exception.
+fn protect_conversion<T: Default>(
+    value: Value,
+    convert: fn(Value) -> T,
+) -> Result<T, AnyException> {
+    let mut result = T::default();
+
+    vm::protect_value(|| {
+        result = convert(value);
+
+        NilClass::new().value()
+    })
+    .map(|_| result)
+    .map_err(AnyException::from)
 }
 
 impl From<Value> for Fixnum {
@@ -201,6 +289,33 @@ mod tests {
                 .unwrap();
             assert_eq!(sum, Fixnum::new(42));
             assert_ne!(sum, number);
+        });
+    }
+
+    #[test]
+    fn test_fixnum_checked_conversions() {
+        crate::on_ruby_thread(|| {
+            assert_eq!(Fixnum::new(i16::MIN as i64).try_to_i16(), Ok(i16::MIN));
+            assert_eq!(Fixnum::new(i16::MAX as i64).try_to_i16(), Ok(i16::MAX));
+            assert!(Fixnum::new(i16::MIN as i64 - 1).try_to_i16().is_err());
+            assert!(Fixnum::new(i16::MAX as i64 + 1).try_to_i16().is_err());
+
+            assert_eq!(Fixnum::new(u16::MAX as i64).try_to_u16(), Ok(u16::MAX));
+            assert!(Fixnum::new(u16::MAX as i64 + 1).try_to_u16().is_err());
+
+            assert_eq!(Fixnum::new(i32::MAX as i64).try_to_i32(), Ok(i32::MAX));
+            assert!(Fixnum::new(i32::MIN as i64 - 1).try_to_i32().is_err());
+
+            assert_eq!(Fixnum::new(0).try_to_u32(), Ok(0));
+            assert_eq!(Fixnum::new(u32::MAX as i64).try_to_u32(), Ok(u32::MAX));
+            let error = Fixnum::new(u32::MAX as i64 + 1).try_to_u32().unwrap_err();
+            assert_eq!(error.class().name().unwrap().to_str(), "RangeError");
+
+            // The error is cleared: Ruby code still runs normally.
+            assert_eq!(
+                VM::eval("1 + 1").unwrap().try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(2))
+            );
         });
     }
 }

@@ -1,11 +1,14 @@
-use std::{ffi::CStr, mem};
+use std::{cmp::Ordering, ffi::CStr, mem, ptr};
 
 use crate::{
     binding::{fixnum, symbol},
-    rubysys::numeric::{
-        self, INTEGER_PACK_2COMP, INTEGER_PACK_LSWORD_FIRST, INTEGER_PACK_NATIVE_BYTE_ORDER,
+    rubysys::{
+        self,
+        numeric::{
+            self, INTEGER_PACK_2COMP, INTEGER_PACK_LSWORD_FIRST, INTEGER_PACK_NATIVE_BYTE_ORDER,
+        },
     },
-    types::{c_int, c_long, c_void, Value},
+    types::{c_int, c_long, c_ulong, c_void, Value},
 };
 
 const PACK_FLAGS: c_int = INTEGER_PACK_LSWORD_FIRST | INTEGER_PACK_NATIVE_BYTE_ORDER;
@@ -158,6 +161,126 @@ pub fn complex_from_parts(real: Value, imaginary: Value) -> Value {
 }
 
 // `x ** y`; `x` must not be `c_long::MIN`, which Ruby negates.
-pub fn int_positive_pow(x: c_long, y: libc::c_ulong) -> Value {
+pub fn int_positive_pow(x: c_long, y: c_ulong) -> Value {
     unsafe { numeric::rb_int_positive_pow(x, y) }
+}
+
+// The `rb_big_*` operations read their receiver as a Bignum, so a Fixnum is
+// first copied into one (`rb_int2big`). Their results are normalised.
+fn to_bignum(integer: Value) -> Value {
+    if integer.is_fixnum() {
+        unsafe { rubysys::fixnum::rb_int2big(fixnum::num_to_isize(integer)) }
+    } else {
+        integer
+    }
+}
+
+pub fn integer_and(integer: Value, other: Value) -> Value {
+    unsafe { numeric::rb_big_and(to_bignum(integer), other) }
+}
+
+pub fn integer_or(integer: Value, other: Value) -> Value {
+    unsafe { numeric::rb_big_or(to_bignum(integer), other) }
+}
+
+pub fn integer_xor(integer: Value, other: Value) -> Value {
+    unsafe { numeric::rb_big_xor(to_bignum(integer), other) }
+}
+
+// Raises `RangeError` (or `NoMemoryError`) when the result is too big.
+pub fn integer_lshift(integer: Value, bits: i64) -> Value {
+    unsafe { numeric::rb_big_lshift(to_bignum(integer), fixnum::i64_to_num(bits)) }
+}
+
+// A negative `bits` shifts left, so this can raise like `integer_lshift`.
+pub fn integer_rshift(integer: Value, bits: i64) -> Value {
+    unsafe { numeric::rb_big_rshift(to_bignum(integer), fixnum::i64_to_num(bits)) }
+}
+
+// `[quotient, modulus]`; raises `ZeroDivisionError`.
+pub fn integer_divmod(integer: Value, other: Value) -> Value {
+    unsafe { numeric::rb_big_divmod(to_bignum(integer), other) }
+}
+
+// `None` when `word_bits` is 0 or the count does not fit a `size_t`.
+pub fn integer_abs_num_words(integer: Value, word_bits: usize) -> Option<usize> {
+    let words = unsafe { numeric::rb_absint_numwords(integer, word_bits, ptr::null_mut()) };
+
+    if words == usize::MAX {
+        None
+    } else {
+        Some(words)
+    }
+}
+
+pub fn integer_abs_is_single_bit(integer: Value) -> bool {
+    unsafe { numeric::rb_absint_singlebit_p(integer) != 0 }
+}
+
+// The low `words.len()` words of the two's complement, least significant first.
+pub fn integer_pack_longs(integer: Value, words: &mut [c_ulong]) {
+    if !words.is_empty() {
+        unsafe { numeric::rb_big_pack(integer, words.as_mut_ptr(), words.len() as c_long) }
+    }
+}
+
+pub fn integer_unpack_longs(words: &[c_ulong]) -> Value {
+    if words.is_empty() {
+        return fixnum::i64_to_num(0);
+    }
+
+    // `rb_big_unpack` only reads the buffer.
+    unsafe { numeric::rb_big_unpack(words.as_ptr() as *mut c_ulong, words.len() as c_long) }
+}
+
+// Raises `FloatDomainError` for `NaN` and infinities.
+pub fn float_rationalize_with_precision(float: Value, precision: Value) -> Value {
+    unsafe { numeric::rb_flt_rationalize_with_prec(float, precision) }
+}
+
+// `None` when either is `NaN`.
+pub fn compare_f64(lhs: f64, rhs: f64) -> Option<Ordering> {
+    let result = unsafe { numeric::rb_dbl_cmp(lhs, rhs) };
+
+    if result.is_nil() {
+        None
+    } else {
+        Some(fixnum::num_to_i64(result).cmp(&0))
+    }
+}
+
+pub fn complex_from_f64(real: f64, imaginary: f64) -> Value {
+    unsafe { numeric::rb_dbl_complex_new(real, imaginary) }
+}
+
+pub fn complex_plus(complex: Value, other: Value) -> Value {
+    unsafe { numeric::rb_complex_plus(complex, other) }
+}
+
+pub fn complex_minus(complex: Value, other: Value) -> Value {
+    unsafe { numeric::rb_complex_minus(complex, other) }
+}
+
+pub fn complex_mul(complex: Value, other: Value) -> Value {
+    unsafe { numeric::rb_complex_mul(complex, other) }
+}
+
+pub fn complex_div(complex: Value, other: Value) -> Value {
+    unsafe { numeric::rb_complex_div(complex, other) }
+}
+
+pub fn complex_pow(complex: Value, exponent: Value) -> Value {
+    unsafe { numeric::rb_complex_pow(complex, exponent) }
+}
+
+pub fn complex_uminus(complex: Value) -> Value {
+    unsafe { numeric::rb_complex_uminus(complex) }
+}
+
+pub fn complex_conjugate(complex: Value) -> Value {
+    unsafe { numeric::rb_complex_conjugate(complex) }
+}
+
+pub fn coerce_bit(x: Value, y: Value, operator: &str) -> Value {
+    unsafe { numeric::rb_num_coerce_bit(x, y, symbol::internal_id(operator)) }
 }

@@ -1,4 +1,4 @@
-use std::convert::From;
+use std::{cmp::Ordering, convert::From};
 
 use crate::{
     binding::float,
@@ -36,6 +36,37 @@ impl Float {
         crate::binding::vm::protect_value(|| crate::binding::numeric::float_rationalize(float))
             .map(Rational::from)
             .map_err(AnyException::from)
+    }
+
+    /// Returns the simplest `Rational` within `precision` of this float
+    /// (Ruby's `rationalize(precision)`, `rb_flt_rationalize_with_prec`),
+    /// or the `FloatDomainError` for `NaN` and infinities.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Float, VM};
+    /// # VM::init();
+    ///
+    /// let pi = Float::new(3.141592);
+    ///
+    /// let rough = pi.rationalize_with_precision(0.01).unwrap();
+    /// assert_eq!((rough.numerator().to_i64(), rough.denominator().to_i64()), (22, 7));
+    ///
+    /// let closer = pi.rationalize_with_precision(0.001).unwrap();
+    /// assert_eq!((closer.numerator().to_i64(), closer.denominator().to_i64()), (201, 64));
+    ///
+    /// assert!(Float::new(f64::NAN).rationalize_with_precision(0.1).is_err());
+    /// ```
+    pub fn rationalize_with_precision(&self, precision: f64) -> Result<Rational, AnyException> {
+        let float = self.value();
+        let precision = Float::new(precision).value();
+
+        crate::binding::vm::protect_value(|| {
+            crate::binding::numeric::float_rationalize_with_precision(float, precision)
+        })
+        .map(Rational::from)
+        .map_err(AnyException::from)
     }
 
     /// Converts `object` to a `Float` the way Ruby's `Float(object)`
@@ -173,6 +204,26 @@ impl PartialEq for Float {
     }
 }
 
+/// Compares the values like Ruby's `Float#<=>` (`rb_dbl_cmp`); `NaN` is not
+/// comparable.
+///
+/// # Examples
+///
+/// ```
+/// use rutie::{Float, VM};
+/// use std::cmp::Ordering;
+/// # VM::init();
+///
+/// assert!(Float::new(1.5) < Float::new(2.0));
+/// assert_eq!(Float::new(-0.0).partial_cmp(&Float::new(0.0)), Some(Ordering::Equal));
+/// assert_eq!(Float::new(f64::NAN).partial_cmp(&Float::new(1.0)), None);
+/// ```
+impl PartialOrd for Float {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        crate::binding::numeric::compare_f64(self.to_f64(), other.to_f64())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{AnyObject, Fixnum, Float, Object, RString, VerifiedObject, VM};
@@ -211,6 +262,50 @@ mod tests {
                 .try_convert_to::<Float>()
                 .unwrap();
             assert!((parsed.to_f64() - 0.3).abs() < 1e-9);
+        });
+    }
+
+    #[test]
+    fn test_float_rationalize_with_precision_and_ordering() {
+        crate::on_ruby_thread(|| {
+            use crate::{rubysys::float::*, Object, Rational};
+            use std::cmp::Ordering;
+
+            let pi = Float::new(3.141592);
+            for &(precision, numerator, denominator) in &[(0.1, 16, 5), (1.0, 3, 1), (-0.01, 22, 7)]
+            {
+                let rational = pi.rationalize_with_precision(precision).unwrap();
+                assert_eq!(rational, Rational::new(numerator, denominator).unwrap());
+            }
+            assert!(Float::new(f64::INFINITY)
+                .rationalize_with_precision(0.1)
+                .is_err());
+            assert!(Float::new(1.0)
+                .rationalize_with_precision(f64::INFINITY)
+                .is_err());
+
+            assert_eq!(
+                Float::new(1.0).partial_cmp(&Float::new(2.0)),
+                Some(Ordering::Less)
+            );
+            assert_eq!(
+                Float::new(2.0).partial_cmp(&Float::new(1.0)),
+                Some(Ordering::Greater)
+            );
+            assert_eq!(
+                Float::new(f64::INFINITY).partial_cmp(&Float::new(f64::INFINITY)),
+                Some(Ordering::Equal)
+            );
+            assert_eq!(Float::new(1.0).partial_cmp(&Float::new(f64::NAN)), None);
+            assert!(!(Float::new(f64::NAN) < Float::new(1.0)));
+
+            unsafe {
+                let heap = rb_float_new_in_heap(1.5);
+                assert!(!heap.is_flonum());
+                assert_eq!(rb_float_value(heap), 1.5);
+                assert_eq!(rb_float_value(Float::new(-2.25).value()), -2.25);
+                assert!(Float::from(heap) == Float::new(1.5));
+            }
         });
     }
 }
