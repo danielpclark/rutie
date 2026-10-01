@@ -1,7 +1,7 @@
 use std::{convert::From, fmt, marker::PhantomData, time::Duration};
 
 use crate::{
-    binding::{io, thread, vm},
+    binding::{debug, io, thread, vm},
     rubysys::thread as rubysys_thread,
     types::{c_void, Value},
 };
@@ -10,7 +10,8 @@ use crate::{
 use crate::types::RawFd;
 
 use crate::{
-    AnyException, AnyObject, Class, Exception, Float, NilClass, Object, VerifiedObject, IO,
+    AnyException, AnyObject, Class, Exception, Float, NilClass, Object, ProfileFrame,
+    VerifiedObject, IO,
 };
 
 /// `Thread`
@@ -636,6 +637,42 @@ impl Thread {
     /// ```
     pub fn local_set<T: Object>(&self, name: &str, value: T) -> AnyObject {
         AnyObject::from(thread::local_set(self.value(), name, value.value()))
+    }
+
+    /// Like [`VM::profile_frames`](struct.VM.html#method.profile_frames),
+    /// for this thread's stack (`rb_profile_thread_frames`, Ruby 3.3+).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Object, Thread, VM};
+    /// # VM::init();
+    ///
+    /// let worker = VM::eval(
+    ///     "q = Queue.new
+    ///      t = Thread.new { def wait_here(q) = q.pop; wait_here(q) }
+    ///      Thread.pass until t.status == 'sleep'
+    ///      $rutie_queue = q
+    ///      t",
+    /// )
+    /// .unwrap()
+    /// .try_convert_to::<Thread>()
+    /// .unwrap();
+    ///
+    /// let frames = worker.profile_frames(0, 10);
+    /// let names: Vec<String> = frames
+    ///     .iter()
+    ///     .filter_map(|frame| frame.method_name())
+    ///     .map(|name| name.to_string())
+    ///     .collect();
+    /// assert_eq!(names, ["pop", "wait_here"]);
+    ///
+    /// VM::eval("$rutie_queue << 1").unwrap();
+    /// worker.join().unwrap();
+    /// ```
+    #[cfg(ruby_gte_3_3)]
+    pub fn profile_frames(&self, start: usize, limit: usize) -> Vec<ProfileFrame> {
+        ProfileFrame::from_frames(debug::profile_thread_frames(self.value(), start, limit))
     }
 
     /// Registers `func` to be called on the thread events in `events`, a
@@ -1338,6 +1375,44 @@ mod tests {
                 assert!(seen.contains(&(main.value(), 42)));
                 assert!(seen.iter().any(|&(thread, _)| thread == worker.value()));
             }
+        });
+    }
+
+    #[cfg(ruby_gte_3_3)]
+    #[test]
+    fn test_profile_frames_of_another_thread() {
+        crate::on_ruby_thread(|| {
+            let worker = VM::eval(
+                "$rutie_profile_queue = Queue.new
+                 t = Thread.new { def rutie_parked(q) = q.pop; rutie_parked($rutie_profile_queue) }
+                 Thread.pass until t.status == 'sleep'
+                 t",
+            )
+            .unwrap()
+            .try_convert_to::<Thread>()
+            .unwrap();
+
+            let frames = worker.profile_frames(0, 10);
+            let labels: Vec<String> = frames
+                .iter()
+                .map(|frame| frame.full_label().unwrap().to_string())
+                .collect();
+            assert_eq!(labels[0], "Thread::Queue#pop");
+            assert_eq!(labels[1], "Object#rutie_parked");
+            assert!(frames[1].line() > 0);
+            assert_eq!(
+                worker.profile_frames(1, 1)[0]
+                    .full_label()
+                    .unwrap()
+                    .to_str(),
+                "Object#rutie_parked"
+            );
+            assert!(worker.profile_frames(0, 0).is_empty());
+
+            VM::eval("$rutie_profile_queue << 1; $rutie_profile_queue = nil").unwrap();
+            worker.join().unwrap();
+            // A finished thread has no frames.
+            assert!(worker.profile_frames(0, 10).is_empty());
         });
     }
 }

@@ -6,6 +6,7 @@ pub mod boolean;
 pub mod builtins;
 pub mod class;
 pub mod complex;
+pub mod debug;
 pub mod encoding;
 pub mod enumerator;
 pub mod fiber;

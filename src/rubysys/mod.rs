@@ -4,6 +4,7 @@ pub mod array;
 pub mod builtins;
 pub mod class;
 pub mod constant;
+pub mod debug;
 pub mod encoding;
 pub mod enumerator;
 pub mod exception;
