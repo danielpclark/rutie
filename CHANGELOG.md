@@ -34,6 +34,32 @@ Supports Ruby 4.0 on Linux, macOS and Windows; Ruby 3.2–3.4 stay on 0.13.x.
    thanks to @danielpclark
  - `Complex::add`, `sub`, `mul`, `div`, `pow`, `neg` and `conjugate`,
    thanks to @danielpclark
+ - `RString::new_external`, `new_external_with_encoding`, `new_locale`,
+   `new_filesystem`, `new_static`, `new_static_with_encoding`, `interned`,
+   `interned_bytes` and `to_interned`, thanks to @danielpclark
+ - `RString::append`, `concat_codepoint`, `is_comparable`, `is_eql`,
+   `reserve`, `drop_bytes`, `splice`, `byte_offset`, `char_index`, `succ`,
+   `dump`, `check_ascii_compatible`, `export`, `path_basename`,
+   `path_extname`, `RString::implicit_convert` and `RString::format`
+   (`Kernel#format`), thanks to @danielpclark
+ - `Encoding::define_dummy`, `add_alias`, `is_capable`, `locale_charmap`,
+   and `Encoding::is_unicode`, `count_chars` and `search`, thanks to
+   @danielpclark
+ - `EncodingConverter` and `ConversionResult`, a safe wrapper of Ruby's
+   `rb_econv_*` transcoding API (streaming and buffer conversion,
+   replacement, decorators, `insert_output`, `putback`), thanks to
+   @danielpclark
+ - `Symbol::new_with_encoding`, `find_with_encoding`, `is_literal_name`,
+   `all`, and `Symbol::to_setter`, `is_setter_name`,
+   `is_global_variable_name`, `is_local_name` and `is_junk_name`, thanks to
+   @danielpclark
+ - `Regexp::new_with_encoding`, `Regexp::escape`, `Regexp::search` and
+   `MatchData::last_group`, thanks to @danielpclark
+ - `VM::last_line` and `VM::set_last_line` (`$_`), thanks to @danielpclark
+ - `rubysys` bindings for the rest of Ruby 4.0's string, encoding,
+   transcoding, sprintf, symbol, parse and regexp C API, with the `RbEconv`,
+   `ReRegisters`, `OnigRegexType` and `OnigPosition` types, thanks to
+   @danielpclark
  - `rubysys` bindings for the rest of Ruby 4.0's numeric C API: `bignum.h`,
    `rbignum.h`, `complex.h`, `rational.h`, `numeric.h`, the arithmetic
    headers, `intern/random.h` and `ruby/random.h` (with `rb_random_t`,
@@ -51,6 +77,7 @@ Supports Ruby 4.0 on Linux, macOS and Windows; Ruby 3.2–3.4 stay on 0.13.x.
  - `rubysys::constant::FL_EXIVAR` is 0, as Ruby 4.0's `RUBY_FL_EXIVAR` is,
    thanks to @danielpclark
  - `Complex::from_f64` uses `rb_dbl_complex_new`, thanks to @danielpclark
+ - `Encoding::is_dummy` calls `rb_enc_dummy_p`, thanks to @danielpclark
 
 ### Removed
  - Ruby 3.2, 3.3 and 3.4 support, the `ruby_3_*`/`ruby_gte_3_*` cfg flags, and
