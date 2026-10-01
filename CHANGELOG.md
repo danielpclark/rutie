@@ -8,8 +8,7 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [0.11.0] - Unreleased
-Supports Ruby 3.0, 3.1 and 3.2; Ruby 2 stays on 0.10.x. See "Migrating
-from Ruru to Rutie → 0.11" in the README.
+Supports Ruby 3.0, 3.1 and 3.2; Ruby 2 stays on 0.10.x.
 
 ### Added
  - `build.rs` sets `ruby_3_0`/`ruby_3_1`/`ruby_3_2` and cumulative

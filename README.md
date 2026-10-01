@@ -29,7 +29,6 @@ This project is a continuation of:
 * [Using Rust in Ruby](https://github.com/danielpclark/rutie#using-rust-in-ruby)
 * [Custom Ruby Objects in Rust](https://github.com/danielpclark/rutie#custom-ruby-objects-in-rust)
 * [Variadic Functions / Splat Operator](https://github.com/danielpclark/rutie#variadic-functions--splat-operator)
-* [Migrating from Ruru to Rutie](https://github.com/danielpclark/rutie#migrating-from-ruru-to-rutie)
 * [Safety — The Rutie Philosophy vs The Rust Philosophy on Safety](https://github.com/danielpclark/rutie/blob/master/README.md#safety--the-rutie-philosophy-vs-the-rust-philosophy-on-safety)
 * [Troubleshooting](https://github.com/danielpclark/rutie#troubleshooting)
   * [It panics for some Rubies on CI server tests](https://github.com/danielpclark/rutie#it-panics-for-some-rubies-on-ci-server-tests)
@@ -320,91 +319,6 @@ For optional, keyword and block parameters, write a plain
 parse the arguments with an `rb_scan_args` format such as `"11*:&"`. It returns
 `ScannedArgs` (required, optional, splat, post, keywords and block) without any
 unsafe code; see its documentation for an example.
-
-## Migrating from Ruru to Rutie
-
-#### &lt;0.1
-
-For using Rutie versions less than 0.1 the change is simple.  Replace all occurrences
-of the string `ruru` with `rutie` in your program.  And if you would like to use
-`ruby-sys` code from Rutie rather than requiring `ruby-sys` you can change all existing
-references to `ruby_sys` to `rutie::rubysys`.
-
-#### 0.1
-
-You will have additional considerations to change like `Error` being removed.  For that; change instances of type `ruru::result::Error` to `rutie::AnyException`.
-
-#### 0.2
-
-Migrated `parse_arguments` from `VM` to `util`.
-
-#### 0.3
-
-Internal changes `util` from `binding` and `rubysys` have been replaced to reduce confusion and reduce duplication.
-
-#### 0.10
-
-0.10 targets Ruby 2 (2.5, 2.6, 2.7) and continues the 0.8/0.9 line. It adds
-a large amount of API (see the CHANGELOG) and has one breaking change to
-migrate from 0.9.x:
-
-- `VM::at_exit` now does what its name says: the closure runs when the Ruby VM
-  shuts down (Ruby's `at_exit`), not immediately. It must be `'static` (move
-  captured values into it). Programs embedding Ruby run these handlers by calling
-  `unsafe { VM::cleanup() }` at the end. If you relied on the old immediate call,
-  use `VM::call_protected`, which keeps that behaviour (and no longer crashes:
-  closures that captured variables used to read a bad pointer).
-
-Builds also work with current Cargo without setting `LD_LIBRARY_PATH` for
-`cargo test`.
-
-If you were depending on the unpublished `rb-sys`-based `master` (self-labelled
-0.10.0, February–September 2025) through a git dependency: that tree is
-discontinued. Its `link-ruby` and `ruby-static` cargo features do not exist in
-0.10; use the `no-link` feature (or `NO_LINK_RUTIE`) and the `RUBY_STATIC`
-environment variable as documented below, and expect Ruby 2, not Ruby 3.
-
-#### 0.11
-
-0.11 supports Ruby 3.0, 3.1 and 3.2 and drops Ruby 2 (stay on 0.10.x for
-Ruby 2.5–2.7). It keeps what 0.10.2 added for all three operating systems:
-Linux, macOS and Windows (MSVC and GNU toolchains, `rutie_callback!`), and
-linking a static Ruby (tested on Linux and macOS). Migrating from 0.10:
-
-- **Build.** `build.rs` fails with a message naming the right Rutie line when
-  it finds a Ruby other than 3.0–3.2. The cfg flags are now `ruby_3_0`,
-  `ruby_3_1`, `ruby_3_2` and `ruby_gte_3_0`…`ruby_gte_3_2`; the `ruby_2_*`
-  flags are gone. Switching Ruby (a new `PATH`, `RUBY`, `RBENV_VERSION` or
-  `ASDF_RUBY_VERSION`) now rebuilds Rutie; run `cargo clean -p rutie` if you
-  switch some other way.
-- **Keyword arguments** follow Ruby 3. `VM::scan_args` only fills the `:`
-  keywords when the method was called with keywords; a trailing `Hash`
-  passed positionally stays positional. `VM::scan_args_with_keywords` keeps
-  Ruby 2's behaviour of taking a trailing `Hash` as keywords.
-  `Object::send_with_keywords` and `VM::is_keyword_given` are available on
-  every supported Ruby. `methods!` receives keywords as a trailing `Hash`.
-- **Removed:** `Class::data` (Ruby 3 no longer exports `rb_cData`).
-- **Changed behaviour:**
-  - `IO::binmode` also sets the external encoding to ASCII-8BIT, as Ruby's
-    `IO#binmode` does.
-  - `VM::run_file` loads the script like `VM::load` after setting `$0` and
-    `ARGV`, so it can run more than once and returns errors (including
-    `SystemExit`) instead of exiting.
-  - `VM::init` processes Ruby's command line once (with RubyGems and
-    `RUBYOPT` off), because Ruby 3 loads part of its core library there, so
-    `$0` can be assigned.
-  - Methods an embedded VM defines through Rutie are not Ractor-safe: calling
-    one outside the main Ractor raises `Ractor::UnsafeError`, as it already
-    did in an extension. `unsafe { VM::ext_ractor_safe(true) }` opts in.
-- **No-ops and deprecations:** `GC::force_recycle` does nothing from Ruby 3.1.
-  `Thread::wait_fd` and `Thread::wait_fd_writable` wrap C functions Ruby
-  deprecates from 3.1; use `Thread::wait_readable` and
-  `Thread::wait_writable`. Both old methods get `#[deprecated]` in 0.12.
-- **New:** GC compaction support (`GC::mark_movable`, `GC::location`,
-  `GC::compact` and a `compact` clause in `wrappable_struct!`),
-  `Fiber::with_storage` (Ruby 3.2), `Hash::with_capacity`, and the Ractor and
-  wait methods above. See the CHANGELOG for the full list.
-
 
 ## Safety — The Rutie Philosophy vs The Rust Philosophy on Safety
 
