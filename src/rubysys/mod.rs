@@ -14,6 +14,7 @@ pub mod gc;
 pub mod hash;
 pub mod io;
 pub mod io_buffer;
+pub mod memory_view;
 pub mod numeric;
 pub mod object;
 pub mod ractor;
