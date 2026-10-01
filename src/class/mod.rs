@@ -25,6 +25,7 @@ pub mod module;
 pub mod mutex;
 pub mod nil_class;
 pub mod ractor;
+pub mod random;
 pub mod range;
 pub mod rational;
 pub mod regexp;

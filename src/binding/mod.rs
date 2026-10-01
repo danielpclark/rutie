@@ -16,6 +16,7 @@ pub mod module;
 pub mod numeric;
 pub mod object;
 pub mod ractor;
+pub mod random;
 pub mod range;
 pub mod regexp;
 pub mod rproc;
