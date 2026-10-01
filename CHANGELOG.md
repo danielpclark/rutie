@@ -10,6 +10,12 @@ API and may have breaking changes during a teeny version change.
 ## [0.14.0] - 2026-10-01
 Supports Ruby 4.0 on Linux, macOS and Windows; Ruby 3.2–3.4 stay on 0.13.x.
 
+Ruby 4.0 changes some programs may notice: `Ractor#take` is gone (use
+`Ractor#value`), and Fiddle, among others, became a bundled gem. `VM::init`
+starts Ruby without RubyGems, and `VM::require` (`rb_require`) does not go
+through RubyGems' `require`, so load a bundled gem with
+`VM::eval("require 'rubygems'; require 'fiddle'")`.
+
 ### Added
  - Ruby 4.0 support: `ruby_4_0`/`ruby_gte_4_0` cfg flags, and every `rubysys`
    declaration checked against Ruby 4.0's headers and `libruby` exports,
@@ -56,6 +62,39 @@ Supports Ruby 4.0 on Linux, macOS and Windows; Ruby 3.2–3.4 stay on 0.13.x.
  - `Regexp::new_with_encoding`, `Regexp::escape`, `Regexp::search` and
    `MatchData::last_group`, thanks to @danielpclark
  - `VM::last_line` and `VM::set_last_line` (`$_`), thanks to @danielpclark
+ - `Class::new_anonymous`, `Module::new_anonymous`, `Class::check_inheritable`,
+   `Class::real_class`, `Class::is_method_basic_definition` and
+   `Class::new_instance_with_keywords`, thanks to @danielpclark
+ - `public_instance_methods`, `protected_instance_methods`,
+   `private_instance_methods`, `included_modules`, `constants`,
+   `class_variables`, `const_get_at`, `const_get_from`,
+   `is_const_defined_from`, `remove_class_variable`, `autoload_path`,
+   `autoload_load`, `remove_method` and `set_path` for `Class` and `Module`,
+   thanks to @danielpclark
+ - `Object::default_to_s`, `respond_to_including_private`,
+   `singleton_methods`, `instance_variable_count`, `each_instance_variable`,
+   `convert_type`, `check_convert_type`, `to_int`, `check_to_int`,
+   `check_to_integer`, `check_to_float`, `check_send_with_keywords`,
+   `define_protected_method`, `def_protected` and
+   `define_not_implemented_method`, thanks to @danielpclark
+ - `WarningCategory`, and `VM::warn_category`, `warning_category`,
+   `compile_warn`, `compile_warning`, `compile_warn_category` and
+   `sys_warning`, thanks to @danielpclark
+ - `IoWait`, and `VM::raise_fatal`, `raise_syserr`, `raise_syserr_with_module`,
+   `raise_wait_syserr`, `raise_load_error`, `raise_name_error`,
+   `raise_frozen_error`, `raise_invalid_value`, `raise_unexpected_type` and
+   `make_exception`, thanks to @danielpclark
+ - `VM::global_variables`, `alias_global_variable`, `trace_global_variable`,
+   `untrace_global_variable`, `backtrace`, `print_backtrace`,
+   `source_location`, `current_method`, `current_method_name`,
+   `current_callee_name`, `current_receiver`, `eval_wrapped`, `argv`,
+   `define_global_function`, `yield_values_with_keywords` and
+   `call_super_with_keywords`, thanks to @danielpclark
+ - `Proc::call_with_keywords`, `Proc::call_with_block`,
+   `Method::call_with_keywords`, `Method::call_with_block`, `Array::push_all`,
+   `Array::pair`, `Hash::bulk_insert`, `Hash::split_keywords`,
+   `Time::precise_interval` and `Time::now_since_epoch`, thanks to
+   @danielpclark
  - `rubysys` bindings for the rest of Ruby 4.0's string, encoding,
    transcoding, sprintf, symbol, parse and regexp C API, with the `RbEconv`,
    `ReRegisters`, `OnigRegexType` and `OnigPosition` types, thanks to
@@ -66,6 +105,10 @@ Supports Ruby 4.0 on Linux, macOS and Windows; Ruby 3.2–3.4 stay on 0.13.x.
    `rb_random_interface_t` and `rb_random_data_type`), the numeric parsers of
    `util.h` and `ctype.h`, the remaining `INTEGER_PACK_*` flags, and
    `types::c_ulong`, thanks to @danielpclark
+ - `rubysys` bindings for the rest of Ruby 4.0's variable, class, object,
+   VM, eval, iterator, proc, error, array, hash, struct, enumerator, marshal,
+   load, rdata and time C API. `rb_cstr_to_dbl` crashes Ruby 4.0 on malformed
+   input with a nonzero `mode`, so pass 0, thanks to @danielpclark
 
 ### Changed
  - `build.rs` warns about a static Ruby built with ZJIT as well as YJIT; both
