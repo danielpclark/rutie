@@ -4,7 +4,7 @@ use crate::{
     binding::{class, regexp, vm},
     rubysys::regexp::{rb_cMatch, rb_cRegexp},
     types::Value,
-    AnyException, AnyObject, Fixnum, NilClass, Object, RString, VerifiedObject,
+    AnyException, AnyObject, Encoding, Fixnum, NilClass, Object, RString, VerifiedObject,
 };
 
 /// `Regexp`
@@ -144,6 +144,93 @@ impl Regexp {
                 Some(MatchData::from(found))
             }
         })
+        .map_err(AnyException::from)
+    }
+
+    /// Compiles `pattern`, whose bytes are in encoding `enc`, with
+    /// `options`, or returns the `RegexpError` for an invalid pattern
+    /// (`rb_enc_reg_new`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Encoding, EncodingSupport, Regexp, RString, VM};
+    /// # VM::init();
+    ///
+    /// let regexp = Regexp::new_with_encoding(b"\\d+", &Encoding::us_ascii(), 0).unwrap();
+    ///
+    /// assert_eq!(regexp.find(&RString::new_utf8("ab12")).unwrap(), Some(2));
+    /// assert!(Regexp::new_with_encoding(b"(", &Encoding::utf8(), 0).is_err());
+    /// ```
+    pub fn new_with_encoding(
+        pattern: &[u8],
+        enc: &Encoding,
+        options: i32,
+    ) -> Result<Self, AnyException> {
+        let enc = enc.value();
+
+        vm::protect_value(|| regexp::new_with_encoding(pattern, enc, options))
+            .map(Regexp::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Returns `string` with the characters that are special in a pattern
+    /// escaped (Ruby's `Regexp.escape`, `rb_reg_quote`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Regexp, RString, VM};
+    /// # VM::init();
+    ///
+    /// let escaped = Regexp::escape(&RString::new_utf8("1.5*(x)"));
+    ///
+    /// assert_eq!(escaped.to_str(), r"1\.5\*\(x\)");
+    /// assert_eq!(Regexp::new(escaped.to_str(), 0).unwrap().find(&RString::new_utf8("a 1.5*(x)")).unwrap(), Some(2));
+    /// ```
+    pub fn escape(string: &RString) -> RString {
+        RString::from(regexp::quote(string.value()))
+    }
+
+    /// Searches `string` from byte offset `start` (backwards from it when
+    /// `reverse` is `true`) and returns the byte offset of the match, or
+    /// `None` (`rb_reg_search`). Returns the error when the string cannot be
+    /// matched, such as one with invalid bytes.
+    ///
+    /// Sets `$~` for the Ruby code that called into Rust.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{MatchData, Regexp, RString, VM};
+    /// # VM::init();
+    ///
+    /// let regexp = Regexp::new("o", 0).unwrap();
+    /// let string = RString::new_utf8("föo bar foo");
+    ///
+    /// assert_eq!(regexp.search(&string, 0, false).unwrap(), Some(3));
+    /// assert_eq!(regexp.search(&string, 4, false).unwrap(), Some(10));
+    /// assert_eq!(regexp.search(&string, 9, true).unwrap(), Some(3));
+    /// assert_eq!(regexp.search(&string, 100, false).unwrap(), None);
+    ///
+    /// regexp.search(&string, 0, false).unwrap();
+    /// assert_eq!(MatchData::last().unwrap().pre_match().to_str(), "fö");
+    /// ```
+    pub fn search(
+        &self,
+        string: &RString,
+        start: usize,
+        reverse: bool,
+    ) -> Result<Option<usize>, AnyException> {
+        let (regexp, string) = (self.value(), string.value());
+        let mut found = None;
+
+        vm::protect_value(|| {
+            found = regexp::search(regexp, string, start, reverse);
+
+            NilClass::new().value()
+        })
+        .map(|_| found)
         .map_err(AnyException::from)
     }
 }
@@ -350,6 +437,34 @@ impl MatchData {
     pub fn post_match(&self) -> RString {
         RString::from(regexp::post_match(self.value()))
     }
+
+    /// Returns the highest-numbered group that took part in the match
+    /// (Ruby's `$+`, `rb_reg_match_last`), or `None` when none did.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Regexp, RString, VM};
+    /// # VM::init();
+    ///
+    /// let regexp = Regexp::new(r"(\w+)@(\w+)", 0).unwrap();
+    /// let found = regexp.match_data(&RString::new_utf8("crab@sea")).unwrap().unwrap();
+    ///
+    /// assert_eq!(found.last_group().unwrap().to_str(), "sea");
+    ///
+    /// let no_groups = Regexp::new("a", 0).unwrap();
+    /// let found = no_groups.match_data(&RString::new_utf8("a")).unwrap().unwrap();
+    /// assert!(found.last_group().is_none());
+    /// ```
+    pub fn last_group(&self) -> Option<RString> {
+        let group = regexp::last_group(self.value());
+
+        if group.is_nil() {
+            None
+        } else {
+            Some(RString::from(group))
+        }
+    }
 }
 
 impl From<Value> for MatchData {
@@ -451,6 +566,57 @@ mod tests {
                 .unwrap();
             // Ruby drops the escape before `/` from the source.
             assert_eq!(from_ruby.source().to_str(), "a/b");
+        });
+    }
+
+    #[test]
+    fn test_regexp_search_escape_and_encoding() {
+        crate::on_ruby_thread(|| {
+            let utf8 = Encoding::utf8();
+            let regexp = Regexp::new_with_encoding("é+".as_bytes(), &utf8, 0).unwrap();
+            let subject = RString::new_utf8("aéé b é");
+
+            assert_eq!(regexp.search(&subject, 0, false).unwrap(), Some(1));
+            assert_eq!(MatchData::last().unwrap().matched().to_str(), "éé");
+            assert_eq!(regexp.search(&subject, 2, false).unwrap(), Some(3));
+            assert_eq!(
+                regexp
+                    .search(&subject, subject.bytesize() as usize, true)
+                    .unwrap(),
+                Some(8)
+            );
+            assert_eq!(regexp.search(&subject, usize::MAX, false).unwrap(), None);
+            assert!(MatchData::last().is_none());
+
+            let broken = RString::from_bytes(b"\xFF", &utf8);
+            assert!(regexp.search(&broken, 0, false).is_err());
+
+            let insensitive =
+                Regexp::new_with_encoding(b"abc", &Encoding::us_ascii(), Regexp::IGNORECASE)
+                    .unwrap();
+            assert_eq!(
+                insensitive.find(&RString::new_utf8("xABC")).unwrap(),
+                Some(1)
+            );
+            let error = Regexp::new_with_encoding(b"[", &utf8, 0).unwrap_err();
+            assert!(crate::Class::from_existing("RegexpError").case_equals(&error));
+
+            let escaped = Regexp::escape(&RString::new_utf8("a.b\n[c]"));
+            assert_eq!(escaped.to_str(), "a\\.b\\n\\[c\\]");
+            assert_eq!(Regexp::escape(&RString::new_utf8("")).to_str(), "");
+
+            let optional = Regexp::new("(a)|(b)", 0).unwrap();
+            // The highest-numbered group that took part in the match.
+            let found = optional
+                .match_data(&RString::new_utf8("a"))
+                .unwrap()
+                .unwrap();
+            assert_eq!(found.last_group().unwrap().to_str(), "a");
+            let found = optional
+                .match_data(&RString::new_utf8("b"))
+                .unwrap()
+                .unwrap();
+            assert_eq!(found.last_group().unwrap().to_str(), "b");
         });
     }
 }

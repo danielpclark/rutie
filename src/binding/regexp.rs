@@ -1,7 +1,8 @@
 use crate::{
     binding::string,
-    rubysys::regexp,
-    types::{c_int, Value},
+    rubysys::{encoding, regexp},
+    types::{c_char, c_int, c_long, Value},
+    util,
 };
 
 pub fn new(pattern: &str, options: i32) -> Value {
@@ -44,4 +45,38 @@ pub fn pre_match(match_data: Value) -> Value {
 
 pub fn post_match(match_data: Value) -> Value {
     unsafe { regexp::rb_reg_match_post(match_data) }
+}
+
+// Raises `RegexpError` for an invalid pattern.
+pub fn new_with_encoding(pattern: &[u8], enc: Value, options: i32) -> Value {
+    unsafe {
+        regexp::rb_enc_reg_new(
+            pattern.as_ptr() as *const c_char,
+            pattern.len() as c_long,
+            encoding::rb_to_encoding(enc),
+            options as c_int,
+        )
+    }
+}
+
+pub fn quote(string: Value) -> Value {
+    unsafe { regexp::rb_reg_quote(string) }
+}
+
+// Byte offset of the match, or `None`; sets `$~`.
+pub fn search(regexp: Value, string: Value, byte_offset: usize, reverse: bool) -> Option<usize> {
+    // Ruby returns -1 for a start past the end.
+    let byte_offset = byte_offset.min(c_long::MAX as usize) as c_long;
+    let found =
+        unsafe { regexp::rb_reg_search(regexp, string, byte_offset, util::bool_to_c_int(reverse)) };
+
+    if found < 0 {
+        None
+    } else {
+        Some(found as usize)
+    }
+}
+
+pub fn last_group(match_data: Value) -> Value {
+    unsafe { regexp::rb_reg_match_last(match_data) }
 }
