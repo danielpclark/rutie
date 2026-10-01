@@ -493,6 +493,7 @@ pub unsafe fn is_lockedtmp(value: Value) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{rstring_end, rstring_len, rstring_ptr};
+    use crate::rubysys::types::{c_char, c_int, c_long};
     use crate::{Array, Fixnum, Object, RString, VM};
 
     // Strings of every length across the embedded/heap boundary (the slot
@@ -533,6 +534,46 @@ mod tests {
 
             let empty = RString::new_utf8("");
             assert_eq!(unsafe { rstring_len(empty.value()) }, 0);
+        });
+    }
+
+    // The variadic declarations pass C arguments through.
+    #[test]
+    fn test_variadic_formatting() {
+        use super::{rb_enc_raise, rb_enc_sprintf, rb_sprintf, rb_str_catf};
+        use crate::rubysys::{encoding::rb_utf8_encoding, exception::rb_eArgError};
+        use crate::{AnyObject, Exception, Object};
+
+        crate::on_ruby_thread(|| unsafe {
+            let formatted = rb_sprintf(
+                b"%d-%s-%ld\0".as_ptr() as *const c_char,
+                42 as c_int,
+                b"text\0".as_ptr() as *const c_char,
+                -7 as c_long,
+            );
+            assert_eq!(RString::from(formatted).to_str(), "42-text--7");
+
+            let appended =
+                rb_str_catf(formatted, b"+%c\0".as_ptr() as *const c_char, b'z' as c_int);
+            assert_eq!(RString::from(appended).to_str(), "42-text--7+z");
+
+            let encoded = rb_enc_sprintf(
+                rb_utf8_encoding(),
+                b"%s\0".as_ptr() as *const c_char,
+                "é\0".as_ptr() as *const c_char,
+            );
+            assert_eq!(RString::from(encoded).to_str(), "é");
+
+            let result = VM::protect(|| -> AnyObject {
+                rb_enc_raise(
+                    rb_utf8_encoding(),
+                    rb_eArgError,
+                    b"bad %d\0".as_ptr() as *const c_char,
+                    3 as c_int,
+                )
+            });
+            assert!(result.is_err());
+            assert_eq!(VM::error_pop().unwrap().message(), "bad 3");
         });
     }
 }

@@ -448,3 +448,28 @@ pub unsafe fn coderange_set(obj: Value, code_range: InternalValue) {
 pub unsafe fn coderange_clear(obj: Value) {
     coderange_set(obj, 0)
 }
+
+// The start of `OnigEncodingType` (`rb_encoding`), up to the fields the
+// inline helpers of `ruby/internal/encoding/encoding.h` read.
+#[repr(C)]
+struct OnigEncodingPrefix {
+    precise_mbc_enc_len: CallbackPtr,
+    name: *const c_char,
+    max_enc_len: c_int,
+    min_enc_len: c_int,
+}
+
+// `rb_enc_mbminlen` (inline in C)
+pub unsafe fn enc_mbminlen(enc: EncodingType) -> c_int {
+    (*(enc as *const OnigEncodingPrefix)).min_enc_len
+}
+
+// `rb_enc_mbmaxlen` (inline in C)
+pub unsafe fn enc_mbmaxlen(enc: EncodingType) -> c_int {
+    (*(enc as *const OnigEncodingPrefix)).max_enc_len
+}
+
+// `rb_enc_asciicompat` (inline in C)
+pub unsafe fn enc_asciicompat(enc: EncodingType) -> bool {
+    enc_mbminlen(enc) == 1 && rb_enc_dummy_p(enc) == 0
+}

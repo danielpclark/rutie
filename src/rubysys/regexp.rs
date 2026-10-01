@@ -137,3 +137,64 @@ extern "C" {
     // rb_reg_region_copy(struct re_registers *dst, const struct re_registers *src)
     pub fn rb_reg_region_copy(dst: *mut ReRegisters, src: *const ReRegisters) -> c_int;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{rb_reg_onig_match, OnigPosition, OnigRegexType, ReRegisters};
+    use crate::{rubysys::types::c_void, Object, RString, Regexp};
+
+    rutie_callback! {
+        fn report_match(
+            reg: *mut OnigRegexType,
+            _str: crate::types::Value,
+            _regs: *mut ReRegisters,
+            args: *mut c_void,
+        ) -> OnigPosition {
+            let calls = unsafe { &mut *(args as *mut (usize, OnigPosition)) };
+            assert!(!reg.is_null());
+            calls.0 += 1;
+            calls.1
+        }
+    }
+
+    // Ruby passes the prepared pattern and our argument to the callback and
+    // returns what it returns.
+    #[test]
+    fn test_onig_match_callback() {
+        crate::on_ruby_thread(|| {
+            let regexp = Regexp::new("b", 0).unwrap();
+            let string = RString::new_utf8("abc");
+            let mut regs = ReRegisters {
+                allocated: 0,
+                num_regs: 0,
+                beg: std::ptr::null_mut(),
+                end: std::ptr::null_mut(),
+            };
+            let mut calls: (usize, OnigPosition) = (0, 1);
+
+            let found = unsafe {
+                rb_reg_onig_match(
+                    regexp.value(),
+                    string.value(),
+                    report_match,
+                    &mut calls as *mut _ as *mut c_void,
+                    &mut regs,
+                )
+            };
+            assert_eq!((found, calls.0), (1, 1));
+
+            // `ONIG_MISMATCH`: Ruby frees the (empty) registers.
+            calls.1 = -1;
+            let found = unsafe {
+                rb_reg_onig_match(
+                    regexp.value(),
+                    string.value(),
+                    report_match,
+                    &mut calls as *mut _ as *mut c_void,
+                    &mut regs,
+                )
+            };
+            assert_eq!((found, calls.0), (-1, 2));
+        });
+    }
+}
