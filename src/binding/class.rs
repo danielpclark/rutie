@@ -3,9 +3,9 @@ use std::ffi::CStr;
 use crate::{
     binding::symbol,
     helpers::scan_args::ScanArgsFormat,
-    rubysys::{class, typed_data},
+    rubysys::{class, typed_data, types::RBasic},
     typed_data::DataTypeWrapper,
-    types::{c_int, c_void, Callback, CallbackPtr, Id, Value},
+    types::{c_int, c_void, Callback, CallbackPtr, Id, Value, ValueType},
     util, Object,
 };
 
@@ -334,4 +334,40 @@ pub fn define_global_const(name: &str, value: Value) {
     let name = util::str_to_cstring(name);
 
     unsafe { class::rb_define_global_const(name.as_ptr(), value) }
+}
+
+pub fn subclasses(klass: Value) -> Value {
+    unsafe { class::rb_class_subclasses(klass) }
+}
+
+// Raises `TypeError` unless `klass` is a singleton class.
+#[cfg(ruby_gte_3_2)]
+pub fn attached_object(klass: Value) -> Value {
+    unsafe { class::rb_class_attached_object(klass) }
+}
+
+pub fn refinement_new() -> Value {
+    unsafe { class::rb_refinement_new() }
+}
+
+// Returns the value of the class variable and the class or module that
+// defines it. Raises `NameError` when it is not defined, and `RuntimeError`
+// when a class and its ancestor both define it ("overtaken").
+pub fn class_variable_find(klass: Value, name: &str) -> (Value, Value) {
+    let mut front = Value::from(0);
+    let value = unsafe { class::rb_cvar_find(klass, symbol::internal_id(name), &mut front) };
+
+    // A module in the ancestors is found through its `T_ICLASS`, which must
+    // not reach Ruby; its `klass` is the module itself.
+    if front.ty() == ValueType::IClass {
+        front = Value::from(unsafe { (*(front.value as *const RBasic)).klass });
+    }
+
+    (value, front)
+}
+
+// Raises `NameError` when `module` does not define the constant itself, and
+// `FrozenError` when it is frozen, so the caller owns `name`.
+pub fn deprecate_constant(module: Value, name: &CStr) {
+    unsafe { class::rb_deprecate_constant(module, name.as_ptr()) }
 }

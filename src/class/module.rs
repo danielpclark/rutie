@@ -87,6 +87,24 @@ impl Module {
         Self::from(module::define_module(name))
     }
 
+    /// Creates an anonymous `Refinement`, a module not attached to any
+    /// class (`rb_refinement_new`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// let refinement = Module::new_refinement();
+    ///
+    /// assert_eq!(refinement.class(), Class::refinement());
+    /// assert!(refinement.name().is_none());
+    /// ```
+    pub fn new_refinement() -> Self {
+        Self::from(class::refinement_new())
+    }
+
     /// Retrieves an existing `Module` object.
     ///
     /// # Examples
@@ -1138,6 +1156,61 @@ impl Module {
         Some(AnyObject::from(class::const_remove(self.value(), name)))
     }
 
+    /// Returns the class variable `name` (such as `"@@count"`) together
+    /// with the module (or class) that defines it, searching this module and
+    /// its ancestors (`rb_cvar_find`), or returns the error: a `NameError`
+    /// if it is not defined, or a `RuntimeError` if both this module and an
+    /// ancestor define it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Base; @@level = 1; end; module Extended; include Base; end").unwrap();
+    ///
+    /// let extended = Module::from_existing("Extended");
+    /// let (level, owner) = extended.class_variable_find("@@level").unwrap();
+    ///
+    /// assert_eq!(level.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
+    /// assert_eq!(owner, Module::from_existing("Base"));
+    /// assert!(extended.class_variable_find("@@missing").is_err());
+    /// ```
+    pub fn class_variable_find(&self, name: &str) -> Result<(AnyObject, Module), AnyException> {
+        Class::from(self.value()).class_variable_find(name)
+    }
+
+    /// Marks the constant `name` defined directly in this module as
+    /// deprecated (Ruby's `deprecate_constant`, `rb_deprecate_constant`):
+    /// using it warns when deprecation warnings are enabled. Returns the
+    /// error: a `NameError` if the module does not define the constant, or a
+    /// `FrozenError` if it is frozen.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Module, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut settings = Module::new("Settings");
+    ///
+    /// settings.const_set("LEGACY", &Fixnum::new(1));
+    /// settings.deprecate_constant("LEGACY").unwrap();
+    ///
+    /// VM::eval("Warning[:deprecated] = true
+    ///           def Warning.warn(message, category: nil) = ($warned = message)").unwrap();
+    /// VM::eval("Settings::LEGACY").unwrap();
+    ///
+    /// let warned = VM::eval("$warned").unwrap().try_convert_to::<RString>().unwrap();
+    ///
+    /// assert!(warned.to_str().contains("Settings::LEGACY is deprecated"));
+    /// assert!(settings.deprecate_constant("MISSING").is_err());
+    /// ```
+    pub fn deprecate_constant(&mut self, name: &str) -> Result<(), AnyException> {
+        crate::class::class::deprecate_constant(self.value(), name)
+    }
+
     /// Wraps Rust structure into a new Ruby object of the current module.
     ///
     /// See the documentation for `wrappable_struct!` macro for more information.
@@ -1403,6 +1476,39 @@ mod tests {
                 .to_any_object()
                 .try_convert_to::<Module>()
                 .is_err());
+        });
+    }
+
+    #[test]
+    fn test_module_refinement_cvar_find_and_deprecate() {
+        crate::on_ruby_thread(|| {
+            let refinement = Module::new_refinement();
+            assert_eq!(refinement.class(), Class::refinement());
+            assert!(refinement.name().is_none());
+            assert!(Module::new_refinement() != refinement);
+
+            VM::eval(
+                "module RutieCvarModule; @@flag = :on; end
+                 class RutieCvarModuleUser; include RutieCvarModule; end
+                 class RutieCvarModuleChild < RutieCvarModuleUser; end",
+            )
+            .unwrap();
+            let module = Module::from_existing("RutieCvarModule");
+            let (value, owner) = module.class_variable_find("@@flag").unwrap();
+            assert_eq!(value.try_convert_to::<Symbol>(), Ok(Symbol::new("on")));
+            assert_eq!(owner, module);
+
+            // Found through the module's iclass in a subclass's ancestors.
+            let (_, owner) = Class::from_existing("RutieCvarModuleChild")
+                .class_variable_find("@@flag")
+                .unwrap();
+            assert_eq!(owner, module);
+            assert!(module.class_variable_find("@@nope").is_err());
+
+            let mut deprecating = Module::new("RutieDeprecatingModule");
+            deprecating.const_set("GONE", &Fixnum::new(0));
+            assert!(deprecating.deprecate_constant("GONE").is_ok());
+            assert!(deprecating.deprecate_constant("NEVER_DEFINED").is_err());
         });
     }
 }

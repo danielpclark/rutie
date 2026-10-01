@@ -1164,6 +1164,126 @@ impl Class {
         Some(AnyObject::from(class::const_remove(self.value(), name)))
     }
 
+    /// Returns the class variable `name` (such as `"@@count"`) together
+    /// with the class or module that defines it, searching this class and
+    /// its ancestors (`rb_cvar_find`), or returns the error: a `NameError`
+    /// if it is not defined, or a `RuntimeError` if both this class and an
+    /// ancestor define it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, Module, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("module Counted; @@count = 3; end; class Widget; include Counted; end").unwrap();
+    ///
+    /// let widget = Class::from_existing("Widget");
+    /// let (count, owner) = widget.class_variable_find("@@count").unwrap();
+    ///
+    /// assert_eq!(count.try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+    /// assert_eq!(owner, Module::from_existing("Counted"));
+    /// assert!(widget.class_variable_find("@@missing").is_err());
+    /// ```
+    pub fn class_variable_find(&self, name: &str) -> Result<(AnyObject, Module), AnyException> {
+        let klass = self.value();
+        let mut owner = Value::from(0);
+
+        vm::protect_value(|| {
+            let (value, front) = class::class_variable_find(klass, name);
+            owner = front;
+
+            value
+        })
+        .map(|value| (AnyObject::from(value), Module::from(owner)))
+        .map_err(AnyException::from)
+    }
+
+    /// Marks the constant `name` defined directly in this class as
+    /// deprecated (Ruby's `deprecate_constant`, `rb_deprecate_constant`):
+    /// using it warns when deprecation warnings are enabled. Returns the
+    /// error: a `NameError` if the class does not define the constant, or a
+    /// `FrozenError` if it is frozen.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let mut config = Class::new("Config", None);
+    ///
+    /// config.const_set("OLD_LIMIT", &Fixnum::new(10));
+    /// config.deprecate_constant("OLD_LIMIT").unwrap();
+    ///
+    /// VM::eval("Warning[:deprecated] = true
+    ///           def Warning.warn(message, category: nil) = ($warned = message)").unwrap();
+    /// VM::eval("Config::OLD_LIMIT").unwrap();
+    ///
+    /// let warned = VM::eval("$warned").unwrap().try_convert_to::<RString>().unwrap();
+    ///
+    /// assert!(warned.to_str().contains("Config::OLD_LIMIT is deprecated"));
+    /// assert!(config.deprecate_constant("MISSING").is_err());
+    /// ```
+    pub fn deprecate_constant(&mut self, name: &str) -> Result<(), AnyException> {
+        deprecate_constant(self.value(), name)
+    }
+
+    /// Returns the direct subclasses of this class (Ruby's
+    /// `Class#subclasses`, `rb_class_subclasses`), most recently defined
+    /// first. Singleton classes are not included.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, VM};
+    /// # VM::init();
+    ///
+    /// let shape = Class::new("Shape", None);
+    /// let circle = Class::new("Circle", Some(&shape));
+    /// let square = Class::new("Square", Some(&shape));
+    ///
+    /// Class::new("Ball", Some(&circle));
+    ///
+    /// let subclasses = shape.subclasses();
+    ///
+    /// assert_eq!(subclasses.len(), 2);
+    /// assert!(subclasses.contains(&circle));
+    /// assert!(subclasses.contains(&square));
+    /// assert!(square.subclasses().is_empty());
+    /// ```
+    pub fn subclasses(&self) -> Vec<Class> {
+        Array::from(class::subclasses(self.value()))
+            .into_iter()
+            .map(|class| Class::from(class.value()))
+            .collect()
+    }
+
+    /// Returns the object this singleton class is attached to (Ruby's
+    /// `Class#attached_object`, `rb_class_attached_object`), or the
+    /// `TypeError` if this is not a singleton class.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Object, VM};
+    /// # VM::init();
+    ///
+    /// let object = VM::eval("Object.new").unwrap();
+    /// let singleton = object.singleton_class();
+    ///
+    /// assert!(singleton.attached_object().unwrap().is_equal(&object));
+    /// assert!(Class::string().attached_object().is_err());
+    /// ```
+    #[cfg(ruby_gte_3_2)]
+    pub fn attached_object(&self) -> Result<AnyObject, AnyException> {
+        let klass = self.value();
+
+        vm::protect_value(|| class::attached_object(klass))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
     /// Wraps Rust structure into a new Ruby object of the current class.
     ///
     /// See the documentation for `wrappable_struct!` macro for more information.
@@ -1265,6 +1385,21 @@ impl Class {
             None => unsafe { rb_cObject },
         }
     }
+}
+
+// `rb_deprecate_constant` for `Class` and `Module`.
+pub(crate) fn deprecate_constant(module: Value, name: &str) -> Result<(), AnyException> {
+    let name = ::std::ffi::CString::new(name).map_err(|_| {
+        AnyException::new("ArgumentError", Some("constant name contains a NUL byte"))
+    })?;
+
+    vm::protect_value(|| {
+        class::deprecate_constant(module, &name);
+
+        NilClass::new().value()
+    })
+    .map(|_| ())
+    .map_err(AnyException::from)
 }
 
 impl From<Value> for Class {
@@ -1568,6 +1703,117 @@ mod tests {
             let error = VM::eval("RutieAttrs.const_get(:Missing)").unwrap_err();
             assert!(Class::name_error().case_equals(&error));
             assert!(error.message().contains("Missing"));
+        });
+    }
+
+    #[test]
+    fn test_class_subclasses_and_cvar_find() {
+        crate::on_ruby_thread(|| {
+            let base = Class::new("RutieSubBase", None);
+            let left = Class::new("RutieSubLeft", Some(&base));
+            let right = Class::new("RutieSubRight", Some(&base));
+
+            // Most recent first.
+            assert_eq!(base.subclasses(), vec![right, left]);
+            assert!(Class::basic_object()
+                .subclasses()
+                .contains(&Class::object()));
+
+            VM::eval(
+                "class RutieCvarTop; @@shared = :top; end
+                 class RutieCvarMid < RutieCvarTop; end
+                 class RutieCvarLow < RutieCvarMid; end
+                 class RutieCvarOwn; end
+                 class RutieCvarOvertaken < RutieCvarOwn; end",
+            )
+            .unwrap();
+
+            let (value, owner) = Class::from_existing("RutieCvarLow")
+                .class_variable_find("@@shared")
+                .unwrap();
+            assert_eq!(value.try_convert_to::<Symbol>(), Ok(Symbol::new("top")));
+            assert_eq!(
+                owner,
+                Module::from(Class::from_existing("RutieCvarTop").value())
+            );
+
+            let error = Class::from_existing("RutieCvarLow")
+                .class_variable_find("@@missing")
+                .unwrap_err();
+            assert!(Class::name_error().case_equals(&error));
+
+            // An ancestor that defines it later overtakes the subclass's.
+            VM::eval(
+                "class RutieCvarOvertaken; @@own = 2; end
+                 class RutieCvarOwn; @@own = 3; end",
+            )
+            .unwrap();
+            let error = Class::from_existing("RutieCvarOvertaken")
+                .class_variable_find("@@own")
+                .unwrap_err();
+            assert!(Class::runtime_error().case_equals(&error));
+            assert!(error.message().contains("overtaken"));
+        });
+    }
+
+    #[test]
+    fn test_class_deprecate_constant() {
+        crate::on_ruby_thread(|| {
+            let mut klass = Class::new("RutieDeprecating", None);
+
+            klass.const_set("OLD", &Fixnum::new(1));
+            klass.deprecate_constant("OLD").unwrap();
+
+            VM::eval(
+                "$rutie_deprecated_was = Warning[:deprecated]
+                 Warning[:deprecated] = true
+                 def Warning.warn(message, category: nil) = ($rutie_warned = [message, category])",
+            )
+            .unwrap();
+            let warned = VM::eval(
+                "begin
+                   RutieDeprecating::OLD
+                   $rutie_warned
+                 ensure
+                   Warning.singleton_class.send(:remove_method, :warn)
+                   Warning[:deprecated] = $rutie_deprecated_was
+                 end",
+            )
+            .unwrap()
+            .try_convert_to::<crate::Array>()
+            .unwrap();
+            assert!(warned
+                .at(0)
+                .try_convert_to::<RString>()
+                .unwrap()
+                .to_str()
+                .contains("constant RutieDeprecating::OLD is deprecated"));
+            assert_eq!(
+                warned.at(1).try_convert_to::<Symbol>(),
+                Ok(Symbol::new("deprecated"))
+            );
+
+            let missing = klass.deprecate_constant("RutieNeverDefined").unwrap_err();
+            assert!(Class::name_error().case_equals(&missing));
+            assert!(klass.deprecate_constant("O\0LD").is_err());
+
+            klass.freeze();
+            let frozen = klass.deprecate_constant("OLD").unwrap_err();
+            assert!(Class::frozen_error().case_equals(&frozen));
+        });
+    }
+
+    #[cfg(ruby_gte_3_2)]
+    #[test]
+    fn test_class_attached_object() {
+        crate::on_ruby_thread(|| {
+            let klass = Class::new("RutieAttached", None);
+
+            let attached = klass.singleton_class().attached_object().unwrap();
+            assert_eq!(Class::from(attached.value()), klass);
+
+            let error = klass.attached_object().unwrap_err();
+            assert!(Class::type_error().case_equals(&error));
         });
     }
 }

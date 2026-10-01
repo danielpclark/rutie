@@ -787,3 +787,8 @@ pub fn yield_values(values: &[Value]) -> Value {
 pub fn need_block() {
     unsafe { vm::rb_need_block() }
 }
+
+#[cfg(ruby_gte_3_2)]
+pub fn clear_constant_cache_for(name: &str) {
+    unsafe { vm::rb_clear_constant_cache_for_id(internal_id(name)) }
+}

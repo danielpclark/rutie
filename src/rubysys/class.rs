@@ -198,4 +198,33 @@ extern "C" {
     // VALUE
     // rb_path2class(const char *path)
     pub fn rb_path2class(path: *const c_char) -> Value;
+    // VALUE
+    // rb_class_subclasses(VALUE klass)
+    //
+    // The direct subclasses of `klass` (`Class#subclasses`), as an `Array`.
+    pub fn rb_class_subclasses(klass: Value) -> Value;
+    // VALUE
+    // rb_class_attached_object(VALUE klass)
+    //
+    // The object the singleton class `klass` is attached to; raises
+    // `TypeError` for any other class.
+    #[cfg(ruby_gte_3_2)]
+    pub fn rb_class_attached_object(klass: Value) -> Value;
+    // VALUE
+    // rb_refinement_new(void)
+    //
+    // An anonymous `Refinement`, not attached to any class.
+    pub fn rb_refinement_new() -> Value;
+    // VALUE
+    // rb_cvar_find(VALUE klass, ID name, VALUE *front)
+    //
+    // `rb_cvar_get` that also stores the class (or the `T_ICLASS` of the
+    // module) where the lookup found the variable in `*front`, which must
+    // start as 0. Raises `NameError` when it is not defined.
+    pub fn rb_cvar_find(klass: Value, name: Id, front: *mut Value) -> Value;
+    // void
+    // rb_deprecate_constant(VALUE mod, const char *name)
+    //
+    // Raises `NameError` when `mod` does not define the constant itself.
+    pub fn rb_deprecate_constant(module: Value, name: *const c_char);
 }

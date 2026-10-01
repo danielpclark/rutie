@@ -21,6 +21,9 @@ extern "C" {
     pub static rb_cMatch: Value;
     pub static rb_cMethod: Value;
     pub static rb_cModule: Value;
+    // `NameError::message`, the internal class of the object that builds a
+    // `NameError` message lazily.
+    pub static rb_cNameErrorMesg: Value;
     pub static rb_cNilClass: Value;
     pub static rb_cNumeric: Value;
     pub static rb_cObject: Value;
@@ -28,6 +31,7 @@ extern "C" {
     pub static rb_cRandom: Value;
     pub static rb_cRange: Value;
     pub static rb_cRational: Value;
+    pub static rb_cRefinement: Value;
     pub static rb_cRegexp: Value;
     pub static rb_cStat: Value;
     pub static rb_cString: Value;

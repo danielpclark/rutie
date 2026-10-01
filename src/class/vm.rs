@@ -2759,6 +2759,30 @@ impl VM {
         io::find_file(RString::new_utf8(name).value()).map(RString::from)
     }
 
+    /// Invalidates Ruby's inline caches of constant lookups for the constant
+    /// name `name` (`rb_clear_constant_cache_for_id`), so code using a
+    /// constant of that name looks it up again. Ruby does this itself when a
+    /// constant is set or removed; an extension only needs it after changing
+    /// what a constant lookup finds by other means.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// VM::eval("LIMIT = 5; def limit = LIMIT").unwrap();
+    /// VM::eval("limit").unwrap();
+    ///
+    /// VM::clear_constant_cache_for("LIMIT");
+    ///
+    /// assert_eq!(VM::eval("limit").unwrap().try_convert_to::<Fixnum>(), Ok(Fixnum::new(5)));
+    /// ```
+    #[cfg(ruby_gte_3_2)]
+    pub fn clear_constant_cache_for(name: &str) {
+        vm::clear_constant_cache_for(name)
+    }
+
     /// Call super
     ///
     /// # Examples
@@ -3816,6 +3840,20 @@ mod tests {
             VM::set_script_name(&original_name);
             VM::set_argv(&[]);
             std::fs::remove_dir_all(&dir).unwrap();
+        });
+    }
+
+    #[cfg(ruby_gte_3_2)]
+    #[test]
+    fn test_clear_constant_cache_for() {
+        crate::on_ruby_thread(|| {
+            VM::eval("RUTIE_CACHED = 1; def rutie_cached = RUTIE_CACHED; rutie_cached").unwrap();
+
+            VM::clear_constant_cache_for("RUTIE_CACHED");
+            VM::clear_constant_cache_for("RUTIE_NEVER_DEFINED_CONSTANT");
+
+            let value = VM::eval("rutie_cached").unwrap();
+            assert_eq!(value.try_convert_to::<Fixnum>(), Ok(Fixnum::new(1)));
         });
     }
 }
