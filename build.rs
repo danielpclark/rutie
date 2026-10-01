@@ -324,11 +324,23 @@ fn static_linker_args() {
     // Ruby links with `-C link-arg=-Wl,--export-dynamic` itself.
     // Apple's linker spells it `-export_dynamic`; without it `-dead_strip`
     // drops those functions and `enc/encdb.bundle` crashes at boot.
-    if is_linux_like_target() {
-        println!("cargo:rustc-link-arg=-Wl,--export-dynamic");
+    //
+    // Build script link args reach only Rutie's own targets, so the flag is
+    // also published (through `links = "ruby"`) as `DEP_RUBY_LINK_ARG` for
+    // dependent crates' build scripts to pass on, and `DEP_RUBY_STATIC` says
+    // the Ruby is static.
+    let export_dynamic = if is_linux_like_target() {
+        Some("-Wl,--export-dynamic")
     } else if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
-        println!("cargo:rustc-link-arg=-Wl,-export_dynamic");
+        Some("-Wl,-export_dynamic")
+    } else {
+        None
+    };
+    if let Some(arg) = export_dynamic {
+        println!("cargo:rustc-link-arg={}", arg);
+        println!("cargo:link_arg={}", arg);
     }
+    println!("cargo:static=true");
 
     // What the archive itself needs (`-lpthread -ldl -lcrypt -lm`, ...).
     library.parse_libs_cflags(rbconfig("MAINLIBS").as_bytes(), false);

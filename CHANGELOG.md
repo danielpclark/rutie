@@ -97,6 +97,14 @@ from Ruru to Rutie → 0.11" in the README.
  - `Class::data`: Ruby 3 does not export `rb_cData`, thanks to @danielpclark
 
 ### Fixed
+ - Programs that depend on Rutie crashed at boot (`enc/encdb.bundle`) with
+   a static Ruby, such as `ruby/setup-ruby`'s macOS Ruby 3.1: only Rutie's own
+   targets exported libruby's functions. The static path now also publishes
+   its export flag as `DEP_RUBY_LINK_ARG` (and `DEP_RUBY_STATIC`) for their
+   build scripts, as `examples/rutie_rust_example/build.rs` does. On macOS, CI
+   builds the gem examples with `NO_LINK_RUTIE`, so an extension uses the
+   `ruby` process's libruby instead of carrying a second, unbooted VM,
+   thanks to @danielpclark
  - `Object::is_eql` returned `false` for equal objects on Ruby 3, where
    `rb_eql` returns `1` instead of `Qtrue`, thanks to @danielpclark
  - `rb_enc_codepoint_len` (used by `CodepointIterator`) is declared

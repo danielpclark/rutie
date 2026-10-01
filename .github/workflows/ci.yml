@@ -111,7 +111,10 @@ jobs:
           (
             cd "examples/$example"
             if [[ "$RUNNER_OS" == "macOS" ]]; then
-              cargo rustc --release -- -C link-args=-Wl,-undefined,dynamic_lookup
+              # An extension uses the `ruby` process's libruby rather than
+              # linking its own. With a static Ruby (setup-ruby's macOS 3.1 is
+              # one) that would be a second VM that never booted.
+              NO_LINK_RUTIE=1 cargo rustc --release -- -C link-args=-Wl,-undefined,dynamic_lookup
             else
               cargo build --release
             fi
