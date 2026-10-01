@@ -1284,6 +1284,85 @@ impl Class {
             .map_err(AnyException::from)
     }
 
+    /// Defines an anonymous `Data` class with the given members (Ruby's
+    /// `Data.define`, `rb_data_define`), inheriting from `superclass` (a
+    /// `Data` class; `None` for `Data`). Its instances are frozen value
+    /// objects with a reader for each member. Returns the error: a
+    /// `TypeError` if `superclass` is not a `Data` class, or an
+    /// `ArgumentError` for a duplicate member or a name containing a NUL.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Class, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let point = Class::data_define(None, &["x", "y"]).unwrap();
+    ///
+    /// Class::object().const_set("Point", &point);
+    ///
+    /// let y = VM::eval("Point.new(x: 1, y: 2).y").unwrap();
+    ///
+    /// assert_eq!(y.try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+    /// assert!(VM::eval("Point.new(1, 2).frozen?").unwrap().is_true());
+    ///
+    /// let point3d = Class::data_define(Some(&point), &["x", "y", "z"]).unwrap();
+    ///
+    /// assert_eq!(point3d.superclass(), Some(point));
+    /// assert!(Class::data_define(None, &["x", "x"]).is_err());
+    /// assert!(Class::data_define(Some(&Class::string()), &["x"]).is_err());
+    /// ```
+    #[cfg(ruby_gte_3_3)]
+    pub fn data_define(
+        superclass: Option<&Class>,
+        members: &[&str],
+    ) -> Result<Class, AnyException> {
+        use std::ffi::{CStr, CString};
+
+        use crate::binding::rstruct;
+
+        let data = Class::from(class::const_get(unsafe { rb_cObject }, "Data"));
+        let superclass = superclass.unwrap_or(&data);
+
+        if superclass.inherits(&data) != Some(true) {
+            let message = format!("{} is not a Data class", superclass.path().to_str());
+
+            return Err(AnyException::new("TypeError", Some(&message)));
+        }
+
+        let names = members
+            .iter()
+            .map(|name| CString::new(*name))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| {
+                AnyException::new("ArgumentError", Some("member name contains a NUL byte"))
+            })?;
+        let (data, superclass) = (data.value(), superclass.value());
+
+        vm::protect_value(|| {
+            if names.len() <= rstruct::DATA_DEFINE_MAX_MEMBERS {
+                let names: Vec<&CStr> = names.iter().map(|name| name.as_c_str()).collect();
+
+                rstruct::data_define(superclass, &names)
+            } else {
+                // Too many for one variadic call: `Data.define`, run on
+                // `superclass` (which may have undefined `define`).
+                let define = vm::call_method(
+                    class::singleton_class(data),
+                    "instance_method",
+                    &[Symbol::new("define").value()],
+                );
+                let mut arguments = vec![superclass];
+
+                arguments.extend(members.iter().map(|name| Symbol::new(name).value()));
+
+                vm::call_method(define, "bind_call", &arguments)
+            }
+        })
+        .map(Class::from)
+        .map_err(AnyException::from)
+    }
+
     /// Wraps Rust structure into a new Ruby object of the current class.
     ///
     /// See the documentation for `wrappable_struct!` macro for more information.
@@ -1813,6 +1892,52 @@ mod tests {
             assert_eq!(Class::from(attached.value()), klass);
 
             let error = klass.attached_object().unwrap_err();
+            assert!(Class::type_error().case_equals(&error));
+        });
+    }
+
+    #[cfg(ruby_gte_3_3)]
+    #[test]
+    fn test_class_data_define() {
+        crate::on_ruby_thread(|| {
+            let pair = Class::data_define(None, &["left", "right"]).unwrap();
+            Class::object().const_set("RutieDataPair", &pair);
+
+            let inspected = VM::eval("RutieDataPair.new(left: 1, right: 2).inspect").unwrap();
+            assert_eq!(
+                inspected.try_convert_to::<RString>().unwrap().to_str(),
+                "#<data RutieDataPair left=1, right=2>"
+            );
+            assert!(pair.inherits(&Class::from_existing("Data")) == Some(true));
+
+            let empty = Class::data_define(None, &[]).unwrap();
+            let members = unsafe { empty.send("members", &[]) };
+            assert_eq!(
+                members.try_convert_to::<crate::Array>().unwrap().length(),
+                0
+            );
+
+            // Through `Data.define` past the variadic call's limit, also
+            // under a `Data` class (which undefines `define`).
+            let names: Vec<String> = (0..40).map(|i| format!("m{}", i)).collect();
+            let names: Vec<&str> = names.iter().map(|name| name.as_str()).collect();
+            let wide = Class::data_define(Some(&pair), &names).unwrap();
+            assert_eq!(wide.superclass(), Some(Class::from(pair.value())));
+            let members = unsafe { wide.send("members", &[]) };
+            assert_eq!(
+                members.try_convert_to::<crate::Array>().unwrap().length(),
+                40
+            );
+
+            let mut duplicated = names.clone();
+            duplicated.push("m0");
+            assert!(Class::data_define(None, &duplicated).is_err());
+
+            let error = Class::data_define(None, &["a", "a"]).unwrap_err();
+            assert!(Class::argument_error().case_equals(&error));
+            assert!(Class::data_define(None, &["a\0b"]).is_err());
+
+            let error = Class::data_define(Some(&Class::object()), &["a"]).unwrap_err();
             assert!(Class::type_error().case_equals(&error));
         });
     }
