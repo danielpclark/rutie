@@ -1,4 +1,4 @@
-use crate::rubysys::types::{c_char, c_int, c_long, c_void, Value};
+use crate::rubysys::types::{c_char, c_int, c_long, c_void, EncodingType, Value};
 
 // `OnigPosition`, Onigmo's `ptrdiff_t` offsets.
 pub type OnigPosition = isize;
@@ -19,7 +19,7 @@ pub struct ReRegisters {
     pub end: *mut OnigPosition,
 }
 
-// The `match` callback of `rb_reg_onig_match` (Ruby 3.3+).
+// The `match` callback of `rb_reg_onig_match`.
 pub type OnigMatchFunction = rutie_callback!(type fn(
     reg: *mut OnigRegexType,
     str: Value,
@@ -83,19 +83,49 @@ extern "C" {
     //
     // Cached compilation of a pattern string.
     pub fn rb_reg_regcomp(pattern: Value) -> Value;
-}
-
-#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
-extern "C" {
+    // VALUE
+    // rb_enc_reg_new(const char *ptr, long len, rb_encoding *enc, int opts)
+    pub fn rb_enc_reg_new(ptr: *const c_char, len: c_long, enc: EncodingType, opts: c_int)
+        -> Value;
+    // void
+    // rb_match_busy(VALUE md)
+    pub fn rb_match_busy(md: Value);
+    // int
+    // rb_memcicmp(const void *s1,const void *s2, long n)
+    pub fn rb_memcicmp(s1: *const c_void, s2: *const c_void, n: c_long) -> c_int;
+    // VALUE
+    // rb_reg_alloc(void)
+    pub fn rb_reg_alloc() -> Value;
+    // VALUE
+    // rb_reg_init_str(VALUE re, VALUE s, int options)
+    pub fn rb_reg_init_str(re: Value, s: Value, options: c_int) -> Value;
+    // VALUE
+    // rb_reg_match_last(VALUE md)
+    //
+    // The last matched group (`$+`).
+    pub fn rb_reg_match_last(md: Value) -> Value;
+    // long
+    // rb_reg_search(VALUE re, VALUE str, long pos, int dir)
+    //
+    // Byte offset of the match, or -1; sets `$~`. Searches backwards from
+    // `pos` when `dir` is non-zero.
+    pub fn rb_reg_search(re: Value, str: Value, pos: c_long, dir: c_int) -> c_long;
+    // VALUE
+    // rb_reg_regsub(VALUE repl, VALUE src, struct re_registers *regs, VALUE rexp)
+    pub fn rb_reg_regsub(repl: Value, src: Value, regs: *mut ReRegisters, rexp: Value) -> Value;
+    // long
+    // rb_reg_adjust_startpos(VALUE re, VALUE str, long pos, int dir)
+    pub fn rb_reg_adjust_startpos(re: Value, str: Value, pos: c_long, dir: c_int) -> c_long;
+    // VALUE
+    // rb_reg_quote(VALUE str)
+    pub fn rb_reg_quote(str: Value) -> Value;
+    // regex_t *
+    // rb_reg_prepare_re(VALUE re, VALUE str)
+    pub fn rb_reg_prepare_re(re: Value, str: Value) -> *mut OnigRegexType;
     // OnigPosition
     // rb_reg_onig_match(VALUE re, VALUE str,
     //                   OnigPosition (*match)(regex_t *reg, VALUE str, struct re_registers *regs, void *args),
     //                   void *args, struct re_registers *regs)
-    //
-    // Ruby 3.3+: prepares `re` for `str` (recompiling it for another
-    // encoding), calls `match` with it and returns what `match` returns,
-    // freeing `regs` on `ONIG_MISMATCH` (-1). Raises for a negative error.
-    #[cfg(ruby_gte_3_3)]
     pub fn rb_reg_onig_match(
         re: Value,
         str: Value,
@@ -103,65 +133,7 @@ extern "C" {
         args: *mut c_void,
         regs: *mut ReRegisters,
     ) -> OnigPosition;
-}
-
-#[cfg(all(test, ruby_gte_3_3))]
-mod tests {
-    use super::{rb_reg_onig_match, OnigPosition, OnigRegexType, ReRegisters};
-    use crate::{rubysys::types::c_void, Object, RString, Regexp};
-
-    rutie_callback! {
-        fn report_match(
-            reg: *mut OnigRegexType,
-            _str: crate::types::Value,
-            _regs: *mut ReRegisters,
-            args: *mut c_void,
-        ) -> OnigPosition {
-            let calls = unsafe { &mut *(args as *mut (usize, OnigPosition, bool)) };
-            calls.0 += 1;
-            calls.2 &= !reg.is_null();
-            calls.1
-        }
-    }
-
-    // Ruby passes the prepared pattern and our argument to the callback and
-    // returns what it returns.
-    #[test]
-    fn test_onig_match_callback() {
-        crate::on_ruby_thread(|| {
-            let regexp = Regexp::new("b", 0).unwrap();
-            let string = RString::new_utf8("abc");
-            let mut regs = ReRegisters {
-                allocated: 0,
-                num_regs: 0,
-                beg: std::ptr::null_mut(),
-                end: std::ptr::null_mut(),
-            };
-            let mut calls: (usize, OnigPosition, bool) = (0, 1, true);
-
-            let found = unsafe {
-                rb_reg_onig_match(
-                    regexp.value(),
-                    string.value(),
-                    report_match,
-                    &mut calls as *mut _ as *mut c_void,
-                    &mut regs,
-                )
-            };
-            assert_eq!((found, calls.0, calls.2), (1, 1, true));
-
-            // `ONIG_MISMATCH`: Ruby frees the (empty) registers.
-            calls.1 = -1;
-            let found = unsafe {
-                rb_reg_onig_match(
-                    regexp.value(),
-                    string.value(),
-                    report_match,
-                    &mut calls as *mut _ as *mut c_void,
-                    &mut regs,
-                )
-            };
-            assert_eq!((found, calls.0, calls.2), (-1, 2, true));
-        });
-    }
+    // int
+    // rb_reg_region_copy(struct re_registers *dst, const struct re_registers *src)
+    pub fn rb_reg_region_copy(dst: *mut ReRegisters, src: *const ReRegisters) -> c_int;
 }

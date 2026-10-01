@@ -4,7 +4,8 @@ use crate::rubysys::{
     constant::{FL_USER_1, FL_USER_17, FL_USER_7},
     libc::size_t,
     types::{
-        c_char, c_double, c_int, c_long, CallbackPtr, EncodingType, InternalValue, RBasic, Value,
+        c_char, c_double, c_int, c_long, c_void, CallbackPtr, EncodingType, InternalValue, RBasic,
+        Value,
     },
 };
 
@@ -152,12 +153,238 @@ extern "C" {
     // VALUE
     // rb_str_to_inum(VALUE str, int base, int badcheck)
     pub fn rb_str_to_inum(string: Value, base: c_int, badcheck: c_int) -> Value;
+    // VALUE
+    // rb_external_str_new(const char *ptr, long len)
+    pub fn rb_external_str_new(ptr: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_external_str_new_cstr(const char *ptr)
+    pub fn rb_external_str_new_cstr(ptr: *const c_char) -> Value;
+    // VALUE
+    // rb_locale_str_new(const char *ptr, long len)
+    pub fn rb_locale_str_new(ptr: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_locale_str_new_cstr(const char *ptr)
+    pub fn rb_locale_str_new_cstr(ptr: *const c_char) -> Value;
+    // VALUE
+    // rb_filesystem_str_new(const char *ptr, long len)
+    pub fn rb_filesystem_str_new(ptr: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_filesystem_str_new_cstr(const char *ptr)
+    pub fn rb_filesystem_str_new_cstr(ptr: *const c_char) -> Value;
+    // VALUE
+    // rb_usascii_str_new(const char *ptr, long len)
+    pub fn rb_usascii_str_new(ptr: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_usascii_str_new_cstr(const char *ptr)
+    pub fn rb_usascii_str_new_cstr(ptr: *const c_char) -> Value;
+    // VALUE
+    // rb_str_new_static(const char *ptr, long len)
+    //
+    // Uses `ptr` without copying it; it must outlive the string.
+    pub fn rb_str_new_static(ptr: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_usascii_str_new_static(const char *ptr, long len)
+    pub fn rb_usascii_str_new_static(ptr: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_utf8_str_new_static(const char *ptr, long len)
+    pub fn rb_utf8_str_new_static(ptr: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_str_new_with_class(VALUE obj, const char *ptr, long len)
+    //
+    // A string of the same class as `obj`.
+    pub fn rb_str_new_with_class(obj: Value, ptr: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_str_new_shared(VALUE str)
+    pub fn rb_str_new_shared(str: Value) -> Value;
+    // VALUE
+    // rb_str_resurrect(VALUE str)
+    pub fn rb_str_resurrect(str: Value) -> Value;
+    // VALUE
+    // rb_str_tmp_new(long len)
+    //
+    // A hidden (class-less) string of `len` uninitialized bytes.
+    pub fn rb_str_tmp_new(len: c_long) -> Value;
+    // VALUE
+    // rb_str_buf_new_cstr(const char *ptr)
+    pub fn rb_str_buf_new_cstr(ptr: *const c_char) -> Value;
+    // VALUE
+    // rb_interned_str(const char *ptr, long len)
+    //
+    // A frozen, deduplicated US-ASCII (ASCII-8BIT for non-ASCII bytes) string.
+    pub fn rb_interned_str(ptr: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_interned_str_cstr(const char *ptr)
+    pub fn rb_interned_str_cstr(ptr: *const c_char) -> Value;
+    // VALUE
+    // rb_str_to_interned_str(VALUE str)
+    pub fn rb_str_to_interned_str(str: Value) -> Value;
+    // void
+    // rb_str_free(VALUE str)
+    pub fn rb_str_free(str: Value);
+    // void
+    // rb_str_shared_replace(VALUE dst, VALUE src)
+    //
+    // `dst` takes over `src`'s buffer.
+    pub fn rb_str_shared_replace(dst: Value, src: Value);
+    // VALUE
+    // rb_str_buf_cat(VALUE, const char*, long)
+    pub fn rb_str_buf_cat(dst: Value, src: *const c_char, len: c_long) -> Value;
+    // VALUE
+    // rb_str_buf_cat2(VALUE, const char*)
+    pub fn rb_str_buf_cat2(dst: Value, src: *const c_char) -> Value;
+    // VALUE
+    // rb_str_cat2(VALUE, const char*)
+    pub fn rb_str_cat2(dst: Value, src: *const c_char) -> Value;
+    // VALUE
+    // rb_str_cat_cstr(VALUE dst, const char *src)
+    pub fn rb_str_cat_cstr(dst: Value, src: *const c_char) -> Value;
+    // VALUE
+    // rb_str_buf_cat_ascii(VALUE dst, const char *src)
+    //
+    // Appends ASCII text, converting it to `dst`'s encoding.
+    pub fn rb_str_buf_cat_ascii(dst: Value, src: *const c_char) -> Value;
+    // VALUE
+    // rb_str_append(VALUE dst, VALUE src)
+    pub fn rb_str_append(dst: Value, src: Value) -> Value;
+    // VALUE
+    // rb_str_concat(VALUE dst, VALUE src)
+    //
+    // `src` may be an Integer code point.
+    pub fn rb_str_concat(dst: Value, src: Value) -> Value;
+    // st_index_t
+    // rb_memhash(const void *ptr, long len)
+    pub fn rb_memhash(ptr: *const c_void, len: c_long) -> size_t;
+    // st_index_t
+    // rb_hash_start(st_index_t i)
+    pub fn rb_hash_start(i: size_t) -> size_t;
+    // int
+    // rb_str_hash_cmp(VALUE str1, VALUE str2)
+    //
+    // 0 when the strings are `eql?`.
+    pub fn rb_str_hash_cmp(str1: Value, str2: Value) -> c_int;
+    // int
+    // rb_str_comparable(VALUE str1, VALUE str2)
+    pub fn rb_str_comparable(str1: Value, str2: Value) -> c_int;
+    // VALUE
+    // rb_str_dup_frozen(VALUE)
+    pub fn rb_str_dup_frozen(str: Value) -> Value;
+    // void
+    // rb_str_modify_expand(VALUE str, long capa)
+    //
+    // Makes room for `capa` more bytes (without changing the length).
+    pub fn rb_str_modify_expand(str: Value, capa: c_long);
+    // VALUE
+    // rb_str_drop_bytes(VALUE str, long len)
+    pub fn rb_str_drop_bytes(str: Value, len: c_long) -> Value;
+    // void
+    // rb_str_update(VALUE dst, long beg, long len, VALUE src)
+    //
+    // `dst[beg, len] = src`, character offsets.
+    pub fn rb_str_update(dst: Value, beg: c_long, len: c_long, src: Value);
+    // long
+    // rb_str_offset(VALUE str, long pos)
+    //
+    // Byte offset of character `pos`.
+    pub fn rb_str_offset(str: Value, pos: c_long) -> c_long;
+    // long
+    // rb_str_sublen(VALUE str, long pos)
+    //
+    // Characters in the first `pos` bytes; `pos` is not bounds-checked.
+    pub fn rb_str_sublen(str: Value, pos: c_long) -> c_long;
+    // char *
+    // rb_str_subpos(VALUE str, long beg, long *len)
+    pub fn rb_str_subpos(str: Value, beg: c_long, len: *mut c_long) -> *mut c_char;
+    // VALUE
+    // rb_str_succ(VALUE orig)
+    pub fn rb_str_succ(orig: Value) -> Value;
+    // VALUE
+    // rb_str_dump(VALUE str)
+    pub fn rb_str_dump(str: Value) -> Value;
+    // void
+    // rb_must_asciicompat(VALUE obj)
+    pub fn rb_must_asciicompat(obj: Value);
+    // VALUE
+    // rb_sym_to_s(VALUE sym)
+    pub fn rb_sym_to_s(sym: Value) -> Value;
+    // VALUE
+    // rb_str_export(VALUE obj)
+    pub fn rb_str_export(obj: Value) -> Value;
+    // VALUE
+    // rb_str_to_str(VALUE obj)
+    pub fn rb_str_to_str(obj: Value) -> Value;
+    // VALUE
+    // rb_string_value(volatile VALUE *ptr)
+    pub fn rb_string_value(ptr: *mut Value) -> Value;
     // void
     // rb_debug_rstring_null_ptr(const char *func)
-    //
-    // Warns on stderr that `func` (`"RSTRING_PTR"`) returns NULL, as a debug
-    // build of Ruby's `RSTRING_PTR` does for a string without a buffer.
     pub fn rb_debug_rstring_null_ptr(func: *const c_char);
+    // VALUE
+    // rb_enc_str_new_cstr(const char *ptr, rb_encoding *enc)
+    pub fn rb_enc_str_new_cstr(ptr: *const c_char, enc: EncodingType) -> Value;
+    // VALUE
+    // rb_enc_str_new_static(const char *ptr, long len, rb_encoding *enc)
+    pub fn rb_enc_str_new_static(ptr: *const c_char, len: c_long, enc: EncodingType) -> Value;
+    // VALUE
+    // rb_enc_interned_str(const char *ptr, long len, rb_encoding *enc)
+    pub fn rb_enc_interned_str(ptr: *const c_char, len: c_long, enc: EncodingType) -> Value;
+    // VALUE
+    // rb_enc_interned_str_cstr(const char *ptr, rb_encoding *enc)
+    pub fn rb_enc_interned_str_cstr(ptr: *const c_char, enc: EncodingType) -> Value;
+    // VALUE
+    // rb_external_str_new_with_enc(const char *ptr, long len, rb_encoding *enc)
+    pub fn rb_external_str_new_with_enc(
+        ptr: *const c_char,
+        len: c_long,
+        enc: EncodingType,
+    ) -> Value;
+    // long
+    // rb_enc_strlen(const char *head, const char *tail, rb_encoding *enc)
+    pub fn rb_enc_strlen(head: *const c_char, tail: *const c_char, enc: EncodingType) -> c_long;
+    // long
+    // rb_memsearch(const void *x, long m, const void *y, long n, rb_encoding *enc)
+    //
+    // Byte offset of `x` in `y`, or -1.
+    pub fn rb_memsearch(
+        x: *const c_void,
+        m: c_long,
+        y: *const c_void,
+        n: c_long,
+        enc: EncodingType,
+    ) -> c_long;
+    // long
+    // rb_str_coderange_scan_restartable(const char *str, const char *end, rb_encoding *enc, int *cr)
+    pub fn rb_str_coderange_scan_restartable(
+        str: *const c_char,
+        end: *const c_char,
+        enc: EncodingType,
+        cr: *mut c_int,
+    ) -> c_long;
+    // VALUE
+    // rb_str_conv_enc_opts(VALUE str, rb_encoding *from, rb_encoding *to, int ecflags, VALUE ecopts)
+    pub fn rb_str_conv_enc_opts(
+        str: Value,
+        from: EncodingType,
+        to: EncodingType,
+        ecflags: c_int,
+        ecopts: Value,
+    ) -> Value;
+    // VALUE
+    // rb_sprintf(const char *fmt, ...)
+    pub fn rb_sprintf(fmt: *const c_char, ...) -> Value;
+    // VALUE
+    // rb_str_catf(VALUE dst, const char *fmt, ...)
+    pub fn rb_str_catf(dst: Value, fmt: *const c_char, ...) -> Value;
+    // VALUE
+    // rb_f_sprintf(int argc, const VALUE *argv)
+    //
+    // `Kernel#format`: `argv[0]` is the format string.
+    pub fn rb_f_sprintf(argc: c_int, argv: *const Value) -> Value;
+    // VALUE
+    // rb_enc_sprintf(rb_encoding *enc, const char *fmt, ...)
+    pub fn rb_enc_sprintf(enc: EncodingType, fmt: *const c_char, ...) -> Value;
+    // void
+    // rb_enc_raise(rb_encoding *enc, VALUE exc, const char *fmt, ...)
+    pub fn rb_enc_raise(enc: EncodingType, exc: Value, fmt: *const c_char, ...) -> !;
 }
 
 // #[link_name = "ruby_rstring_flags"]
