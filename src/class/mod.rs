@@ -17,6 +17,7 @@ pub mod global_variable;
 pub mod hash;
 pub mod integer;
 pub mod io;
+pub mod io_buffer;
 pub mod marshal;
 pub mod method;
 pub mod module;

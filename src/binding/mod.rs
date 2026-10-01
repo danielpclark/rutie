@@ -10,6 +10,7 @@ pub mod gc;
 pub mod global;
 pub mod hash;
 pub mod io;
+pub mod io_buffer;
 pub mod module;
 pub mod numeric;
 pub mod object;
