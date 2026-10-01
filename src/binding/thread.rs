@@ -1,7 +1,7 @@
 use std::ptr;
 
 use crate::{
-    rubysys::thread,
+    rubysys::{scheduler, thread},
     types::{c_void, CallbackMutPtr, CallbackPtr, Value},
     util, Object,
 };
@@ -140,16 +140,18 @@ type TimevalSeconds = libc::time_t;
 #[cfg(not(windows))]
 type TimevalMicros = libc::suseconds_t;
 
-pub fn sleep_for(duration: std::time::Duration) {
+fn timeval_from(duration: std::time::Duration) -> libc::timeval {
     use std::convert::TryFrom;
 
-    let time = libc::timeval {
-        // Saturate rather than wrap to a negative (or short) sleep.
+    libc::timeval {
+        // Saturate rather than wrap to a negative (or short) time.
         tv_sec: TimevalSeconds::try_from(duration.as_secs()).unwrap_or(TimevalSeconds::MAX),
         tv_usec: duration.subsec_micros() as TimevalMicros,
-    };
+    }
+}
 
-    unsafe { thread::rb_thread_wait_for(time) }
+pub fn sleep_for(duration: std::time::Duration) {
+    unsafe { thread::rb_thread_wait_for(timeval_from(duration)) }
 }
 
 pub fn check_interrupts() {
@@ -293,4 +295,66 @@ pub fn fiber_current() -> Value {
 
 pub fn fiber_is_alive(fiber: Value) -> bool {
     unsafe { thread::rb_fiber_alive_p(fiber) }.is_true()
+}
+
+// The `_kw` variants take keywords as a `Hash` at the end of `arguments`.
+pub fn fiber_resume_kw(fiber: Value, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { thread::rb_fiber_resume_kw(fiber, argc, argv, 1) }
+}
+
+pub fn fiber_yield_kw(arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { thread::rb_fiber_yield_kw(argc, argv, 1) }
+}
+
+pub fn fiber_transfer(fiber: Value, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { thread::rb_fiber_transfer(fiber, argc, argv) }
+}
+
+pub fn fiber_transfer_kw(fiber: Value, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { thread::rb_fiber_transfer_kw(fiber, argc, argv, 1) }
+}
+
+pub fn fiber_raise(fiber: Value, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { thread::rb_fiber_raise(fiber, argc, argv) }
+}
+
+pub fn is_fiber(object: Value) -> bool {
+    unsafe { thread::rb_obj_is_fiber(object) }.is_true()
+}
+
+pub fn fiber_scheduler_get() -> Value {
+    unsafe { scheduler::rb_fiber_scheduler_get() }
+}
+
+pub fn fiber_scheduler_set(scheduler: Value) -> Value {
+    unsafe { scheduler::rb_fiber_scheduler_set(scheduler) }
+}
+
+pub fn fiber_scheduler_current() -> Value {
+    unsafe { scheduler::rb_fiber_scheduler_current() }
+}
+
+pub fn fiber_scheduler_current_for_thread(thread: Value) -> Value {
+    unsafe { scheduler::rb_fiber_scheduler_current_for_thread(thread) }
+}
+
+pub fn fiber_scheduler_make_timeout(timeout: Option<std::time::Duration>) -> Value {
+    match timeout {
+        Some(duration) => {
+            let mut time = timeval_from(duration);
+
+            unsafe { scheduler::rb_fiber_scheduler_make_timeout(&mut time) }
+        }
+        None => unsafe { scheduler::rb_fiber_scheduler_make_timeout(ptr::null_mut()) },
+    }
 }

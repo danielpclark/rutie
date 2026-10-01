@@ -182,8 +182,42 @@ extern "C" {
     // rb_fiber_resume(VALUE fib, int argc, const VALUE *argv)
     pub fn rb_fiber_resume(fiber: Value, argc: Argc, argv: *const Value) -> Value;
     // VALUE
+    // rb_fiber_resume_kw(VALUE fiber, int argc, const VALUE *argv, int kw_splat)
+    //
+    // With `kw_splat` non-zero, the last of `argv` is a `Hash` passed as
+    // keyword arguments.
+    pub fn rb_fiber_resume_kw(
+        fiber: Value,
+        argc: Argc,
+        argv: *const Value,
+        kw_splat: c_int,
+    ) -> Value;
+    // VALUE
     // rb_fiber_yield(int argc, const VALUE *argv)
     pub fn rb_fiber_yield(argc: Argc, argv: *const Value) -> Value;
+    // VALUE
+    // rb_fiber_yield_kw(int argc, const VALUE *argv, int kw_splat)
+    pub fn rb_fiber_yield_kw(argc: Argc, argv: *const Value, kw_splat: c_int) -> Value;
+    // VALUE
+    // rb_fiber_transfer(VALUE fiber, int argc, const VALUE *argv)
+    pub fn rb_fiber_transfer(fiber: Value, argc: Argc, argv: *const Value) -> Value;
+    // VALUE
+    // rb_fiber_transfer_kw(VALUE fiber, int argc, const VALUE *argv, int kw_splat)
+    pub fn rb_fiber_transfer_kw(
+        fiber: Value,
+        argc: Argc,
+        argv: *const Value,
+        kw_splat: c_int,
+    ) -> Value;
+    // VALUE
+    // rb_fiber_raise(VALUE fiber, int argc, const VALUE *argv)
+    //
+    // `argv` is what `Kernel#raise` takes: an exception, or a class or
+    // message, then an optional message and backtrace.
+    pub fn rb_fiber_raise(fiber: Value, argc: Argc, argv: *const Value) -> Value;
+    // VALUE
+    // rb_obj_is_fiber(VALUE obj)
+    pub fn rb_obj_is_fiber(object: Value) -> Value;
     // VALUE
     // rb_mutex_lock(VALUE mutex)
     pub fn rb_mutex_lock(mutex: Value) -> Value;
