@@ -15,6 +15,57 @@ on 0.11.x.
  - Ruby 3.3 support: `ruby_3_3`/`ruby_gte_3_3` cfg flags, and `RString`
    reads for 3.3's layout (the length moved out of `as.heap` to the top of
    the struct, for embedded strings too), thanks to @danielpclark
+ - `IOBuffer`, a wrapper for `IO::Buffer` (`rb_io_buffer_*`): `new`,
+   `from_bytes`, `size`, `lock`, `free`, `transfer`, `resize`, `clear`,
+   `get_string`, `set_string`, `read`/`pread`/`write`/`pwrite` with buffer
+   offsets, flag predicates, `page_size`/`default_size`, and unsafe
+   `from_raw_parts`, `map`, `unlock`, `try_unlock`, `free_locked` (Ruby
+   3.3+) and `with_bytes`/`with_bytes_mut`, plus `Class::io_buffer`, thanks
+   to @danielpclark
+ - `IO::descriptor`, `IO::maybe_wait`, `IO::maybe_wait_readable`,
+   `IO::maybe_wait_writable` and the `IO::READABLE`/`IO::PRIORITY`/
+   `IO::WRITABLE` constants; `IO::timeout`, `IO::set_timeout` and
+   `Class::io_timeout_error` (Ruby 3.2+); unsafe `IO::from_raw_fd`
+   (`rb_io_open_descriptor`, Ruby 3.3+); `File::size`, thanks to @danielpclark
+ - `MemoryView`, a read-only wrapper for Ruby's MemoryView protocol
+   (`rb_memory_view_get`/`release`), with shape, strides, format,
+   `get_item`, `to_vec`, unsafe `as_bytes`, and `MemoryView::item_size_of`,
+   thanks to @danielpclark
+ - `Fiber::transfer`, `transfer_with_keywords`, `raise`,
+   `resume_with_keywords` and `yield_with_keywords`; the `Fiber` type check
+   uses `rb_obj_is_fiber`, thanks to @danielpclark
+ - Fiber scheduler support: `Fiber::scheduler`, `set_scheduler`,
+   `current_scheduler`, `current_scheduler_for_thread` and
+   `make_scheduler_timeout`, and every `rb_fiber_scheduler_*` function of
+   Ruby 3.1–3.3 in `rubysys::scheduler`, thanks to @danielpclark
+ - `Thread::add_internal_event_hook` with `InternalThreadEvent` and
+   `InternalThreadEventHook` (Ruby 3.2+), and `InternalThreadSpecificKey`,
+   `Thread::internal_specific` and `Thread::set_internal_specific` (Ruby
+   3.3+), thanks to @danielpclark
+ - `VM::profile_frames`, `Thread::profile_frames` (Ruby 3.3+) and
+   `ProfileFrame`; `DebugInspector` (including `frame_depth` and
+   `current_depth` on Ruby 3.2+); `PostponedJob` (Ruby 3.3+), thanks to
+   @danielpclark
+ - `Class::subclasses`, `Class::attached_object` (Ruby 3.2+),
+   `Module::new_refinement`, and `class_variable_find` and
+   `deprecate_constant` on `Class` and `Module`, thanks to @danielpclark
+ - `Class::data_define` for anonymous `Data` classes (`rb_data_define`,
+   Ruby 3.3+), thanks to @danielpclark
+ - `Ractor` (per-Ractor standard streams, `is_shareable`, `make_shareable`,
+   `make_shareable_copy`) and `RactorLocalKey` for Ractor-local storage,
+   thanks to @danielpclark
+ - `VM::errno` and `VM::set_errno` (Ruby 3.3+), `VM::ext_resolve_symbol`
+   (Ruby 3.3+) and `VM::clear_constant_cache_for` (Ruby 3.2+), thanks to
+   @danielpclark
+ - `Integer::positive_pow`, thanks to @danielpclark
+ - `Class::refinement`, `Class::ractor`, `Class::no_matching_pattern_error`
+   and `Class::no_matching_pattern_key_error`, thanks to @danielpclark
+ - Raw bindings in `rubysys::io_buffer`, `rubysys::memory_view`,
+   `rubysys::scheduler`, `rubysys::debug`, `rubysys::ractor` and
+   `rubysys::st`, plus `rb_process_status_wait` (Ruby 3.3+), `struct
+   rb_io_encoding`, the `FMODE_*` constants, `rb_ary_hidden_new`,
+   `rb_obj_freeze_inline`, `ruby_scan_digits`, `ruby_hexdigits` and
+   `rb_cNameErrorMesg`, thanks to @danielpclark
 
 ### Changed
  - `IO::is_closed` calls `rb_io_closed_p` on Ruby 3.3, thanks to @danielpclark
