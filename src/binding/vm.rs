@@ -793,8 +793,3 @@ pub fn need_block() {
 pub fn clear_constant_cache_for(name: &str) {
     unsafe { vm::rb_clear_constant_cache_for_id(internal_id(name)) }
 }
-
-#[cfg(ruby_gte_3_3)]
-pub fn ext_resolve_symbol(feature: &CStr, symbol: &CStr) -> *mut c_void {
-    unsafe { vm::rb_ext_resolve_symbol(feature.as_ptr(), symbol.as_ptr()) }
-}

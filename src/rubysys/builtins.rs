@@ -32,6 +32,7 @@ extern "C" {
     pub static rb_cRandom: Value;
     pub static rb_cRange: Value;
     pub static rb_cRational: Value;
+    #[cfg(ruby_gte_3_1)]
     pub static rb_cRefinement: Value;
     pub static rb_cRegexp: Value;
     pub static rb_cStat: Value;

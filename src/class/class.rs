@@ -1170,6 +1170,8 @@ impl Class {
     /// if it is not defined, or a `RuntimeError` if both this class and an
     /// ancestor define it.
     ///
+    /// Ruby 3.1+.
+    ///
     /// # Examples
     ///
     /// ```
@@ -1185,6 +1187,7 @@ impl Class {
     /// assert_eq!(owner, Module::from_existing("Counted"));
     /// assert!(widget.class_variable_find("@@missing").is_err());
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn class_variable_find(&self, name: &str) -> Result<(AnyObject, Module), AnyException> {
         let klass = self.value();
         let mut owner = Value::from(0);
@@ -1204,6 +1207,8 @@ impl Class {
     /// using it warns when deprecation warnings are enabled. Returns the
     /// error: a `NameError` if the class does not define the constant, or a
     /// `FrozenError` if it is frozen.
+    ///
+    /// Ruby 3.1+.
     ///
     /// # Examples
     ///
@@ -1225,6 +1230,7 @@ impl Class {
     /// assert!(warned.to_str().contains("Config::OLD_LIMIT is deprecated"));
     /// assert!(config.deprecate_constant("MISSING").is_err());
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn deprecate_constant(&mut self, name: &str) -> Result<(), AnyException> {
         deprecate_constant(self.value(), name)
     }
@@ -1232,6 +1238,8 @@ impl Class {
     /// Returns the direct subclasses of this class (Ruby's
     /// `Class#subclasses`, `rb_class_subclasses`), most recently defined
     /// first. Singleton classes are not included.
+    ///
+    /// Ruby 3.1+.
     ///
     /// # Examples
     ///
@@ -1252,6 +1260,7 @@ impl Class {
     /// assert!(subclasses.contains(&square));
     /// assert!(square.subclasses().is_empty());
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn subclasses(&self) -> Vec<Class> {
         Array::from(class::subclasses(self.value()))
             .into_iter()
@@ -1388,6 +1397,7 @@ impl Class {
 }
 
 // `rb_deprecate_constant` for `Class` and `Module`.
+#[cfg(ruby_gte_3_1)]
 pub(crate) fn deprecate_constant(module: Value, name: &str) -> Result<(), AnyException> {
     let name = ::std::ffi::CString::new(name).map_err(|_| {
         AnyException::new("ArgumentError", Some("constant name contains a NUL byte"))
@@ -1707,6 +1717,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(ruby_gte_3_1)]
     fn test_class_subclasses_and_cvar_find() {
         crate::on_ruby_thread(|| {
             let base = Class::new("RutieSubBase", None);
@@ -1757,6 +1768,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(ruby_gte_3_1)]
     fn test_class_deprecate_constant() {
         crate::on_ruby_thread(|| {
             let mut klass = Class::new("RutieDeprecating", None);

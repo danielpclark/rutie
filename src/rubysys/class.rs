@@ -202,6 +202,7 @@ extern "C" {
     // rb_class_subclasses(VALUE klass)
     //
     // The direct subclasses of `klass` (`Class#subclasses`), as an `Array`.
+    #[cfg(ruby_gte_3_1)]
     pub fn rb_class_subclasses(klass: Value) -> Value;
     // VALUE
     // rb_class_attached_object(VALUE klass)
@@ -214,6 +215,7 @@ extern "C" {
     // rb_refinement_new(void)
     //
     // An anonymous `Refinement`, not attached to any class.
+    #[cfg(ruby_gte_3_1)]
     pub fn rb_refinement_new() -> Value;
     // VALUE
     // rb_cvar_find(VALUE klass, ID name, VALUE *front)
@@ -221,11 +223,13 @@ extern "C" {
     // `rb_cvar_get` that also stores the class (or the `T_ICLASS` of the
     // module) where the lookup found the variable in `*front`, which must
     // start as 0. Raises `NameError` when it is not defined.
+    #[cfg(ruby_gte_3_1)]
     pub fn rb_cvar_find(klass: Value, name: Id, front: *mut Value) -> Value;
     // void
     // rb_deprecate_constant(VALUE mod, const char *name)
     //
     // Raises `NameError` when `mod` does not define the constant itself.
+    #[cfg(ruby_gte_3_1)]
     pub fn rb_deprecate_constant(module: Value, name: *const c_char);
     // void
     // rb_obj_freeze_inline(VALUE obj)

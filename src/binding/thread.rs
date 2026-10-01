@@ -1,7 +1,9 @@
 use std::ptr;
 
+#[cfg(ruby_gte_3_1)]
+use crate::rubysys::scheduler;
 use crate::{
-    rubysys::{scheduler, thread},
+    rubysys::thread,
     types::{c_void, CallbackMutPtr, CallbackPtr, Value},
     util, Object,
 };
@@ -310,44 +312,53 @@ pub fn fiber_yield_kw(arguments: &[Value]) -> Value {
     unsafe { thread::rb_fiber_yield_kw(argc, argv, 1) }
 }
 
+#[cfg(ruby_gte_3_1)]
 pub fn fiber_transfer(fiber: Value, arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);
 
     unsafe { thread::rb_fiber_transfer(fiber, argc, argv) }
 }
 
+#[cfg(ruby_gte_3_1)]
 pub fn fiber_transfer_kw(fiber: Value, arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);
 
     unsafe { thread::rb_fiber_transfer_kw(fiber, argc, argv, 1) }
 }
 
+#[cfg(ruby_gte_3_1)]
 pub fn fiber_raise(fiber: Value, arguments: &[Value]) -> Value {
     let (argc, argv) = util::process_arguments(arguments);
 
     unsafe { thread::rb_fiber_raise(fiber, argc, argv) }
 }
 
+#[cfg(ruby_gte_3_1)]
 pub fn is_fiber(object: Value) -> bool {
     unsafe { thread::rb_obj_is_fiber(object) }.is_true()
 }
 
+#[cfg(ruby_gte_3_1)]
 pub fn fiber_scheduler_get() -> Value {
     unsafe { scheduler::rb_fiber_scheduler_get() }
 }
 
+#[cfg(ruby_gte_3_1)]
 pub fn fiber_scheduler_set(scheduler: Value) -> Value {
     unsafe { scheduler::rb_fiber_scheduler_set(scheduler) }
 }
 
+#[cfg(ruby_gte_3_1)]
 pub fn fiber_scheduler_current() -> Value {
     unsafe { scheduler::rb_fiber_scheduler_current() }
 }
 
+#[cfg(ruby_gte_3_1)]
 pub fn fiber_scheduler_current_for_thread(thread: Value) -> Value {
     unsafe { scheduler::rb_fiber_scheduler_current_for_thread(thread) }
 }
 
+#[cfg(ruby_gte_3_1)]
 pub fn fiber_scheduler_make_timeout(timeout: Option<std::time::Duration>) -> Value {
     match timeout {
         Some(duration) => {
@@ -423,28 +434,4 @@ pub unsafe fn internal_thread_remove_event_hook<F>(
     }
 
     removed
-}
-
-#[cfg(ruby_gte_3_3)]
-pub fn internal_thread_specific_key_create() -> thread::InternalThreadSpecificKey {
-    unsafe { thread::rb_internal_thread_specific_key_create() }
-}
-
-// `key` must come from `internal_thread_specific_key_create` (and be in
-// range), and `thread` must be a `Thread`. Ruby only stores `data`.
-#[cfg(ruby_gte_3_3)]
-pub fn internal_thread_specific_get(
-    thread: Value,
-    key: thread::InternalThreadSpecificKey,
-) -> *mut c_void {
-    unsafe { thread::rb_internal_thread_specific_get(thread, key) }
-}
-
-#[cfg(ruby_gte_3_3)]
-pub fn internal_thread_specific_set(
-    thread: Value,
-    key: thread::InternalThreadSpecificKey,
-    data: *mut c_void,
-) {
-    unsafe { thread::rb_internal_thread_specific_set(thread, key, data) }
 }

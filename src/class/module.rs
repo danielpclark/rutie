@@ -90,6 +90,8 @@ impl Module {
     /// Creates an anonymous `Refinement`, a module not attached to any
     /// class (`rb_refinement_new`).
     ///
+    /// Ruby 3.1+.
+    ///
     /// # Examples
     ///
     /// ```
@@ -101,6 +103,7 @@ impl Module {
     /// assert_eq!(refinement.class(), Class::refinement());
     /// assert!(refinement.name().is_none());
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn new_refinement() -> Self {
         Self::from(class::refinement_new())
     }
@@ -1162,6 +1165,8 @@ impl Module {
     /// if it is not defined, or a `RuntimeError` if both this module and an
     /// ancestor define it.
     ///
+    /// Ruby 3.1+.
+    ///
     /// # Examples
     ///
     /// ```
@@ -1177,6 +1182,7 @@ impl Module {
     /// assert_eq!(owner, Module::from_existing("Base"));
     /// assert!(extended.class_variable_find("@@missing").is_err());
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn class_variable_find(&self, name: &str) -> Result<(AnyObject, Module), AnyException> {
         Class::from(self.value()).class_variable_find(name)
     }
@@ -1186,6 +1192,8 @@ impl Module {
     /// using it warns when deprecation warnings are enabled. Returns the
     /// error: a `NameError` if the module does not define the constant, or a
     /// `FrozenError` if it is frozen.
+    ///
+    /// Ruby 3.1+.
     ///
     /// # Examples
     ///
@@ -1207,6 +1215,7 @@ impl Module {
     /// assert!(warned.to_str().contains("Settings::LEGACY is deprecated"));
     /// assert!(settings.deprecate_constant("MISSING").is_err());
     /// ```
+    #[cfg(ruby_gte_3_1)]
     pub fn deprecate_constant(&mut self, name: &str) -> Result<(), AnyException> {
         crate::class::class::deprecate_constant(self.value(), name)
     }
@@ -1480,6 +1489,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(ruby_gte_3_1)]
     fn test_module_refinement_cvar_find_and_deprecate() {
         crate::on_ruby_thread(|| {
             let refinement = Module::new_refinement();

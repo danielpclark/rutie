@@ -639,42 +639,6 @@ impl Thread {
         AnyObject::from(thread::local_set(self.value(), name, value.value()))
     }
 
-    /// Like [`VM::profile_frames`](struct.VM.html#method.profile_frames),
-    /// for this thread's stack (`rb_profile_thread_frames`, Ruby 3.3+).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rutie::{Object, Thread, VM};
-    /// # VM::init();
-    ///
-    /// let worker = VM::eval(
-    ///     "q = Queue.new
-    ///      t = Thread.new { def wait_here(q) = q.pop; wait_here(q) }
-    ///      Thread.pass until t.status == 'sleep'
-    ///      $rutie_queue = q
-    ///      t",
-    /// )
-    /// .unwrap()
-    /// .try_convert_to::<Thread>()
-    /// .unwrap();
-    ///
-    /// let frames = worker.profile_frames(0, 10);
-    /// let names: Vec<String> = frames
-    ///     .iter()
-    ///     .filter_map(|frame| frame.method_name())
-    ///     .map(|name| name.to_string())
-    ///     .collect();
-    /// assert_eq!(names, ["pop", "wait_here"]);
-    ///
-    /// VM::eval("$rutie_queue << 1").unwrap();
-    /// worker.join().unwrap();
-    /// ```
-    #[cfg(ruby_gte_3_3)]
-    pub fn profile_frames(&self, start: usize, limit: usize) -> Vec<ProfileFrame> {
-        ProfileFrame::from_frames(debug::profile_thread_frames(self.value(), start, limit))
-    }
-
     /// Registers `func` to be called on the thread events in `events`, a
     /// mask of the [`InternalThreadEvent`](struct.InternalThreadEvent.html)
     /// flags, for every Ruby thread (`rb_internal_thread_add_event_hook`,
@@ -757,67 +721,6 @@ impl Thread {
             }
         })
     }
-
-    /// Returns the data stored for `key` on this thread (`NULL` until set)
-    /// (`rb_internal_thread_specific_get`, Ruby 3.3+).
-    ///
-    /// Async signal safe and thread safe, and fine to call without the GVL,
-    /// for instance in a hook added with
-    /// [`Thread::add_internal_event_hook`](#method.add_internal_event_hook).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rutie::{InternalThreadSpecificKey, Thread, VM};
-    /// # VM::init();
-    ///
-    /// let key = InternalThreadSpecificKey::new().unwrap();
-    /// let thread = Thread::current();
-    ///
-    /// assert!(thread.internal_specific(key).is_null());
-    ///
-    /// let counter = Box::into_raw(Box::new(0u64));
-    /// thread.set_internal_specific(key, counter as *mut _);
-    /// assert_eq!(thread.internal_specific(key) as *mut u64, counter);
-    ///
-    /// thread.set_internal_specific(key, std::ptr::null_mut());
-    /// # drop(unsafe { Box::from_raw(counter) });
-    /// ```
-    #[cfg(ruby_gte_3_3)]
-    pub fn internal_specific(&self, key: InternalThreadSpecificKey) -> *mut c_void {
-        thread::internal_thread_specific_get(self.value(), key.0)
-    }
-
-    /// Stores `data` for `key` on this thread
-    /// (`rb_internal_thread_specific_set`, Ruby 3.3+). Ruby does not free
-    /// or otherwise use it.
-    ///
-    /// Async signal safe and thread safe, and fine to call without the GVL.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rutie::{InternalThreadSpecificKey, Object, Thread, VM};
-    /// # VM::init();
-    ///
-    /// let key = InternalThreadSpecificKey::new().unwrap();
-    ///
-    /// let worker = VM::eval("Thread.new { sleep }").unwrap().try_convert_to::<Thread>().unwrap();
-    /// let main = Thread::current();
-    ///
-    /// // Each thread has its own slot.
-    /// worker.set_internal_specific(key, 1 as *mut _);
-    /// main.set_internal_specific(key, 2 as *mut _);
-    ///
-    /// assert_eq!(worker.internal_specific(key) as usize, 1);
-    /// assert_eq!(main.internal_specific(key) as usize, 2);
-    /// # worker.kill();
-    /// # worker.join().unwrap();
-    /// ```
-    #[cfg(ruby_gte_3_3)]
-    pub fn set_internal_specific(&self, key: InternalThreadSpecificKey, data: *mut c_void) {
-        thread::internal_thread_specific_set(self.value(), key.0, data)
-    }
 }
 
 /// A thread event passed to a hook added with
@@ -858,8 +761,6 @@ impl Thread {
 #[derive(Debug, Clone, Copy)]
 pub struct InternalThreadEvent {
     flag: u32,
-    #[cfg(ruby_gte_3_3)]
-    thread: Value,
 }
 
 #[cfg(ruby_gte_3_2)]
@@ -878,14 +779,9 @@ impl InternalThreadEvent {
     pub const ALL: u32 = rubysys_thread::RUBY_INTERNAL_THREAD_EVENT_MASK;
 
     fn new(flag: u32, data: *const rubysys_thread::InternalThreadEventData) -> Self {
-        #[cfg(not(ruby_gte_3_3))]
         let _ = data;
 
-        InternalThreadEvent {
-            flag,
-            #[cfg(ruby_gte_3_3)]
-            thread: unsafe { (*data).thread },
-        }
+        InternalThreadEvent { flag }
     }
 
     /// Returns which event this is: one of the `InternalThreadEvent` flags.
@@ -917,44 +813,6 @@ impl InternalThreadEvent {
     /// ```
     pub fn flag(&self) -> u32 {
         self.flag
-    }
-
-    /// Returns the Ruby thread the event is about (Ruby 3.3+), which is not
-    /// necessarily the native thread the hook runs on.
-    ///
-    /// Without the GVL, only use it with
-    /// [`Thread::internal_specific`](struct.Thread.html#method.internal_specific),
-    /// [`Thread::set_internal_specific`](struct.Thread.html#method.set_internal_specific)
-    /// or to compare it with other threads (`Thread::value`).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::sync::{Arc, Mutex};
-    ///
-    /// use rutie::{InternalThreadEvent, Object, Thread, VM};
-    /// # VM::init();
-    ///
-    /// let started = Arc::new(Mutex::new(Vec::new()));
-    ///
-    /// let hook = {
-    ///     let started = started.clone();
-    ///
-    ///     Thread::add_internal_event_hook(InternalThreadEvent::STARTED, move |event| {
-    ///         started.lock().unwrap().push(event.thread().value());
-    ///     })
-    /// };
-    ///
-    /// let thread = VM::eval("Thread.new {}.tap(&:join)").unwrap().try_convert_to::<Thread>().unwrap();
-    /// drop(hook);
-    ///
-    /// if cfg!(not(windows)) {
-    ///     assert_eq!(*started.lock().unwrap(), vec![thread.value()]);
-    /// }
-    /// ```
-    #[cfg(ruby_gte_3_3)]
-    pub fn thread(&self) -> Thread {
-        Thread::from(self.thread)
     }
 }
 
@@ -1009,67 +867,6 @@ impl Drop for InternalThreadEventHook {
 impl fmt::Debug for InternalThreadEventHook {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("InternalThreadEventHook")
-    }
-}
-
-/// A key for per-thread data that tools can read and write without the
-/// GVL (Ruby 3.3+); see
-/// [`Thread::internal_specific`](struct.Thread.html#method.internal_specific).
-///
-/// Ruby allows only 8 keys per process.
-///
-/// # Examples
-///
-/// ```
-/// use rutie::{InternalThreadSpecificKey, Thread, VM};
-/// # VM::init();
-///
-/// let first = InternalThreadSpecificKey::new().unwrap();
-/// let second = InternalThreadSpecificKey::new().unwrap();
-/// assert_ne!(first, second);
-///
-/// Thread::current().set_internal_specific(first, 7 as *mut _);
-/// assert!(Thread::current().internal_specific(second).is_null());
-/// ```
-#[cfg(ruby_gte_3_3)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct InternalThreadSpecificKey(rubysys_thread::InternalThreadSpecificKey);
-
-#[cfg(ruby_gte_3_3)]
-impl InternalThreadSpecificKey {
-    /// Creates a key (`rb_internal_thread_specific_key_create`). Returns the
-    /// `ThreadError` once the process has 8 keys, or when the first key is
-    /// created while there are several Ractors.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rutie::{Exception, InternalThreadSpecificKey, Object, VM};
-    /// # VM::init();
-    ///
-    /// let keys: Vec<_> = (0..8).map(|_| InternalThreadSpecificKey::new()).collect();
-    /// assert!(keys.iter().all(Result::is_ok));
-    ///
-    /// let error = InternalThreadSpecificKey::new().unwrap_err();
-    /// assert_eq!(error.class().name().unwrap().to_str(), "ThreadError");
-    /// ```
-    pub fn new() -> Result<Self, AnyException> {
-        let mut key = 0;
-        let created = vm::protect_value(|| {
-            key = thread::internal_thread_specific_key_create();
-
-            NilClass::new().value()
-        });
-
-        match created {
-            Err(exception) => Err(AnyException::from(exception)),
-            // Ruby 3.3 and 3.4 return one key past their table before
-            // raising.
-            Ok(_) if key >= rubysys_thread::RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX => Err(
-                AnyException::new("ThreadError", Some("too many thread specific keys")),
-            ),
-            Ok(_) => Ok(InternalThreadSpecificKey(key)),
-        }
     }
 }
 
@@ -1325,94 +1122,6 @@ mod tests {
             assert_eq!(Arc::strong_count(&counts), 1);
             VM::eval("Thread.new {}.join").unwrap();
             assert_eq!(count(0), 5);
-        });
-    }
-
-    #[cfg(ruby_gte_3_3)]
-    #[test]
-    fn test_internal_specific_and_event_thread() {
-        use crate::{InternalThreadEvent, InternalThreadSpecificKey};
-        use std::sync::{Arc, Mutex};
-
-        crate::on_ruby_thread(|| {
-            // Only 8 keys exist per process; this is the unit tests' only one.
-            let key = InternalThreadSpecificKey::new().unwrap();
-
-            let main = Thread::current();
-            assert!(main.internal_specific(key).is_null());
-            main.set_internal_specific(key, 42 as *mut crate::types::c_void);
-            assert_eq!(main.internal_specific(key) as usize, 42);
-
-            // Hooks read the slot of the thread an event is about.
-            let seen = Arc::new(Mutex::new(Vec::new()));
-            let hook = {
-                let seen = seen.clone();
-
-                Thread::add_internal_event_hook(InternalThreadEvent::RESUMED, move |event| {
-                    let thread = event.thread();
-                    seen.lock()
-                        .unwrap()
-                        .push((thread.value(), thread.internal_specific(key) as usize));
-                })
-            };
-
-            let worker = VM::eval("q = $rutie_specific_queue = Queue.new; Thread.new { q.pop }")
-                .unwrap()
-                .try_convert_to::<Thread>()
-                .unwrap();
-            worker.set_internal_specific(key, 7 as *mut crate::types::c_void);
-            VM::eval("$rutie_specific_queue << 1; $rutie_specific_queue = nil").unwrap();
-            worker.join().unwrap();
-            drop(hook);
-
-            assert_eq!(worker.internal_specific(key) as usize, 7);
-            assert_eq!(main.internal_specific(key) as usize, 42);
-            main.set_internal_specific(key, std::ptr::null_mut());
-
-            // Ruby has no thread event hooks on Windows.
-            if cfg!(not(windows)) {
-                let seen = seen.lock().unwrap();
-                assert!(seen.contains(&(main.value(), 42)));
-                assert!(seen.iter().any(|&(thread, _)| thread == worker.value()));
-            }
-        });
-    }
-
-    #[cfg(ruby_gte_3_3)]
-    #[test]
-    fn test_profile_frames_of_another_thread() {
-        crate::on_ruby_thread(|| {
-            let worker = VM::eval(
-                "$rutie_profile_queue = Queue.new
-                 t = Thread.new { def rutie_parked(q) = q.pop; rutie_parked($rutie_profile_queue) }
-                 Thread.pass until t.status == 'sleep'
-                 t",
-            )
-            .unwrap()
-            .try_convert_to::<Thread>()
-            .unwrap();
-
-            let frames = worker.profile_frames(0, 10);
-            let labels: Vec<String> = frames
-                .iter()
-                .map(|frame| frame.full_label().unwrap().to_string())
-                .collect();
-            assert_eq!(labels[0], "Thread::Queue#pop");
-            assert_eq!(labels[1], "Object#rutie_parked");
-            assert!(frames[1].line() > 0);
-            assert_eq!(
-                worker.profile_frames(1, 1)[0]
-                    .full_label()
-                    .unwrap()
-                    .to_str(),
-                "Object#rutie_parked"
-            );
-            assert!(worker.profile_frames(0, 0).is_empty());
-
-            VM::eval("$rutie_profile_queue << 1; $rutie_profile_queue = nil").unwrap();
-            worker.join().unwrap();
-            // A finished thread has no frames.
-            assert!(worker.profile_frames(0, 10).is_empty());
         });
     }
 }

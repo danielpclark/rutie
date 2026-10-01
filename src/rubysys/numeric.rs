@@ -152,6 +152,7 @@ extern "C" {
     //
     // `x ** y`; a `Float` (`Infinity`, with a warning) when the result is
     // enormous. Negates `x` internally, so `x` must not be `LONG_MIN`.
+    #[cfg(ruby_gte_3_1)]
     pub fn rb_int_positive_pow(x: c_long, y: c_ulong) -> Value;
 }
 
@@ -162,6 +163,7 @@ extern "C" {
     //
     // `"0123456789abcdef0123456789ABCDEF"`, with its terminating NUL: the
     // lowercase digits, then the uppercase ones from index 16.
+    #[cfg(ruby_gte_3_1)]
     pub static ruby_hexdigits: [c_char; 33];
     // unsigned long
     // ruby_scan_digits(const char *str, ssize_t len, int base, size_t *retlen, int *overflow)
@@ -170,6 +172,7 @@ extern "C" {
     // other byte or after `len` bytes (a negative `len` has no limit). Stores
     // the number of digits read in `*retlen`, and sets `*overflow` when the
     // value does not fit.
+    #[cfg(ruby_gte_3_1)]
     pub fn ruby_scan_digits(
         str: *const c_char,
         len: ssize_t,
@@ -186,6 +189,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(ruby_gte_3_1)]
     fn test_ruby_hexdigits() {
         let digits = unsafe { CStr::from_ptr(ruby_hexdigits.as_ptr()) };
 
@@ -193,6 +197,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(ruby_gte_3_1)]
     fn test_ruby_scan_digits() {
         crate::on_ruby_thread(|| {
             let scan = |text: &[u8], len: ssize_t, base: c_int| {
