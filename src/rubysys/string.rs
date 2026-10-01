@@ -1,10 +1,7 @@
 use std::mem;
 
 use crate::rubysys::{
-    constant::{
-        FL_USER_1, FL_USER_17, FL_USER_2, FL_USER_3, FL_USER_4, FL_USER_5, FL_USER_6, FL_USER_7,
-        FL_USHIFT,
-    },
+    constant::{FL_USER_1, FL_USER_17, FL_USER_7},
     libc::size_t,
     types::{
         c_char, c_double, c_int, c_long, CallbackPtr, EncodingType, InternalValue, RBasic, Value,
@@ -168,8 +165,6 @@ extern "C" {
 #[repr(C)]
 enum RStringEmbed {
     NoEmbed = FL_USER_1,
-    LenMask = FL_USER_2 | FL_USER_3 | FL_USER_4 | FL_USER_5 | FL_USER_6,
-    LenShift = FL_USHIFT + 2,
     LenMax = (mem::size_of::<Value>() as isize * 3) / mem::size_of::<c_char>() as isize - 1,
     Fstr = FL_USER_17,
 }
@@ -188,9 +183,9 @@ union RStringAux {
     value: InternalValue,
 }
 
-// Ruby 3.1 and 3.2: the length is in `as.heap.len` (heap strings, and
-// embedded strings on 3.2) or the flags (embedded strings on 3.1).
-#[cfg(not(ruby_gte_3_3))]
+// Ruby 3.2: the length is in `as.heap.len`, or `as.embed.len` at the same
+// place for an embedded string.
+#[cfg(ruby_3_2)]
 #[derive(Copy, Clone)]
 #[repr(C)]
 struct RStringHeap {
@@ -199,7 +194,7 @@ struct RStringHeap {
     aux: RStringAux,
 }
 
-#[cfg(not(ruby_gte_3_3))]
+#[cfg(ruby_3_2)]
 #[repr(C)]
 struct RString {
     basic: RBasic,
@@ -235,15 +230,6 @@ unsafe fn embed_check(flags: InternalValue) -> bool {
     flags & (RStringEmbed::NoEmbed as size_t) == 0
 }
 
-// Ruby 3.1 keeps an embedded string's length in the flag bits.
-#[cfg(not(ruby_gte_3_2))]
-pub unsafe fn rstring_embed_len(value: Value) -> c_long {
-    let (_rstring, flags) = rstring_and_flags(value);
-
-    ((flags as i64 >> RStringEmbed::LenShift as i64)
-        & (RStringEmbed::LenMask as i64 >> RStringEmbed::LenShift as i64)) as c_long
-}
-
 // Ruby 3.2 (`USE_RVARGC`) keeps it in `as.embed.len`, which sits where
 // `as.heap.len` does.
 #[cfg(ruby_3_2)]
@@ -260,12 +246,6 @@ pub unsafe fn rstring_embed_len(value: Value) -> c_long {
     (*rstring).len
 }
 
-// Where an embedded string's bytes start.
-#[cfg(not(ruby_gte_3_2))]
-unsafe fn rstring_embed_ptr(rstring: *const RString) -> *const c_char {
-    (*rstring).as_.ary.as_ptr()
-}
-
 // In Ruby 3.2 `as.embed.ary` follows `as.embed.len`.
 #[cfg(ruby_3_2)]
 unsafe fn rstring_embed_ptr(rstring: *const RString) -> *const c_char {
@@ -278,7 +258,7 @@ unsafe fn rstring_embed_ptr(rstring: *const RString) -> *const c_char {
     &(*rstring).as_ as *const RStringAs as *const c_char
 }
 
-#[cfg(not(ruby_gte_3_3))]
+#[cfg(ruby_3_2)]
 pub unsafe fn rstring_len(value: Value) -> c_long {
     let (rstring, flags) = rstring_and_flags(value);
 
@@ -336,9 +316,9 @@ mod tests {
     use super::{rstring_end, rstring_len, rstring_ptr};
     use crate::{Array, Fixnum, Object, RString, VM};
 
-    // Strings of every length across the embedded/heap boundary (23 bytes
-    // on 64-bit Ruby 3.1; the slot size from 3.2), made in several ways,
-    // read directly and compared with what Ruby reports.
+    // Strings of every length across the embedded/heap boundary (the slot
+    // size), made in several ways, read directly and compared with what
+    // Ruby reports.
     #[test]
     fn test_direct_rstring_reads() {
         crate::on_ruby_thread(|| {

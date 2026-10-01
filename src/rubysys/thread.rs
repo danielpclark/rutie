@@ -175,8 +175,7 @@ extern "C" {
     // rb_fiber_new_storage(rb_block_call_func_t func, VALUE callback_obj, VALUE storage)
     //
     // `storage` is `Qnil` for an empty storage, or a `Hash` (with `Symbol`
-    // keys, not frozen) that is copied. Ruby 3.2+.
-    #[cfg(ruby_gte_3_2)]
+    // keys, not frozen) that is copied.
     pub fn rb_fiber_new_storage(func: BlockCallFunction, obj: Value, storage: Value) -> Value;
     // VALUE
     // rb_fiber_resume(VALUE fib, int argc, const VALUE *argv)

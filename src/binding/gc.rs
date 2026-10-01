@@ -23,10 +23,6 @@ pub fn enable() -> Value {
     unsafe { gc::rb_gc_enable() }
 }
 
-pub fn force_recycle(obj: Value) {
-    unsafe { gc::rb_gc_force_recycle(obj) }
-}
-
 pub fn mark(value: Value) {
     unsafe { gc::rb_gc_mark(value) };
 }
@@ -101,12 +97,6 @@ pub fn unregister(obj: Value) {
 
 pub fn registered_count(obj: Value) -> i64 {
     hash::lookup(registry(), obj).map_or(0, fixnum::num_to_i64)
-}
-
-pub unsafe fn is_marked(obj: Value) -> bool {
-    let int = gc::rb_objspace_marked_object_p(obj);
-
-    util::c_int_to_bool(int)
 }
 
 pub fn define_finalizer(object: Value, block: Value) -> Value {

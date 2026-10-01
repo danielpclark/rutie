@@ -7,16 +7,8 @@ use crate::rubysys::{
 
 const SPECIAL_SHIFT: usize = 8;
 
-// `Qnil`, `Qtrue` and `Qundef` changed in Ruby 3.2 (`special_consts.h`).
-#[cfg(all(target_pointer_width = "32", not(ruby_gte_3_2)))]
-pub enum RubySpecialConsts {
-    False = 0,
-    True = 0x02,
-    Nil = 0x04,
-    Undef = 0x06,
-}
-
-#[cfg(all(target_pointer_width = "32", ruby_gte_3_2))]
+// `special_consts.h` (these values since Ruby 3.2).
+#[cfg(target_pointer_width = "32")]
 pub enum RubySpecialConsts {
     False = 0,
     True = 0x06,
@@ -33,15 +25,7 @@ pub enum RubySpecialFlags {
     SymbolFlag = 0x0e,
 }
 
-#[cfg(all(target_pointer_width = "64", not(ruby_gte_3_2)))]
-pub enum RubySpecialConsts {
-    False = 0,
-    True = 0x14,
-    Nil = 0x08,
-    Undef = 0x34,
-}
-
-#[cfg(all(target_pointer_width = "64", ruby_gte_3_2))]
+#[cfg(target_pointer_width = "64")]
 pub enum RubySpecialConsts {
     False = 0,
     True = 0x14,

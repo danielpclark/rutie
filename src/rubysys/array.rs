@@ -124,10 +124,6 @@ extern "C" {
 #[repr(C)]
 enum RArrayEmbed {
     Flag = FL_USER_1,
-    // Ruby 3.2 (`USE_RVARGC`) embeds longer arrays and widens the mask.
-    #[cfg(not(ruby_gte_3_2))]
-    LenMask = FL_USER_4 | FL_USER_3,
-    #[cfg(ruby_gte_3_2)]
     LenMask = FL_USER_9 | FL_USER_8 | FL_USER_7 | FL_USER_6 | FL_USER_5 | FL_USER_4 | FL_USER_3,
     LenShift = FL_USHIFT + 3,
 }
@@ -169,7 +165,6 @@ mod tests {
     use crate::{Array, Fixnum, Object, VM};
 
     // A hidden array has no class, and holds what is pushed onto it.
-    #[cfg(ruby_gte_3_2)]
     #[test]
     fn test_ary_hidden_new() {
         use super::{rb_ary_hidden_new, rb_ary_push, RBasic};
@@ -186,8 +181,8 @@ mod tests {
         });
     }
 
-    // Arrays across the embedded/heap boundary (3 elements on Ruby 3.1,
-    // the slot size on 3.2), made in several ways, including shared slices.
+    // Arrays across the embedded/heap boundary (the slot size), made in
+    // several ways, including shared slices.
     #[test]
     fn test_direct_rarray_len() {
         crate::on_ruby_thread(|| {

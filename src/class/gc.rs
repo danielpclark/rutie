@@ -184,21 +184,26 @@ impl GC {
         gc::count()
     }
 
-    /// Disable the garbage collector
+    /// Disable the garbage collector: allocation no longer triggers a
+    /// collection. An explicit [`GC::start`](#method.start) still collects
+    /// on Ruby 3.4 (as Ruby's `GC.start` does on every version), but not on
+    /// 3.2 and 3.3.
     ///
     /// # Examples
     ///
     /// ```
-    /// use rutie::{GC, VM};
+    /// use rutie::{RString, GC, VM};
     /// # VM::init();
     ///
     /// // Returns whether it was already disabled.
     /// assert!(!GC::disable());
     /// assert!(GC::disable());
     ///
-    /// // While disabled, not even an explicit start collects.
+    /// // Allocating doesn't collect while disabled.
     /// let before = GC::count();
-    /// GC::start();
+    /// for i in 0..100_000 {
+    ///     RString::new_utf8(&i.to_string());
+    /// }
     /// assert_eq!(GC::count(), before);
     ///
     /// GC::enable();
@@ -223,103 +228,6 @@ impl GC {
     /// ```
     pub fn enable() -> bool {
         gc::enable().is_true()
-    }
-
-    /// Forcibly GC object. On every Ruby Rutie 0.12 supports this does
-    /// nothing (`rb_gc_force_recycle` is a no-op from Ruby 3.1): the object
-    /// is freed by a later GC like any other.
-    ///
-    /// **Deprecated:** Ruby 3.4 removes `rb_gc_force_recycle`, and Rutie 0.13
-    /// removes this method. Drop the call.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #![allow(deprecated)]
-    /// use rutie::{Fixnum, Hash, Module, Object, RString, Symbol, GC, VM};
-    /// # VM::init();
-    ///
-    /// let live_strings = || {
-    ///     let counts = unsafe { Module::from_existing("ObjectSpace").send("count_objects", &[]) };
-    ///     let counts = counts.try_convert_to::<Hash>().unwrap();
-    ///
-    ///     counts.at(&Symbol::new("T_STRING")).try_convert_to::<Fixnum>().unwrap().to_i64()
-    /// };
-    ///
-    /// let obj = RString::new_utf8("asdf");
-    ///
-    /// GC::disable();
-    /// live_strings(); // the first call allocates while looking names up
-    /// let before = live_strings();
-    /// GC::force_recycle(obj);
-    ///
-    /// // Nothing was freed.
-    /// assert_eq!(live_strings(), before);
-    /// GC::enable();
-    /// ```
-    #[deprecated(
-        since = "0.12.0",
-        note = "a no-op from Ruby 3.1; Ruby 3.4 removes it, and so will Rutie 0.13"
-    )]
-    pub fn force_recycle(object: impl Object) {
-        gc::force_recycle(object.value())
-    }
-
-    /// Check if object is marked
-    ///
-    /// **Deprecated:** Ruby 3.4 no longer exports `rb_objspace_marked_object_p`,
-    /// and there is no replacement; Rutie 0.13 removes this method.
-    ///
-    /// CAUTION: THIS FUNCTION IS ENABLED *ONLY BEFORE* SWEEPING.
-    /// This function is only for GC_END_MARK timing.
-    ///
-    /// # Examples
-    ///
-    /// Use it from a `wrappable_struct!` mark function, while the GC is
-    /// marking. A panic there aborts the process, so record the result instead:
-    ///
-    /// ```
-    /// # #![allow(deprecated)]
-    /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
-    ///
-    /// use rutie::{AnyObject, Class, Object, RString, GC, VM};
-    /// use std::sync::atomic::{AtomicBool, Ordering};
-    ///
-    /// static MARKED: AtomicBool = AtomicBool::new(false);
-    ///
-    /// pub struct Holder {
-    ///     name: RString,
-    /// }
-    ///
-    /// wrappable_struct! {
-    ///     Holder,
-    ///     HolderWrapper,
-    ///     HOLDER_WRAPPER,
-    ///
-    ///     mark(data) {
-    ///         GC::mark(&data.name);
-    ///         MARKED.store(unsafe { GC::is_marked(&data.name) }, Ordering::SeqCst);
-    ///     }
-    /// }
-    ///
-    /// fn main() {
-    ///     # VM::init();
-    ///     let holder: AnyObject = Class::new("Holder", None)
-    ///         .wrap_data(Holder { name: RString::new_utf8("held") }, &*HOLDER_WRAPPER);
-    ///
-    ///     GC::start();
-    ///
-    ///     assert!(MARKED.load(Ordering::SeqCst), "Object was not marked");
-    ///     assert_eq!(holder.get_data(&*HOLDER_WRAPPER).name.to_str(), "held");
-    /// }
-    /// ```
-    #[deprecated(
-        since = "0.12.0",
-        note = "Ruby 3.4 no longer exports rb_objspace_marked_object_p; Rutie 0.13 removes it"
-    )]
-    pub unsafe fn is_marked(object: &impl Object) -> bool {
-        gc::is_marked(object.value())
     }
 
     /// Mark an object for Ruby to avoid garbage collecting item.
@@ -750,11 +658,8 @@ mod tests {
             for object in &data.objects {
                 GC::mark_maybe(object);
             }
-            // `is_marked` only means something during marking. A panic here
-            // would abort, so the result is recorded instead.
-            #[allow(deprecated)]
-            let marked = data.objects.iter().all(|object| unsafe { GC::is_marked(object) });
-            HOLDER_CONTENTS_MARKED.store(marked, Ordering::SeqCst);
+            // Records that the GC called this mark function.
+            HOLDER_CONTENTS_MARKED.store(true, Ordering::SeqCst);
         }
     }
 
@@ -843,11 +748,6 @@ mod tests {
                 "held"
             );
             assert!(HOLDER_CONTENTS_MARKED.load(Ordering::SeqCst));
-
-            // `force_recycle` frees an object immediately; it must not be used again.
-            let garbage = crate::RString::new_utf8("recycled");
-            #[allow(deprecated)]
-            GC::force_recycle(garbage);
 
             let object = crate::RString::new_utf8("finalizable");
             let finalizer = Proc::new(|_| NilClass::new().into());

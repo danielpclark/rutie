@@ -25,7 +25,6 @@ extern "C" {
     pub fn rb_hash_new() -> Value;
     // VALUE
     // rb_hash_new_capa(long capa)
-    #[cfg(ruby_gte_3_2)]
     pub fn rb_hash_new_capa(capa: c_long) -> Value;
     // VALUE
     // rb_hash_size(VALUE hash)

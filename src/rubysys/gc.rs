@@ -15,9 +15,6 @@ extern "C" {
     // rb_gc_enable(void)
     pub fn rb_gc_enable() -> Value;
     // void
-    // rb_gc_force_recycle(VALUE obj)
-    pub fn rb_gc_force_recycle(obj: Value);
-    // void
     // rb_gc_mark(VALUE ptr)
     pub fn rb_gc_mark(value: Value);
     // void
@@ -44,11 +41,6 @@ extern "C" {
     // void
     // rb_gc_unregister_address(VALUE *addr)
     pub fn rb_gc_unregister_address(addr: CallbackPtr);
-    // int
-    // rb_objspace_marked_object_p(VALUE obj)
-    //
-    // NOT IN PUBLIC HEADERS: exported for the `objspace` extension.
-    pub fn rb_objspace_marked_object_p(obj: Value) -> c_int;
     // VALUE
     // rb_define_finalizer(VALUE obj, VALUE block)
     pub fn rb_define_finalizer(object: Value, block: Value) -> Value;

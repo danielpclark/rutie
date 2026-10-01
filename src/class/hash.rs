@@ -68,8 +68,7 @@ impl Hash {
     /// Creates an empty `Hash` with room for `capacity` entries before it
     /// grows (`rb_hash_new_capa`).
     ///
-    /// The capacity is a hint: Ruby 3.1 has no way to set it, and returns an
-    /// ordinary empty `Hash`.
+    /// The capacity is a hint; the `Hash` is empty either way.
     ///
     /// # Examples
     ///

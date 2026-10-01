@@ -313,20 +313,20 @@ mod current_ruby {
             )
             .to_string();
 
-            let cfg_version = if cfg!(ruby_3_1) {
-                "3.1"
-            } else if cfg!(ruby_3_2) {
+            let cfg_version = if cfg!(ruby_3_2) {
                 "3.2"
             } else if cfg!(ruby_3_3) {
                 "3.3"
+            } else if cfg!(ruby_3_4) {
+                "3.4"
             } else {
                 "unsupported"
             };
 
             assert_eq!(version, cfg_version, "Ruby version cfg flag mismatch");
-            assert!(cfg!(ruby_gte_3_1));
-            assert_eq!(cfg!(ruby_gte_3_2), version.as_str() >= "3.2");
+            assert!(cfg!(ruby_gte_3_2));
             assert_eq!(cfg!(ruby_gte_3_3), version.as_str() >= "3.3");
+            assert_eq!(cfg!(ruby_gte_3_4), version.as_str() >= "3.4");
         });
     }
 

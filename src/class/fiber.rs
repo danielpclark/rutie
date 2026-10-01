@@ -7,7 +7,6 @@ use crate::{
     util, AnyException, AnyObject, Class, Hash, Object, Thread, VerifiedObject,
 };
 
-#[cfg(ruby_gte_3_2)]
 use crate::NilClass;
 
 // Fibers are created, resumed and yielded through `vm::fiber_call`, which
@@ -110,7 +109,7 @@ impl Fiber {
 
     /// Like [`Fiber::new`](#method.new), but the fiber starts with its own
     /// fiber storage (`Fiber[key]`) instead of a copy of the current fiber's
-    /// (`rb_fiber_new_storage`, Ruby 3.2+).
+    /// (`rb_fiber_new_storage`).
     ///
     /// `None` starts with empty storage. `Some(hash)` starts with a copy of
     /// `hash`, which must have only `Symbol` keys and not be frozen; otherwise
@@ -143,7 +142,6 @@ impl Fiber {
     /// let error = Fiber::with_storage(Some(&bad), read_storage).unwrap_err();
     /// assert_eq!(error.class().name().unwrap().to_str(), "TypeError");
     /// ```
-    #[cfg(ruby_gte_3_2)]
     pub fn with_storage<F>(storage: Option<&Hash>, mut func: F) -> Result<Self, AnyException>
     where
         F: FnMut(&[AnyObject]) -> AnyObject + 'static,
@@ -766,7 +764,6 @@ mod tests {
         });
     }
 
-    #[cfg(ruby_gte_3_2)]
     #[test]
     fn test_with_storage() {
         use crate::{AnyObject, Class, Hash, NilClass, Symbol};
