@@ -30,6 +30,9 @@ themselves.
    `rb_fiber_scheduler_blocking_operation_wait` (with
    `RbFiberSchedulerBlockingOperationState`), `ruby_malloc_add_size_overflow`
    and `rb_assert_failure_detail`, thanks to @danielpclark
+ - `rubysys::scheduler::RB_NOGVL_INTR_FAIL`, `RB_NOGVL_UBF_ASYNC_SAFE` and
+   `RB_NOGVL_OFFLOAD_SAFE` (Ruby 3.4+), the `flags` of
+   `rb_fiber_scheduler_blocking_operation_wait`, thanks to @danielpclark
 
 ### Changed
  - `Fiber::with_storage` is available on every supported Ruby, and
@@ -44,6 +47,10 @@ themselves.
  - `GC::force_recycle` and `GC::is_marked` (deprecated in 0.12): Ruby 3.4
    removes `rb_gc_force_recycle` and no longer exports
    `rb_objspace_marked_object_p`, thanks to @danielpclark
+
+### Fixed
+ - `rubysys::constant::ELTS_SHARED` and `FL_SINGLETON` follow Ruby 3.4, which
+   moved them to `FL_USER_0` and `FL_USER_1`, thanks to @danielpclark
 
 ## [0.12.0] - 2026-10-01
 Supports Ruby 3.1, 3.2 and 3.3 on Linux, macOS and Windows; Ruby 3.0 stays

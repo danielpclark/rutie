@@ -37,8 +37,15 @@ pub const FL_USER_16: isize = 1 << (FL_USHIFT + 16);
 pub const FL_USER_17: isize = 1 << (FL_USHIFT + 17);
 pub const FL_USER_18: isize = 1 << (FL_USHIFT + 18);
 
+// Ruby 3.4 swapped these two bits around.
+#[cfg(not(ruby_gte_3_4))]
 pub const ELTS_SHARED: isize = FL_USER_2;
+#[cfg(not(ruby_gte_3_4))]
 pub const FL_SINGLETON: isize = FL_USER_0;
+#[cfg(ruby_gte_3_4)]
+pub const ELTS_SHARED: isize = FL_USER_0;
+#[cfg(ruby_gte_3_4)]
+pub const FL_SINGLETON: isize = FL_USER_1;
 
 pub const UNLIMITED_ARGUMENTS: isize = -1;
 

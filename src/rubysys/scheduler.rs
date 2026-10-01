@@ -216,6 +216,18 @@ extern "C" {
     ) -> Value;
 }
 
+// `rb_nogvl` flags (`ruby/thread.h`), as `rb_fiber_scheduler_blocking_operation_wait`
+// takes them.
+//
+// Fail instead of running the function when an interrupt is pending.
+pub const RB_NOGVL_INTR_FAIL: c_int = 0x1;
+// The unblock function may run from a signal handler or another thread.
+pub const RB_NOGVL_UBF_ASYNC_SAFE: c_int = 0x2;
+// Ruby 3.4+: the function may be offloaded to another thread by the
+// scheduler's `blocking_operation_wait`.
+#[cfg(ruby_gte_3_4)]
+pub const RB_NOGVL_OFFLOAD_SAFE: c_int = 0x4;
+
 // What `rb_fiber_scheduler_blocking_operation_wait` reports back (Ruby 3.4).
 #[cfg(ruby_gte_3_4)]
 #[derive(Debug, Copy, Clone)]
