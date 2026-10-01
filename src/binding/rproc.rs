@@ -114,3 +114,43 @@ pub fn object_method_arity(object: Value, name: &str) -> i32 {
 pub fn module_method_arity(module: Value, name: &str) -> i32 {
     unsafe { rproc::rb_mod_method_arity(module, symbol::internal_id(name)) as i32 }
 }
+
+// With `keywords`, the last argument must be a `Hash`; it is passed as
+// keywords. A `nil` block passes no block.
+pub fn call_with_block(rproc: Value, arguments: &[Value], block: Value, keywords: bool) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+    let kw_splat = util::bool_to_c_int(keywords);
+
+    unsafe { rproc::rb_proc_call_with_block_kw(rproc, argc, argv, block, kw_splat) }
+}
+
+pub fn method_call_with_block(
+    method: Value,
+    arguments: &[Value],
+    block: Value,
+    keywords: bool,
+) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+    let kw_splat = util::bool_to_c_int(keywords);
+
+    unsafe { rproc::rb_method_call_with_block_kw(argc, argv, method, block, kw_splat) }
+}
+
+// The last argument must be a `Hash`; it is passed as keywords.
+pub fn call_with_keywords(rproc: Value, arguments: &[Value]) -> Value {
+    let arguments = unsafe {
+        crate::rubysys::array::rb_ary_new_from_values(
+            arguments.len() as crate::types::c_long,
+            arguments.as_ptr(),
+        )
+    };
+
+    unsafe { rproc::rb_proc_call_kw(rproc, arguments, 1) }
+}
+
+// The last argument must be a `Hash`; it is passed as keywords.
+pub fn method_call_with_keywords(method: Value, arguments: &[Value]) -> Value {
+    let (argc, argv) = util::process_arguments(arguments);
+
+    unsafe { rproc::rb_method_call_kw(argc, argv, method, 1) }
+}

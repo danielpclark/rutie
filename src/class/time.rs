@@ -173,6 +173,56 @@ impl Time {
         .map(|_| Duration::new(interval.0 as u64, interval.1 * 1000))
         .map_err(AnyException::from)
     }
+
+    /// Converts a number of seconds to a `Duration` like
+    /// [`Time::interval`](#method.interval), but with nanosecond precision
+    /// (`rb_time_timespec_interval`), or returns the
+    /// `ArgumentError`/`TypeError` for a negative or non-numeric value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Time, VM};
+    /// use std::time::Duration;
+    /// # VM::init();
+    ///
+    /// let rational = VM::eval("Rational(1, 1_000_000_000) + 2").unwrap();
+    ///
+    /// assert_eq!(Time::precise_interval(&rational).unwrap(), Duration::new(2, 1));
+    /// assert!(Time::precise_interval(&Fixnum::new(-1)).is_err());
+    /// ```
+    pub fn precise_interval<T: Object>(seconds: &T) -> Result<Duration, AnyException> {
+        let seconds = seconds.value();
+        let mut interval = (0, 0);
+
+        vm::protect_value(|| {
+            interval = time::timespec_interval(seconds);
+
+            NilClass::new().value()
+        })
+        .map(|_| Duration::new(interval.0 as u64, interval.1))
+        .map_err(AnyException::from)
+    }
+
+    /// Returns the time elapsed since the Unix epoch, read from the clock
+    /// `Time.now` uses (`rb_timespec_now`), without creating a Ruby object.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Time, VM};
+    /// # VM::init();
+    ///
+    /// let before = Time::now().to_unix();
+    /// let now = Time::now_since_epoch();
+    ///
+    /// assert!(now.as_secs() as i64 >= before.0);
+    /// ```
+    pub fn now_since_epoch() -> Duration {
+        let (seconds, nanoseconds) = time::timespec_now();
+
+        Duration::new(seconds as u64, nanoseconds)
+    }
 }
 
 /// Converts a `SystemTime` to a local `Time`, keeping nanoseconds.
@@ -250,7 +300,7 @@ impl PartialEq for Time {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Fixnum, Object, RString, Rational, Time, VM};
+    use crate::{Fixnum, Float, Integer, Object, RString, Rational, Time, VM};
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -312,6 +362,32 @@ mod tests {
 
             let from_epoch = UNIX_EPOCH + Duration::new(1_000_000_000, 500_000_000);
             assert_eq!(time.to_system_time(), from_epoch);
+        });
+    }
+
+    #[test]
+    fn test_precise_interval_and_now_since_epoch() {
+        crate::on_ruby_thread(|| {
+            assert_eq!(
+                Time::precise_interval(&Float::new(0.5)).unwrap(),
+                Duration::from_millis(500)
+            );
+            assert_eq!(
+                Time::precise_interval(&Integer::new(3)).unwrap(),
+                Duration::from_secs(3)
+            );
+            let nanos = VM::eval("Rational(123_456_789, 1_000_000_000)").unwrap();
+            assert_eq!(
+                Time::precise_interval(&nanos).unwrap(),
+                Duration::new(0, 123_456_789)
+            );
+            assert!(Time::precise_interval(&RString::new_utf8("1")).is_err());
+            assert!(Time::precise_interval(&Float::new(-0.1)).is_err());
+
+            let before = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+            let now = Time::now_since_epoch();
+            let after = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+            assert!(before.as_secs() <= now.as_secs() && now.as_secs() <= after.as_secs());
         });
     }
 }

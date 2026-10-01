@@ -3,7 +3,7 @@ use std::convert::From;
 use crate::{
     binding::{rproc, vm},
     types::Value,
-    util, AnyException, AnyObject, Boolean, Class, Object, VerifiedObject,
+    util, AnyException, AnyObject, Boolean, Class, Hash, Object, VerifiedObject,
 };
 
 /// `Proc` (works with `Lambda` as well)
@@ -151,6 +151,82 @@ impl Proc {
         AnyObject::from(result)
     }
 
+    /// Calls the proc with `arguments` and `keywords` as keyword arguments,
+    /// like Ruby's `proc.call(*arguments, **keywords)` (`rb_proc_call_kw`),
+    /// returning the result or the exception raised.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Exception, Fixnum, Hash, Object, Proc, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let area = VM::eval("lambda { |width, height: 1| width * height }")
+    ///     .unwrap()
+    ///     .try_convert_to::<Proc>()
+    ///     .unwrap();
+    ///
+    /// let mut keywords = Hash::new();
+    /// keywords.store(Symbol::new("height"), Fixnum::new(4));
+    ///
+    /// let result = area.call_with_keywords(&[Fixnum::new(3).into()], keywords).unwrap();
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(12)));
+    ///
+    /// let mut unknown = Hash::new();
+    /// unknown.store(Symbol::new("depth"), Fixnum::new(4));
+    ///
+    /// let error = area.call_with_keywords(&[Fixnum::new(3).into()], unknown).unwrap_err();
+    ///
+    /// assert_eq!(error.message(), "unknown keyword: :depth");
+    /// ```
+    pub fn call_with_keywords(
+        &self,
+        arguments: &[AnyObject],
+        keywords: Hash,
+    ) -> Result<AnyObject, AnyException> {
+        let rproc = self.value();
+        let mut arguments = util::arguments_to_values(arguments);
+        arguments.push(keywords.value());
+
+        vm::protect_value(|| rproc::call_with_keywords(rproc, &arguments))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Calls the proc with `arguments`, passing `block` as its block, like
+    /// Ruby's `proc.call(*arguments, &block)` (`rb_proc_call_with_block_kw`),
+    /// returning the result or the exception raised.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Object, Proc, VM};
+    /// # VM::init();
+    ///
+    /// let twice = VM::eval("proc { |x, &block| block.call(block.call(x)) }")
+    ///     .unwrap()
+    ///     .try_convert_to::<Proc>()
+    ///     .unwrap();
+    /// let increment = VM::eval("proc { |x| x + 1 }").unwrap().try_convert_to::<Proc>().unwrap();
+    ///
+    /// let result = twice.call_with_block(&[Fixnum::new(5).into()], &increment).unwrap();
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(7)));
+    /// ```
+    pub fn call_with_block(
+        &self,
+        arguments: &[AnyObject],
+        block: &Proc,
+    ) -> Result<AnyObject, AnyException> {
+        let (rproc, block) = (self.value(), block.value());
+        let arguments = util::arguments_to_values(arguments);
+
+        vm::protect_value(|| rproc::call_with_block(rproc, &arguments, block, false))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
     /// Check if Proc is a lambda
     ///
     /// # Examples
@@ -219,7 +295,7 @@ impl PartialEq for Proc {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Array, Exception, Fixnum, Object, Proc, GC, VM};
+    use crate::{Array, Exception, Fixnum, Hash, Object, Proc, GC, VM};
     use std::sync::Arc;
 
     #[test]
@@ -309,6 +385,51 @@ mod tests {
                 .unwrap();
             assert!(lambda.is_lambda());
             assert!(lambda.protect_call(&[]).is_err());
+        });
+    }
+
+    #[test]
+    fn test_proc_calls_with_keywords_and_blocks() {
+        crate::on_ruby_thread(|| {
+            let collect =
+                VM::eval("proc { |*args, **kw, &block| [args, kw, block && block.call] }")
+                    .unwrap()
+                    .try_convert_to::<Proc>()
+                    .unwrap();
+            let keywords = VM::eval("{ a: 1 }")
+                .unwrap()
+                .try_convert_to::<Hash>()
+                .unwrap();
+            let result = collect
+                .call_with_keywords(&[Fixnum::new(1).into()], keywords)
+                .unwrap();
+            assert_eq!(result.inspect_object().to_str(), "[[1], {a: 1}, nil]");
+
+            // An empty keyword hash passes no keywords.
+            let result = collect.call_with_keywords(&[], Hash::new()).unwrap();
+            assert_eq!(result.inspect_object().to_str(), "[[], {}, nil]");
+
+            let block = Proc::new(|_| Fixnum::new(9).value().into());
+            let result = collect
+                .call_with_block(&[Fixnum::new(2).into()], &block)
+                .unwrap();
+            assert_eq!(result.inspect_object().to_str(), "[[2], {}, 9]");
+
+            let failing = VM::eval("proc { |&block| block.call }")
+                .unwrap()
+                .try_convert_to::<Proc>()
+                .unwrap();
+            let raising = VM::eval("proc { raise 'from block' }")
+                .unwrap()
+                .try_convert_to::<Proc>()
+                .unwrap();
+            assert_eq!(
+                failing
+                    .call_with_block(&[], &raising)
+                    .unwrap_err()
+                    .message(),
+                "from block"
+            );
         });
     }
 }

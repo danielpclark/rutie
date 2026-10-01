@@ -92,3 +92,26 @@ pub fn update(hash: Value, other: Value) -> Value {
 pub fn check_hash_type(object: Value) -> Value {
     unsafe { hash::rb_check_hash_type(object) }
 }
+
+// `keys_and_values` holds key, value pairs. Does not check whether `hash`
+// is frozen.
+pub fn bulk_insert(hash: Value, keys_and_values: &[Value]) {
+    assert!(keys_and_values.len() % 2 == 0);
+
+    unsafe {
+        hash::rb_hash_bulk_insert(
+            keys_and_values.len() as c_long,
+            keys_and_values.as_ptr(),
+            hash,
+        )
+    }
+}
+
+// `(Symbol-keyed entries, other entries)`, each `None` when empty.
+pub fn extract_keywords(hash: Value) -> (Option<Value>, Option<Value>) {
+    let mut rest = hash;
+    let keywords = unsafe { crate::rubysys::vm::rb_extract_keywords(&mut rest) };
+    let present = |value: Value| if value.value == 0 { None } else { Some(value) };
+
+    (present(keywords), present(rest))
+}

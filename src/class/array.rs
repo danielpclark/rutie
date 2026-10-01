@@ -217,6 +217,49 @@ impl Array {
         Array::from(result)
     }
 
+    /// Appends all `items` to the end of the array in one step
+    /// (`rb_ary_cat`), like Ruby's `push(*items)`.
+    ///
+    /// Ruby raises `FrozenError` if the array is frozen.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, VM};
+    /// # VM::init();
+    ///
+    /// let mut array = Array::new().push(Fixnum::new(1));
+    ///
+    /// array.push_all(&[Fixnum::new(2).into(), Fixnum::new(3).into()]);
+    ///
+    /// assert_eq!(array.length(), 3);
+    /// assert_eq!(array.at(2).try_convert_to::<Fixnum>(), Ok(Fixnum::new(3)));
+    /// ```
+    pub fn push_all(&mut self, items: &[AnyObject]) -> Self {
+        let items = crate::util::arguments_to_values(items);
+
+        Array::from(array::cat(self.value(), &items))
+    }
+
+    /// Creates the two-element array `[first, second]` (`rb_assoc_new`),
+    /// such as a key and value pair of `Hash#to_a`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let pair = Array::pair(Symbol::new("answer"), Fixnum::new(42));
+    ///
+    /// assert_eq!(pair.length(), 2);
+    /// assert_eq!(pair.at(0).try_convert_to::<Symbol>(), Ok(Symbol::new("answer")));
+    /// assert_eq!(pair.at(1).try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+    /// ```
+    pub fn pair<A: Object, B: Object>(first: A, second: B) -> Self {
+        Array::from(array::assoc_new(first.value(), second.value()))
+    }
+
     /// Stores an object at `index` position.
     ///
     /// Ruby raises `FrozenError` if the array is frozen; check
@@ -1077,7 +1120,9 @@ impl FromIterator<AnyObject> for Array {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Array, Fixnum, NilClass, Object, RString, Symbol, TryConvert, VM};
+    use crate::{
+        AnyObject, Array, Class, Fixnum, NilClass, Object, RString, Symbol, TryConvert, VM,
+    };
     use std::cmp::Ordering;
 
     fn fixnums(values: &[i64]) -> Array {
@@ -1212,6 +1257,28 @@ mod tests {
             });
             assert!(result.is_err());
             VM::clear_error_info();
+        });
+    }
+
+    #[test]
+    fn test_push_all_and_pair() {
+        crate::on_ruby_thread(|| {
+            let mut array = Array::new();
+            array.push_all(&[]);
+            assert_eq!(array.length(), 0);
+
+            let items: Vec<AnyObject> = (0..100).map(|i| Fixnum::new(i).into()).collect();
+            array.push_all(&items);
+            array.push_all(&items[..3]);
+            assert_eq!(array.length(), 103);
+            assert_eq!(array.at(102).try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+
+            let mut frozen = Array::new().freeze();
+            assert!(VM::protect(|| frozen.push_all(&items[..1]).into()).is_err());
+            assert!(Class::from_existing("FrozenError").case_equals(&VM::error_pop().unwrap()));
+
+            let pair = Array::pair(NilClass::new(), RString::new_utf8("v"));
+            assert_eq!(pair.inspect_object().to_str(), "[nil, \"v\"]");
         });
     }
 }

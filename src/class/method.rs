@@ -3,7 +3,7 @@ use std::convert::From;
 use crate::{
     binding::{rproc, vm},
     types::Value,
-    util, AnyException, AnyObject, Fixnum, Object, Proc, VerifiedObject,
+    util, AnyException, AnyObject, Fixnum, Hash, Object, Proc, VerifiedObject,
 };
 
 /// `Method`, a method bound to its receiver, as returned by
@@ -55,6 +55,71 @@ impl Method {
         let arguments = util::arguments_to_values(arguments);
 
         vm::protect_value(|| rproc::method_call(method, &arguments))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Calls the method with `arguments` and `keywords` as keyword
+    /// arguments (`rb_method_call_kw`), returning the result or the
+    /// exception raised.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let calculator = VM::eval("o = Object.new; def o.power(base, exponent: 2); base ** exponent; end; o").unwrap();
+    /// let power = calculator.method("power").unwrap();
+    ///
+    /// let mut keywords = Hash::new();
+    /// keywords.store(Symbol::new("exponent"), Fixnum::new(3));
+    ///
+    /// let result = power.call_with_keywords(&[Fixnum::new(2).into()], keywords).unwrap();
+    ///
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(8)));
+    /// ```
+    pub fn call_with_keywords(
+        &self,
+        arguments: &[AnyObject],
+        keywords: Hash,
+    ) -> Result<AnyObject, AnyException> {
+        let method = self.value();
+        let mut arguments = util::arguments_to_values(arguments);
+        arguments.push(keywords.value());
+
+        vm::protect_value(|| rproc::method_call_with_keywords(method, &arguments))
+            .map(AnyObject::from)
+            .map_err(AnyException::from)
+    }
+
+    /// Calls the method with `arguments`, passing `block` as its block
+    /// (`rb_method_call_with_block_kw`), returning the result or the
+    /// exception raised.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Array, Fixnum, Object, Proc, VM};
+    /// # VM::init();
+    ///
+    /// let numbers = VM::eval("[1, 2, 3]").unwrap();
+    /// let map = numbers.method("map").unwrap();
+    /// let square = VM::eval("proc { |x| x * x }").unwrap().try_convert_to::<Proc>().unwrap();
+    ///
+    /// let squares = map.call_with_block(&[], &square).unwrap().try_convert_to::<Array>().unwrap();
+    ///
+    /// assert_eq!(squares.at(2).try_convert_to::<Fixnum>(), Ok(Fixnum::new(9)));
+    /// ```
+    pub fn call_with_block(
+        &self,
+        arguments: &[AnyObject],
+        block: &Proc,
+    ) -> Result<AnyObject, AnyException> {
+        let (method, block) = (self.value(), block.value());
+        let arguments = util::arguments_to_values(arguments);
+
+        vm::protect_value(|| rproc::method_call_with_block(method, &arguments, block, false))
             .map(AnyObject::from)
             .map_err(AnyException::from)
     }
@@ -135,7 +200,7 @@ impl PartialEq for Method {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Array, Class, Fixnum, Method, Object, RString, VM};
+    use crate::{Array, Class, Fixnum, Hash, Method, Object, Proc, RString, VM};
 
     #[test]
     fn test_method() {
@@ -173,6 +238,42 @@ mod tests {
                 Class::from_existing("Array").instance_method_arity("push"),
                 -1
             );
+        });
+    }
+
+    #[test]
+    fn test_method_calls_with_keywords_and_blocks() {
+        crate::on_ruby_thread(|| {
+            let object = VM::eval(
+                "o = Object.new
+                 def o.collect(*args, **kw, &block); [args, kw, block && block.call]; end
+                 o",
+            )
+            .unwrap();
+            let collect = object.method("collect").unwrap();
+
+            let keywords = VM::eval("{ b: 2 }")
+                .unwrap()
+                .try_convert_to::<Hash>()
+                .unwrap();
+            let result = collect
+                .call_with_keywords(&[Fixnum::new(1).into()], keywords)
+                .unwrap();
+            assert_eq!(result.inspect_object().to_str(), "[[1], {b: 2}, nil]");
+
+            let block = VM::eval("proc { :blocked }")
+                .unwrap()
+                .try_convert_to::<Proc>()
+                .unwrap();
+            let result = collect.call_with_block(&[], &block).unwrap();
+            assert_eq!(result.inspect_object().to_str(), "[[], {}, :blocked]");
+
+            let strict = VM::eval("o = Object.new; def o.strict(a); a; end; o")
+                .unwrap()
+                .method("strict")
+                .unwrap();
+            assert!(strict.call_with_keywords(&[], Hash::new()).is_err());
+            assert!(strict.call_with_block(&[], &block).is_err());
         });
     }
 }

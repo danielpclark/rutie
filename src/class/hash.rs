@@ -1,7 +1,7 @@
 use std::{convert::From, default::Default};
 
 use crate::{
-    binding::{hash, vm},
+    binding::{exception, hash, vm},
     types::{Value, ValueType},
     AnyException, AnyObject, Array, NilClass, Object, TryConvert, VerifiedObject,
 };
@@ -475,6 +475,83 @@ impl Hash {
         hash::update(self.value(), other.value());
     }
 
+    /// Stores all key, value `pairs` in the hash in one step
+    /// (`rb_hash_bulk_insert`), or returns the `FrozenError` if the hash is
+    /// frozen. Like [`store`](#method.store), an unfrozen `String` key is
+    /// stored as a frozen copy.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{AnyObject, Exception, Fixnum, Hash, Object, RString, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let mut hash = Hash::new();
+    ///
+    /// hash.bulk_insert(&[
+    ///     (Symbol::new("a").into(), Fixnum::new(1).into()),
+    ///     (RString::new_utf8("b").into(), Fixnum::new(2).into()),
+    /// ])
+    /// .unwrap();
+    ///
+    /// assert_eq!(hash.length(), 2);
+    /// assert_eq!(hash.at(&RString::new_utf8("b")).try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+    ///
+    /// hash.freeze();
+    ///
+    /// let error = hash.bulk_insert(&[(Symbol::new("c").into(), Fixnum::new(3).into())]).unwrap_err();
+    ///
+    /// assert!(error.message().starts_with("can't modify frozen Hash"));
+    /// ```
+    pub fn bulk_insert(&mut self, pairs: &[(AnyObject, AnyObject)]) -> Result<(), AnyException> {
+        let hash = self.value();
+        let keys_and_values: Vec<Value> = pairs
+            .iter()
+            .flat_map(|(key, value)| [key.value(), value.value()])
+            .collect();
+
+        vm::protect_value(|| {
+            exception::check_frozen(hash);
+            hash::bulk_insert(hash, &keys_and_values);
+
+            NilClass::new().value()
+        })
+        .map(|_| ())
+        .map_err(AnyException::from)
+    }
+
+    /// Splits the hash into a new hash of its `Symbol`-keyed entries (the
+    /// ones that can be keyword arguments) and a new hash of the others
+    /// (`rb_extract_keywords`). The hash itself is unchanged.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fixnum, Hash, Object, RString, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let options = VM::eval("{ verbose: true, 'path' => '/tmp', level: 2 }")
+    ///     .unwrap()
+    ///     .try_convert_to::<Hash>()
+    ///     .unwrap();
+    ///
+    /// let (keywords, rest) = options.split_keywords();
+    ///
+    /// assert_eq!(keywords.length(), 2);
+    /// assert_eq!(keywords.at(&Symbol::new("level")).try_convert_to::<Fixnum>(), Ok(Fixnum::new(2)));
+    /// assert_eq!(rest.length(), 1);
+    /// assert!(!rest.at(&RString::new_utf8("path")).is_nil());
+    /// assert_eq!(options.length(), 3);
+    /// ```
+    pub fn split_keywords(&self) -> (Hash, Hash) {
+        let (keywords, rest) = hash::extract_keywords(self.value());
+
+        (
+            keywords.map(Hash::from).unwrap_or_default(),
+            rest.map(Hash::from).unwrap_or_default(),
+        )
+    }
+
     /// Sets the value returned for missing keys (Ruby's `default=`),
     /// replacing any default proc.
     ///
@@ -641,7 +718,9 @@ impl PartialEq for Hash {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::{Fixnum, Hash, NilClass, Object, Symbol, TryConvert, VM};
+    use super::super::super::{
+        AnyObject, Fixnum, Hash, NilClass, Object, RString, Symbol, TryConvert, VM,
+    };
 
     #[test]
     fn test_hash_each() {
@@ -747,6 +826,59 @@ mod tests {
             assert_eq!(Hash::with_capacity(0).length(), 0);
             // Clamped to Ruby's `long`, not an overflow.
             assert_eq!(Hash::with_capacity(usize::MAX >> 40).length(), 0);
+        });
+    }
+
+    #[test]
+    fn test_bulk_insert_and_split_keywords() {
+        crate::on_ruby_thread(|| {
+            let mut hash = Hash::new();
+            hash.bulk_insert(&[]).unwrap();
+            assert_eq!(hash.length(), 0);
+
+            // Large enough to switch from the array table to an st table.
+            let pairs: Vec<(AnyObject, AnyObject)> = (0..40)
+                .map(|i| (Fixnum::new(i).into(), Fixnum::new(i * i).into()))
+                .collect();
+            hash.bulk_insert(&pairs).unwrap();
+            assert_eq!(hash.length(), 40);
+            assert_eq!(
+                hash.at(&Fixnum::new(7)).try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(49))
+            );
+
+            // String keys are stored as frozen copies; later pairs win.
+            let mut key = RString::new_utf8("key");
+            hash.bulk_insert(&[
+                (key.to_any_object(), Fixnum::new(1).into()),
+                (key.to_any_object(), Fixnum::new(2).into()),
+            ])
+            .unwrap();
+            key.concat("-changed");
+            assert_eq!(
+                hash.at(&RString::new_utf8("key"))
+                    .try_convert_to::<Fixnum>(),
+                Ok(Fixnum::new(2))
+            );
+            let stored = VM::eval("->(h) { h.keys.last }")
+                .unwrap()
+                .try_convert_to::<crate::Proc>()
+                .unwrap()
+                .call(&[hash.to_any_object()]);
+            assert!(stored.is_frozen());
+
+            let (keywords, rest) = hash.split_keywords();
+            assert_eq!((keywords.length(), rest.length()), (0, 41));
+
+            let only_symbols = VM::eval("{ a: 1, b: 2 }")
+                .unwrap()
+                .try_convert_to::<Hash>()
+                .unwrap();
+            let (keywords, rest) = only_symbols.split_keywords();
+            assert_eq!((keywords.length(), rest.length()), (2, 0));
+
+            let (keywords, rest) = Hash::new().split_keywords();
+            assert_eq!((keywords.length(), rest.length()), (0, 0));
         });
     }
 }

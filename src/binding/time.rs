@@ -33,3 +33,20 @@ pub fn interval(number: Value) -> (i64, u32) {
 pub fn from_numeric(number: Value, offset: Value) -> Value {
     unsafe { time::rb_time_num_new(number, offset) }
 }
+
+// Raises `ArgumentError` for a negative interval and `TypeError` for a
+// non-numeric one.
+pub fn timespec_interval(number: Value) -> (i64, u32) {
+    let timespec = unsafe { time::rb_time_timespec_interval(number) };
+
+    (timespec.tv_sec as i64, timespec.tv_nsec as u32)
+}
+
+// `(seconds, nanoseconds)` since the Unix epoch, from the realtime clock.
+pub fn timespec_now() -> (i64, u32) {
+    let mut timespec: timespec = unsafe { std::mem::zeroed() };
+
+    unsafe { time::rb_timespec_now(&mut timespec) };
+
+    (timespec.tv_sec as i64, timespec.tv_nsec as u32)
+}

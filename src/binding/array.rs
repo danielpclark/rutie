@@ -122,3 +122,11 @@ pub fn subseq(array: Value, begin: usize, len: usize) -> Value {
 pub fn check_array_type(object: Value) -> Value {
     unsafe { array::rb_check_array_type(object) }
 }
+
+pub fn cat(array: Value, items: &[Value]) -> Value {
+    unsafe { array::rb_ary_cat(array, items.as_ptr(), items.len() as c_long) }
+}
+
+pub fn assoc_new(first: Value, second: Value) -> Value {
+    unsafe { array::rb_assoc_new(first, second) }
+}
