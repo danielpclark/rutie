@@ -152,6 +152,7 @@ pub use crate::class::{
     module::Module,
     mutex::{Mutex, MutexGuard},
     nil_class::NilClass,
+    process::Process,
     ractor::{Ractor, RactorLocalKey},
     random::Random,
     range::Range,
