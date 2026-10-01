@@ -28,6 +28,7 @@ extern "C" {
     pub static rb_cNumeric: Value;
     pub static rb_cObject: Value;
     pub static rb_cProc: Value;
+    pub static rb_cRactor: Value;
     pub static rb_cRandom: Value;
     pub static rb_cRange: Value;
     pub static rb_cRational: Value;

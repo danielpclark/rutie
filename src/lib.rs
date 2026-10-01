@@ -148,6 +148,7 @@ pub use crate::class::{
     module::Module,
     mutex::{Mutex, MutexGuard},
     nil_class::NilClass,
+    ractor::{Ractor, RactorLocalKey},
     range::Range,
     rational::Rational,
     regexp::{MatchData, Regexp},

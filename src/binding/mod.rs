@@ -12,6 +12,7 @@ pub mod io;
 pub mod module;
 pub mod numeric;
 pub mod object;
+pub mod ractor;
 pub mod range;
 pub mod regexp;
 pub mod rproc;
