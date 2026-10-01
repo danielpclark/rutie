@@ -914,6 +914,26 @@ rutie_callback! {
     }
 }
 
+// Runs `func` under `rb_protect` and returns the state, leaving `$!` as it
+// is, so that `jump_tag` can carry on whatever stopped `func`.
+pub fn protect_state<F>(func: F) -> c_int
+where
+    F: FnOnce() -> Value,
+{
+    let mut func = Some(func);
+    let mut state = 0;
+
+    unsafe {
+        vm::rb_protect(
+            call_once_callback::<F> as CallbackPtr,
+            &mut func as *mut Option<F> as *const c_void,
+            &mut state as *mut c_int,
+        )
+    };
+
+    state
+}
+
 // Like `protect_value`, but only exceptions are returned: anything else
 // that unwinds the stack, such as a `throw`, carries on past the caller.
 pub fn protect_exception<F>(func: F) -> Result<Value, Value>

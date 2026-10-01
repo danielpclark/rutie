@@ -27,5 +27,6 @@ pub mod string;
 pub mod symbol;
 pub mod thread;
 pub mod time;
+pub mod tracepoint;
 pub mod variable;
 pub mod vm;

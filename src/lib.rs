@@ -165,6 +165,7 @@ pub use crate::class::{
     symbol::Symbol,
     thread::Thread,
     time::Time,
+    tracepoint::{TraceArg, TracePoint},
     vm::{IoWait, WarningCategory, VM},
 };
 
