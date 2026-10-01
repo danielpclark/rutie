@@ -527,7 +527,7 @@ static Ruby needs the same flag
 macOS, or a `rustc-link-arg` in its build script). Static linking is tested on
 Linux and macOS.
 
-Build a static Ruby 3.2 with `--disable-yjit`. Ruby enables YJIT when `rustc`
+Build a static Ruby 3.2 or 3.3 with `--disable-yjit`. Ruby enables YJIT when `rustc`
 is on `PATH`, and YJIT puts its own copy of the Rust standard library in the
 archive, which can clash with your program's when linking
 (`duplicate symbol: rust_eh_personality`); `build.rs` warns when it sees one.
@@ -554,7 +554,7 @@ its own prefix and give each its own Cargo target directory, so switching does
 not rebuild everything.
 
 ```sh
-for version in 3.1.7 3.2.9 3.3.9; do
+for version in 3.1.7 3.2.9 3.3.12; do
   PATH="/opt/rb/$version/bin:$PATH" \
   CARGO_TARGET_DIR="$HOME/rt-$version/target" \
   cargo test
@@ -572,7 +572,7 @@ On Windows, unpack the RubyInstaller archives (`rubyinstaller-3.2.9-1-x64.7z`,
 can have any name:
 
 ```sh
-for version in 3.0.7-1 3.1.7-1 3.2.9-1; do
+for version in 3.1.7-1 3.2.9-1 3.3.12-1; do
   PATH="/c/rubies/rubyinstaller-$version-x64/bin:$PATH" \
   CARGO_TARGET_DIR="/c/rt-$version" \
   cargo test

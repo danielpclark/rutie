@@ -47,12 +47,11 @@ jobs:
       with:
         ruby-version: ${{ matrix.ruby_version }}
 
-    # There are no prebuilt static Rubies, so build one. ruby-build fetches
-    # OpenSSL 1.1 itself where Ruby needs it (3.0). A Ruby without a shared
-    # library is linked statically without setting RUBY_STATIC. Ruby 3.2
-    # enables YJIT when rustc is on PATH, and YJIT's Rust runtime in the
+    # There are no prebuilt static Rubies, so build one. A Ruby without a
+    # shared library is linked statically without setting RUBY_STATIC. Ruby
+    # 3.2+ enables YJIT when rustc is on PATH, and YJIT's Rust runtime in the
     # archive clashes with the test binary's (`rust_eh_personality`), so it
-    # is turned off (configure only warns about it on 3.0).
+    # is turned off (configure only warns about it on 3.1).
     - name: Build static Ruby
       if: matrix.ruby_static == true
       run: |
@@ -64,12 +63,6 @@ jobs:
         fi
         git clone --depth 1 https://github.com/rbenv/ruby-build.git "$RUNNER_TEMP/ruby-build"
         configure_opts="--disable-shared --disable-install-doc --disable-yjit"
-        # Ruby 3.0's bundled bigdecimal doesn't compile with the current Apple
-        # clang ("'maybe_unused' attribute cannot be applied to types"), and
-        # Rutie doesn't use it.
-        if [[ "$RUNNER_OS" == "macOS" && "${{ matrix.ruby_version }}" == 3.0.* ]]; then
-          configure_opts="$configure_opts --with-out-ext=bigdecimal"
-        fi
         # ruby-build only names its log on failure, so show the end of it.
         export TMPDIR="$RUNNER_TEMP"
         RUBY_CONFIGURE_OPTS="$configure_opts" \
