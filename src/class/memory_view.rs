@@ -551,8 +551,12 @@ mod tests {
     fn test_memory_view_layouts() {
         #[cfg(target_pointer_width = "64")]
         {
-            // Measured against the C headers of 3.1, 3.2 and 3.3.
+            // Measured against the C headers of 3.1 and 3.2; 3.0 has no
+            // `_memory_view_entry`.
+            #[cfg(ruby_gte_3_1)]
             assert_eq!(mem::size_of::<rb_memory_view_t>(), 112);
+            #[cfg(not(ruby_gte_3_1))]
+            assert_eq!(mem::size_of::<rb_memory_view_t>(), 104);
             assert_eq!(mem::size_of::<rb_memory_view_item_component_t>(), 32);
         }
 
@@ -652,7 +656,7 @@ mod tests {
             assert_eq!(size as usize, 2 + mem::size_of::<c_long>());
             assert_eq!(count, 2);
 
-            // `ruby_xmalloc`ed and not freed (`ruby_xfree` is not bound).
+            // Allocated with `ruby_xmalloc`; freed below.
             let members = unsafe { std::slice::from_raw_parts(members, count) };
 
             assert_eq!(members[0].format as u8, b's');
@@ -687,6 +691,8 @@ mod tests {
             assert_eq!(values.length(), 2);
             assert_eq!(values.at(0).try_convert_to::<Fixnum>(), Ok(Fixnum::new(-2)));
             assert_eq!(values.at(1).try_convert_to::<Fixnum>(), Ok(Fixnum::new(7)));
+
+            unsafe { crate::rubysys::gc::ruby_xfree(members.as_ptr() as *mut c_void) };
         });
     }
 }

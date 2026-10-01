@@ -176,9 +176,9 @@ impl Ractor {
     /// assert!(Ractor::is_shareable(&names));
     /// assert!(names.at(0).is_frozen());
     ///
-    /// let proc = VM::eval("proc { self }").unwrap();
+    /// let mutex = VM::eval("Mutex.new").unwrap();
     ///
-    /// assert!(Ractor::make_shareable(&proc).is_err());
+    /// assert!(Ractor::make_shareable(&mutex).is_err());
     /// ```
     pub fn make_shareable<T: Object>(object: &T) -> Result<T, AnyException> {
         let object = object.value();
@@ -452,7 +452,7 @@ mod tests {
             assert!(shared.is_equal(&nested));
             assert!(Ractor::is_shareable(&nested));
 
-            let error = Ractor::make_shareable(&VM::eval("proc { self }").unwrap()).unwrap_err();
+            let error = Ractor::make_shareable(&VM::eval("Mutex.new").unwrap()).unwrap_err();
             assert!(Class::from_existing("Ractor")
                 .get_nested_class("Error")
                 .case_equals(&error));
