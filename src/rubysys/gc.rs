@@ -1,4 +1,4 @@
-use crate::rubysys::types::{c_int, size_t, ssize_t, CallbackPtr, Value};
+use crate::rubysys::types::{c_int, c_void, size_t, ssize_t, CallbackPtr, Value};
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
@@ -69,4 +69,63 @@ extern "C" {
     // VALUE
     // rb_undefine_finalizer(VALUE obj)
     pub fn rb_undefine_finalizer(object: Value) -> Value;
+}
+
+// Ruby's allocator (`ruby/internal/xmalloc.h`): memory counted by the GC,
+// which runs a collection and retries before raising `NoMemoryError`. Ruby
+// frees what it allocates for C code with `ruby_xfree`, and memory given to
+// Ruby to free must come from these.
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // void *
+    // ruby_xmalloc(size_t size)
+    pub fn ruby_xmalloc(size: size_t) -> *mut c_void;
+    // void *
+    // ruby_xmalloc2(size_t nelems, size_t elemsiz)
+    //
+    // Raises `ArgumentError` when `nelems * elemsiz` overflows.
+    pub fn ruby_xmalloc2(nelems: size_t, elemsiz: size_t) -> *mut c_void;
+    // void *
+    // ruby_xcalloc(size_t nelems, size_t elemsiz)
+    //
+    // Zeroed.
+    pub fn ruby_xcalloc(nelems: size_t, elemsiz: size_t) -> *mut c_void;
+    // void *
+    // ruby_xrealloc(void *ptr, size_t newsiz)
+    pub fn ruby_xrealloc(ptr: *mut c_void, newsiz: size_t) -> *mut c_void;
+    // void *
+    // ruby_xrealloc2(void *ptr, size_t newelems, size_t newsiz)
+    pub fn ruby_xrealloc2(ptr: *mut c_void, newelems: size_t, newsiz: size_t) -> *mut c_void;
+    // void
+    // ruby_xfree(void *ptr)
+    pub fn ruby_xfree(ptr: *mut c_void);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_xmalloc_family() {
+        crate::on_ruby_thread(|| unsafe {
+            let bytes = ruby_xmalloc(4) as *mut u8;
+            bytes.copy_from(b"ruby".as_ptr(), 4);
+
+            let bytes = ruby_xrealloc(bytes as *mut c_void, 8) as *mut u8;
+            assert_eq!(std::slice::from_raw_parts(bytes, 4), b"ruby");
+            ruby_xfree(bytes as *mut c_void);
+
+            let words = ruby_xcalloc(3, 8) as *mut u64;
+            assert_eq!(std::slice::from_raw_parts(words, 3), &[0, 0, 0]);
+
+            let words = ruby_xrealloc2(words as *mut c_void, 6, 8) as *mut u64;
+            assert_eq!(std::slice::from_raw_parts(words, 3), &[0, 0, 0]);
+            ruby_xfree(words as *mut c_void);
+
+            let pairs = ruby_xmalloc2(2, 16) as *mut [u64; 2];
+            pairs.write([1, 2]);
+            assert_eq!(*pairs, [1, 2]);
+            ruby_xfree(pairs as *mut c_void);
+        });
+    }
 }

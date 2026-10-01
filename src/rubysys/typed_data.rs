@@ -1,4 +1,7 @@
-use crate::rubysys::types::{c_char, c_int, c_void, size_t, Value};
+use crate::rubysys::{
+    constant,
+    types::{c_char, c_int, c_void, size_t, InternalValue, Value},
+};
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
@@ -32,6 +35,15 @@ pub struct RbDataTypeFunction {
 
 unsafe impl Send for RbDataTypeFunction {}
 unsafe impl Sync for RbDataTypeFunction {}
+
+// `RbDataType::flags` (`RUBY_TYPED_*`).
+//
+// `dfree` runs during the sweep instead of being deferred.
+pub const RUBY_TYPED_FREE_IMMEDIATELY: InternalValue = 1;
+// Frozen objects of this type are Ractor-shareable.
+pub const RUBY_TYPED_FROZEN_SHAREABLE: InternalValue = constant::FL_SHAREABLE as InternalValue;
+// `dmark` and writes to the struct's `VALUE`s use write barriers.
+pub const RUBY_TYPED_WB_PROTECTED: InternalValue = constant::FL_WB_PROTECTED as InternalValue;
 
 #[repr(C)]
 pub struct RbDataType {

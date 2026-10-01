@@ -155,6 +155,14 @@ extern "C" {
     // VALUE
     // rb_str_to_inum(VALUE str, int base, int badcheck)
     pub fn rb_str_to_inum(string: Value, base: c_int, badcheck: c_int) -> Value;
+    // void
+    // rb_debug_rstring_null_ptr(const char *func)
+    //
+    // Ruby 3.1+: warns on stderr that `func` (`"RSTRING_PTR"`) returns NULL,
+    // as a debug build of Ruby's `RSTRING_PTR` does for a string without a
+    // buffer.
+    #[cfg(ruby_gte_3_1)]
+    pub fn rb_debug_rstring_null_ptr(func: *const c_char);
 }
 
 // #[link_name = "ruby_rstring_flags"]

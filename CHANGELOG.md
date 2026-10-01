@@ -7,6 +7,72 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.11.2] - 2026-10-01
+Adds the C API Ruby 3.1 and 3.2 introduced, which 0.11 did not bind. What
+needs Ruby 3.1 is marked "Ruby 3.1+" and is not built on Ruby 3.0.
+
+### Added
+ - `IOBuffer`, a wrapper for `IO::Buffer` (`rb_io_buffer_*`, Ruby 3.1+):
+   `new`, `from_bytes`, `size`, `lock`, `free`, `transfer`, `resize`,
+   `clear`, `get_string`, `set_string`, `read`/`pread`/`write`/`pwrite` with
+   buffer offsets, flag predicates, `page_size`/`default_size`, and unsafe
+   `from_raw_parts`, `map`, `unlock`, `try_unlock` and
+   `with_bytes`/`with_bytes_mut`, plus `Class::io_buffer`, thanks to
+   @danielpclark
+ - `IO::descriptor`, `IO::maybe_wait`, `IO::maybe_wait_readable`,
+   `IO::maybe_wait_writable` and `File::size` (Ruby 3.1+); the
+   `IO::READABLE`/`IO::PRIORITY`/`IO::WRITABLE` constants; `IO::timeout`,
+   `IO::set_timeout` and `Class::io_timeout_error` (Ruby 3.2+), thanks to
+   @danielpclark
+ - `MemoryView`, a read-only wrapper for Ruby's MemoryView protocol
+   (`rb_memory_view_get`/`release`), with shape, strides, format,
+   `get_item`, `to_vec`, unsafe `as_bytes`, and `MemoryView::item_size_of`,
+   thanks to @danielpclark
+ - `Fiber::transfer`, `transfer_with_keywords` and `raise` (Ruby 3.1+), and
+   `Fiber::resume_with_keywords` and `yield_with_keywords`; the `Fiber` type
+   check uses `rb_obj_is_fiber` on Ruby 3.1+, thanks to @danielpclark
+ - Fiber scheduler support (Ruby 3.1+): `Fiber::scheduler`,
+   `set_scheduler`, `current_scheduler`, `current_scheduler_for_thread` and
+   `make_scheduler_timeout`, and every `rb_fiber_scheduler_*` function of
+   Ruby 3.1 and 3.2 in `rubysys::scheduler`, thanks to @danielpclark
+ - `Thread::add_internal_event_hook` with `InternalThreadEvent` and
+   `InternalThreadEventHook` (Ruby 3.2+), thanks to @danielpclark
+ - `VM::profile_frames` and `ProfileFrame`; `DebugInspector` (including
+   `frame_depth` and `current_depth` on Ruby 3.2+), thanks to @danielpclark
+ - `Class::subclasses`, `Module::new_refinement`, and `class_variable_find`
+   and `deprecate_constant` on `Class` and `Module` (Ruby 3.1+);
+   `Class::attached_object` (Ruby 3.2+), thanks to @danielpclark
+ - `Ractor` (per-Ractor standard streams, `is_shareable`, `make_shareable`,
+   `make_shareable_copy`) and `RactorLocalKey` for Ractor-local storage,
+   thanks to @danielpclark
+ - `VM::clear_constant_cache_for` (Ruby 3.2+), thanks to @danielpclark
+ - `Integer::positive_pow` (Ruby 3.1+), thanks to @danielpclark
+ - `Class::ractor` and `Class::no_matching_pattern_error`; `Class::refinement`
+   and `Class::no_matching_pattern_key_error` (Ruby 3.1+), thanks to
+   @danielpclark
+ - Raw bindings in `rubysys::io_buffer` and `rubysys::scheduler` (Ruby
+   3.1+), `rubysys::memory_view`, `rubysys::debug`, `rubysys::ractor` and
+   `rubysys::st`, plus the `FMODE_*` constants, `rb_ary_hidden_new` and
+   `rb_obj_freeze_inline` (Ruby 3.2+), `ruby_scan_digits`, `ruby_hexdigits`
+   and `rb_debug_rstring_null_ptr` (Ruby 3.1+), and `rb_cNameErrorMesg`,
+   thanks to @danielpclark
+ - Raw bindings for Ruby's allocator: `ruby_xmalloc`, `ruby_xmalloc2`,
+   `ruby_xcalloc`, `ruby_xrealloc`, `ruby_xrealloc2` and `ruby_xfree`,
+   thanks to @danielpclark
+ - `ValueType::Moved` (`T_MOVED`), and the `RbDataType` flags
+   `RUBY_TYPED_FREE_IMMEDIATELY`, `RUBY_TYPED_FROZEN_SHAREABLE` and
+   `RUBY_TYPED_WB_PROTECTED`, thanks to @danielpclark
+
+### Fixed
+ - `Value::ty` read a slot that GC compaction had moved (`T_MOVED`) as a
+   `ValueType` that does not exist; it is now `ValueType::Moved`, thanks to
+   @danielpclark
+ - Linking a static Ruby failed when a library it needs is outside the
+   linker's default search path (a ruby-build macOS Ruby built against
+   Homebrew's GMP: `ld: library 'gmp' not found`). `build.rs` now adds the
+   absolute `-L` directories in the Ruby's `LDFLAGS` to the search path,
+   thanks to @danielpclark
+
 ## [0.11.1] - 2026-09-30
 Adds macOS and Windows: supports Ruby 3.0, 3.1 and 3.2 on Linux, macOS and
 Windows. 0.11.0 was Linux only.

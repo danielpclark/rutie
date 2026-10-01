@@ -91,6 +91,8 @@ pub enum ValueType {
     Node = 0x1b,
     IClass = 0x1c,
     Zombie = 0x1d,
+    // `T_MOVED`: a slot GC compaction moved the object out of.
+    Moved = 0x1e,
 
     Mask = 0x1f,
 }

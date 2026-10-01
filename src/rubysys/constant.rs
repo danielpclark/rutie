@@ -34,3 +34,35 @@ pub const ELTS_SHARED: isize = FL_USER_2;
 pub const FL_SINGLETON: isize = FL_USER_0;
 
 pub const UNLIMITED_ARGUMENTS: isize = -1;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{binding::vm, rubysys::types::RBasic, types::InternalValue};
+
+    fn flags(object: crate::types::Value) -> isize {
+        unsafe { (*(object.value as *const RBasic)).flags as InternalValue as isize }
+    }
+
+    // The flag bits Ruby sets match these constants.
+    #[test]
+    fn test_flag_bits() {
+        crate::on_ruby_thread(|| {
+            // Old after surviving a few collections.
+            let old = vm::eval_string("$rutie_old = Object.new.tap { 4.times { GC.start } }");
+            assert_ne!(flags(old) & FL_PROMOTED, 0);
+            assert_eq!(flags(old) & FL_PROMOTED, FL_PROMOTED);
+
+            let singleton = vm::eval_string("Object.new.singleton_class");
+            assert_ne!(flags(singleton) & FL_SINGLETON, 0);
+            assert_eq!(flags(vm::eval_string("Object")) & FL_SINGLETON, 0);
+
+            // A slice of a long array shares its parent's elements.
+            let shared = vm::eval_string("$rutie_long = (1..100).to_a; $rutie_long[1..]");
+            assert_ne!(flags(shared) & ELTS_SHARED, 0);
+            assert_eq!(flags(vm::eval_string("[1, 2, 3]")) & ELTS_SHARED, 0);
+
+            assert_ne!(flags(vm::eval_string("'frozen'.freeze")) & FL_FREEZE, 0);
+        });
+    }
+}
