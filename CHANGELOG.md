@@ -27,6 +27,12 @@ through RubyGems' `require`, so load a bundled gem with
    @danielpclark
  - `Thread::has_gvl` (`ruby_thread_has_gvl_p`). `Thread::call_with_gvl` may
    also be called with the GVL held on Ruby 4.0, thanks to @danielpclark
+ - `Fiber::yield_to_scheduler` (`rb_fiber_scheduler_yield`) and
+   `Fiber::interrupt_with_scheduler` (`rb_fiber_scheduler_fiber_interrupt`),
+   and raw bindings for Ruby 4.0's blocking operations
+   (`rb_fiber_scheduler_blocking_operation_extract`, `_execute` and
+   `_cancel`, with `RbFiberSchedulerBlockingOperation`) and
+   `rb_fiber_scheduler_current_for_threadptr`, thanks to @danielpclark
  - `Random`: `new`, `with_seed`, `seed`, `int32`, `real`, `ulong_limited`,
    `bytes`, the default generator's `default_int32`, `default_real`,
    `default_ulong_limited` and `reset_default_seed`, and `int_pair_to_real`,

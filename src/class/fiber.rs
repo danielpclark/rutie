@@ -608,6 +608,86 @@ impl Fiber {
         AnyObject::from(thread::fiber_scheduler_make_timeout(timeout))
     }
 
+    /// Yields to `scheduler`, to be resumed on its next scheduling cycle
+    /// (`rb_fiber_scheduler_yield`, Ruby 4.0): calls its `yield` hook, or
+    /// `kernel_sleep(0)` when it has none. Returns what the hook returns, or
+    /// the error it raises.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{Fiber, Fixnum, Object, Symbol, VM};
+    /// # VM::init();
+    ///
+    /// let yielding = VM::eval("Class.new { def yield = :yielded }.new").unwrap();
+    /// let sleeping = VM::eval("Class.new { def kernel_sleep(duration) = duration }.new").unwrap();
+    ///
+    /// let result = Fiber::yield_to_scheduler(&yielding).unwrap();
+    /// assert_eq!(result.try_convert_to::<Symbol>(), Ok(Symbol::new("yielded")));
+    ///
+    /// let result = Fiber::yield_to_scheduler(&sleeping).unwrap();
+    /// assert_eq!(result.try_convert_to::<Fixnum>(), Ok(Fixnum::new(0)));
+    ///
+    /// let failing = VM::eval("Class.new { def yield = raise('no') }.new").unwrap();
+    /// assert!(Fiber::yield_to_scheduler(&failing).is_err());
+    /// ```
+    pub fn yield_to_scheduler<T: Object>(scheduler: &T) -> Result<AnyObject, AnyException> {
+        let scheduler = scheduler.value();
+
+        rescue(|| thread::fiber_scheduler_yield(scheduler))
+    }
+
+    /// Asks `scheduler` to raise `exception` in `fiber`, a fiber blocked in
+    /// one of its hooks (`rb_fiber_scheduler_fiber_interrupt`, Ruby 4.0), as
+    /// `IO#close` does for the fibers waiting on the IO. Returns what its
+    /// `fiber_interrupt` hook returns, `None` when it has no such hook, or
+    /// the error the hook raises.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rutie::{AnyException, Exception, Fiber, Object, RString, VM};
+    /// # VM::init();
+    ///
+    /// let scheduler = VM::eval(
+    ///     "Class.new do
+    ///        def fiber_interrupt(fiber, exception) = \"#{fiber.class} #{exception.message}\"
+    ///      end.new",
+    /// )
+    /// .unwrap();
+    /// let fiber = Fiber::current();
+    /// let exception = AnyException::new("IOError", Some("closed stream"));
+    ///
+    /// let result = Fiber::interrupt_with_scheduler(&scheduler, &fiber, &exception).unwrap();
+    /// let result = result.unwrap().try_convert_to::<RString>().unwrap();
+    /// assert_eq!(result.to_str(), "Fiber closed stream");
+    ///
+    /// let without_hook = VM::eval("Object.new").unwrap();
+    /// assert!(Fiber::interrupt_with_scheduler(&without_hook, &fiber, &exception)
+    ///     .unwrap()
+    ///     .is_none());
+    /// ```
+    pub fn interrupt_with_scheduler<T: Object>(
+        scheduler: &T,
+        fiber: &Fiber,
+        exception: &AnyException,
+    ) -> Result<Option<AnyObject>, AnyException> {
+        let (scheduler, fiber, exception) = (scheduler.value(), fiber.value(), exception.value());
+        let mut undefined = false;
+
+        rescue(|| {
+            let value = thread::fiber_scheduler_fiber_interrupt(scheduler, fiber, exception);
+
+            if value.is_undef() {
+                undefined = true;
+                return NilClass::new().value();
+            }
+
+            value
+        })
+        .map(|value| if undefined { None } else { Some(value) })
+    }
+
     /// Returns the fiber running now (Ruby's `Fiber.current`,
     /// `rb_fiber_current`).
     ///
@@ -1148,6 +1228,131 @@ mod tests {
                 assert_eq!(last(2), "[:io_select, 5, 6, 7, 8]");
                 assert_eq!(last(1), "[:fiber, {blocking: false}]");
             }
+        });
+    }
+
+    // Ruby 4.0's blocking operations: the scheduler's `blocking_operation_wait`
+    // hook gets a `Fiber::Scheduler::BlockingOperation`, whose operation C code
+    // runs (or cancels) once, possibly on another thread.
+    #[test]
+    fn test_raw_blocking_operations() {
+        use std::sync::atomic::{AtomicI32, Ordering};
+
+        use crate::rubysys::scheduler as raw;
+        use crate::{
+            types::{c_void, Value},
+            AnyObject, Class, Symbol,
+        };
+
+        static RESULTS: [AtomicI32; 4] = [
+            AtomicI32::new(9),
+            AtomicI32::new(9),
+            AtomicI32::new(9),
+            AtomicI32::new(9),
+        ];
+
+        rutie_callback! {
+            fn double(data: *mut c_void) -> *mut c_void {
+                unsafe { *(data as *mut u32) *= 2 };
+
+                data
+            }
+        }
+
+        // Runs the operation, then tries to run and cancel it again.
+        rutie_callback! {
+            fn execute_hook(_argc: crate::types::Argc, argv: *const AnyObject, _itself: AnyObject) -> AnyObject {
+                unsafe {
+                    let operation = raw::rb_fiber_scheduler_blocking_operation_extract((*argv).value());
+
+                    RESULTS[0].store(raw::rb_fiber_scheduler_blocking_operation_execute(operation), Ordering::SeqCst);
+                    RESULTS[1].store(raw::rb_fiber_scheduler_blocking_operation_execute(operation), Ordering::SeqCst);
+                    RESULTS[2].store(raw::rb_fiber_scheduler_blocking_operation_cancel(operation), Ordering::SeqCst);
+                }
+
+                Symbol::new("executed").to_any_object()
+            }
+        }
+
+        // Cancels the queued operation, which then never runs.
+        rutie_callback! {
+            fn cancel_hook(_argc: crate::types::Argc, argv: *const AnyObject, _itself: AnyObject) -> AnyObject {
+                unsafe {
+                    let operation = raw::rb_fiber_scheduler_blocking_operation_extract((*argv).value());
+
+                    RESULTS[2].store(raw::rb_fiber_scheduler_blocking_operation_cancel(operation), Ordering::SeqCst);
+                    RESULTS[3].store(raw::rb_fiber_scheduler_blocking_operation_execute(operation), Ordering::SeqCst);
+                }
+
+                Symbol::new("cancelled").to_any_object()
+            }
+        }
+
+        crate::on_ruby_thread(|| unsafe {
+            let wait = |scheduler: Value, number: &mut u32| {
+                let mut state = raw::RbFiberSchedulerBlockingOperationState {
+                    result: std::ptr::null_mut(),
+                    saved_errno: 0,
+                };
+                let data = number as *mut u32 as *mut c_void;
+                let value = raw::rb_fiber_scheduler_blocking_operation_wait(
+                    scheduler,
+                    double as crate::types::CallbackPtr,
+                    data,
+                    std::ptr::null(),
+                    std::ptr::null_mut(),
+                    0,
+                    &mut state,
+                );
+
+                (value, state.result == data)
+            };
+
+            let mut executing = Class::new("RutieExecutingScheduler", None);
+            executing.def("blocking_operation_wait", execute_hook);
+            let scheduler = executing.new_instance(&[]).value();
+
+            let mut number = 21;
+            let (value, stored) = wait(scheduler, &mut number);
+            assert_eq!(value, Symbol::new("executed").value());
+            assert!(stored);
+            assert_eq!(number, 42);
+            assert_eq!(RESULTS[0].load(Ordering::SeqCst), 0);
+            assert_eq!(RESULTS[1].load(Ordering::SeqCst), -1);
+            assert_eq!(RESULTS[2].load(Ordering::SeqCst), 0);
+
+            let mut cancelling = Class::new("RutieCancellingScheduler", None);
+            cancelling.def("blocking_operation_wait", cancel_hook);
+            let scheduler = cancelling.new_instance(&[]).value();
+
+            let mut number = 21;
+            let (value, stored) = wait(scheduler, &mut number);
+            assert_eq!(value, Symbol::new("cancelled").value());
+            assert!(!stored);
+            assert_eq!(number, 21);
+            assert_eq!(RESULTS[2].load(Ordering::SeqCst), 0);
+            assert_eq!(RESULTS[3].load(Ordering::SeqCst), -1);
+
+            // A scheduler without the hook: `Qundef`, so the caller runs it.
+            let mut number = 21;
+            let (value, _) = wait(VM::eval("Object.new").unwrap().value(), &mut number);
+            assert!(value.is_undef());
+            assert_eq!(number, 21);
+
+            assert_eq!(
+                raw::rb_fiber_scheduler_blocking_operation_execute(std::ptr::null_mut()),
+                -1
+            );
+            assert_eq!(
+                raw::rb_fiber_scheduler_blocking_operation_cancel(std::ptr::null_mut()),
+                -1
+            );
+
+            let yielding = VM::eval("Class.new { def yield = :yielded }.new").unwrap();
+            assert_eq!(
+                raw::rb_fiber_scheduler_yield(yielding.value()),
+                Symbol::new("yielded").value()
+            );
         });
     }
 }

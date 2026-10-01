@@ -46,6 +46,12 @@ extern "C" {
     // VALUE
     // rb_fiber_scheduler_current_for_thread(VALUE thread)
     pub fn rb_fiber_scheduler_current_for_thread(thread: Value) -> Value;
+    // Like `rb_fiber_scheduler_current_for_thread`, for Ruby's internal
+    // `rb_thread_t` (Ruby 4.0), which no public API hands out.
+    //
+    // VALUE
+    // rb_fiber_scheduler_current_for_threadptr(struct rb_thread_struct *thread)
+    pub fn rb_fiber_scheduler_current_for_threadptr(thread: *mut c_void) -> Value;
     // Converts `timeout` (NULL for none) to what the hooks take: `Qnil` or
     // a `Float` of seconds.
     //
@@ -65,6 +71,13 @@ extern "C" {
         argc: Argc,
         argv: *mut Value,
     ) -> Value;
+    // Yields to the scheduler, to be resumed on its next cycle (Ruby 4.0):
+    // calls `scheduler.yield`, or `scheduler.kernel_sleep(0)` when it has no
+    // `yield`.
+    //
+    // VALUE
+    // rb_fiber_scheduler_yield(VALUE scheduler)
+    pub fn rb_fiber_scheduler_yield(scheduler: Value) -> Value;
     // VALUE
     // rb_fiber_scheduler_process_wait(VALUE scheduler, rb_pid_t pid, int flags)
     pub fn rb_fiber_scheduler_process_wait(scheduler: Value, pid: RbPid, flags: c_int) -> Value;
@@ -237,7 +250,10 @@ pub struct RbFiberSchedulerBlockingOperationState {
 extern "C" {
     // Runs `function(data)` (a blocking operation that does not need the GVL)
     // through the scheduler's `blocking_operation_wait` hook, which may run it
-    // on another thread; `flags` are `rb_nogvl` flags.
+    // on another thread; `flags` are `rb_nogvl` flags. The hook gets a
+    // `Fiber::Scheduler::BlockingOperation` (see
+    // `rb_fiber_scheduler_blocking_operation_extract`). `Qundef` when the
+    // scheduler has no such hook or the hook did not run the operation.
     //
     // VALUE
     // rb_fiber_scheduler_blocking_operation_wait(VALUE scheduler, void* (*function)(void *),
@@ -252,4 +268,57 @@ extern "C" {
         flags: c_int,
         state: *mut RbFiberSchedulerBlockingOperationState,
     ) -> Value;
+    // Asks the scheduler to raise `exception` in the blocked `fiber`
+    // (`scheduler.fiber_interrupt(fiber, exception)`, Ruby 4.0); `IO#close`
+    // uses it for fibers blocked on the IO. Returns `Qundef` when the
+    // scheduler has no `fiber_interrupt`. Other threads may call it.
+    //
+    // VALUE
+    // rb_fiber_scheduler_fiber_interrupt(VALUE scheduler, VALUE fiber, VALUE exception)
+    pub fn rb_fiber_scheduler_fiber_interrupt(
+        scheduler: Value,
+        fiber: Value,
+        exception: Value,
+    ) -> Value;
+}
+
+// `rb_fiber_scheduler_blocking_operation_t` (Ruby 4.0): the opaque operation
+// behind the `Fiber::Scheduler::BlockingOperation` that
+// `rb_fiber_scheduler_blocking_operation_wait` passes to the scheduler's
+// `blocking_operation_wait` hook.
+#[repr(C)]
+pub struct RbFiberSchedulerBlockingOperation {
+    _private: [u8; 0],
+}
+
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // The operation of a `Fiber::Scheduler::BlockingOperation`, to hand to a
+    // worker thread. Needs the GVL; raises `TypeError` for another object.
+    // The operation is invalid once the hook returns.
+    //
+    // rb_fiber_scheduler_blocking_operation_t *
+    // rb_fiber_scheduler_blocking_operation_extract(VALUE self)
+    pub fn rb_fiber_scheduler_blocking_operation_extract(
+        operation: Value,
+    ) -> *mut RbFiberSchedulerBlockingOperation;
+    // Runs the operation's function once, on any thread and without the GVL,
+    // storing its result and `errno` in the waiting call's state. Returns
+    // 0, or -1 when it already ran, was cancelled (before or while running)
+    // or is invalid.
+    //
+    // int
+    // rb_fiber_scheduler_blocking_operation_execute(rb_fiber_scheduler_blocking_operation_t *blocking_operation)
+    pub fn rb_fiber_scheduler_blocking_operation_execute(
+        operation: *mut RbFiberSchedulerBlockingOperation,
+    ) -> c_int;
+    // Cancels the operation: a queued one never runs (0), a running one gets
+    // its unblock function called (1), a finished one is left alone (0).
+    // -1 for a null operation.
+    //
+    // int
+    // rb_fiber_scheduler_blocking_operation_cancel(rb_fiber_scheduler_blocking_operation_t *blocking_operation)
+    pub fn rb_fiber_scheduler_blocking_operation_cancel(
+        operation: *mut RbFiberSchedulerBlockingOperation,
+    ) -> c_int;
 }

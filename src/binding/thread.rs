@@ -408,6 +408,15 @@ pub fn fiber_scheduler_current_for_thread(thread: Value) -> Value {
     unsafe { scheduler::rb_fiber_scheduler_current_for_thread(thread) }
 }
 
+pub fn fiber_scheduler_yield(scheduler: Value) -> Value {
+    unsafe { scheduler::rb_fiber_scheduler_yield(scheduler) }
+}
+
+// `Qundef` when `scheduler` has no `fiber_interrupt`.
+pub fn fiber_scheduler_fiber_interrupt(scheduler: Value, fiber: Value, exception: Value) -> Value {
+    unsafe { scheduler::rb_fiber_scheduler_fiber_interrupt(scheduler, fiber, exception) }
+}
+
 pub fn fiber_scheduler_make_timeout(timeout: Option<std::time::Duration>) -> Value {
     match timeout {
         Some(duration) => {
