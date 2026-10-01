@@ -234,24 +234,6 @@ extern "C" {
     pub fn rb_obj_freeze_inline(object: Value);
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::{Object, RString};
-
-    #[test]
-    fn test_obj_freeze_inline() {
-        crate::on_ruby_thread(|| {
-            let string = RString::new_utf8("thaw");
-
-            assert!(!string.is_frozen());
-
-            unsafe { super::rb_obj_freeze_inline(string.value()) };
-
-            assert!(string.is_frozen());
-        });
-    }
-}
-
 // `rb_alloc_func_t` as returned by `rb_get_alloc_func`: null when the class
 // has no allocator.
 pub type MaybeAllocFunction = Option<AllocFunction>;
@@ -415,4 +397,128 @@ extern "C" {
     // void
     // rb_remove_method_id(VALUE klass, ID mid)
     pub fn rb_remove_method_id(klass: Value, name: Id);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        binding::symbol::internal_id,
+        rubysys::{object, rb_cObject, variable},
+        AnyObject, Class, Fixnum, Module, NilClass, Object, RString, Symbol, VM,
+    };
+
+    fn any(value: Value) -> AnyObject {
+        AnyObject::from(value)
+    }
+
+    fn inspect(value: Value) -> String {
+        any(value).inspect_object().to_string()
+    }
+
+    #[test]
+    fn test_raw_class_and_variable_functions() {
+        crate::on_ruby_thread(|| unsafe {
+            let outer = Module::new("RutieRawOuter").value();
+
+            let klass = rb_define_class_id_under(outer, internal_id("Raw"), rb_cObject);
+            assert_eq!(inspect(klass), "RutieRawOuter::Raw");
+            assert_eq!(
+                inspect(variable::rb_class_path_cached(klass)),
+                "\"RutieRawOuter::Raw\""
+            );
+            let module = rb_define_module_id_under(outer, internal_id("RawMod"));
+            assert_eq!(inspect(module), "RutieRawOuter::RawMod");
+            assert!(rb_define_module_id(internal_id("Ignored")).value != 0);
+
+            let anonymous = rb_class_new(klass);
+            assert!(variable::rb_class_path_cached(anonymous).is_nil());
+            variable::rb_set_class_path(anonymous, outer, b"Named\0".as_ptr() as *const c_char);
+            assert_eq!(inspect(anonymous), "RutieRawOuter::Named");
+            assert_eq!(rb_class_get_superclass(anonymous), klass);
+
+            let path = RString::new_utf8("RutieRawOuter::Raw").value();
+            assert_eq!(variable::rb_path_to_class(path), klass);
+
+            let name = b"@@raw\0".as_ptr() as *const c_char;
+            variable::rb_define_class_variable(klass, name, Fixnum::new(1).value());
+            variable::rb_cv_set(klass, name, Fixnum::new(2).value());
+            assert_eq!(inspect(variable::rb_cv_get(klass, name)), "2");
+
+            let object = rb_obj_alloc(klass);
+            let ivar = b"@raw\0".as_ptr() as *const c_char;
+            variable::rb_iv_set(object, ivar, Symbol::new("set").value());
+            assert_eq!(inspect(variable::rb_iv_get(object, ivar)), ":set");
+            assert_eq!(
+                inspect(variable::rb_attr_get(object, internal_id("@raw"))),
+                ":set"
+            );
+            assert!(variable::rb_attr_get(object, internal_id("@unset")).is_nil());
+
+            Class::from(klass).const_set("FIRST", &Fixnum::new(1));
+            Module::from(module).const_set("SECOND", &Fixnum::new(2));
+            rb_include_module(klass, module);
+            let own =
+                variable::rb_const_list(variable::rb_mod_const_at(klass, std::ptr::null_mut()));
+            assert_eq!(inspect(own), "[:FIRST]");
+            let all =
+                variable::rb_const_list(variable::rb_mod_const_of(klass, std::ptr::null_mut()));
+            assert!(inspect(all).contains(":SECOND"));
+            let removed = variable::rb_mod_remove_const(klass, Symbol::new("FIRST").value());
+            assert_eq!(inspect(removed), "1");
+
+            rb_attr(klass, internal_id("raw"), 1, 1, 0);
+            rb_alias(klass, internal_id("raw_alias"), internal_id("raw"));
+            assert_eq!(
+                inspect(any(object).protect_send("raw_alias", &[]).unwrap().value()),
+                ":set"
+            );
+
+            rb_undef(klass, internal_id("raw"));
+            assert!(!any(object).respond_to("raw"));
+            let undef_missing = crate::binding::vm::protect_value(|| {
+                rb_undef(klass, internal_id("never_defined"));
+                NilClass::new().value()
+            });
+            assert!(undef_missing.is_err());
+
+            assert!(rb_get_alloc_func(klass).is_some());
+            assert!(rb_get_alloc_func(Class::from_existing("Integer").value()).is_none());
+
+            assert!(util_respond(object, "raw_alias", false));
+            assert!(!util_respond(object, "initialize", false));
+            assert!(util_respond(object, "initialize", true));
+
+            let string = RString::new_utf8("hidden").value();
+            rb_obj_hide(string);
+            assert_eq!(
+                rb_obj_class(rb_obj_reveal(
+                    string,
+                    rb_obj_class(RString::new_utf8("").value())
+                )),
+                rb_obj_class(RString::new_utf8("").value())
+            );
+            assert_eq!(inspect(string), "\"hidden\"");
+
+            let float = object::rb_cstr_to_dbl(b"2.5e1junk\0".as_ptr() as *const c_char, 0);
+            assert_eq!(float, 25.0);
+        });
+    }
+
+    unsafe fn util_respond(object: Value, name: &str, private: bool) -> bool {
+        object::rb_obj_respond_to(object, internal_id(name), private as c_int) != 0
+    }
+
+    #[test]
+    fn test_obj_freeze_inline() {
+        crate::on_ruby_thread(|| {
+            let string = RString::new_utf8("thaw");
+
+            assert!(!string.is_frozen());
+
+            unsafe { super::rb_obj_freeze_inline(string.value()) };
+
+            assert!(string.is_frozen());
+        });
+    }
 }

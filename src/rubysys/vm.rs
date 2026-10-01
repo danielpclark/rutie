@@ -468,3 +468,132 @@ extern "C" {
     // rb_load_file_str(VALUE file)
     pub fn rb_load_file_str(file: Value) -> *mut c_void;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        binding::symbol::internal_id,
+        rubysys::{array, exception, hash, object, range, rb_cObject, rstruct},
+        AnyObject, Fixnum, Object, RString, Symbol, VM,
+    };
+
+    fn inspect(value: Value) -> String {
+        AnyObject::from(value).inspect_object().to_string()
+    }
+
+    fn fixnum(value: i64) -> Value {
+        Fixnum::new(value).value()
+    }
+
+    #[test]
+    fn test_raw_variadic_and_call_functions() {
+        crate::on_ruby_thread(|| unsafe {
+            let sum = rb_funcall(fixnum(40), internal_id("+"), 1, fixnum(2));
+            assert_eq!(inspect(sum), "42");
+            let max = rb_funcall(
+                array::rb_ary_new_from_args(3, fixnum(3), fixnum(9), fixnum(4)),
+                internal_id("max"),
+                0,
+            );
+            assert_eq!(inspect(max), "9");
+
+            let arguments = array::rb_ary_new_from_args(2, fixnum(1), fixnum(2));
+            assert_eq!(
+                inspect(object::rb_apply(fixnum(5), internal_id("clamp"), arguments)),
+                "2"
+            );
+
+            let target = VM::eval("o = Object.new; def o.kw(a, b: 0); a + b; end; o")
+                .unwrap()
+                .value();
+            let keywords = VM::eval("{ b: 5 }").unwrap().value();
+            let argv = [fixnum(1), keywords];
+            assert_eq!(
+                inspect(rb_funcallv_public_kw(
+                    target,
+                    internal_id("kw"),
+                    2,
+                    argv.as_ptr(),
+                    1
+                )),
+                "6"
+            );
+            let block = VM::eval("proc { |x| x * 10 }").unwrap().value();
+            let list = array::rb_ary_new_from_args(2, fixnum(1), fixnum(2));
+            let mapped =
+                rb_funcall_with_block_kw(list, internal_id("map"), 0, std::ptr::null(), block, 0);
+            assert_eq!(inspect(mapped), "[10, 20]");
+            let missing =
+                object::rb_check_funcall_kw(target, internal_id("nope"), 0, std::ptr::null(), 0);
+            assert!(missing.is_undef());
+
+            let hash_value = VM::eval("{ a: 1, b: 2 }").unwrap().value();
+            assert_eq!(hash::rb_hash_size_num(hash_value), 2);
+
+            let pair = array::rb_assoc_new(fixnum(1), fixnum(2));
+            let copy = array::rb_ary_resurrect(pair);
+            assert_eq!(inspect(copy), "[1, 2]");
+            let ptr = array::rb_ary_ptr_use_start(copy);
+            array::rb_mem_clear(ptr, 2);
+            array::rb_ary_ptr_use_end(copy);
+            assert_eq!(inspect(copy), "[nil, nil]");
+            assert_eq!(inspect(pair), "[1, 2]");
+            let _ = array::rb_ary_shared_with_p(pair, copy);
+
+            let error = exception::rb_syserr_new_str(2, RString::new_utf8("file").value());
+            assert!(inspect(error).starts_with("#<Errno::ENOENT"));
+
+            let mut begin = 0;
+            let mut length = 0;
+            let mut step = 0;
+            let sequence = VM::eval("((1..10) % 3)").unwrap().value();
+            let result = range::rb_arithmetic_sequence_beg_len_step(
+                sequence,
+                &mut begin,
+                &mut length,
+                &mut step,
+                20,
+                0,
+            );
+            assert!(result.is_true());
+            assert_eq!((begin, length, step), (1, 10, 3));
+        });
+    }
+
+    #[test]
+    fn test_raw_struct_and_wrapped_eval_functions() {
+        crate::on_ruby_thread(|| unsafe {
+            let point = rstruct::rb_struct_define_without_accessor(
+                std::ptr::null(),
+                rstruct::rb_cStruct,
+                None,
+                b"x\0".as_ptr() as *const c_char,
+                b"y\0".as_ptr() as *const c_char,
+                std::ptr::null::<c_char>(),
+            );
+            let instance = rstruct::rb_struct_alloc_noinit(point);
+            assert!(!AnyObject::from(instance).respond_to("x"));
+            rstruct::rb_struct_initialize(
+                instance,
+                array::rb_ary_new_from_args(2, fixnum(3), fixnum(4)),
+            );
+            assert_eq!(inspect(rstruct::rb_struct_aref(instance, fixnum(1))), "4");
+
+            let mut state = 0;
+            let value = rb_eval_string_wrap(b"1 + 1\0".as_ptr() as *const c_char, &mut state);
+            assert_eq!((state, inspect(value)), (0, "2".to_string()));
+
+            assert!(rb_get_argv().value != 0);
+            assert!(rb_make_exception(0, std::ptr::null()).is_nil());
+
+            let frozen = VM::eval("Object.new.freeze").unwrap().value();
+            let copy = crate::binding::vm::protect_value(|| {
+                exception::rb_check_copyable(frozen, rb_cObject);
+                frozen
+            });
+            assert!(copy.is_err());
+            let _ = Symbol::new("unused");
+        });
+    }
+}

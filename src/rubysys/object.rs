@@ -112,8 +112,10 @@ extern "C" {
     // double
     // rb_cstr_to_dbl(const char *str, int mode)
     //
-    // A nonzero `mode` raises `ArgumentError` for malformed input (and
-    // accepts hexadecimal floats); `0` parses as much as it can.
+    // `0` parses as much of `str` as it can. A nonzero `mode` (badcheck)
+    // should raise `ArgumentError` for malformed input, but Ruby 4.0 crashes
+    // there instead (it builds the message with a null encoding), so only
+    // pass `0`, or use `rb_str_to_dbl`.
     pub fn rb_cstr_to_dbl(string: *const c_char, badcheck: c_int) -> c_double;
     // VALUE
     // rb_obj_init_copy(VALUE src, VALUE dst)
