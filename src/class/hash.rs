@@ -90,7 +90,7 @@ impl Hash {
     /// Ruby:
     ///
     /// ```ruby
-    /// Hash.new(capacity: 100) # Ruby 3.4+
+    /// Hash.new(capacity: 100)
     /// ```
     pub fn with_capacity(capacity: usize) -> Self {
         Self::from(hash::with_capacity(capacity))

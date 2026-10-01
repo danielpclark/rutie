@@ -138,7 +138,7 @@ impl VM {
     ///     let in_ractor = |code: &str| {
     ///         let code = format!(
     ///             "Warning[:experimental] = false
-    ///              Ractor.new {{ begin; {}; rescue => e; e.class.name; end }}.take.to_s",
+    ///              Ractor.new {{ begin; {}; rescue => e; e.class.name; end }}.value.to_s",
     ///             code
     ///         );
     ///         VM::eval(&code).unwrap().try_convert_to::<RString>().unwrap().to_string()
@@ -187,7 +187,7 @@ impl VM {
     ///
     ///     let result = VM::eval(
     ///         "Warning[:experimental] = false
-    ///          Ractor.new { begin; 1.negate; rescue => e; e.class.name; end }.take",
+    ///          Ractor.new { begin; 1.negate; rescue => e; e.class.name; end }.value",
     ///     )
     ///     .unwrap();
     ///
@@ -3928,7 +3928,7 @@ mod tests {
             let in_ractor = |method: &str| {
                 let code = format!(
                     "Warning[:experimental] = false
-                     Ractor.new {{ begin; 1.{}.to_s; rescue => e; e.class.name; end }}.take",
+                     Ractor.new {{ begin; 1.{}.to_s; rescue => e; e.class.name; end }}.value",
                     method
                 );
                 RString::from(VM::eval(&code).unwrap().value()).to_string()

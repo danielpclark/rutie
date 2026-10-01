@@ -7,6 +7,28 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.14.0] - 2026-10-01
+Supports Ruby 4.0 on Linux, macOS and Windows; Ruby 3.2–3.4 stay on 0.13.x.
+
+### Added
+ - Ruby 4.0 support: `ruby_4_0`/`ruby_gte_4_0` cfg flags, and every `rubysys`
+   declaration checked against Ruby 4.0's headers and `libruby` exports,
+   thanks to @danielpclark
+
+### Changed
+ - `build.rs` warns about a static Ruby built with ZJIT as well as YJIT; both
+   put a Rust runtime in `libruby-static.a`, thanks to @danielpclark
+ - CI tests Ruby 4.0.7 on Linux, macOS and Windows, with static Rubies built
+   with `--disable-yjit --disable-zjit`, and runs the gem examples
+   with minitest 5.25+ (5.15 does not install on Ruby 4.0), thanks to
+   @danielpclark
+ - `rubysys::constant::FL_EXIVAR` is 0, as Ruby 4.0's `RUBY_FL_EXIVAR` is,
+   thanks to @danielpclark
+
+### Removed
+ - Ruby 3.2, 3.3 and 3.4 support, the `ruby_3_*`/`ruby_gte_3_*` cfg flags, and
+   the Ruby 3.2 `RString` layout, thanks to @danielpclark
+
 ## [0.13.0] - 2026-10-01
 Supports Ruby 3.2, 3.3 and 3.4 on Linux, macOS and Windows; Ruby 3.1 stays on
 0.11.x/0.12.x.

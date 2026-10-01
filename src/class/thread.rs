@@ -444,8 +444,8 @@ impl Thread {
     /// `timeout` passes (`rb_io_wait` with `RUBY_IO_READABLE`).
     ///
     /// Returns `Ok(true)` when `io` is readable and `Ok(false)` on timeout.
-    /// `None` waits without a limit (on Ruby 3.2+, up to the IO's
-    /// `#timeout`, if one is set). Unlike
+    /// `None` waits without a limit (up to the IO's `#timeout`, if one is
+    /// set). Unlike
     /// [`Thread::wait_fd`](#method.wait_fd), which Ruby deprecates from 3.1,
     /// it works with a Fiber scheduler and reports errors, such as a closed
     /// `io`, as `Err`.

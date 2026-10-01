@@ -258,7 +258,7 @@ where
     }
 }
 
-// Ruby 3.3 and 3.4 on arm64 enter a new fiber by `ret`urning into its entry
+// Ruby 3.3 and later on arm64 enter a new fiber by `ret`urning into its entry
 // function (`fiber_entry`) with that same address in the link register, so
 // the entry function's frame record holds a return address where Ruby 3.2
 // and x86_64 have 0. A stack walk from inside the fiber, such as the Rust
@@ -269,7 +269,7 @@ where
 // which ends the walk there as on Ruby 3.2.
 //
 // Frame records are only walked on macOS, whose arm64 ABI requires them.
-#[cfg(all(ruby_gte_3_3, target_arch = "aarch64", target_os = "macos"))]
+#[cfg(all(target_arch = "aarch64", target_os = "macos"))]
 #[inline(never)]
 fn end_fiber_frame_chain() {
     // A frame record is the caller's frame pointer followed by the return
@@ -300,7 +300,7 @@ fn end_fiber_frame_chain() {
     }
 }
 
-#[cfg(not(all(ruby_gte_3_3, target_arch = "aarch64", target_os = "macos")))]
+#[cfg(not(all(target_arch = "aarch64", target_os = "macos")))]
 fn end_fiber_frame_chain() {}
 
 // The body of a fiber created from Rust; see `end_fiber_frame_chain`.

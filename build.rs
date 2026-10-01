@@ -39,10 +39,10 @@ fn try_rbconfig(key: &str) -> Result<String, std::io::Error> {
     Ok(String::from_utf8(config.stdout).expect("RbConfig value not UTF-8!"))
 }
 
-// The Ruby versions this Rutie line supports (each Rutie minor supports three
-// Ruby minors; see the README's version roadmap). Each one gets an exact
-// `ruby_X_Y` cfg and a cumulative `ruby_gte_X_Y` cfg.
-const SUPPORTED_RUBIES: [(u32, u32); 3] = [(3, 2), (3, 3), (3, 4)];
+// The Ruby versions this Rutie line supports (see the README's version
+// roadmap; 0.14 is the Ruby 4.0 line). Each one gets an exact `ruby_X_Y` cfg
+// and a cumulative `ruby_gte_X_Y` cfg.
+const SUPPORTED_RUBIES: [(u32, u32); 1] = [(4, 0)];
 
 // Which Rutie line supports a Ruby this one doesn't, for the error message.
 fn rutie_line_for(major: u32, minor: u32) -> &'static str {
@@ -50,14 +50,17 @@ fn rutie_line_for(major: u32, minor: u32) -> &'static str {
         (2, 5..=7) => "Rutie 0.10",
         (3, 0) => "Rutie 0.11",
         (3, 1) => "Rutie 0.11 or 0.12",
+        (3, 2) => "Rutie 0.11, 0.12 or 0.13",
+        (3, 3) => "Rutie 0.12 or 0.13",
+        (3, 4) => "Rutie 0.13",
         _ => "no Rutie release yet",
     }
 }
 
-// Emits `ruby_3_2` / `ruby_3_3` / `ruby_3_4` for the exact version of the
-// Ruby found by `rbconfig` and `ruby_gte_3_2` / `ruby_gte_3_3` / `ruby_gte_3_4`
-// for every version at or above those, so bindings can be gated with
-// `#[cfg(ruby_gte_3_3)]` instead of sniffing the version at runtime.
+// Emits `ruby_4_0` for the exact version of the Ruby found by `rbconfig` and
+// `ruby_gte_4_0` for every version at or above it, so bindings can be gated
+// with `#[cfg(ruby_gte_4_0)]` instead of sniffing the version at runtime
+// (with a single supported Ruby, nothing needs gating yet).
 //
 // The version is also exported to crates depending on Rutie as
 // `DEP_RUBY_VERSION_MAJOR` / `DEP_RUBY_VERSION_MINOR` (through `links = "ruby"`).
@@ -251,11 +254,12 @@ fn dynamic_linker_args() {
 
 // Links libruby after the Rust standard library.
 //
-// Ruby 3.2 built with YJIT exports YJIT's copy of the Rust runtime from
-// libruby (`__rust_start_panic`, `__rust_panic_cleanup` and `core`/`alloc`
-// functions; 3.3 hides them). A linker that sees libruby before std binds the
-// binary's panic runtime to YJIT's, and unwinding a panic then aborts or
-// crashes. rustc puts a crate's own native libraries before std and an
+// A libruby that exports a JIT's copy of the Rust runtime (Ruby 3.2 with YJIT
+// exported `__rust_start_panic`, `__rust_panic_cleanup` and `core`/`alloc`
+// functions; 3.3 and later, including 4.0 with YJIT and ZJIT, hide them)
+// makes a linker that sees libruby before std bind the binary's panic runtime
+// to the JIT's, and unwinding a panic then aborts or crashes. Linking libruby
+// last keeps that from mattering. rustc puts a crate's own native libraries before std and an
 // upstream crate's after it, so crates depending on Rutie get libruby from a
 // `#[link]` attribute in the rlib (`$OUT_DIR/link_ruby.rs`, included by
 // `src/lib.rs` outside `cfg(test)`), and Rutie's own unit tests, where the
@@ -297,19 +301,25 @@ fn static_linker_args() {
     );
 
     // Not the whole archive: `ruby_init` reaches every core object file, as
-    // for the `ruby` executable, and a Ruby built with YJIT has YJIT's Rust
-    // runtime in the archive, whose allocator symbols would then clash with
-    // the program's.
+    // for the `ruby` executable, and a Ruby built with YJIT or ZJIT has the
+    // JIT's Rust runtime in the archive, whose allocator symbols would then
+    // clash with the program's.
     //
-    // Even so, YJIT's copy of the Rust standard library can clash with the
+    // Even so, the JIT's copy of the Rust standard library can clash with the
     // program's (`duplicate symbol: rust_eh_personality`), depending on the
     // Rust toolchain and linker, so say why before the linker fails.
-    if rbconfig("YJIT_SUPPORT") == "yes" {
+    let jits: Vec<&str> = [("YJIT", "YJIT_SUPPORT"), ("ZJIT", "ZJIT_SUPPORT")]
+        .iter()
+        .filter(|(_, key)| rbconfig(key) == "yes")
+        .map(|(name, _)| *name)
+        .collect();
+    if !jits.is_empty() {
         println!(
-            "cargo:warning=This static Ruby was built with YJIT, whose Rust \
+            "cargo:warning=This static Ruby was built with {}, whose Rust \
              runtime in {} may clash with this program's when linking \
              (`duplicate symbol: rust_eh_personality`). A static Ruby \
-             configured with --disable-yjit links reliably.",
+             configured with --disable-yjit --disable-zjit links reliably.",
+            jits.join(" and "),
             archive.display()
         );
     }

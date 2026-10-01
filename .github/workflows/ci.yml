@@ -20,7 +20,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust: [stable, beta]
-        ruby_version: ["3.2.9", "3.3.12", "3.4.11"]
+        ruby_version: ["4.0.7"]
         ruby_static: [false, true]
         exclude:
           # RubyInstaller ships no static Ruby.
@@ -49,9 +49,9 @@ jobs:
 
     # There are no prebuilt static Rubies, so build one. A Ruby without a
     # shared library is linked statically without setting RUBY_STATIC. Ruby
-    # 3.2+ enables YJIT when rustc is on PATH, and YJIT's Rust runtime in the
-    # archive clashes with the test binary's (`rust_eh_personality`), so it
-    # is turned off (configure only warns about it on 3.1).
+    # enables YJIT and ZJIT when rustc is on PATH, and their Rust runtime in
+    # the archive clashes with the test binary's (`rust_eh_personality`), so
+    # both are turned off.
     - name: Build static Ruby
       if: matrix.ruby_static == true
       run: |
@@ -62,7 +62,7 @@ jobs:
           sudo apt-get install -y build-essential autoconf libyaml-dev libffi-dev zlib1g-dev libgmp-dev libreadline-dev
         fi
         git clone --depth 1 https://github.com/rbenv/ruby-build.git "$RUNNER_TEMP/ruby-build"
-        configure_opts="--disable-shared --disable-install-doc --disable-yjit"
+        configure_opts="--disable-shared --disable-install-doc --disable-yjit --disable-zjit"
         # ruby-build only names its log on failure, so show the end of it.
         export TMPDIR="$RUNNER_TEMP"
         RUBY_CONFIGURE_OPTS="$configure_opts" \
@@ -97,7 +97,7 @@ jobs:
         cargo run --example eval -- "raise 'eval example failed' unless 1 + 1 == 2"
         (cd examples/rutie_rust_example && cargo test)
         gem install --no-document rutie -v '~> 0.0.4'
-        gem install --no-document minitest -v '~> 5.15.0'
+        gem install --no-document minitest -v '~> 5.25'
         for example in rutie_ruby_example rutie_ruby_gvl_example; do
           (
             cd "examples/$example"
@@ -139,7 +139,7 @@ jobs:
         cargo run --example eval -- "raise 'eval example failed' unless 1 + 1 == 2"
         (cd examples/rutie_rust_example && cargo test)
         gem install --no-document rutie -v '~> 0.0.4'
-        gem install --no-document minitest -v '~> 5.15.0'
+        gem install --no-document minitest -v '~> 5.25'
         for example in rutie_ruby_example rutie_ruby_gvl_example; do
           (
             cd "examples/$example"

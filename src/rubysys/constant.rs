@@ -12,7 +12,9 @@ pub const FL_PROMOTED: isize = 1 << 5;
 pub const FL_FINALIZE: isize = 1 << 7;
 // Bit 8 was `FL_TAINT` in Ruby 2; Ruby 3 uses it for Ractor-shareable objects.
 pub const FL_SHAREABLE: isize = 1 << 8;
-pub const FL_EXIVAR: isize = 1 << 10;
+// Ruby 4.0 no longer marks objects with generic instance variables: its
+// `RUBY_FL_EXIVAR` is 0 and bit 10 is unused.
+pub const FL_EXIVAR: isize = 0;
 pub const FL_FREEZE: isize = 1 << 11;
 
 pub const FL_USHIFT: isize = 12;

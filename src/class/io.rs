@@ -304,7 +304,7 @@ impl IO {
     }
 
     /// Returns `true` if the stream is closed (Ruby's `closed?`,
-    /// `rb_io_closed_p` on Ruby 3.3+).
+    /// `rb_io_closed_p`).
     ///
     /// # Examples
     ///

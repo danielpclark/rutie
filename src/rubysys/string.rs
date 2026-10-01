@@ -183,27 +183,9 @@ union RStringAux {
     value: InternalValue,
 }
 
-// Ruby 3.2: the length is in `as.heap.len`, or `as.embed.len` at the same
-// place for an embedded string.
-#[cfg(ruby_3_2)]
-#[derive(Copy, Clone)]
-#[repr(C)]
-struct RStringHeap {
-    len: c_long,
-    ptr: *const c_char,
-    aux: RStringAux,
-}
-
-#[cfg(ruby_3_2)]
-#[repr(C)]
-struct RString {
-    basic: RBasic,
-    as_: RStringAs,
-}
-
-// Ruby 3.3 moves the length to the top level for every string; `as.heap`
-// keeps `ptr` and `aux`, and an embedded string's bytes start at `as`.
-#[cfg(ruby_gte_3_3)]
+// The length is at the top level for every string (Ruby 3.3 and later);
+// `as.heap` keeps `ptr` and `aux`, and an embedded string's bytes start at
+// `as`.
 #[derive(Copy, Clone)]
 #[repr(C)]
 struct RStringHeap {
@@ -211,7 +193,6 @@ struct RStringHeap {
     aux: RStringAux,
 }
 
-#[cfg(ruby_gte_3_3)]
 #[repr(C)]
 struct RString {
     basic: RBasic,
@@ -230,46 +211,17 @@ unsafe fn embed_check(flags: InternalValue) -> bool {
     flags & (RStringEmbed::NoEmbed as size_t) == 0
 }
 
-// Ruby 3.2 (`USE_RVARGC`) keeps it in `as.embed.len`, which sits where
-// `as.heap.len` does.
-#[cfg(ruby_3_2)]
-pub unsafe fn rstring_embed_len(value: Value) -> c_long {
-    let (rstring, _flags) = rstring_and_flags(value);
-
-    (*rstring).as_.heap.len
-}
-
-#[cfg(ruby_gte_3_3)]
 pub unsafe fn rstring_embed_len(value: Value) -> c_long {
     let (rstring, _flags) = rstring_and_flags(value);
 
     (*rstring).len
 }
 
-// In Ruby 3.2 `as.embed.ary` follows `as.embed.len`.
-#[cfg(ruby_3_2)]
-unsafe fn rstring_embed_ptr(rstring: *const RString) -> *const c_char {
-    (&(*rstring).as_ as *const RStringAs as *const c_char).add(mem::size_of::<c_long>())
-}
-
-// In Ruby 3.3 `as.embed.ary` is all of `as`.
-#[cfg(ruby_gte_3_3)]
+// An embedded string's `as.embed.ary` is all of `as`.
 unsafe fn rstring_embed_ptr(rstring: *const RString) -> *const c_char {
     &(*rstring).as_ as *const RStringAs as *const c_char
 }
 
-#[cfg(ruby_3_2)]
-pub unsafe fn rstring_len(value: Value) -> c_long {
-    let (rstring, flags) = rstring_and_flags(value);
-
-    if embed_check(flags) {
-        rstring_embed_len(value)
-    } else {
-        (*rstring).as_.heap.len
-    }
-}
-
-#[cfg(ruby_gte_3_3)]
 pub unsafe fn rstring_len(value: Value) -> c_long {
     let (rstring, _flags) = rstring_and_flags(value);
 

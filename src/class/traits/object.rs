@@ -2236,13 +2236,7 @@ mod tests {
             assert!(clone.respond_to("extra"));
 
             let hash = VM::eval("{ a: 1 }").unwrap();
-            // Ruby 3.4 changed `Hash#inspect`.
-            let expected = if cfg!(ruby_gte_3_4) {
-                "{a: 1}"
-            } else {
-                "{:a=>1}"
-            };
-            assert_eq!(hash.inspect_object().to_str(), expected);
+            assert_eq!(hash.inspect_object().to_str(), "{a: 1}");
             assert_eq!(Fixnum::new(7).as_string().to_str(), "7");
 
             // `as_string` falls back to the default form when `to_s` is not a String.

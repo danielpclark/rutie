@@ -185,9 +185,8 @@ impl GC {
     }
 
     /// Disable the garbage collector: allocation no longer triggers a
-    /// collection. An explicit [`GC::start`](#method.start) still collects
-    /// on Ruby 3.4 (as Ruby's `GC.start` does on every version), but not on
-    /// 3.2 and 3.3.
+    /// collection. An explicit [`GC::start`](#method.start) still collects,
+    /// as Ruby's `GC.start` does.
     ///
     /// # Examples
     ///

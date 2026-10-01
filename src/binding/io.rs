@@ -59,14 +59,12 @@ pub fn is_eof(io: Value) -> bool {
 
 pub use crate::rubysys::io::{RUBY_IO_PRIORITY, RUBY_IO_READABLE, RUBY_IO_WRITABLE};
 
-/// `timeout` is `nil` to wait without a limit (Ruby 3.2+: the IO's
-/// `#timeout`, which is `nil` unless set).
+/// `timeout` is `nil` to wait without a limit (the IO's `#timeout`, which is
+/// `nil` unless set).
 pub fn wait(io: Value, events: c_int, timeout: Value) -> Value {
     unsafe { io::rb_io_wait(io, fixnum::i32_to_num(events), timeout) }
 }
 
-// `rb_io_closed_p` is Ruby 3.3+; earlier Rubies call `closed?`.
-#[cfg(ruby_gte_3_3)]
 pub fn is_closed(io: Value) -> bool {
     unsafe { io::rb_io_closed_p(io) }.is_true()
 }
