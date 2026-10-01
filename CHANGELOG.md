@@ -34,6 +34,11 @@ on 0.11.x.
    thanks to @danielpclark
 
 ### Fixed
+ - Linking a static Ruby failed when a library it needs is outside the
+   linker's default search path: ruby-build's macOS Ruby 3.3 uses Homebrew's
+   GMP (`ld: library 'gmp' not found`). `build.rs` now adds the absolute `-L`
+   directories in the Ruby's `LDFLAGS` to the search path,
+   thanks to @danielpclark
  - A stack walk inside a fiber made by `Fiber::new` or `Fiber::with_storage`
    crashed on Ruby 3.3 on arm64 macOS: a Rust panic in the fiber with
    `RUST_BACKTRACE` set segfaulted, and Ruby's crash report then hung.
