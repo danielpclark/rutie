@@ -29,7 +29,6 @@ This project is a continuation of:
 * [Using Rust in Ruby](https://github.com/danielpclark/rutie#using-rust-in-ruby)
 * [Custom Ruby Objects in Rust](https://github.com/danielpclark/rutie#custom-ruby-objects-in-rust)
 * [Variadic Functions / Splat Operator](https://github.com/danielpclark/rutie#variadic-functions--splat-operator)
-* [Migrating from Ruru to Rutie](https://github.com/danielpclark/rutie#migrating-from-ruru-to-rutie)
 * [Safety — The Rutie Philosophy vs The Rust Philosophy on Safety](https://github.com/danielpclark/rutie/blob/master/README.md#safety--the-rutie-philosophy-vs-the-rust-philosophy-on-safety)
 * [Troubleshooting](https://github.com/danielpclark/rutie#troubleshooting)
   * [It panics for some Rubies on CI server tests](https://github.com/danielpclark/rutie#it-panics-for-some-rubies-on-ci-server-tests)
@@ -320,50 +319,6 @@ For optional, keyword and block parameters, write a plain
 parse the arguments with an `rb_scan_args` format such as `"11*:&"`. It returns
 `ScannedArgs` (required, optional, splat, post, keywords and block) without any
 unsafe code; see its documentation for an example.
-
-## Migrating from Ruru to Rutie
-
-#### &lt;0.1
-
-For using Rutie versions less than 0.1 the change is simple.  Replace all occurrences
-of the string `ruru` with `rutie` in your program.  And if you would like to use
-`ruby-sys` code from Rutie rather than requiring `ruby-sys` you can change all existing
-references to `ruby_sys` to `rutie::rubysys`.
-
-#### 0.1
-
-You will have additional considerations to change like `Error` being removed.  For that; change instances of type `ruru::result::Error` to `rutie::AnyException`.
-
-#### 0.2
-
-Migrated `parse_arguments` from `VM` to `util`.
-
-#### 0.3
-
-Internal changes `util` from `binding` and `rubysys` have been replaced to reduce confusion and reduce duplication.
-
-#### 0.10
-
-0.10 targets Ruby 2 (2.5, 2.6, 2.7) and continues the 0.8/0.9 line. It adds
-a large amount of API (see the CHANGELOG) and has one breaking change to
-migrate from 0.9.x:
-
-- `VM::at_exit` now does what its name says: the closure runs when the Ruby VM
-  shuts down (Ruby's `at_exit`), not immediately. It must be `'static` (move
-  captured values into it). Programs embedding Ruby run these handlers by calling
-  `unsafe { VM::cleanup() }` at the end. If you relied on the old immediate call,
-  use `VM::call_protected`, which keeps that behaviour (and no longer crashes:
-  closures that captured variables used to read a bad pointer).
-
-Builds also work with current Cargo without setting `LD_LIBRARY_PATH` for
-`cargo test`.
-
-If you were depending on the unpublished `rb-sys`-based `master` (self-labelled
-0.10.0, February–September 2025) through a git dependency: that tree is
-discontinued. Its `link-ruby` and `ruby-static` cargo features do not exist in
-0.10; use the `no-link` feature (or `NO_LINK_RUTIE`) and the `RUBY_STATIC`
-environment variable as documented below, and expect Ruby 2, not Ruby 3.
-
 
 ## Safety — The Rutie Philosophy vs The Rust Philosophy on Safety
 
