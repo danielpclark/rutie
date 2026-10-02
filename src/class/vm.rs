@@ -4033,6 +4033,9 @@ impl VM {
     /// assert_eq!(VM::gets().unwrap().unwrap().to_str(), "first\n");
     /// assert_eq!(VM::eval("$_").unwrap().try_convert_to::<RString>().unwrap().to_str(), "first\n");
     /// assert_eq!(VM::gets().unwrap().unwrap().to_str(), "second\n");
+    ///
+    /// // The end of the last file (ARGF closes it).
+    /// assert!(VM::gets().unwrap().is_none());
     /// # std::fs::remove_file(path).unwrap();
     /// ```
     pub fn gets() -> Result<Option<RString>, AnyException> {

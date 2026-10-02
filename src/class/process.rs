@@ -82,14 +82,15 @@ impl Process {
     /// # Examples
     ///
     /// ```
-    /// use rutie::{Class, Object, Process, RString, VM};
+    /// use rutie::{Class, Fixnum, Object, Process, RString, VM};
     /// # VM::init();
     ///
     /// let ruby = VM::eval("require 'rbconfig'; RbConfig.ruby").unwrap();
     /// let pid = Process::spawn(&[ruby, RString::new_utf8("-e").into(), RString::new_utf8("sleep 0.2").into()]).unwrap();
     ///
-    /// // WNOHANG: the child is still running.
-    /// assert_eq!(Process::waitpid(pid, 1).unwrap(), None);
+    /// // WNOHANG (1 on Unix, -1 on Windows): the child is still running.
+    /// let wnohang = VM::eval("Process::WNOHANG").unwrap().try_convert_to::<Fixnum>().unwrap().to_i32();
+    /// assert_eq!(Process::waitpid(pid, wnohang).unwrap(), None);
     ///
     /// let (waited, status) = Process::waitpid(pid, 0).unwrap().unwrap();
     /// assert_eq!(waited, pid);
@@ -164,9 +165,9 @@ impl Process {
     /// use rutie::{Fixnum, Object, Process, VM};
     /// # VM::init();
     ///
-    /// // An exit status of 2 is the wait status 0x200 on Unix.
-    /// let status = if cfg!(windows) { 2 } else { 2 << 8 };
-    /// Process::set_last_status(status, 12345);
+    /// // An exit status of 2 is the wait status 0x200 (Ruby shifts the exit
+    /// // code the same way on Windows).
+    /// Process::set_last_status(2 << 8, 12345);
     ///
     /// let last = Process::last_status().unwrap();
     /// assert_eq!(unsafe { last.send("pid", &[]) }.try_convert_to::<Fixnum>(), Ok(Fixnum::new(12345)));
