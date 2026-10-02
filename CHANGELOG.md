@@ -7,6 +7,17 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.11.3] - 2026-10-02
+### Fixed
+ - A `methods!`/`unsafe_methods!` method with no parameters aborted a debug
+   build (`unsafe precondition(s) violated: slice::from_raw_parts requires
+   the pointer to be aligned and non-null`) when Ruby's own C code called it
+   with no arguments, as `format('%s', obj)`, `puts obj` or `Array#join`
+   call a `to_s` written in Rust: `rb_funcall` passes a NULL `argv` with an
+   `argc` of 0, which `util::parse_arguments` handed to
+   `slice::from_raw_parts`. It now returns an empty `Vec` for them (#190),
+   thanks to @danielpclark
+
 ## [0.11.2] - 2026-10-01
 Adds the C API Ruby 3.1 and 3.2 introduced, which 0.11 did not bind. What
 needs Ruby 3.1 is marked "Ruby 3.1+" and is not built on Ruby 3.0.
