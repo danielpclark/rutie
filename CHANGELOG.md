@@ -7,6 +7,17 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.12.1] - 2026-10-02
+### Fixed
+ - A `methods!`/`unsafe_methods!` method with no parameters aborted a debug
+   build (`unsafe precondition(s) violated: slice::from_raw_parts requires
+   the pointer to be aligned and non-null`) when Ruby's own C code called it
+   with no arguments, as `format('%s', obj)`, `puts obj` or `Array#join`
+   call a `to_s` written in Rust: `rb_funcall` passes a NULL `argv` with an
+   `argc` of 0, which `util::parse_arguments` handed to
+   `slice::from_raw_parts`. It now returns an empty `Vec` for them (#190),
+   thanks to @danielpclark
+
 ## [0.12.0] - 2026-10-01
 Supports Ruby 3.1, 3.2 and 3.3 on Linux, macOS and Windows; Ruby 3.0 stays
 on 0.11.x.
