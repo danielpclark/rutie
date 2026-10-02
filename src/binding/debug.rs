@@ -144,6 +144,11 @@ pub fn debug_inspector_current_depth() -> Value {
 
 // Runs the closure `data` points to; it stays allocated for good, as Ruby
 // keeps a preregistered job until the process exits.
+//
+// An exception (or panic) is caught and discarded here, not left to Ruby:
+// `rb_postponed_job_flush` reads a non-`volatile` local after `longjmp`, so
+// where the compiler keeps it in a register (clang on arm64 macOS) Ruby
+// re-triggers the job that raised and runs it again.
 #[cfg(ruby_gte_3_3)]
 rutie_callback! {
     fn postponed_job_callback<F>(data: *mut c_void)
@@ -152,7 +157,11 @@ rutie_callback! {
     {
         let func = unsafe { &*(data as *const F) };
 
-        vm::call_catching_panic(func)
+        let _ = vm::protect_value(|| {
+            func();
+
+            Value::from(crate::binding::global::RubySpecialConsts::Nil as crate::types::InternalValue)
+        });
     }
 }
 
