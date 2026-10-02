@@ -156,10 +156,10 @@ Now load the library from Ruby with the [`rutie` gem](https://github.com/danielp
 
 ```ruby
 # gemspec
-spec.add_dependency 'rutie'
+spec.add_dependency 'rutie', '~> 0.0.5'
 
 # Gemfile
-gem 'rutie'
+gem 'rutie', '~> 0.0.5'
 ```
 
 And then load the library in your main project file `lib/rutie_ruby_example.rb`.
@@ -182,11 +182,8 @@ directory, or `release: 'debug'` for a debug build. If the library isn't built
 yet, `init` raises `Rutie::LibraryNotFound` (a `LoadError`) naming the paths it
 checked and the cargo command to run.
 
-The one-argument `init`, the `CARGO_TARGET_DIR` lookup and `Rutie::RakeTask`
-(below) need a `rutie` gem newer than 0.0.4. With 0.0.4, pass the function name
-(`init 'Init_rutie_ruby_example', __dir__`), build with `cargo build --release`
-yourself, and on Ruby 4.0 with Bundler also add `gem 'fiddle'` to your Gemfile
-(Fiddle is a bundled gem rather than a default gem since Ruby 4.0).
+The one-argument `init`, the `CARGO_TARGET_DIR` lookup, `Rutie::RakeTask`
+(below) and loading under Bundler on Ruby 4.0 need rutie 0.0.5 or later.
 
 That's all you need to load your Ruby things from Rust.  Now to write the test in
 `test/rutie_ruby_example_test.rb`:
