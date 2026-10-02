@@ -79,8 +79,18 @@ pub fn fix_to_u16(num: Value) -> u16 {
     unsafe { fixnum::rb_fix2ushort(num) as u16 }
 }
 
+#[cfg(not(any(windows, target_pointer_width = "32")))]
 pub fn fix_to_i32(num: Value) -> i32 {
     unsafe { fixnum::rb_fix2int(num) as i32 }
+}
+
+// Where `int` and `long` are the same size, Ruby's `rb_fix2int` is plain
+// `FIX2INT`, which misreads a Bignum, and Fixnums only cover 31 bits there,
+// so `i32::MAX` is a Bignum. `rb_num2long` checks the range of both (as
+// Ruby's `NUM2INT` does on these targets).
+#[cfg(any(windows, target_pointer_width = "32"))]
+pub fn fix_to_i32(num: Value) -> i32 {
+    unsafe { fixnum::rb_num2long(num) as i32 }
 }
 
 #[cfg(not(any(windows, target_pointer_width = "32")))]

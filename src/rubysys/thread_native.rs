@@ -115,8 +115,16 @@ mod tests {
             let lock = lock.as_mut_ptr();
             rb_native_mutex_initialize(lock);
 
+            // Held, so another thread cannot take it (the owner could again on
+            // Windows, where the lock is a recursive critical section).
             rb_native_mutex_lock(lock);
-            assert_ne!(rb_native_mutex_trylock(lock), 0);
+            let address = lock as usize;
+            let busy = std::thread::spawn(move || {
+                rb_native_mutex_trylock(address as *mut NativeThreadLock)
+            })
+            .join()
+            .unwrap();
+            assert_ne!(busy, 0);
             rb_native_mutex_unlock(lock);
             assert_eq!(rb_native_mutex_trylock(lock), 0);
             rb_native_mutex_unlock(lock);

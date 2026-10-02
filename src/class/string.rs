@@ -13,6 +13,14 @@ use crate::{
     Exception, Hash, Integer, NilClass, Object, TryConvert, VerifiedObject,
 };
 
+// Only path separators (`/`, and `\` on Windows).
+fn is_separators(bytes: &[u8]) -> bool {
+    !bytes.is_empty()
+        && bytes
+            .iter()
+            .all(|&byte| byte == b'/' || (cfg!(windows) && byte == b'\\'))
+}
+
 /// `String`
 #[derive(Debug)]
 #[repr(C)]
@@ -1454,6 +1462,9 @@ impl RString {
 
         match string::path_basename(bytes, self.encoding().value()) {
             Some((start, len, _)) => self.byte_slice(start, len).unwrap(),
+            // A UNC root on Windows (such as `//`): Ruby answers with a `"/"`
+            // of its own instead of a part of the string.
+            None if is_separators(bytes) => RString::from_bytes(b"/", &self.encoding()),
             None => self.byte_slice(0, bytes.len()).unwrap(),
         }
     }
