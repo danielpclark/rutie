@@ -7,6 +7,23 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.10.3] - 2026-10-02
+### Fixed
+ - A `methods!`/`unsafe_methods!` method with no parameters aborted a debug
+   build (`unsafe precondition(s) violated: slice::from_raw_parts requires
+   the pointer to be aligned and non-null`) when Ruby's own C code called it
+   with no arguments, as `format('%s', obj)`, `puts obj` or `Array#join`
+   call a `to_s` written in Rust: `rb_funcall` passes a NULL `argv` with an
+   `argc` of 0, which `util::parse_arguments` handed to
+   `slice::from_raw_parts`. It now returns an empty `Vec` for them (#190),
+   thanks to @danielpclark
+ - Ruby 2.6 and 2.7 define `RUBY_DESCRIPTION` only while processing the
+   command line (`Init_ruby_description`), which an embedded VM started with
+   `ruby_init` never does, so `VM::init` left it undefined and gems that read
+   it on load failed (`uninitialized constant RUBY_DESCRIPTION` from
+   `require "nokogiri"`). `VM::init` and `VM::try_init` now define it from
+   Ruby's exported `ruby_description`, as `ruby` does; Ruby 2.5, which
+   defines it in `Init_version`, is unchanged (#143), thanks to @danielpclark
 ## [0.10.2] - 2026-09-30
 ### Added
  - Windows support: Rutie builds, links and passes its tests on 64-bit

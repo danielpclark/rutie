@@ -3591,4 +3591,25 @@ mod tests {
             assert!(VM::is_provided(&name));
         });
     }
+
+    // Ruby 2.6 and 2.7 define RUBY_DESCRIPTION only from ruby_options (#143).
+    #[test]
+    fn test_ruby_description_is_defined() {
+        crate::on_ruby_thread(|| {
+            let eval = |code: &str| {
+                VM::eval(code)
+                    .unwrap()
+                    .try_convert_to::<RString>()
+                    .unwrap()
+                    .to_string()
+            };
+            let built =
+                unsafe { std::ffi::CStr::from_ptr(crate::rubysys::vm::ruby_description.as_ptr()) };
+
+            assert_eq!(eval("RUBY_DESCRIPTION"), built.to_str().unwrap());
+            assert!(eval("RUBY_DESCRIPTION").starts_with("ruby 2."));
+            assert_eq!(eval("RUBY_DESCRIPTION.encoding.name"), "US-ASCII");
+            assert_eq!(eval("RUBY_DESCRIPTION.frozen?.to_s"), "true");
+        });
+    }
 }
