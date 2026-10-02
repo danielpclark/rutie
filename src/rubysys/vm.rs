@@ -9,6 +9,11 @@ extern "C" {
     //
     // The script name given to `ruby_options`; `Qfalse` (0) until it runs.
     pub static rb_argv0: Value;
+    // RUBY_EXTERN const char ruby_description[];
+    //
+    // `RUBY_DESCRIPTION` as Ruby was built (without the ` +JIT` marker a
+    // running Ruby adds when MJIT is enabled).
+    pub static ruby_description: [c_char; 0];
     // void
     // ruby_init(void)
     pub fn ruby_init();

@@ -85,7 +85,19 @@ pub fn option_to_slice<'a, T>(option: &'a Option<T>) -> &'a [T] {
 //     Class::from_existing("String").define_method("==", string_eq);
 // }
 // ```
+/// Copies the `argc` arguments Ruby passed to a variable-arity method
+/// (`rb_define_method` with arity -1) out of `arguments`.
+///
+/// `arguments` may be NULL when `argc` is 0: Ruby's own C code calls
+/// methods with no arguments through `rb_funcall`, which passes no array
+/// (`format('%s', obj)`, `puts obj` and `Array#join` call `to_s` that way).
+/// Both are taken as Ruby handed them to the method; the pointer itself is
+/// not validated beyond that.
 pub fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject> {
+    if argc <= 0 || arguments.is_null() {
+        return Vec::new();
+    }
+
     unsafe { slice::from_raw_parts(arguments, argc as usize).to_vec() }
 }
 
@@ -256,6 +268,37 @@ mod tests {
                 "RutieUtilOuter::Inner"
             );
             assert_eq!(inmost_rb_object("String"), Class::string().value());
+        });
+    }
+
+    // Ruby's C code calls arity -1 methods with no arguments through
+    // rb_funcall, which passes a NULL argv (#190).
+    #[test]
+    fn test_parse_arguments_with_null_argv() {
+        use crate::{methods, Class, RString, VM};
+
+        methods!(
+            AnyObject,
+            _itself,
+            fn rutie_null_argv_to_s() -> RString {
+                RString::new_utf8("null argv")
+            }
+        );
+
+        crate::on_ruby_thread(|| {
+            assert!(parse_arguments(0, std::ptr::null()).is_empty());
+
+            Class::new("RutieNullArgvIssue190", None).define(|klass| {
+                klass.def("to_s", rutie_null_argv_to_s);
+            });
+
+            // Kernel#format's %s -> rb_obj_as_string -> rb_funcall(obj, :to_s)
+            let formatted = VM::eval("format('%s', RutieNullArgvIssue190.new)").unwrap();
+
+            assert_eq!(
+                formatted.try_convert_to::<RString>().unwrap().to_str(),
+                "null argv"
+            );
         });
     }
 }

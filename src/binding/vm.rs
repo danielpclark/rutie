@@ -7,7 +7,9 @@ use std::{
 use crate::{
     binding::{class, exception, global::RubySpecialConsts, symbol::internal_id},
     rubysys::{exception::rb_eRuntimeError, thread, vm},
-    types::{c_char, c_int, c_void, CallbackMutPtr, CallbackPtr, InternalValue, Value, VmPointer},
+    types::{
+        c_char, c_int, c_long, c_void, CallbackMutPtr, CallbackPtr, InternalValue, Value, VmPointer,
+    },
     util, AnyObject,
 };
 
@@ -74,6 +76,36 @@ pub fn init() {
 
     unsafe {
         vm::ruby_init();
+    }
+
+    define_ruby_description();
+}
+
+// Ruby 2.6 and 2.7 define `RUBY_DESCRIPTION` while processing the command
+// line (`Init_ruby_description`, ruby.c), which an embedded VM started with
+// `ruby_init` never does; Ruby 2.5 defines it in `Init_version`. Gems read it
+// when they load (#143), so define it from the exported `ruby_description`,
+// as `MKSTR` does: a frozen US-ASCII string. A `ruby` process (an extension)
+// has it already.
+fn define_ruby_description() {
+    use crate::rubysys::{class as rb_class, encoding, rb_cObject, string};
+
+    const NAME: &str = "RUBY_DESCRIPTION";
+
+    unsafe {
+        if util::c_int_to_bool(rb_class::rb_const_defined(rb_cObject, internal_id(NAME))) {
+            return;
+        }
+
+        let description = std::ffi::CStr::from_ptr(vm::ruby_description.as_ptr());
+        let value = string::rb_enc_str_new(
+            description.as_ptr(),
+            description.to_bytes().len() as c_long,
+            encoding::rb_usascii_encoding(),
+        );
+        let name = util::str_to_cstring(NAME);
+
+        rb_class::rb_define_global_const(name.as_ptr(), rb_class::rb_obj_freeze(value));
     }
 }
 
@@ -374,7 +406,13 @@ pub fn cleanup(status: c_int) -> c_int {
 pub fn setup() -> c_int {
     init_stack();
 
-    unsafe { vm::ruby_setup() }
+    let state = unsafe { vm::ruby_setup() };
+
+    if state == 0 {
+        define_ruby_description();
+    }
+
+    state
 }
 
 // `rb_cObject` is set while the VM boots and never cleared, so this is true
