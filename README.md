@@ -151,14 +151,15 @@ pub extern "C" fn Init_rutie_ruby_example() {
 And that's it for the Rust side.  When using the `methods!` macro or `extern` functions
 make sure the method name won't clash with any others.  This is why this example is prefixed with `pub_`.
 
-Now you just need to load the library in Ruby.  Add the `rutie` gem to your gemspec or Gemfile.
+Now load the library from Ruby with the [`rutie` gem](https://github.com/danielpclark/rutie-gem)
+(its source is also in this repository's `gem` folder). Add it to your gemspec or Gemfile.
 
 ```ruby
 # gemspec
-spec.add_dependency 'rutie', '~> 0.0.4'
+spec.add_dependency 'rutie'
 
 # Gemfile
-gem 'rutie', '~> 0.0.4'
+gem 'rutie'
 ```
 
 And then load the library in your main project file `lib/rutie_ruby_example.rb`.
@@ -168,9 +169,24 @@ require 'rutie_ruby_example/version'
 require 'rutie'
 
 module RutieRubyExample
-  Rutie.new(:rutie_ruby_example).init 'Init_rutie_ruby_example', __dir__
+  Rutie.new(:rutie_ruby_example).init __dir__
 end
 ```
+
+`init` loads `target/release/librutie_ruby_example.so` (`.dylib` on macOS,
+`rutie_ruby_example.dll` on Windows) relative to the project, or from
+`$CARGO_TARGET_DIR/release` when that is set, and calls its
+`Init_rutie_ruby_example` function. Pass another function name first
+(`init 'Init_other', __dir__`), `lib_path:` to `Rutie.new` for another
+directory, or `release: 'debug'` for a debug build. If the library isn't built
+yet, `init` raises `Rutie::LibraryNotFound` (a `LoadError`) naming the paths it
+checked and the cargo command to run.
+
+The one-argument `init`, the `CARGO_TARGET_DIR` lookup and `Rutie::RakeTask`
+(below) need a `rutie` gem newer than 0.0.4. With 0.0.4, pass the function name
+(`init 'Init_rutie_ruby_example', __dir__`), build with `cargo build --release`
+yourself, and on Ruby 4.0 with Bundler also add `gem 'fiddle'` to your Gemfile
+(Fiddle is a bundled gem rather than a default gem since Ruby 4.0).
 
 That's all you need to load your Ruby things from Rust.  Now to write the test in
 `test/rutie_ruby_example_test.rb`:
@@ -192,28 +208,37 @@ Write the following in `test/test_helper.rb`:
 require 'minitest/autorun'
 ```
 
-Add the following snippet to your already scaffolded `Rakefile`:
+Have your `Rakefile` build the Rust library before every test run with
+`Rutie::RakeTask`:
 
 ```ruby
 require "rake/testtask"
+require "rutie/rake_task"
 
-Rake::TestTask.new do |t|
-  t.libs << 'test'
-  t.pattern = 'test/**/*_test.rb'
-  t.verbose = true
+Rutie::RakeTask.new
+
+Rake::TestTask.new(test: "rutie:build") do |t|
+  t.libs << "test"
+  t.libs << "lib"
+  t.pattern = "test/**/*_test.rb"
 end
 ```
 
-And to properly test it you will always need to run `cargo build --release` whenever
-you make **any** changes to the Rust code.  Run the test with:
+`rutie:build` runs `cargo build --release`. On macOS it builds with
+`NO_LINK_RUTIE=1` and `-undefined dynamic_lookup` instead, so the extension
+uses the libruby of the `ruby` that loads it rather than linking its own.
+`rutie:clean` runs `cargo clean`. Pass `release: false` for a debug build, or
+`cargo_args:` for extra cargo arguments such as features.
+
+Run the tests, which rebuild the Rust code first, with:
 
 ```bash
-cargo build --release; rake test
+bundle exec rake test
 ```
 
-Or better yet change your `Rakefile` to always run the `cargo build --release` before
-every test suite run.  Feel free to change the test input to prove it fails because
-the above test works as is.
+Feel free to change the test input to prove it fails, since the above test
+works as is. `examples/rutie_ruby_example` and `examples/rutie_ruby_gvl_example`
+are complete projects set up this way.
 
 ## Custom Ruby Objects in Rust
 
@@ -543,7 +568,10 @@ the documentation.  There is a subfolder under `class` for traits called `traits
 
 Macros for abstracting away complexity are in `src/dsl.rs`.
 
-Ruby's helper gem is in the submodule folder `gem`.
+Ruby's helper gem is in the submodule folder `gem`. The Ruby examples load the
+gem from there, so clone with `--recurse-submodules` (or run
+`git submodule update --init`), then run `bundle install` and
+`bundle exec rake test` in an example's directory.
 
 ### Testing against several Rubies
 
