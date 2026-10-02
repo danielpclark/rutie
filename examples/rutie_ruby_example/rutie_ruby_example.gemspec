@@ -23,9 +23,9 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  # Rutie::RakeTask and the one-argument Rutie#init need a rutie gem newer
-  # than 0.0.4 (the Gemfile uses the one in this repository).
-  spec.add_dependency "rutie", ">= 0.0.4"
+  # Rutie::RakeTask and the one-argument Rutie#init are in rutie 0.0.5. The
+  # Gemfile uses the gem in this repository's `gem` submodule.
+  spec.add_dependency "rutie", "~> 0.0.5"
   spec.add_development_dependency "rake", ">= 12.0"
   spec.add_development_dependency "minitest", ">= 5.25"
 end
