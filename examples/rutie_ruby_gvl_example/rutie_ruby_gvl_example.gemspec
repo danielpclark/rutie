@@ -9,9 +9,9 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Daniel P. Clark"]
   spec.email         = ["6ftdan@gmail.com"]
 
-  spec.summary       = %q{asdfq r}
-  spec.description   = %q{asdf}
-  spec.homepage      = "https://example.com"
+  spec.summary       = %q{Release Ruby's GVL from Rust: a Rutie example extension}
+  spec.description   = %q{A Ruby gem written in Rust with Rutie that runs closures without the GVL, built and loaded with the rutie gem.}
+  spec.homepage      = "https://github.com/danielpclark/rutie/tree/master/examples/rutie_ruby_gvl_example"
   spec.license       = "MIT"
 
   # Specify which files should be added to the gem when it is released.
@@ -23,8 +23,9 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "rutie", "~> 0.0.3"
-  spec.add_development_dependency "bundler"
-  spec.add_development_dependency "rake", "~> 10.0"
-  spec.add_development_dependency "minitest", "~> 5.0"
+  # Rutie::RakeTask and the one-argument Rutie#init need a rutie gem newer
+  # than 0.0.4 (the Gemfile uses the one in this repository).
+  spec.add_dependency "rutie", ">= 0.0.4"
+  spec.add_development_dependency "rake", ">= 12.0"
+  spec.add_development_dependency "minitest", ">= 5.25"
 end

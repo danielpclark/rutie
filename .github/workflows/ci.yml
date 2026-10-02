@@ -39,6 +39,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        # The Ruby examples load the rutie gem from the `gem` submodule.
+        submodules: true
 
     # Prebuilt, shared-library Rubies (RubyInstaller on Windows).
     - name: Setup Ruby
@@ -89,27 +92,21 @@ jobs:
         cargo test -vv
 
     # The examples use the crate the way users do: an embedding program, and
-    # two Ruby extensions loaded through the `rutie` gem and tested with
-    # minitest. Extensions built this way need a Ruby with a shared library.
+    # two Ruby extensions built and loaded through the `rutie` gem (from the
+    # `gem` submodule) and tested with minitest. `rake test` builds each one
+    # with Rutie::RakeTask, which on macOS doesn't link libruby, so the
+    # extension uses the loading ruby's. Extensions built this way need a Ruby
+    # with a shared library.
     - name: Build and test examples
       if: runner.os != 'Windows' && matrix.ruby_static == false
       run: |
         cargo run --example eval -- "raise 'eval example failed' unless 1 + 1 == 2"
         (cd examples/rutie_rust_example && cargo test)
-        gem install --no-document rutie -v '~> 0.0.4'
-        gem install --no-document minitest -v '~> 5.15.0'
         for example in rutie_ruby_example rutie_ruby_gvl_example; do
           (
             cd "examples/$example"
-            if [[ "$RUNNER_OS" == "macOS" ]]; then
-              # An extension uses the `ruby` process's libruby rather than
-              # linking its own. With a static Ruby (setup-ruby's macOS 3.1 is
-              # one) that would be a second VM that never booted.
-              NO_LINK_RUTIE=1 cargo rustc --release -- -C link-args=-Wl,-undefined,dynamic_lookup
-            else
-              cargo build --release
-            fi
-            ruby -Ilib -Itest -e 'Dir["test/**/*_test.rb"].each { |f| require File.expand_path(f) }'
+            bundle install
+            bundle exec rake test
           )
         done
 
@@ -138,12 +135,10 @@ jobs:
       run: |
         cargo run --example eval -- "raise 'eval example failed' unless 1 + 1 == 2"
         (cd examples/rutie_rust_example && cargo test)
-        gem install --no-document rutie -v '~> 0.0.4'
-        gem install --no-document minitest -v '~> 5.15.0'
         for example in rutie_ruby_example rutie_ruby_gvl_example; do
           (
             cd "examples/$example"
-            cargo build --release
-            ruby -Ilib -Itest -e 'Dir["test/**/*_test.rb"].each { |f| require File.expand_path(f) }'
+            bundle install
+            bundle exec rake test
           )
         done
