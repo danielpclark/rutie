@@ -40,8 +40,8 @@ fn try_rbconfig(key: &str) -> Result<String, std::io::Error> {
 }
 
 // The Ruby versions this Rutie line supports (see the README's version
-// roadmap; 0.14 is the Ruby 4.0 line). Each one gets an exact `ruby_X_Y` cfg
-// and a cumulative `ruby_gte_X_Y` cfg.
+// support table; 0.14 is the Ruby 4.0 line). Each one gets an exact
+// `ruby_X_Y` cfg and a cumulative `ruby_gte_X_Y` cfg.
 const SUPPORTED_RUBIES: [(u32, u32); 1] = [(4, 0)];
 
 // Which Rutie line supports a Ruby this one doesn't, for the error message.
