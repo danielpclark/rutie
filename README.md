@@ -182,8 +182,8 @@ directory, or `release: 'debug'` for a debug build. If the library isn't built
 yet, `init` raises `Rutie::LibraryNotFound` (a `LoadError`) naming the paths it
 checked and the cargo command to run.
 
-The one-argument `init`, the `CARGO_TARGET_DIR` lookup, `Rutie::RakeTask`
-(below) and loading under Bundler on Ruby 4.0 need rutie 0.0.5 or later.
+The one-argument `init`, the `CARGO_TARGET_DIR` lookup and `Rutie::RakeTask`
+(below) need rutie 0.0.5 or later.
 
 That's all you need to load your Ruby things from Rust.  Now to write the test in
 `test/rutie_ruby_example_test.rb`:
