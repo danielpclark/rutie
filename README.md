@@ -441,21 +441,6 @@ Everything is tested against 64 bit operating systems (Linux, macOS and Windows)
 | 0.9.x | 2.5, 2.6, 2.7 | still works on Ruby 2, but superseded by 0.10.0 (`VM::at_exit` crash fix, current-Cargo build fix) |
 | 0.8.x | 2.5, 2.6, 2.7 | older Ruby 2 line |
 
-### Version roadmap
-
-Each Rutie minor version for Ruby 3 supports three Ruby minor versions; 0.14
-starts Ruby 4 with its only release so far, 4.0:
-
-| Rutie | Ruby | Status |
-|---|---|---|
-| 0.10 | 2.5, 2.6, 2.7 | released: Ruby 2 |
-| 0.11 | 3.0, 3.1, 3.2 | released: first Ruby 3 release, drops Ruby 2 |
-| 0.12 | 3.1, 3.2, 3.3 | released: drops 3.0, adds 3.3 |
-| 0.13 | 3.2, 3.3, 3.4 | released: drops 3.1, adds 3.4 |
-| 0.14 | 4.0 | current: Ruby 4.0 only |
-
-The Ruby 3 work is planned in `docs/ruby3-upgrade-plan.md`.
-
 An `rb-sys`-based rewrite lived on `master` between February and September
 2025 (self-labelled 0.10.0, never published to crates.io); it has been
 reverted and is not supported. If you depended on it through a
