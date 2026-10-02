@@ -77,23 +77,19 @@ pub fn is_closed(io: Value) -> bool {
 }
 
 // Raises `IOError` for a closed stream.
-#[cfg(ruby_gte_3_1)]
 pub fn descriptor(io: Value) -> c_int {
     unsafe { io::rb_io_descriptor(io) }
 }
 
 // The ready events as an Integer, or `false`.
-#[cfg(ruby_gte_3_1)]
 pub fn maybe_wait(error: c_int, io: Value, events: c_int, timeout: Value) -> Value {
     unsafe { io::rb_io_maybe_wait(error, io, fixnum::i32_to_num(events), timeout) }
 }
 
-#[cfg(ruby_gte_3_1)]
 pub fn maybe_wait_readable(error: c_int, io: Value, timeout: Value) -> c_int {
     unsafe { io::rb_io_maybe_wait_readable(error, io, timeout) }
 }
 
-#[cfg(ruby_gte_3_1)]
 pub fn maybe_wait_writable(error: c_int, io: Value, timeout: Value) -> c_int {
     unsafe { io::rb_io_maybe_wait_writable(error, io, timeout) }
 }
@@ -108,8 +104,20 @@ pub fn set_timeout(io: Value, timeout: Value) -> Value {
     unsafe { io::rb_io_set_timeout(io, timeout) }
 }
 
+// An `IO` for `fd`, with no path, timeout or encodings.
+#[cfg(ruby_gte_3_3)]
+pub unsafe fn open_descriptor(fd: c_int, mode: c_int) -> Value {
+    io::rb_io_open_descriptor(
+        crate::rubysys::builtins::rb_cIO,
+        fd,
+        mode,
+        nil(),
+        nil(),
+        std::ptr::null_mut(),
+    )
+}
+
 // Raises for a closed file.
-#[cfg(ruby_gte_3_1)]
 pub fn file_size(file: Value) -> i64 {
     unsafe { io::rb_file_size(file) }
 }

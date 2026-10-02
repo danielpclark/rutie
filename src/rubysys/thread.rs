@@ -200,11 +200,9 @@ extern "C" {
     pub fn rb_fiber_yield_kw(argc: Argc, argv: *const Value, kw_splat: c_int) -> Value;
     // VALUE
     // rb_fiber_transfer(VALUE fiber, int argc, const VALUE *argv)
-    #[cfg(ruby_gte_3_1)]
     pub fn rb_fiber_transfer(fiber: Value, argc: Argc, argv: *const Value) -> Value;
     // VALUE
     // rb_fiber_transfer_kw(VALUE fiber, int argc, const VALUE *argv, int kw_splat)
-    #[cfg(ruby_gte_3_1)]
     pub fn rb_fiber_transfer_kw(
         fiber: Value,
         argc: Argc,
@@ -216,11 +214,9 @@ extern "C" {
     //
     // `argv` is what `Kernel#raise` takes: an exception, or a class or
     // message, then an optional message and backtrace.
-    #[cfg(ruby_gte_3_1)]
     pub fn rb_fiber_raise(fiber: Value, argc: Argc, argv: *const Value) -> Value;
     // VALUE
     // rb_obj_is_fiber(VALUE obj)
-    #[cfg(ruby_gte_3_1)]
     pub fn rb_obj_is_fiber(object: Value) -> Value;
     // VALUE
     // rb_mutex_lock(VALUE mutex)
@@ -324,8 +320,20 @@ pub const RUBY_INTERNAL_THREAD_EVENT_MASK: u32 = 0xff;
 // typedef void rb_internal_thread_event_data_t; // for future extension.
 //
 // Ruby 3.2 passes no event data (a null pointer).
-#[cfg(ruby_gte_3_2)]
+#[cfg(all(ruby_gte_3_2, not(ruby_gte_3_3)))]
 pub type InternalThreadEventData = c_void;
+
+// typedef struct rb_internal_thread_event_data {
+//    VALUE thread;
+// } rb_internal_thread_event_data_t;
+//
+// `thread` is the Ruby thread the event is about; the hook may run on
+// another native thread.
+#[cfg(ruby_gte_3_3)]
+#[repr(C)]
+pub struct InternalThreadEventData {
+    pub thread: Value,
+}
 
 // typedef void (*rb_internal_thread_event_callback)(rb_event_flag_t event,
 //               const rb_internal_thread_event_data_t *event_data,
@@ -343,6 +351,14 @@ pub type InternalThreadEventCallback = rutie_callback!(type fn(
 pub struct InternalThreadEventHook {
     _private: [u8; 0],
 }
+
+// typedef int rb_internal_thread_specific_key_t;
+#[cfg(ruby_gte_3_3)]
+pub type InternalThreadSpecificKey = c_int;
+
+// #define RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX 8
+#[cfg(ruby_gte_3_3)]
+pub const RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX: c_int = 8;
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
@@ -366,4 +382,32 @@ extern "C" {
     // rb_internal_thread_remove_event_hook(rb_internal_thread_event_hook_t * hook)
     #[cfg(ruby_gte_3_2)]
     pub fn rb_internal_thread_remove_event_hook(hook: *mut InternalThreadEventHook) -> bool;
+    // Raises a `ThreadError` once `RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX` keys
+    // exist. (Ruby 3.3 and 3.4 check this one key too late and return
+    // `RB_INTERNAL_THREAD_SPECIFIC_KEY_MAX` itself, which is out of range.)
+    //
+    // rb_internal_thread_specific_key_t
+    // rb_internal_thread_specific_key_create(void)
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_internal_thread_specific_key_create() -> InternalThreadSpecificKey;
+    // Async signal safe and thread safe.
+    //
+    // void *
+    // rb_internal_thread_specific_get(VALUE thread_val, rb_internal_thread_specific_key_t key)
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_internal_thread_specific_get(
+        thread: Value,
+        key: InternalThreadSpecificKey,
+    ) -> *mut c_void;
+    // Async signal safe and thread safe.
+    //
+    // void
+    // rb_internal_thread_specific_set(VALUE thread_val, rb_internal_thread_specific_key_t key,
+    //                                 void *data)
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_internal_thread_specific_set(
+        thread: Value,
+        key: InternalThreadSpecificKey,
+        data: *mut c_void,
+    );
 }

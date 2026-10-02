@@ -17,7 +17,6 @@ pub mod global_variable;
 pub mod hash;
 pub mod integer;
 pub mod io;
-#[cfg(ruby_gte_3_1)]
 pub mod io_buffer;
 pub mod marshal;
 pub mod memory_view;

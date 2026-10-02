@@ -20,6 +20,9 @@ pub const RB_IO_BUFFER_LOCKED: rb_io_buffer_flags = 32;
 pub const RB_IO_BUFFER_PRIVATE: rb_io_buffer_flags = 64;
 // The memory can't be modified.
 pub const RB_IO_BUFFER_READONLY: rb_io_buffer_flags = 128;
+// The buffer is backed by a file.
+#[cfg(ruby_gte_3_3)]
+pub const RB_IO_BUFFER_FILE: rb_io_buffer_flags = 256;
 
 // `enum rb_io_buffer_endian`.
 pub const RB_IO_BUFFER_LITTLE_ENDIAN: c_int = 4;
@@ -83,6 +86,12 @@ extern "C" {
     //
     // Raises `IO::Buffer::LockedError` when locked.
     pub fn rb_io_buffer_free(buffer: Value) -> Value;
+    // VALUE
+    // rb_io_buffer_free_locked(VALUE self)
+    //
+    // Frees the memory even when the buffer is locked.
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_io_buffer_free_locked(buffer: Value) -> Value;
     // int                                     (3.1, 3.2)
     // enum rb_io_buffer_flags                 (3.3)
     // rb_io_buffer_get_bytes(VALUE self, void **base, size_t *size)

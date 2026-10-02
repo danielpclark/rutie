@@ -551,12 +551,8 @@ mod tests {
     fn test_memory_view_layouts() {
         #[cfg(target_pointer_width = "64")]
         {
-            // Measured against the C headers of 3.1 and 3.2; 3.0 has no
-            // `_memory_view_entry`.
-            #[cfg(ruby_gte_3_1)]
+            // Measured against the C headers of 3.1, 3.2 and 3.3.
             assert_eq!(mem::size_of::<rb_memory_view_t>(), 112);
-            #[cfg(not(ruby_gte_3_1))]
-            assert_eq!(mem::size_of::<rb_memory_view_t>(), 104);
             assert_eq!(mem::size_of::<rb_memory_view_item_component_t>(), 32);
         }
 

@@ -13,7 +13,6 @@ pub mod float;
 pub mod gc;
 pub mod hash;
 pub mod io;
-#[cfg(ruby_gte_3_1)]
 pub mod io_buffer;
 pub mod memory_view;
 pub mod numeric;
@@ -23,7 +22,6 @@ pub mod range;
 pub mod regexp;
 pub mod rproc;
 pub mod rstruct;
-#[cfg(ruby_gte_3_1)]
 pub mod scheduler;
 pub mod st;
 pub mod string;

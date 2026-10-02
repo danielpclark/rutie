@@ -1,7 +1,7 @@
-use crate::rubysys::types::{c_char, c_int, Argc, EncodingType, Value};
-
-#[cfg(ruby_gte_3_1)]
-use crate::rubysys::io_buffer::rb_off_t;
+use crate::rubysys::{
+    io_buffer::rb_off_t,
+    types::{c_char, c_int, Argc, EncodingType, Value},
+};
 
 // `enum rb_io_event_t` (`RB_WAITFD_IN` / `RB_WAITFD_PRI` / `RB_WAITFD_OUT`).
 pub const RUBY_IO_READABLE: c_int = 0x001;
@@ -21,7 +21,27 @@ pub const FMODE_CREATE: c_int = 0x0000_0080;
 pub const FMODE_EXCL: c_int = 0x0000_0400;
 pub const FMODE_TRUNC: c_int = 0x0000_0800;
 pub const FMODE_TEXTMODE: c_int = 0x0000_1000;
+// The descriptor is owned outside Ruby, which does not close it
+// (`IO#autoclose?` is false). Named in the headers from 3.3 (`FMODE_PREP`
+// inside Ruby before that).
+#[cfg(ruby_gte_3_3)]
+pub const FMODE_EXTERNAL: c_int = 0x0001_0000;
 pub const FMODE_SETENC_BY_BOM: c_int = 0x0010_0000;
+
+// `struct rb_io_encoding` (3.3; `struct rb_io_enc_t` before), the decomposed
+// encoding settings of an IO.
+#[cfg(ruby_gte_3_3)]
+#[repr(C)]
+pub struct rb_io_encoding {
+    // Internal encoding.
+    pub enc: EncodingType,
+    // External encoding.
+    pub enc2: EncodingType,
+    // `enum ruby_econv_flag_type` flags.
+    pub ecflags: c_int,
+    // The flags as a Ruby Hash.
+    pub ecopts: Value,
+}
 
 // `rb_pid_t`: `pid_t`, or `int` on Windows.
 #[allow(non_camel_case_types)]
@@ -86,26 +106,22 @@ extern "C" {
     // rb_io_descriptor(VALUE io)
     //
     // Raises `IOError` for a closed stream.
-    #[cfg(ruby_gte_3_1)]
     pub fn rb_io_descriptor(io: Value) -> c_int;
     // VALUE
     // rb_io_maybe_wait(int error, VALUE io, VALUE events, VALUE timeout)
     //
     // Waits like `rb_io_wait` when `error` is `EAGAIN`/`EWOULDBLOCK`, returns
     // `events` for `EINTR` and `Qfalse` for any other error.
-    #[cfg(ruby_gte_3_1)]
     pub fn rb_io_maybe_wait(error: c_int, io: Value, events: Value, timeout: Value) -> Value;
     // int
     // rb_io_maybe_wait_readable(int error, VALUE io, VALUE timeout)
     //
     // `RUBY_IO_READABLE`, or `0` (see `rb_io_maybe_wait`).
-    #[cfg(ruby_gte_3_1)]
     pub fn rb_io_maybe_wait_readable(error: c_int, io: Value, timeout: Value) -> c_int;
     // int
     // rb_io_maybe_wait_writable(int error, VALUE io, VALUE timeout)
     //
     // `RUBY_IO_WRITABLE`, or `0` (see `rb_io_maybe_wait`).
-    #[cfg(ruby_gte_3_1)]
     pub fn rb_io_maybe_wait_writable(error: c_int, io: Value, timeout: Value) -> c_int;
     // VALUE
     // rb_io_timeout(VALUE io)
@@ -119,12 +135,25 @@ extern "C" {
     // `timeout` is `Qnil` (no timeout) or responds to `to_f`.
     #[cfg(ruby_gte_3_2)]
     pub fn rb_io_set_timeout(io: Value, timeout: Value) -> Value;
+    // VALUE
+    // rb_io_open_descriptor(VALUE klass, int descriptor, int mode, VALUE path, VALUE timeout, struct rb_io_encoding *encoding)
+    //
+    // An IO of class `klass` for the open `descriptor`, which Ruby closes
+    // unless `mode` has `FMODE_EXTERNAL`; `encoding` may be null.
+    #[cfg(ruby_gte_3_3)]
+    pub fn rb_io_open_descriptor(
+        klass: Value,
+        descriptor: c_int,
+        mode: c_int,
+        path: Value,
+        timeout: Value,
+        encoding: *mut rb_io_encoding,
+    ) -> Value;
     // off_t                                   (3.1)
     // rb_off_t                                (3.2+)
     // rb_file_size(VALUE file)
     //
     // Flushes buffered output first; raises for a closed file.
-    #[cfg(ruby_gte_3_1)]
     pub fn rb_file_size(file: Value) -> rb_off_t;
     // VALUE
     // rb_io_close(VALUE io)
@@ -153,6 +182,19 @@ extern "C" {
     // VALUE
     // rb_io_write(VALUE io, VALUE str)
     pub fn rb_io_write(io: Value, string: Value) -> Value;
+}
+
+// Processes
+#[cfg(ruby_gte_3_3)]
+#[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
+extern "C" {
+    // VALUE
+    // rb_process_status_wait(rb_pid_t pid, int flags)
+    //
+    // Waits for the process like `waitpid(2)` with `flags` (through the
+    // Fiber scheduler, if any) and returns a `Process::Status`, or `Qnil`
+    // when nothing was reaped (`WNOHANG`).
+    pub fn rb_process_status_wait(pid: rb_pid_t, flags: c_int) -> Value;
 }
 
 // `Marshal`

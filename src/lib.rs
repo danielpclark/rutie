@@ -144,6 +144,7 @@ pub use crate::class::{
     hash::{Hash, HashIterator},
     integer::Integer,
     io::{File, IO},
+    io_buffer::IOBuffer,
     marshal::Marshal,
     memory_view::MemoryView,
     method::Method,
@@ -163,11 +164,11 @@ pub use crate::class::{
     vm::VM,
 };
 
-#[cfg(ruby_gte_3_1)]
-pub use crate::class::io_buffer::IOBuffer;
-
 #[cfg(ruby_gte_3_2)]
 pub use crate::class::thread::{InternalThreadEvent, InternalThreadEventHook};
+
+#[cfg(ruby_gte_3_3)]
+pub use crate::class::{debug::PostponedJob, thread::InternalThreadSpecificKey};
 
 pub use crate::class::traits::{
     encoding_support::EncodingSupport, exception::Exception, object::Object,

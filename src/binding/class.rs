@@ -336,7 +336,6 @@ pub fn define_global_const(name: &str, value: Value) {
     unsafe { class::rb_define_global_const(name.as_ptr(), value) }
 }
 
-#[cfg(ruby_gte_3_1)]
 pub fn subclasses(klass: Value) -> Value {
     unsafe { class::rb_class_subclasses(klass) }
 }
@@ -347,7 +346,6 @@ pub fn attached_object(klass: Value) -> Value {
     unsafe { class::rb_class_attached_object(klass) }
 }
 
-#[cfg(ruby_gte_3_1)]
 pub fn refinement_new() -> Value {
     unsafe { class::rb_refinement_new() }
 }
@@ -355,7 +353,6 @@ pub fn refinement_new() -> Value {
 // Returns the value of the class variable and the class or module that
 // defines it. Raises `NameError` when it is not defined, and `RuntimeError`
 // when a class and its ancestor both define it ("overtaken").
-#[cfg(ruby_gte_3_1)]
 pub fn class_variable_find(klass: Value, name: &str) -> (Value, Value) {
     let mut front = Value::from(0);
     let value = unsafe { class::rb_cvar_find(klass, symbol::internal_id(name), &mut front) };
@@ -371,7 +368,6 @@ pub fn class_variable_find(klass: Value, name: &str) -> (Value, Value) {
 
 // Raises `NameError` when `module` does not define the constant itself, and
 // `FrozenError` when it is frozen, so the caller owns `name`.
-#[cfg(ruby_gte_3_1)]
 pub fn deprecate_constant(module: Value, name: &CStr) {
     unsafe { class::rb_deprecate_constant(module, name.as_ptr()) }
 }

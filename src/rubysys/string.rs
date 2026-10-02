@@ -158,10 +158,8 @@ extern "C" {
     // void
     // rb_debug_rstring_null_ptr(const char *func)
     //
-    // Ruby 3.1+: warns on stderr that `func` (`"RSTRING_PTR"`) returns NULL,
-    // as a debug build of Ruby's `RSTRING_PTR` does for a string without a
-    // buffer.
-    #[cfg(ruby_gte_3_1)]
+    // Warns on stderr that `func` (`"RSTRING_PTR"`) returns NULL, as a debug
+    // build of Ruby's `RSTRING_PTR` does for a string without a buffer.
     pub fn rb_debug_rstring_null_ptr(func: *const c_char);
 }
 

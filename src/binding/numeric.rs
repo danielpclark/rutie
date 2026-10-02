@@ -158,7 +158,6 @@ pub fn complex_from_parts(real: Value, imaginary: Value) -> Value {
 }
 
 // `x ** y`; `x` must not be `c_long::MIN`, which Ruby negates.
-#[cfg(ruby_gte_3_1)]
 pub fn int_positive_pow(x: c_long, y: libc::c_ulong) -> Value {
     unsafe { numeric::rb_int_positive_pow(x, y) }
 }

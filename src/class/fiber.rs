@@ -304,8 +304,6 @@ impl Fiber {
     /// transfers to this one again, or what the fiber returns when it
     /// finishes (control then goes back to the main fiber).
     ///
-    /// Ruby 3.1+.
-    ///
     /// Unlike [`resume`](#method.resume), the fiber does not return to the
     /// one that started it: it must transfer somewhere explicitly. A fiber
     /// that was transferred to cannot be resumed or yield, and the other way
@@ -336,7 +334,6 @@ impl Fiber {
     /// assert!(!worker.is_alive());
     /// assert!(worker.transfer(&[]).is_err());
     /// ```
-    #[cfg(ruby_gte_3_1)]
     pub fn transfer(&self, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
         let fiber = self.value();
         let arguments = util::arguments_to_values(arguments);
@@ -347,8 +344,6 @@ impl Fiber {
     /// Like [`transfer`](#method.transfer), with `keywords` passed as
     /// keyword arguments (`rb_fiber_transfer_kw`), like Ruby's
     /// `fiber.transfer(*arguments, **keywords)`.
-    ///
-    /// Ruby 3.1+.
     ///
     /// A fiber created with [`Fiber::new`](#method.new) gets the keywords as
     /// a `Hash` after the other arguments.
@@ -371,7 +366,6 @@ impl Fiber {
     /// let name = fiber.transfer_with_keywords(&[], keywords).unwrap();
     /// assert_eq!(name.try_convert_to::<RString>().unwrap().to_str(), "worker");
     /// ```
-    #[cfg(ruby_gte_3_1)]
     pub fn transfer_with_keywords(
         &self,
         arguments: &[AnyObject],
@@ -387,8 +381,6 @@ impl Fiber {
     /// resumes it (Ruby's `raise`, `rb_fiber_raise`). `arguments` are what
     /// Ruby's `raise` takes: an exception, or an exception class and a
     /// message (and a backtrace).
-    ///
-    /// Ruby 3.1+.
     ///
     /// Returns what the fiber yields or returns next if it rescues the
     /// exception, or else the exception. A fiber that has not started yet
@@ -421,7 +413,6 @@ impl Fiber {
     /// assert_eq!(outcome.try_convert_to::<RString>().unwrap().to_str(), "rescued: stop");
     /// assert!(!fiber.is_alive());
     /// ```
-    #[cfg(ruby_gte_3_1)]
     pub fn raise(&self, arguments: &[AnyObject]) -> Result<AnyObject, AnyException> {
         let fiber = self.value();
         let arguments = util::arguments_to_values(arguments);
@@ -432,8 +423,6 @@ impl Fiber {
     /// Returns the Fiber scheduler of the current thread (Ruby's
     /// `Fiber.scheduler`, `rb_fiber_scheduler_get`), or `None` when it has
     /// none.
-    ///
-    /// Ruby 3.1+.
     ///
     /// # Examples
     ///
@@ -460,7 +449,6 @@ impl Fiber {
     /// Fiber::set_scheduler(&NilClass::new()).unwrap();
     /// assert!(Fiber::scheduler().is_none());
     /// ```
-    #[cfg(ruby_gte_3_1)]
     pub fn scheduler() -> Option<AnyObject> {
         scheduler_from(thread::fiber_scheduler_get())
     }
@@ -469,8 +457,6 @@ impl Fiber {
     /// `Fiber.set_scheduler`, `rb_fiber_scheduler_set`); `nil` removes it.
     /// The previous scheduler is closed first (its `close` method is
     /// called), which runs the fibers it still has.
-    ///
-    /// Ruby 3.1+.
     ///
     /// Returns the `ArgumentError` when `scheduler` lacks one of the hooks
     /// Ruby requires (`block`, `unblock`, `kernel_sleep` and `io_wait`), or
@@ -507,7 +493,6 @@ impl Fiber {
     /// assert_eq!(error.class().name().unwrap().to_str(), "ArgumentError");
     /// assert!(Fiber::scheduler().is_none());
     /// ```
-    #[cfg(ruby_gte_3_1)]
     pub fn set_scheduler<T: Object>(scheduler: &T) -> Result<(), AnyException> {
         let scheduler = scheduler.value();
 
@@ -520,8 +505,6 @@ impl Fiber {
     /// non-blocking, so that blocking operations should go through it, and
     /// `None` otherwise (Ruby's `Fiber.current_scheduler`,
     /// `rb_fiber_scheduler_current`).
-    ///
-    /// Ruby 3.1+.
     ///
     /// The main fiber is blocking. Fibers created with
     /// [`Fiber::new`](#method.new) are non-blocking from Ruby 3.2 (blocking
@@ -570,7 +553,6 @@ impl Fiber {
     ///     Fiber::set_scheduler(&NilClass::new()).unwrap();
     /// }
     /// ```
-    #[cfg(ruby_gte_3_1)]
     pub fn current_scheduler() -> Option<AnyObject> {
         scheduler_from(thread::fiber_scheduler_current())
     }
@@ -578,8 +560,6 @@ impl Fiber {
     /// Like [`Fiber::current_scheduler`](#method.current_scheduler), for
     /// `thread`: its scheduler if its current fiber is non-blocking
     /// (`rb_fiber_scheduler_current_for_thread`).
-    ///
-    /// Ruby 3.1+.
     ///
     /// # Examples
     ///
@@ -605,7 +585,6 @@ impl Fiber {
     /// Fiber::set_scheduler(&NilClass::new()).unwrap();
     /// assert!(Fiber::current_scheduler_for_thread(&Thread::current()).is_none());
     /// ```
-    #[cfg(ruby_gte_3_1)]
     pub fn current_scheduler_for_thread(thread: &Thread) -> Option<AnyObject> {
         scheduler_from(thread::fiber_scheduler_current_for_thread(thread.value()))
     }
@@ -613,8 +592,6 @@ impl Fiber {
     /// Converts `timeout` to what scheduler hooks take
     /// (`rb_fiber_scheduler_make_timeout`): a `Float` of seconds, or `nil`
     /// for no timeout.
-    ///
-    /// Ruby 3.1+.
     ///
     /// # Examples
     ///
@@ -629,7 +606,6 @@ impl Fiber {
     ///
     /// assert!(Fiber::make_scheduler_timeout(None).is_nil());
     /// ```
-    #[cfg(ruby_gte_3_1)]
     pub fn make_scheduler_timeout(timeout: Option<Duration>) -> AnyObject {
         AnyObject::from(thread::fiber_scheduler_make_timeout(timeout))
     }
@@ -696,11 +672,7 @@ impl Object for Fiber {
 
 impl VerifiedObject for Fiber {
     fn is_correct_type<T: Object>(object: &T) -> bool {
-        #[cfg(ruby_gte_3_1)]
-        return thread::is_fiber(object.value());
-
-        #[cfg(not(ruby_gte_3_1))]
-        return Class::from_existing("Fiber").case_equals(object);
+        thread::is_fiber(object.value())
     }
 
     fn error_message() -> &'static str {
@@ -829,7 +801,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(ruby_gte_3_1)]
     fn test_transfer_raise_and_keywords() {
         use crate::{AnyObject, Hash, RString, Symbol};
 
@@ -956,7 +927,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(ruby_gte_3_1)]
     fn test_scheduler() {
         use crate::{Array, Float, NilClass, Symbol, Thread};
         use std::time::Duration;
@@ -1027,7 +997,6 @@ mod tests {
     // The raw hooks in `rubysys::scheduler` call the scheduler's methods
     // with the arguments they were given.
     #[test]
-    #[cfg(ruby_gte_3_1)]
     fn test_raw_scheduler_hooks() {
         use crate::rubysys::scheduler as raw;
         use crate::{types::c_void, Array, RString, Symbol};
@@ -1147,6 +1116,17 @@ mod tests {
             unsafe {
                 raw::rb_fiber_scheduler_io_read_memory(s, io, memory_ptr, 16, 4);
                 raw::rb_fiber_scheduler_io_write_memory(s, io, memory_ptr as *const c_void, 16, 4);
+                #[cfg(ruby_gte_3_3)]
+                raw::rb_fiber_scheduler_io_pread_memory(s, io, 99, memory_ptr, 16, 4);
+                #[cfg(ruby_gte_3_3)]
+                raw::rb_fiber_scheduler_io_pwrite_memory(
+                    s,
+                    io,
+                    99,
+                    memory_ptr as *const c_void,
+                    16,
+                    4,
+                );
             }
             let log = scheduler
                 .protect_send("log", &[])
@@ -1156,6 +1136,11 @@ mod tests {
             let name = |i: usize| log.at(i as i64).try_convert_to::<Array>().unwrap().at(0);
             assert_eq!(name(before), Symbol::new("io_read").into());
             assert_eq!(name(before + 1), Symbol::new("io_write").into());
+            #[cfg(ruby_gte_3_3)]
+            {
+                assert_eq!(name(before + 2), Symbol::new("io_pread").into());
+                assert_eq!(name(before + 3), Symbol::new("io_pwrite").into());
+            }
 
             #[cfg(ruby_gte_3_2)]
             unsafe {

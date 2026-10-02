@@ -902,6 +902,127 @@ impl DebugInspector {
     }
 }
 
+/// A job Ruby runs, with the GVL, the next time it checks for interrupts
+/// after it is triggered (Ruby 3.3+, `rb_postponed_job_*`). Triggering is
+/// async signal safe and works from any thread, so a signal handler (as in a
+/// sampling profiler) or a thread without the GVL can have Ruby run code at
+/// a safe point.
+///
+/// # Examples
+///
+/// ```
+/// use std::sync::atomic::{AtomicUsize, Ordering};
+/// use std::sync::Arc;
+///
+/// use rutie::{PostponedJob, Thread, VM};
+/// # VM::init();
+///
+/// let runs = Arc::new(AtomicUsize::new(0));
+///
+/// let job = {
+///     let runs = runs.clone();
+///
+///     PostponedJob::preregister(move || {
+///         runs.fetch_add(1, Ordering::SeqCst);
+///     })
+///     .unwrap()
+/// };
+///
+/// // Triggered from another (non-Ruby) thread.
+/// std::thread::spawn(move || job.trigger()).join().unwrap();
+///
+/// Thread::check_interrupts();
+/// assert_eq!(runs.load(Ordering::SeqCst), 1);
+/// ```
+#[cfg(ruby_gte_3_3)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PostponedJob(rubysys_debug::PostponedJobHandle);
+
+#[cfg(ruby_gte_3_3)]
+impl PostponedJob {
+    /// Registers `func` as a postponed job (`rb_postponed_job_preregister`).
+    /// Returns `None` when Ruby's job table (32 entries for the whole
+    /// process, never freed) is full.
+    ///
+    /// Ruby keeps one entry per callback function, and Rutie has one per
+    /// closure type: preregistering another closure of the same type
+    /// replaces the previous one (which is kept allocated) and returns the
+    /// same job. Closures are kept until the process exits.
+    ///
+    /// `func` runs on the Ruby thread that next checks for interrupts, with
+    /// the GVL; an exception or panic in it is discarded.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::atomic::{AtomicI64, Ordering};
+    /// use std::sync::Arc;
+    ///
+    /// use rutie::{PostponedJob, Thread, VM};
+    /// # VM::init();
+    ///
+    /// let last = Arc::new(AtomicI64::new(0));
+    ///
+    /// let register = |n: i64| {
+    ///     let last = last.clone();
+    ///
+    ///     PostponedJob::preregister(move || last.store(n, Ordering::SeqCst)).unwrap()
+    /// };
+    ///
+    /// let first = register(1);
+    /// let second = register(2);
+    /// assert_eq!(first, second);
+    ///
+    /// first.trigger();
+    /// Thread::check_interrupts();
+    /// assert_eq!(last.load(Ordering::SeqCst), 2);
+    /// ```
+    pub fn preregister<F>(func: F) -> Option<Self>
+    where
+        F: Fn() + Send + Sync + 'static,
+    {
+        debug::postponed_job_preregister(func).map(PostponedJob)
+    }
+
+    /// Schedules the job to run the next time Ruby checks for interrupts
+    /// (`rb_postponed_job_trigger`). Triggering it again before it runs
+    /// runs it only once.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::atomic::{AtomicUsize, Ordering};
+    /// use std::sync::Arc;
+    ///
+    /// use rutie::{PostponedJob, Thread, VM};
+    /// # VM::init();
+    ///
+    /// let runs = Arc::new(AtomicUsize::new(0));
+    ///
+    /// let job = {
+    ///     let runs = runs.clone();
+    ///
+    ///     PostponedJob::preregister(move || {
+    ///         runs.fetch_add(1, Ordering::SeqCst);
+    ///     })
+    ///     .unwrap()
+    /// };
+    ///
+    /// job.trigger();
+    /// job.trigger();
+    /// Thread::check_interrupts();
+    /// assert_eq!(runs.load(Ordering::SeqCst), 1);
+    ///
+    /// // Ruby also checks for interrupts as it runs code.
+    /// job.trigger();
+    /// VM::eval("100.times { [1].map { _1 } }").unwrap();
+    /// assert_eq!(runs.load(Ordering::SeqCst), 2);
+    /// ```
+    pub fn trigger(&self) {
+        unsafe { debug::postponed_job_trigger(self.0) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -1088,6 +1209,60 @@ mod tests {
             assert_eq!(error.message(), "in inspector");
             let panic = DebugInspector::open(|_| panic!("inspector panic")).unwrap_err();
             assert_eq!(panic.message(), "Rust panic: inspector panic");
+        });
+    }
+
+    #[cfg(ruby_gte_3_3)]
+    #[test]
+    fn test_postponed_job() {
+        use crate::{PostponedJob, Thread};
+        use std::sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        };
+
+        crate::on_ruby_thread(|| {
+            let runs = Arc::new(AtomicUsize::new(0));
+            let job = {
+                let runs = runs.clone();
+
+                PostponedJob::preregister(move || {
+                    if runs.fetch_add(1, Ordering::SeqCst) == 1 {
+                        // Exceptions and panics in a job are discarded.
+                        VM::raise_ex(AnyException::new("RuntimeError", Some("discarded")));
+                    }
+                })
+                .unwrap()
+            };
+
+            Thread::check_interrupts();
+            assert_eq!(runs.load(Ordering::SeqCst), 0);
+
+            job.trigger();
+            job.trigger();
+            Thread::check_interrupts();
+            assert_eq!(runs.load(Ordering::SeqCst), 1);
+
+            job.trigger();
+            Thread::check_interrupts();
+            assert_eq!(runs.load(Ordering::SeqCst), 2);
+            assert!(VM::error_info().is_err());
+
+            // From threads without the GVL.
+            let handles: Vec<_> = (0..4)
+                .map(|_| std::thread::spawn(move || job.trigger()))
+                .collect();
+            for handle in handles {
+                handle.join().unwrap();
+            }
+            Thread::check_interrupts();
+            assert_eq!(runs.load(Ordering::SeqCst), 3);
+
+            let panicking = PostponedJob::preregister(|| panic!("job panic")).unwrap();
+            assert_ne!(panicking, job);
+            panicking.trigger();
+            Thread::check_interrupts();
+            assert_eq!(VM::eval("1 + 1").unwrap(), Fixnum::new(2).into());
         });
     }
 }
