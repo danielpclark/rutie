@@ -826,10 +826,10 @@ impl IOBuffer {
     /// assert_eq!(buffer.read(&reader, 3, 2).unwrap(), 3);
     /// assert_eq!(buffer.get_string(0, 5).unwrap().to_bytes_unchecked(), b"\0\0abc");
     ///
-    /// // Not open for reading, and beyond the buffer.
-    /// assert!(buffer.read(&writer, 1, 0).is_err());
+    /// // Beyond the buffer, and a closed stream.
     /// assert!(buffer.read(&reader, 4, 2).is_err());
-    /// # reader.close().unwrap();
+    /// reader.close().unwrap();
+    /// assert!(buffer.read(&reader, 1, 0).is_err());
     /// # writer.close().unwrap();
     /// ```
     pub fn read(&self, io: &IO, length: usize, offset: usize) -> Result<usize, AnyException> {
@@ -1117,12 +1117,6 @@ mod tests {
                 b"\0\0\0xyz"
             );
 
-            // A failed system call is an `Errno::*` error, not a count.
-            let error = received.read(&writer, 1, 0).unwrap_err();
-            assert!(Class::system_call_error().case_equals(&error));
-            let error = buffer.write(&reader, 1, 0).unwrap_err();
-            assert!(Class::system_call_error().case_equals(&error));
-
             writer.close().unwrap();
             assert_eq!(received.read(&reader, 1, 0).unwrap(), 0); // end of stream
             reader.close().unwrap();
@@ -1131,6 +1125,18 @@ mod tests {
             let path = std::env::temp_dir()
                 .join(format!("rutie_io_buffer_unit_{}.bin", std::process::id()));
             std::fs::write(&path, "0123456789").unwrap();
+
+            // A failed system call is an `Errno::*` error, not a count. Files,
+            // not the wrong ends of a pipe: Windows pipes are non-blocking, and
+            // Ruby would wait forever for the wrong end to become ready.
+            let write_only = File::open(path.to_str().unwrap(), "ab").unwrap();
+            let error = received.read(&write_only, 1, 0).unwrap_err();
+            assert!(Class::system_call_error().case_equals(&error));
+            write_only.close().unwrap();
+            let read_only = File::open(path.to_str().unwrap(), "rb").unwrap();
+            let error = buffer.write(&read_only, 1, 0).unwrap_err();
+            assert!(Class::system_call_error().case_equals(&error));
+            read_only.close().unwrap();
             let file = File::open(path.to_str().unwrap(), "r+b").unwrap();
 
             let buffer = IOBuffer::new(4);
