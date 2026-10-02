@@ -514,14 +514,26 @@ pub fn define_global_function<I: Object, O: Object>(name: &str, callback: Callba
 pub fn define_not_implemented_method(klass: Value, name: &str) {
     let name = util::str_to_cstring(name);
 
-    unsafe {
-        class::rb_define_method(
-            klass,
-            name.as_ptr(),
-            crate::rubysys::vm::rb_f_notimplement as CallbackPtr,
-            -1,
-        )
+    unsafe { class::rb_define_method(klass, name.as_ptr(), notimplement_function(), -1) }
+}
+
+// The address of Ruby's own `rb_f_notimplement`, which Ruby compares against to
+// mark a method as not implemented. With the GNU toolchain on Windows, Rust takes
+// a function's address from the executable's import thunk, so read the import
+// table entry instead. The block has no `link` attribute so the name is used as is.
+#[cfg(all(windows, target_env = "gnu", rutie_dllimport))]
+fn notimplement_function() -> CallbackPtr {
+    extern "C" {
+        #[link_name = "__imp_rb_f_notimplement"]
+        static IMPORTED: CallbackPtr;
     }
+
+    unsafe { IMPORTED }
+}
+
+#[cfg(not(all(windows, target_env = "gnu", rutie_dllimport)))]
+fn notimplement_function() -> CallbackPtr {
+    crate::rubysys::vm::rb_f_notimplement as CallbackPtr
 }
 
 // The last argument must be a `Hash`; it is passed as keywords.
