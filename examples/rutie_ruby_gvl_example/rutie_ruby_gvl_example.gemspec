@@ -27,5 +27,5 @@ Gem::Specification.new do |spec|
   # Gemfile uses the gem in this repository's `gem` submodule.
   spec.add_dependency "rutie", "~> 0.0.5"
   spec.add_development_dependency "rake", ">= 12.0"
-  spec.add_development_dependency "minitest", ">= 5.25"
+  spec.add_development_dependency "minitest", ">= 5.14"
 end
