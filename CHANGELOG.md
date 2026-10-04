@@ -8,6 +8,13 @@ API and may have breaking changes during a teeny version change.
 
 
 ## [0.13.2] - 2026-10-11
+### Added
+ - `class!(Name, "Ruby::Path")`: with the class's Ruby path as a second
+   argument, `class!` also implements `VerifiedObject` for the struct through
+   `Class::from_path`, so a class nested in a module can be a `methods!`
+   parameter type and the target of `try_convert_to` without a hand-written
+   impl. The one-argument form is unchanged (#230), thanks to @danielpclark
+
 ### Fixed
  - `Thread::call_without_gvl` and `Thread::call_without_gvl2` freed the
    unblocking function the first time Ruby called it. Ruby calls it once per
