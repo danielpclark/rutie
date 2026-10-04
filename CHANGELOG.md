@@ -7,6 +7,14 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [Unreleased]
+### Added
+ - `class!(Name, "Ruby::Path")`: with the class's Ruby path as a second
+   argument, `class!` also implements `VerifiedObject` for the struct through
+   `Class::from_path`, so a class nested in a module can be a `methods!`
+   parameter type and the target of `try_convert_to` without a hand-written
+   impl. The one-argument form is unchanged (#230), thanks to @danielpclark
+
 ## [0.14.1] - 2026-10-02
 ### Fixed
  - A `methods!`/`unsafe_methods!` method with no parameters aborted a debug
