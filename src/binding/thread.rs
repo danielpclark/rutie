@@ -28,6 +28,23 @@ pub fn wait_fd(fd: RawFd) {
     unsafe { thread::rb_thread_wait_fd(fd) };
 }
 
+// The unblocking function ("ubf") given to rb_thread_call_without_gvl(2).
+//
+// Ruby calls it whenever it wants the blocked thread back: once per
+// interrupt aimed at that thread (a signal such as SIGINT, SIGTERM or
+// SIGCHLD, Thread#kill, Thread#raise, Thread#wakeup, VM shutdown), so zero,
+// one or many times per call, and from whichever native thread raised the
+// interrupt (often Ruby's timer thread), possibly while the GVL is held
+// elsewhere. It must therefore stay alive for the whole blocking call and
+// be callable repeatedly: it is owned by the calling Rust frame and the
+// trampoline below only borrows it. It is dropped after
+// rb_thread_call_without_gvl(2) returns, when Ruby has unregistered it.
+type UnblockFunction<'a> = Box<dyn FnMut() + 'a>;
+
+fn unblock_function_ptr(ubf: &mut UnblockFunction<'_>) -> CallbackPtr {
+    ubf as *mut UnblockFunction<'_> as CallbackPtr
+}
+
 pub fn call_without_gvl<F, R, G>(func: F, unblock_func: Option<G>) -> R
 where
     F: FnMut() -> R,
@@ -35,11 +52,12 @@ where
 {
     unsafe {
         let ptr = if let Some(ubf) = unblock_func {
+            let mut ubf: UnblockFunction<'_> = Box::new(ubf);
             thread::rb_thread_call_without_gvl(
                 thread_call_callbox as CallbackPtr,
                 util::closure_to_ptr(func),
-                thread_call_callbox as CallbackPtr,
-                util::closure_to_ptr(ubf),
+                unblock_callbox as CallbackPtr,
+                unblock_function_ptr(&mut ubf),
             )
         } else {
             thread::rb_thread_call_without_gvl(
@@ -61,11 +79,12 @@ where
 {
     unsafe {
         let ptr = if let Some(ubf) = unblock_func {
+            let mut ubf: UnblockFunction<'_> = Box::new(ubf);
             thread::rb_thread_call_without_gvl2(
                 thread_call_callbox as CallbackPtr,
                 util::closure_to_ptr(func),
-                thread_call_callbox as CallbackPtr,
-                util::closure_to_ptr(ubf),
+                unblock_callbox as CallbackPtr,
+                unblock_function_ptr(&mut ubf),
             )
         } else {
             thread::rb_thread_call_without_gvl2(
@@ -106,12 +125,25 @@ rutie_callback! {
     }
 }
 
+// Calls the blocking function or the closure given to rb_thread_call_with_gvl.
+// Ruby calls each of those exactly once, so this takes ownership of the box
+// and frees it. Never use it for an unblocking function (see unblock_callbox).
 rutie_callback! {
     fn thread_call_callbox(boxptr: CallbackMutPtr) -> CallbackPtr {
         let mut fnbox: Box<Box<dyn FnMut() -> CallbackPtr>> =
             unsafe { Box::from_raw(boxptr as *mut Box<dyn FnMut() -> CallbackPtr>) };
 
         fnbox()
+    }
+}
+
+// Calls an unblocking function. It only borrows the closure, because Ruby may
+// call it again (see UnblockFunction); its C type returns nothing.
+rutie_callback! {
+    fn unblock_callbox(boxptr: CallbackMutPtr) {
+        let ubf = unsafe { &mut *(boxptr as *mut UnblockFunction<'_>) };
+
+        ubf();
     }
 }
 
