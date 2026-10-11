@@ -1178,6 +1178,71 @@ mod tests {
         });
     }
 
+    // Ruby calls an unblocking function once per interrupt aimed at the
+    // blocked thread, so it can run several times during one
+    // call_without_gvl(2). Each Thread#wakeup below is one interrupt
+    // (rb_thread_wakeup -> rb_threadptr_interrupt -> the ubf). The trampoline
+    // used to free the closure on its first call, so the second call ran
+    // freed memory: a segfault, or a deadlock when Ruby's timer thread made
+    // the call (it does for signals, e.g. SIGCHLD).
+    #[test]
+    fn test_unblock_function_can_run_more_than_once() {
+        crate::on_ruby_thread(|| {
+            use std::sync::{
+                atomic::{AtomicBool, AtomicUsize, Ordering},
+                Arc,
+            };
+
+            for blocking in [
+                Thread::call_without_gvl::<_, usize, _>,
+                Thread::call_without_gvl2::<_, usize, _>,
+            ] {
+                let entered = Arc::new(AtomicBool::new(false));
+                let unblocks = Arc::new(AtomicUsize::new(0));
+                let (worker_entered, worker_unblocks) = (entered.clone(), unblocks.clone());
+
+                let worker = Thread::new(move || {
+                    let (entered, seen, unblocks) = (
+                        worker_entered.clone(),
+                        worker_unblocks.clone(),
+                        worker_unblocks.clone(),
+                    );
+                    let count = blocking(
+                        Box::new(move || {
+                            entered.store(true, Ordering::SeqCst);
+                            let start = Instant::now();
+                            while seen.load(Ordering::SeqCst) < 3
+                                && start.elapsed() < Duration::from_secs(5)
+                            {
+                                std::thread::sleep(Duration::from_millis(1));
+                            }
+                            seen.load(Ordering::SeqCst)
+                        }),
+                        Some(Box::new(move || {
+                            unblocks.fetch_add(1, Ordering::SeqCst);
+                        })),
+                    );
+                    Fixnum::new(count as i64)
+                });
+
+                while !entered.load(Ordering::SeqCst) {
+                    Thread::pass();
+                }
+                for _ in 0..3 {
+                    worker.wakeup().unwrap();
+                }
+
+                let seen = worker
+                    .join_value()
+                    .unwrap()
+                    .try_convert_to::<Fixnum>()
+                    .unwrap();
+                assert_eq!(seen.to_i64(), 3, "the unblocking function ran three times");
+                assert_eq!(unblocks.load(Ordering::SeqCst), 3);
+            }
+        });
+    }
+
     #[test]
     fn test_gvl_release_and_fd_waits() {
         crate::on_ruby_thread(|| {
