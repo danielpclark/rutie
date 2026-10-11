@@ -7,6 +7,17 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.13.2] - 2026-10-11
+### Fixed
+ - `Thread::call_without_gvl` and `Thread::call_without_gvl2` freed the
+   unblocking function the first time Ruby called it. Ruby calls it once per
+   interrupt aimed at the blocked thread (a signal such as `SIGINT`, `SIGTERM`
+   or `SIGCHLD`, `Thread#kill`, `Thread#raise`, `Thread#wakeup`, VM
+   shutdown), so the second call ran a freed closure: a `SIGSEGV`, or a
+   deadlock of the whole process when Ruby's timer thread made the call. The
+   unblocking function now lives for the whole blocking call and is freed
+   once Ruby can no longer call it (#232), thanks to @danielpclark
+
 ## [0.13.1] - 2026-10-02
 ### Fixed
  - A `methods!`/`unsafe_methods!` method with no parameters aborted a debug
