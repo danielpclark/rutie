@@ -178,6 +178,12 @@ impl Thread {
     /// then call [`Thread::check_interrupts`](#method.check_interrupts).
     /// `func` must not touch Ruby objects.
     ///
+    /// If an interrupt is already pending when this is called, Ruby declines
+    /// to run `func`. The interrupt is then processed (as `call_without_gvl`
+    /// does before releasing the GVL, so a pending `Thread#raise` or
+    /// `Thread#kill` raises here) and the call is retried, so `func` runs
+    /// exactly once and its result is always returned.
+    ///
     /// # Examples
     ///
     /// ```
@@ -1331,6 +1337,26 @@ mod tests {
                 assert_eq!(seen.to_i64(), 3, "the unblocking function ran three times");
                 assert_eq!(unblocks.load(Ordering::SeqCst), 3);
             }
+        });
+    }
+
+    // rb_thread_call_without_gvl2 declines to run the function, and returns
+    // NULL, when an interrupt is already pending on the calling thread; a
+    // Thread#wakeup aimed at the current thread leaves one pending. The
+    // wrapper used to unbox that NULL (a crash); it now processes the
+    // interrupt and retries, so the function runs and its result comes back.
+    #[test]
+    fn test_call_without_gvl2_with_a_pending_interrupt() {
+        crate::on_ruby_thread(|| {
+            Thread::current().wakeup().unwrap();
+            let product = Thread::call_without_gvl2(|| 6 * 7, None::<fn()>);
+            assert_eq!(product, 42);
+
+            Thread::current().wakeup().unwrap();
+            let sum = Thread::call_without_gvl2(|| 1 + 2, Some(|| {}));
+            assert_eq!(sum, 3);
+
+            Thread::check_interrupts();
         });
     }
 
