@@ -240,9 +240,35 @@ are complete projects set up this way.
 ## Custom Ruby Objects in Rust
 
 To create a Ruby object in Rust that can be returned directly to Ruby
-it needs just a few simple things.
+it needs just a few simple things: a struct holding the `Value`, `From<Value>`,
+`Object`, and, so it can be a parameter type of `methods!` and the target of
+`try_convert_to`, `VerifiedObject`. For a class that exists in Ruby (one your
+extension defines, or one Ruby provides), `class!` with the class's Ruby path
+writes all of them:
 
-Here's an example excerpt of code from [FasterPath](https://github.com/danielpclark/faster_path).
+```rust
+class!(Pathname, "Pathname");
+class!(Circle, "Shapes::Circle");   // nested classes by their path
+
+methods!(
+    Circle,
+    rtself,
+
+    // An argument that is not a Shapes::Circle arrives as Err(TypeError).
+    fn same_shape(other: Circle) -> Boolean {
+        Boolean::new(other.is_ok())
+    }
+);
+```
+
+The check is `Class::from_path("Shapes::Circle") === object`, made at
+conversion time, so the class only has to exist by the time the method is
+called. Without the path, `class!` defines the struct alone (`Object` but not
+`VerifiedObject`), for Rust code that owns the class and never converts to it.
+
+To write the pieces by hand instead, say for a check that is not "is an
+instance of this class", here's an example excerpt of code from
+[FasterPath](https://github.com/danielpclark/faster_path).
 
 ```rust
 use rutie::types::{ Value, ValueType };
