@@ -65,6 +65,69 @@
 ///   end
 /// end
 /// ```
+///
+/// # With the class's Ruby path
+///
+/// A second argument, the class's path in Ruby (`"Name"` or
+/// `"Outer::Inner"`), also implements [`VerifiedObject`](trait.VerifiedObject.html)
+/// for the struct, so it can be a parameter type of `methods!` and the
+/// target of `try_convert_to`. The check is `Class::from_path(path) === object`,
+/// made when the conversion happens: a path that does not name a class at
+/// that moment (not defined yet, or a module) is simply not the right type.
+///
+/// ```
+/// #[macro_use]
+/// extern crate rutie;
+///
+/// use rutie::{Boolean, Module, Object, RString, VerifiedObject, VM};
+///
+/// // The Rust view of the Ruby class Shapes::Circle.
+/// class!(Circle, "Shapes::Circle");
+///
+/// methods!(
+///     Circle,
+///     rtself,
+///
+///     // def same_shape?(other)
+///     fn same_shape(other: Circle) -> Boolean {
+///         Boolean::new(other.is_ok())
+///     }
+/// );
+///
+/// fn main() {
+///     # VM::init();
+///     Module::new("Shapes").define(|shapes| {
+///         shapes.define_nested_class("Circle", None).define(|klass| {
+///             klass.def("same_shape?", same_shape);
+///         });
+///     });
+///
+///     let same = VM::eval("Shapes::Circle.new.same_shape?(Shapes::Circle.new)").unwrap();
+///     assert_eq!(same.try_convert_to::<Boolean>(), Ok(Boolean::new(true)));
+///
+///     let same = VM::eval("Shapes::Circle.new.same_shape?('round')").unwrap();
+///     assert_eq!(same.try_convert_to::<Boolean>(), Ok(Boolean::new(false)));
+///
+///     // The check behind it.
+///     let circle = VM::eval("Shapes::Circle.new").unwrap();
+///     assert!(Circle::is_correct_type(&circle));
+///     assert!(circle.try_convert_to::<Circle>().is_ok());
+///     assert!(!Circle::is_correct_type(&RString::new_utf8("round")));
+///     assert_eq!(Circle::error_message(), "Error converting to Shapes::Circle");
+/// }
+/// ```
+///
+/// Ruby:
+///
+/// ```ruby
+/// module Shapes
+///   class Circle
+///     def same_shape?(other)
+///       other.is_a?(Shapes::Circle)
+///     end
+///   end
+/// end
+/// ```
 #[macro_export]
 macro_rules! class {
     ($class: ident) => {
@@ -84,6 +147,22 @@ macro_rules! class {
             #[inline]
             fn value(&self) -> $crate::types::Value {
                 self.value
+            }
+        }
+    };
+
+    ($class: ident, $path: literal) => {
+        $crate::class!($class);
+
+        impl $crate::VerifiedObject for $class {
+            fn is_correct_type<T: $crate::Object>(object: &T) -> bool {
+                $crate::Class::from_path($path)
+                    .map(|class| class.case_equals(object))
+                    .unwrap_or(false)
+            }
+
+            fn error_message() -> &'static str {
+                concat!("Error converting to ", $path)
             }
         }
     };
@@ -1086,9 +1165,25 @@ macro_rules! eval {
 
 #[cfg(test)]
 mod tests {
-    use crate::{AnyObject, Array, Class, Exception, Fixnum, Object, RString, GC, VM};
+    use crate::{
+        AnyObject, Array, Boolean, Class, Exception, Fixnum, Module, Object, RString,
+        VerifiedObject, GC, VM,
+    };
 
     crate::class!(RutieDslSplat);
+
+    crate::class!(RutieDslInner, "RutieDslOuter::Inner");
+    crate::class!(RutieDslMissing, "RutieDslOuter::Nowhere");
+    crate::class!(RutieDslNotAClass, "RutieDslOuter");
+
+    crate::methods!(
+        RutieDslInner,
+        rtself,
+
+        fn dsl_same_kind(other: RutieDslInner) -> Boolean {
+            Boolean::new(other.is_ok())
+        }
+    );
 
     crate::methods!(
         RutieDslSplat,
@@ -1199,6 +1294,43 @@ mod tests {
 
     fn eval_array(code: &str) -> Array {
         VM::eval(code).unwrap().try_convert_to::<Array>().unwrap()
+    }
+
+    #[test]
+    fn test_class_with_ruby_path() {
+        crate::on_ruby_thread(|| {
+            Module::new("RutieDslOuter").define(|outer| {
+                outer.define_nested_class("Inner", None).define(|klass| {
+                    klass.def("same_kind?", dsl_same_kind);
+                });
+            });
+
+            let inner = VM::eval("RutieDslOuter::Inner.new").unwrap();
+            assert!(RutieDslInner::is_correct_type(&inner));
+            assert!(inner.try_convert_to::<RutieDslInner>().is_ok());
+            assert_eq!(
+                RutieDslInner::error_message(),
+                "Error converting to RutieDslOuter::Inner"
+            );
+
+            // A `methods!` parameter typed with the struct converts through it.
+            let same = VM::eval("RutieDslOuter::Inner.new.same_kind?(RutieDslOuter::Inner.new)").unwrap();
+            assert_eq!(same.try_convert_to::<Boolean>(), Ok(Boolean::new(true)));
+            let same = VM::eval("RutieDslOuter::Inner.new.same_kind?(:other)").unwrap();
+            assert_eq!(same.try_convert_to::<Boolean>(), Ok(Boolean::new(false)));
+
+            // The wrong class, with the usual TypeError.
+            let string = RString::new_utf8("inner");
+            assert!(!RutieDslInner::is_correct_type(&string));
+            let error = string.try_convert_to::<RutieDslInner>().unwrap_err();
+            assert!(Class::type_error().case_equals(&error));
+            assert_eq!(error.message(), "Error converting to RutieDslOuter::Inner");
+
+            // A path that names no class (yet), or a module, is never the right type.
+            assert!(!RutieDslMissing::is_correct_type(&inner));
+            assert!(inner.try_convert_to::<RutieDslMissing>().is_err());
+            assert!(!RutieDslNotAClass::is_correct_type(&inner));
+        });
     }
 
     #[test]
