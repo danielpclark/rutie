@@ -76,24 +76,36 @@ where
     G: FnMut(),
 {
     unsafe {
-        let ptr = if let Some(ubf) = unblock_func {
-            let mut ubf: UnblockFunction<'_> = Box::new(ubf);
-            thread::rb_thread_call_without_gvl2(
-                thread_call_callbox as CallbackPtr,
-                util::closure_to_ptr(func),
-                unblock_callbox as CallbackPtr,
-                unblock_function_ptr(&mut ubf),
-            )
-        } else {
-            thread::rb_thread_call_without_gvl2(
-                thread_call_callbox as CallbackPtr,
-                util::closure_to_ptr(func),
-                ptr::null() as CallbackPtr,
-                ptr::null() as CallbackPtr,
-            )
+        let func = util::closure_to_ptr(func);
+        let mut ubf: Option<UnblockFunction<'_>> =
+            unblock_func.map(|ubf| Box::new(ubf) as UnblockFunction<'_>);
+        let (unblock_callback, unblock_data) = match ubf.as_mut() {
+            Some(ubf) => (unblock_callbox as CallbackPtr, unblock_function_ptr(ubf)),
+            None => (ptr::null() as CallbackPtr, ptr::null() as CallbackPtr),
         };
 
-        util::ptr_to_data(ptr)
+        loop {
+            let ptr = thread::rb_thread_call_without_gvl2(
+                thread_call_callbox as CallbackPtr,
+                func,
+                unblock_callback,
+                unblock_data,
+            );
+
+            if !ptr.is_null() {
+                return util::ptr_to_data(ptr);
+            }
+
+            // rb_thread_call_without_gvl2 returns NULL, without calling func,
+            // when an interrupt is already pending on this thread as it is
+            // entered: a timer tick asking the thread to yield, Thread#wakeup,
+            // a signal. Nothing has run yet, so there is nothing for the
+            // caller to clean up: process the interrupt, as call_without_gvl
+            // does before releasing the GVL (it raises for a pending
+            // Thread#raise or Thread#kill), and try again. The boxed func was
+            // not consumed, so the same pointer is passed again.
+            thread::rb_thread_check_ints();
+        }
     }
 }
 
