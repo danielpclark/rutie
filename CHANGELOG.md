@@ -17,6 +17,11 @@ API and may have breaking changes during a teeny version change.
    deadlock of the whole process when Ruby's timer thread made the call. The
    unblocking function now lives for the whole blocking call and is freed
    once Ruby can no longer call it (#234), thanks to @danielpclark
+ - `Thread::call_without_gvl2` crashed when an interrupt was already pending
+   on the calling thread: Ruby then returns NULL without running the
+   function, and the wrapper unboxed that NULL. It now processes the
+   interrupt and retries, so the function runs exactly once and its result
+   is returned (#234), thanks to @danielpclark
 
 ## [0.11.3] - 2026-10-02
 ### Fixed
