@@ -178,6 +178,12 @@ impl Thread {
     /// then call [`Thread::check_interrupts`](#method.check_interrupts).
     /// `func` must not touch Ruby objects.
     ///
+    /// If an interrupt is already pending when this is called, Ruby declines
+    /// to run `func`. The interrupt is then processed (as `call_without_gvl`
+    /// does before releasing the GVL, so a pending `Thread#raise` or
+    /// `Thread#kill` raises here) and the call is retried, so `func` runs
+    /// exactly once and its result is always returned.
+    ///
     /// # Examples
     ///
     /// ```
@@ -1266,6 +1272,91 @@ mod tests {
             Thread::check_interrupts();
             assert!(Thread::is_alone());
             assert_eq!(Thread::call_without_gvl_io(|| 2 + 2), 4);
+        });
+    }
+
+    // Ruby calls an unblocking function once per interrupt aimed at the
+    // blocked thread, so it can run several times during one
+    // call_without_gvl(2). Each Thread#wakeup below is one interrupt
+    // (rb_thread_wakeup -> rb_threadptr_interrupt -> the ubf). The trampoline
+    // used to free the closure on its first call, so the second call ran
+    // freed memory: a segfault, or a deadlock when Ruby's timer thread made
+    // the call (it does for signals, e.g. SIGCHLD).
+    #[test]
+    fn test_unblock_function_can_run_more_than_once() {
+        crate::on_ruby_thread(|| {
+            use std::sync::{
+                atomic::{AtomicBool, AtomicUsize, Ordering},
+                Arc,
+            };
+
+            for blocking in [
+                Thread::call_without_gvl::<_, usize, _>,
+                Thread::call_without_gvl2::<_, usize, _>,
+            ] {
+                let entered = Arc::new(AtomicBool::new(false));
+                let unblocks = Arc::new(AtomicUsize::new(0));
+                let (worker_entered, worker_unblocks) = (entered.clone(), unblocks.clone());
+
+                let worker = Thread::new(move || {
+                    let (entered, seen, unblocks) = (
+                        worker_entered.clone(),
+                        worker_unblocks.clone(),
+                        worker_unblocks.clone(),
+                    );
+                    let count = blocking(
+                        Box::new(move || {
+                            entered.store(true, Ordering::SeqCst);
+                            let start = Instant::now();
+                            while seen.load(Ordering::SeqCst) < 3
+                                && start.elapsed() < Duration::from_secs(5)
+                            {
+                                std::thread::sleep(Duration::from_millis(1));
+                            }
+                            seen.load(Ordering::SeqCst)
+                        }),
+                        Some(Box::new(move || {
+                            unblocks.fetch_add(1, Ordering::SeqCst);
+                        })),
+                    );
+                    Fixnum::new(count as i64)
+                });
+
+                while !entered.load(Ordering::SeqCst) {
+                    Thread::pass();
+                }
+                for _ in 0..3 {
+                    worker.wakeup().unwrap();
+                }
+
+                let seen = worker
+                    .join_value()
+                    .unwrap()
+                    .try_convert_to::<Fixnum>()
+                    .unwrap();
+                assert_eq!(seen.to_i64(), 3, "the unblocking function ran three times");
+                assert_eq!(unblocks.load(Ordering::SeqCst), 3);
+            }
+        });
+    }
+
+    // rb_thread_call_without_gvl2 declines to run the function, and returns
+    // NULL, when an interrupt is already pending on the calling thread; a
+    // Thread#wakeup aimed at the current thread leaves one pending. The
+    // wrapper used to unbox that NULL (a crash); it now processes the
+    // interrupt and retries, so the function runs and its result comes back.
+    #[test]
+    fn test_call_without_gvl2_with_a_pending_interrupt() {
+        crate::on_ruby_thread(|| {
+            Thread::current().wakeup().unwrap();
+            let product = Thread::call_without_gvl2(|| 6 * 7, None::<fn()>);
+            assert_eq!(product, 42);
+
+            Thread::current().wakeup().unwrap();
+            let sum = Thread::call_without_gvl2(|| 1 + 2, Some(|| {}));
+            assert_eq!(sum, 3);
+
+            Thread::check_interrupts();
         });
     }
 
