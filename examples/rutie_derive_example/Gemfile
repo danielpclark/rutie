@@ -1,0 +1,8 @@
+source "https://rubygems.org"
+
+gemspec
+
+# This example uses the rutie gem from this repository's `gem` submodule, so CI
+# tests the gem together with the crate. A project of your own gets the
+# published gem from its gemspec instead.
+gem "rutie", path: "../../gem"
