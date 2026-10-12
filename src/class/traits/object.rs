@@ -18,6 +18,10 @@ use crate::{
 /// this trait.
 ///
 /// `class!` macro automatically implements this trait for custom classes.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not a Ruby object type",
+    note = "Rutie's Ruby types (`RString`, `Integer`, `AnyObject`, …) and `class!`/`#[rubyclass]` types are; with the `derive` feature, methods also take and return many Rust types (see `rutie::derive`)"
+)]
 pub trait Object: From<Value> {
     /// Returns internal `value` of current object.
     ///

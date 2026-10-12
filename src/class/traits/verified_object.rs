@@ -121,6 +121,10 @@ use crate::{types::Value, NilClass, Object};
 ///     let bad_server = unsafe { headers.to::<Server>() };
 /// }
 /// ```
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` can't be checked and converted from a Ruby object",
+    note = "Rutie's Ruby types and `class!(Name, \"Ruby::Path\")` types can; with the `derive` feature, so can many Rust types and `#[rubyclass]` structs (see `rutie::derive::FromArgument`)"
+)]
 pub trait VerifiedObject: Object {
     /// Returns whether `object` is of this type; `try_convert_to` checks it.
     ///
