@@ -1,0 +1,15 @@
+require "rake/testtask"
+require "rutie/rake_task"
+
+# `rutie:build` compiles the extension with cargo (on macOS without linking
+# libruby, so it uses the libruby of the ruby that loads it); `rutie:clean`
+# runs `cargo clean`.
+Rutie::RakeTask.new
+
+Rake::TestTask.new(test: "rutie:build") do |t|
+  t.libs << "test"
+  t.libs << "lib"
+  t.test_files = FileList["test/**/*_test.rb"]
+end
+
+task default: :test

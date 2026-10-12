@@ -1,0 +1,63 @@
+error[E0277]: `Plain` can't be checked and converted from a Ruby object
+  --> tests/ui/unsupported_types.rs:10:32
+   |
+10 |     pub fn take(&self, plain: &Plain) {
+   |                                ^^^^^ unsatisfied trait bound
+   |
+help: the trait `VerifiedObject` is not implemented for `Plain`
+  --> tests/ui/unsupported_types.rs:3:1
+   |
+ 3 | pub struct Plain;
+   | ^^^^^^^^^^^^^^^^
+   = note: Rutie's Ruby types and `class!(Name, "Ruby::Path")` types can; with the `derive` feature, so can many Rust types and `#[rubyclass]` structs (see `rutie::derive::FromArgument`)
+   = help: the following other types implement trait `VerifiedObject`:
+             AnyException
+             AnyObject
+             Binding
+             Boolean
+             Encoding
+             Enumerator
+             Fiber
+             IO
+           and $N others
+   = note: required for `Plain` to implement `FromArgument`
+
+error[E0277]: `Plain` can't be returned from a Ruby method
+  --> tests/ui/unsupported_types.rs:14:27
+   |
+14 |     pub fn give(&self) -> Plain {
+   |                           ^^^^^ unsatisfied trait bound
+   |
+help: the trait `rutie::Object` is not implemented for `Plain`
+  --> tests/ui/unsupported_types.rs:3:1
+   |
+ 3 | pub struct Plain;
+   | ^^^^^^^^^^^^^^^^
+   = note: return an `IntoRubyObject` type, or a `Result` of one whose error is `IntoException`
+   = help: the following other types implement trait `rutie::Object`:
+             AnyException
+             AnyObject
+             Binding
+             Boolean
+             Encoding
+             Enumerator
+             Fiber
+             IO
+           and $N others
+   = note: required for `Plain` to implement `IntoRubyObject`
+   = note: required for `Plain` to implement `MethodOutput`
+
+error[E0277]: `i64` can't be a `&mut` parameter of a Ruby method
+  --> tests/ui/unsupported_types.rs:18:39
+   |
+18 |     pub fn change(&self, number: &mut i64) {
+   |                                       ^^^ only `#[rubyclass]` structs can be borrowed mutably
+   |
+   = help: the trait `FromArgumentMut` is not implemented for `i64`
+   = note: take `&T` or `T` instead
+help: the trait `FromArgumentMut` is implemented for `Counter`
+  --> tests/ui/unsupported_types.rs:5:1
+   |
+ 5 | #[rubyclass]
+   | ^^^^^^^^^^^^
+   = note: this error originates in the attribute macro `rubyclass` (in Nightly builds, run with -Z macro-backtrace for more info)
