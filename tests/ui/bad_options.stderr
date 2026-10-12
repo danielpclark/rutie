@@ -1,0 +1,17 @@
+error: `#[ruby(constructor)]` doesn't apply to a `#[rubyclass]` field (expected one of: get, set, name, no_mark, base)
+ --> tests/ui/bad_options.rs:5:12
+  |
+5 |     #[ruby(constructor)]
+  |            ^^^^^^^^^^^
+
+error: unknown `#[ruby(nope)]` option
+  --> tests/ui/bad_options.rs:11:12
+   |
+11 |     #[ruby(nope)]
+   |            ^^^^
+
+error: `#[ruby(get)]` doesn't apply to a method (expected one of: name, skip, constructor, private, protected, without_gvl)
+  --> tests/ui/bad_options.rs:16:12
+   |
+16 |     #[ruby(get)]
+   |            ^^^

@@ -113,6 +113,13 @@ pub mod rubysys;
 pub mod dsl;
 
 pub mod typed_data;
+
+#[cfg(feature = "derive")]
+pub mod derive;
+
+#[cfg(feature = "derive")]
+pub use rutie_derive::{rubyclass, rubyerror, rubyfunction, rubymethods, rubymodule, Mark};
+
 pub mod types;
 pub mod util;
 

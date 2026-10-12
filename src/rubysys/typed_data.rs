@@ -1,4 +1,7 @@
-use crate::rubysys::types::{c_char, c_int, c_void, size_t, Value};
+use crate::rubysys::types::{c_char, c_int, c_void, size_t, InternalValue, Value};
+
+// `RbDataType::flags`: free the data during the GC sweep instead of later.
+pub const RUBY_TYPED_FREE_IMMEDIATELY: InternalValue = 1;
 
 #[cfg_attr(rutie_dllimport, link(name = "rutie_ruby"))]
 extern "C" {
