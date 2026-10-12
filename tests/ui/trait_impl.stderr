@@ -1,0 +1,5 @@
+error: `#[rubymethods]` goes on an inherent `impl` block, not a trait implementation
+ --> tests/ui/trait_impl.rs:7:6
+  |
+7 | impl Default for Counter {
+  |      ^^^^^^^

@@ -30,6 +30,7 @@ This project is a continuation of:
 * [Custom Ruby Objects in Rust](https://github.com/danielpclark/rutie#custom-ruby-objects-in-rust)
 * [Variadic Functions / Splat Operator](https://github.com/danielpclark/rutie#variadic-functions--splat-operator)
 * [Raising Exceptions from Rust](https://github.com/danielpclark/rutie#raising-exceptions-from-rust)
+* [Ruby Classes from Rust Types (the `derive` feature)](https://github.com/danielpclark/rutie#ruby-classes-from-rust-types-the-derive-feature)
 * [Safety — The Rutie Philosophy vs The Rust Philosophy on Safety](https://github.com/danielpclark/rutie/blob/master/README.md#safety--the-rutie-philosophy-vs-the-rust-philosophy-on-safety)
 * [Troubleshooting](https://github.com/danielpclark/rutie#troubleshooting)
   * [It panics for some Rubies on CI server tests](https://github.com/danielpclark/rutie#it-panics-for-some-rubies-on-ci-server-tests)
@@ -410,6 +411,95 @@ fn main() {
     });
 }
 ```
+
+## Ruby Classes from Rust Types (the `derive` feature)
+
+With the `derive` feature, attributes turn ordinary Rust into Ruby classes,
+modules and exceptions, without `class!`, `methods!` or `wrappable_struct!`:
+
+```toml
+[dependencies]
+rutie = { version = "0.13.3", features = ["derive"] }
+```
+
+```rust
+use rutie::{rubyclass, rubyerror, rubymethods, Proc};
+
+#[rubyerror(path = "Stats::Error")]
+#[derive(Debug)]
+pub enum StatsError {
+    #[ruby(path = "Stats::OverflowError")]
+    Overflow,
+}
+
+impl std::fmt::Display for StatsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "counter overflow")
+    }
+}
+
+#[rubyclass(path = "Stats::Counter")]
+#[derive(Clone)]
+pub struct Counter {
+    #[ruby(get)]
+    count: i64,
+}
+
+#[rubymethods]
+impl Counter {
+    // `Stats::Counter.new(start = nil)`: `new` is the Ruby `initialize`.
+    pub fn new(start: Option<i64>) -> Self {
+        Counter { count: start.unwrap_or(0) }
+    }
+
+    // `counter.add(2, times: 3)`
+    pub fn add(&mut self, amount: i64, #[ruby(keyword)] times: Option<i64>) -> Result<i64, StatsError> {
+        let total = amount.checked_mul(times.unwrap_or(1)).ok_or(StatsError::Overflow)?;
+        self.count = self.count.checked_add(total).ok_or(StatsError::Overflow)?;
+        Ok(self.count)
+    }
+
+    // `counter.each_step(3) { |n| ... }`
+    pub fn each_step(&mut self, steps: u32, #[ruby(block)] block: Proc) {
+        for _ in 0..steps {
+            self.count += 1;
+            block.call(&[]);
+        }
+    }
+}
+
+#[allow(non_snake_case)]
+#[no_mangle]
+pub extern "C" fn Init_stats() {
+    StatsError::define_ruby();
+    Counter::define_ruby();
+}
+```
+
+The struct lives inside its Ruby objects; methods take `&self` or
+`&mut self`, and parameters and results convert between Ruby and Rust types
+(`i64`, `String`, `&str`, `Vec<T>`, `HashMap<K, V>`, other `#[rubyclass]`
+structs, …), raising `TypeError`, `ArgumentError` or `RangeError` for bad
+arguments. An `Err` is raised as a Ruby exception after the method's Rust
+values are dropped, and a panic as a `RuntimeError`. Also:
+
+* **Safety:** borrows of an object are checked, so Ruby code that reaches an
+  object a method is changing raises instead of aliasing it; Ruby objects
+  held in fields are marked for the GC and updated by `GC.compact`; and a Ruby
+  exception thrown through a method releases its borrows.
+* **Ruby's object model:** `Class#new` and `initialize` (Ruby subclasses can
+  call `super`), `dup`/`clone` for `Clone` structs, inheritance between
+  `#[rubyclass]` structs (`extends = Parent`), and accessors
+  (`#[ruby(get, set)]` on fields).
+* **Signatures:** optional, `#[ruby(splat)]`, `#[ruby(keyword)]` and
+  `#[ruby(block)]` parameters; `#[ruby(name = "zero?")]`,
+  `#[ruby(private)]`, `#[ruby(without_gvl)]` (runs with the GVL released).
+* **Modules:** `#[rubymodule]` on an inline `mod` for functions, constants
+  and the classes inside it.
+* **RBS:** `Counter::rbs()` is the class's RBS declaration.
+
+See the [`rutie::derive` documentation](https://docs.rs/rutie/latest/rutie/derive/index.html)
+and [examples/rutie_derive_example](https://github.com/danielpclark/rutie/tree/master/examples/rutie_derive_example).
 
 ## Safety — The Rutie Philosophy vs The Rust Philosophy on Safety
 
