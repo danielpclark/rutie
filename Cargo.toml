@@ -1,6 +1,6 @@
 [package]
 name = "rutie"
-version = "0.12.2"
+version = "0.12.3"
 authors = [
   "Steve Klabnik <steve@steveklabnik.com>",
   "Dmitry Gritsay <unseductable@gmail.com>",

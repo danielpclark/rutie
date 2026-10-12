@@ -6,7 +6,7 @@ use crate::{
     },
     rubysys::rproc::{rb_obj_is_method, rb_obj_is_proc},
     types::{c_char, c_int, c_void, Argc, InternalValue, Value},
-    AnyObject, Boolean, Object,
+    AnyObject, Boolean, MethodReturn, Object,
 };
 
 use std::{
@@ -99,6 +99,17 @@ pub fn parse_arguments(argc: Argc, arguments: *const AnyObject) -> Vec<AnyObject
     }
 
     unsafe { slice::from_raw_parts(arguments, argc as usize).to_vec() }
+}
+
+/// Hands a `methods!`/`unsafe_methods!` result back to Ruby: the object, or
+/// a raise of the `Err` exception. Called once the method body has returned,
+/// so the body's Rust values have been dropped before Ruby's `longjmp`.
+#[doc(hidden)]
+pub fn method_return<R: MethodReturn>(result: R) -> R::Output {
+    match result.into_method_result() {
+        Ok(object) => object,
+        Err(exception) => vm::raise_ex(exception.value()),
+    }
 }
 
 pub fn closure_to_ptr<F, R>(mut func: F) -> *const c_void
