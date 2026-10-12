@@ -292,6 +292,16 @@ impl VM {
     /// pass text you did not write (a stray `%s` reads memory it shouldn't).
     /// [`VM::raise_message`](#method.raise_message) takes the message as
     /// plain text instead.
+    ///
+    /// # Rust values in scope are not dropped
+    ///
+    /// Ruby raises with a `longjmp` straight to its exception handler, so the
+    /// destructors of the Rust values still in scope never run: a `String`,
+    /// `Vec` or `Box` leaks, and a lock guard, file or socket is never released
+    /// (#159). In a `methods!` or `unsafe_methods!` method, return
+    /// `Err(exception)` from a `Result` instead (see
+    /// [`MethodReturn`](trait.MethodReturn.html)); it is raised once the
+    /// method's values have been dropped.
     pub fn raise(exception: Class, message: &str) {
         vm::raise(exception.value(), message);
     }
@@ -315,6 +325,16 @@ impl VM {
     /// assert!(result.is_err());
     /// assert_eq!(VM::error_pop().unwrap().message(), "100% of 5%s");
     /// ```
+    ///
+    /// # Rust values in scope are not dropped
+    ///
+    /// Ruby raises with a `longjmp` straight to its exception handler, so the
+    /// destructors of the Rust values still in scope never run: a `String`,
+    /// `Vec` or `Box` leaks, and a lock guard, file or socket is never released
+    /// (#159). In a `methods!` or `unsafe_methods!` method, return
+    /// `Err(exception)` from a `Result` instead (see
+    /// [`MethodReturn`](trait.MethodReturn.html)); it is raised once the
+    /// method's values have been dropped.
     pub fn raise_message(exception: Class, message: &str) -> ! {
         vm::raise_message(exception.value(), message)
     }
@@ -373,6 +393,16 @@ impl VM {
     ///
     /// raise CustomException, 'Something went wrong'
     /// ```
+    ///
+    /// # Rust values in scope are not dropped
+    ///
+    /// Ruby raises with a `longjmp` straight to its exception handler, so the
+    /// destructors of the Rust values still in scope never run: a `String`,
+    /// `Vec` or `Box` leaks, and a lock guard, file or socket is never released
+    /// (#159). In a `methods!` or `unsafe_methods!` method, return
+    /// `Err(exception)` from a `Result` instead (see
+    /// [`MethodReturn`](trait.MethodReturn.html)); it is raised once the
+    /// method's values have been dropped.
     pub fn raise_ex<E>(exception: E)
     where
         E: Into<AnyException>,
