@@ -267,6 +267,10 @@ macro_rules! module {
 ///
 /// That is why creating callbacks in unsafe way may cause panics.
 ///
+/// As with `methods!`, a method may return `Result<T, AnyException>` to
+/// raise its `Err` once its Rust values have been dropped (see
+/// [`MethodReturn`](trait.MethodReturn.html)).
+///
 /// Due to the same reasons unsafe callbacks are faster.
 ///
 /// Use it when:
@@ -337,20 +341,27 @@ macro_rules! unsafe_methods {
                                 argv: *const $crate::AnyObject,
                                 #[allow(unused_mut)]
                                 #[allow(unused_variables)]
-                                mut $rtself_name: $rtself_class) -> $return_type {
-                let _arguments = $crate::util::parse_arguments(argc, argv);
-                let mut _i = 0;
+                                mut $rtself_name: $rtself_class)
+                -> <$return_type as $crate::MethodReturn>::Output {
+                // The body runs in a closure so that everything it owns is
+                // dropped before an `Err` is raised (see `MethodReturn`).
+                let result = (move || -> $return_type {
+                    let _arguments = $crate::util::parse_arguments(argc, argv);
+                    let mut _i = 0;
 
-                $(
-                    let $arg_name = unsafe {
-                        <$crate::AnyObject as $crate::Object>
-                            ::to::<$arg_type>(&_arguments[_i])
-                    };
+                    $(
+                        let $arg_name = unsafe {
+                            <$crate::AnyObject as $crate::Object>
+                                ::to::<$arg_type>(&_arguments[_i])
+                        };
 
-                    _i += 1;
-                )*
+                        _i += 1;
+                    )*
 
-                $body
+                    $body
+                })();
+
+                $crate::util::method_return(result)
             }
             }
         )*
@@ -522,6 +533,51 @@ macro_rules! unsafe_methods {
 /// end
 /// ```
 ///
+/// # Raising exceptions
+///
+/// A method may return `Result<T, AnyException>` for any `Object` type `T`:
+/// `Ok` is returned to Ruby and `Err` is raised, after the method's Rust
+/// values have been dropped. `?` raises an argument's conversion error.
+/// Raising with `VM::raise` inside the method instead skips their
+/// destructors (#159); see [`MethodReturn`](trait.MethodReturn.html).
+///
+/// ```
+/// #[macro_use]
+/// extern crate rutie;
+///
+/// use rutie::{AnyException, Class, Exception, Fixnum, Object, VM};
+///
+/// class!(Calculator);
+///
+/// methods!(
+///     Calculator,
+///     rtself,
+///
+///     fn divide(dividend: Fixnum, divisor: Fixnum) -> Result<Fixnum, AnyException> {
+///         let (dividend, divisor) = (dividend?.to_i64(), divisor?.to_i64());
+///
+///         if divisor == 0 {
+///             return Err(AnyException::new("ZeroDivisionError", Some("divided by 0")));
+///         }
+///
+///         Ok(Fixnum::new(dividend / divisor))
+///     }
+/// );
+///
+/// fn main() {
+///     # VM::init();
+///     Class::new("Calculator", None).define(|klass| {
+///         klass.def("divide", divide);
+///     });
+///
+///     let quotient = VM::eval("Calculator.new.divide(84, 2)").unwrap();
+///     assert_eq!(quotient.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+///
+///     let error = VM::eval("Calculator.new.divide(84, 0)").unwrap_err();
+///     assert_eq!(error.message(), "divided by 0");
+/// }
+/// ```
+///
 /// For optional, keyword and block parameters, write a plain
 /// `fn(Argc, *const AnyObject, Self)` function with
 /// [`rutie_callback!`](macro.rutie_callback.html) and use
@@ -556,36 +612,43 @@ macro_rules! methods {
                             argv: *const $crate::AnyObject,
                             #[allow(unused_mut)]
                             #[allow(unused_variables)]
-                            mut $rtself_name: $rtself_class) -> $return_type {
-            let _arguments = $crate::util::parse_arguments(argc, argv);
-            let mut _i = 0;
+                            mut $rtself_name: $rtself_class)
+            -> <$return_type as $crate::MethodReturn>::Output {
+            // The body runs in a closure so that everything it owns is
+            // dropped before an `Err` is raised (see `MethodReturn`).
+            let result = (move || -> $return_type {
+                let _arguments = $crate::util::parse_arguments(argc, argv);
+                let mut _i = 0;
 
-            $(
-                let $arg_name =
-                    _arguments
-                        .get(_i)
-                        .ok_or_else(|| {
-                            <$crate::AnyException as $crate::Exception>::new("ArgumentError",
-                                Some(&format!(
-                                    "Argument '{}: {}' not found for method '{}'",
-                                    stringify!($arg_name),
-                                    stringify!($arg_type),
-                                    stringify!($method_name)
-                                ))
-                            )
-                        }).and_then(|argument| {
-                            <$crate::AnyObject as $crate::Object>
-                                ::try_convert_to::<$arg_type>(argument)
-                        });
+                $(
+                    let $arg_name =
+                        _arguments
+                            .get(_i)
+                            .ok_or_else(|| {
+                                <$crate::AnyException as $crate::Exception>::new("ArgumentError",
+                                    Some(&format!(
+                                        "Argument '{}: {}' not found for method '{}'",
+                                        stringify!($arg_name),
+                                        stringify!($arg_type),
+                                        stringify!($method_name)
+                                    ))
+                                )
+                            }).and_then(|argument| {
+                                <$crate::AnyObject as $crate::Object>
+                                    ::try_convert_to::<$arg_type>(argument)
+                            });
 
-                _i += 1;
-            )*
+                    _i += 1;
+                )*
 
-            $(
-                let $splat_name: $crate::Array = _arguments.iter().skip(_i).cloned().collect();
-            )?
+                $(
+                    let $splat_name: $crate::Array = _arguments.iter().skip(_i).cloned().collect();
+                )?
 
-            $body
+                $body
+            })();
+
+            $crate::util::method_return(result)
         }
         }
     };
@@ -1166,9 +1229,10 @@ macro_rules! eval {
 #[cfg(test)]
 mod tests {
     use crate::{
-        AnyObject, Array, Boolean, Class, Exception, Fixnum, Module, Object, RString,
-        VerifiedObject, GC, VM,
+        AnyException, AnyObject, Array, Boolean, Class, Exception, Fixnum, Module, NilClass,
+        Object, RString, VerifiedObject, GC, VM,
     };
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     crate::class!(RutieDslSplat);
 
@@ -1210,6 +1274,53 @@ mod tests {
         rtself,
         fn dsl_unsafe_two(a: Fixnum, b: Fixnum) -> Fixnum {
             Fixnum::new(a.to_i64() * b.to_i64())
+        }
+    );
+
+    crate::class!(RutieDslResult);
+
+    static DROPPED: AtomicUsize = AtomicUsize::new(0);
+
+    // Counts its drops, standing in for memory, a lock guard or a file.
+    struct Resource(#[allow(dead_code)] String);
+
+    impl Drop for Resource {
+        fn drop(&mut self) {
+            DROPPED.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    crate::methods!(
+        RutieDslResult,
+        rtself,
+
+        fn dsl_result_raise(raise: Boolean) -> Result<NilClass, AnyException> {
+            let _resource = Resource(String::from("held"));
+
+            if raise?.to_bool() {
+                return Err(AnyException::new("StandardError", Some("kaboom")));
+            }
+
+            Ok(NilClass::new())
+        }
+
+        fn dsl_result_double(number: Fixnum, *rest) -> Result<Fixnum, AnyException> {
+            let _resource = Resource(String::from("held"));
+
+            Ok(Fixnum::new(number?.to_i64() * 2 + rest.length() as i64))
+        }
+    );
+
+    crate::unsafe_methods!(
+        RutieDslResult,
+        rtself,
+        fn dsl_unsafe_result(number: Fixnum) -> Result<Fixnum, AnyException> {
+            let _resource = Resource(String::from("held"));
+
+            match number.to_i64() {
+                0 => Err(AnyException::new("ZeroDivisionError", Some("divided by 0"))),
+                n => Ok(Fixnum::new(100 / n)),
+            }
         }
     );
 
@@ -1382,6 +1493,66 @@ mod tests {
             // responsibility with `unsafe_methods!`; `methods!` checks.)
             let product = VM::eval("RutieDslSplat.new.unsafe_two(6, 7, 8)").unwrap();
             assert_eq!(product.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+        });
+    }
+
+    #[test]
+    fn test_methods_result_drops_before_raising() {
+        crate::on_ruby_thread(|| {
+            Class::new("RutieDslResult", None).define(|klass| {
+                klass.def("raise", dsl_result_raise);
+                klass.def("double", dsl_result_double);
+                klass.def("unsafe_result", dsl_unsafe_result);
+            });
+
+            let dropped = || DROPPED.load(Ordering::SeqCst);
+            let before = dropped();
+
+            // `Ok` is returned to Ruby.
+            let result = VM::eval("RutieDslResult.new.raise(false)").unwrap();
+            assert!(result.is_nil());
+            assert_eq!(dropped(), before + 1);
+
+            // `Err` is raised, after the body's values have been dropped.
+            let error = VM::eval("RutieDslResult.new.raise(true)").unwrap_err();
+            assert!(Class::from_existing("StandardError").case_equals(&error));
+            assert_eq!(error.message(), "kaboom");
+            assert_eq!(dropped(), before + 2);
+
+            // Ruby can rescue it, and every call drops its values.
+            let rescued = VM::eval(
+                "100.times.count { RutieDslResult.new.raise(true) rescue true }",
+            )
+            .unwrap();
+            assert_eq!(rescued.try_convert_to::<Fixnum>(), Ok(Fixnum::new(100)));
+            assert_eq!(dropped(), before + 102);
+
+            // `?` raises an argument's conversion error.
+            let error = VM::eval("RutieDslResult.new.raise(:yes)").unwrap_err();
+            assert!(Class::type_error().case_equals(&error));
+            assert_eq!(dropped(), before + 103);
+
+            let error = VM::eval("RutieDslResult.new.raise").unwrap_err();
+            assert!(Class::argument_error().case_equals(&error));
+            assert_eq!(
+                error.message(),
+                "Argument 'raise: Boolean' not found for method 'dsl_result_raise'"
+            );
+
+            // With a splat parameter.
+            let doubled = VM::eval("RutieDslResult.new.double(20, :a, :b)").unwrap();
+            assert_eq!(doubled.try_convert_to::<Fixnum>(), Ok(Fixnum::new(42)));
+            let error = VM::eval("RutieDslResult.new.double('20')").unwrap_err();
+            assert!(Class::type_error().case_equals(&error));
+
+            // `unsafe_methods!` takes a `Result` too.
+            let quotient = VM::eval("RutieDslResult.new.unsafe_result(4)").unwrap();
+            assert_eq!(quotient.try_convert_to::<Fixnum>(), Ok(Fixnum::new(25)));
+            let before = dropped();
+            let error = VM::eval("RutieDslResult.new.unsafe_result(0)").unwrap_err();
+            assert!(Class::from_existing("ZeroDivisionError").case_equals(&error));
+            assert_eq!(error.message(), "divided by 0");
+            assert_eq!(dropped(), before + 1);
         });
     }
 
