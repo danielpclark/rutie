@@ -18,6 +18,30 @@ API and may have breaking changes during a teeny version change.
    `VM::raise_message` and `VM::raise_ex` document this, and the new
    `MethodReturn` trait names the accepted return types. Additive; existing
    methods are unchanged (#159), thanks to @georgeclaghorn for the report
+ - A `derive` feature (the new `rutie-derive` crate, in this repository)
+   with `#[rubyclass]`, `#[rubymethods]`, `#[rubymodule]`, `#[rubyfunction]`,
+   `#[rubyerror]` and `#[derive(Mark)]`: Ruby classes, modules and exceptions
+   declared on ordinary Rust structs, `impl` blocks, modules and error types,
+   with support in the new `rutie::derive` module (#145), thanks to
+   @dsisnero for the proposal and @Hywan for wasmer-ruby's `rutie-derive`,
+   which inspired it. Methods take and return Ruby and Rust types (with
+   `TypeError`, `ArgumentError` and `RangeError` for bad arguments), with
+   optional, splat, keyword and block parameters; `Err` is raised after the
+   method's values are dropped (#159) and a panic as a `RuntimeError`.
+   Objects of a `#[rubyclass]` keep their struct behind a borrow flag, so a
+   re-entrant borrow raises instead of aliasing; fields holding Ruby objects
+   are marked and updated by `GC.compact`; `Class#new`/`initialize`,
+   `dup`/`clone`, inheritance between `#[rubyclass]` structs, accessors,
+   visibility, `#[ruby(without_gvl)]` methods and RBS signatures are
+   supported. Additive: nothing changes without the feature. On Ruby 2.5
+   and 2.6, which can't compact, marked objects are pinned, and keywords are
+   a last `Hash` with Symbol keys, as in Ruby methods; Ruby 2.7 uses
+   `rb_keyword_given_p`
+ - `Object` and `VerifiedObject` name what a type needs in their compile
+   errors (`#[diagnostic::on_unimplemented]`)
+ - `rubysys`: `rb_define_protected_method`, `rb_obj_classname`,
+   `RUBY_TYPED_FREE_IMMEDIATELY`, and on Ruby 2.7 `rb_gc_mark_movable` and
+   `rb_gc_location`
 
 ## [0.10.4] - 2026-10-11
 ### Added
