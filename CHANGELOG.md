@@ -7,6 +7,18 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [0.14.3] - 2026-10-11
+### Added
+ - A `methods!` or `unsafe_methods!` method may return
+   `Result<T, AnyException>`: `Ok` is returned to Ruby and `Err` is raised
+   once the method's Rust values have been dropped, and `?` raises an
+   argument's conversion error. Raising with `VM::raise` or `VM::raise_ex`
+   `longjmp`s past the destructors of the values in scope, which leaked
+   memory and never released guards, files or sockets. `VM::raise`,
+   `VM::raise_message` and `VM::raise_ex` document this, and the new
+   `MethodReturn` trait names the accepted return types. Additive; existing
+   methods are unchanged (#159), thanks to @georgeclaghorn for the report
+
 ## [0.14.2] - 2026-10-11
 ### Added
  - `class!(Name, "Ruby::Path")`: with the class's Ruby path as a second
