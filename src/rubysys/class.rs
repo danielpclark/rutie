@@ -52,6 +52,19 @@ extern "C" {
         argc: Argc,
     );
     // void
+    // rb_define_protected_method(VALUE klass, const char *mid, VALUE (*func)(ANYARGS), int arity)
+    pub fn rb_define_protected_method(
+        klass: Value,
+        name: *const c_char,
+        callback: CallbackPtr,
+        argc: Argc,
+    );
+    // const char *
+    // rb_obj_classname(VALUE obj)
+    //
+    // `rb_class2name(CLASS_OF(obj))`.
+    pub fn rb_obj_classname(obj: Value) -> *const c_char;
+    // void
     // rb_define_singleton_method(VALUE obj, const char *name, VALUE (*func)(ANYARGS), int argc)
     pub fn rb_define_singleton_method(
         klass: Value,

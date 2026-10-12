@@ -1,0 +1,20 @@
+[package]
+name = "rutie-derive"
+version = "0.12.3"
+authors = [
+  "Daniel P. Clark <6ftdan@gmail.com>"
+]
+edition = "2021"
+
+description = "The #[rubyclass], #[rubymethods], #[rubymodule], #[rubyfunction] and #[rubyerror] attributes for Rutie; use them through rutie's `derive` feature."
+repository = "https://github.com/danielpclark/rutie"
+keywords = ["cruby", "ruby", "rutie"]
+license = "MIT"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "visit-mut"] }

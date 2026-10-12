@@ -1,0 +1,5 @@
+error: Ruby methods take `&self` or `&mut self`: the struct stays in the Ruby object
+  --> tests/ui/self_by_value.rs:10:20
+   |
+10 |     pub fn consume(self) -> i64 {
+   |                    ^^^^
