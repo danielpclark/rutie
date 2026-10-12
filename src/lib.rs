@@ -152,8 +152,8 @@ pub use crate::class::{
 };
 
 pub use crate::class::traits::{
-    encoding_support::EncodingSupport, exception::Exception, object::Object,
-    try_convert::TryConvert, verified_object::VerifiedObject,
+    encoding_support::EncodingSupport, exception::Exception, method_return::MethodReturn,
+    object::Object, try_convert::TryConvert, verified_object::VerifiedObject,
 };
 
 pub use crate::helpers::{
