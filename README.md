@@ -29,6 +29,7 @@ This project is a continuation of:
 * [Using Rust in Ruby](https://github.com/danielpclark/rutie#using-rust-in-ruby)
 * [Custom Ruby Objects in Rust](https://github.com/danielpclark/rutie#custom-ruby-objects-in-rust)
 * [Variadic Functions / Splat Operator](https://github.com/danielpclark/rutie#variadic-functions--splat-operator)
+* [Raising Exceptions from Rust](https://github.com/danielpclark/rutie#raising-exceptions-from-rust)
 * [Safety — The Rutie Philosophy vs The Rust Philosophy on Safety](https://github.com/danielpclark/rutie/blob/master/README.md#safety--the-rutie-philosophy-vs-the-rust-philosophy-on-safety)
 * [Troubleshooting](https://github.com/danielpclark/rutie#troubleshooting)
   * [It panics for some Rubies on CI server tests](https://github.com/danielpclark/rutie#it-panics-for-some-rubies-on-ci-server-tests)
@@ -50,7 +51,7 @@ First add the dependency to your `Cargo.toml` file.
 
 ```toml
 [dependencies]
-rutie = "0.14.2"
+rutie = "0.14.3"
 ```
 
 Then in your Rust program add `VM::init()` to the beginning of its code execution path
@@ -367,6 +368,48 @@ For optional, keyword and block parameters, write a plain
 parse the arguments with an `rb_scan_args` format such as `"11*:&"`. It returns
 `ScannedArgs` (required, optional, splat, post, keywords and block) without any
 unsafe code; see its documentation for an example.
+
+## Raising Exceptions from Rust
+
+Ruby raises an exception with a `longjmp` straight to the nearest `rescue`, so
+when a method written in Rust calls `VM::raise` (or `VM::raise_ex`), the
+destructors of its Rust values never run: a `String`, `Vec` or `Box` leaks,
+and a lock guard, file or socket is never released.
+
+Instead, a method in `methods!` or `unsafe_methods!` can return
+`Result<T, AnyException>`. `Ok` is returned to Ruby, and `Err` is raised once
+the method's values have been dropped. `?` raises an argument's conversion
+error.
+
+```rust
+#[macro_use]
+extern crate rutie;
+
+use rutie::{AnyException, Class, Exception, Object, RString, VM};
+
+class!(Reader);
+
+methods!(
+    Reader,
+    rtself,
+
+    fn read(path: RString) -> Result<RString, AnyException> {
+        let path = path?.to_string();
+
+        // `path` is dropped before an `Err` is raised.
+        std::fs::read_to_string(&path)
+            .map(|contents| RString::new_utf8(&contents))
+            .map_err(|error| AnyException::new("IOError", Some(&format!("{}: {}", path, error))))
+    }
+);
+
+fn main() {
+    VM::init();
+    Class::new("Reader", None).define(|klass| {
+        klass.def("read", read);
+    });
+}
+```
 
 ## Safety — The Rutie Philosophy vs The Rust Philosophy on Safety
 
