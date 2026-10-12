@@ -1,0 +1,5 @@
+error: `extends` needs a field holding the parent's struct, marked `#[ruby(base)]`
+ --> tests/ui/extends_without_base.rs:6:23
+  |
+6 | #[rubyclass(extends = Shape)]
+  |                       ^^^^^

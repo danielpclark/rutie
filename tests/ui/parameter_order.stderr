@@ -1,0 +1,11 @@
+error: required parameters come before `Option` and `#[ruby(splat)]` ones
+ --> tests/ui/parameter_order.rs:8:43
+  |
+8 |     pub fn add(&self, first: Option<i64>, second: i64) -> i64 {
+  |                                           ^^^^^^
+
+error: `Option<&mut T>` parameters are not supported
+  --> tests/ui/parameter_order.rs:12:26
+   |
+12 |     pub fn change(&self, other: Option<&mut Counter>) {
+   |                          ^^^^^
