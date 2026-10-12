@@ -19,10 +19,27 @@ links = "ruby"
 
 [features]
 no-link = [] # tells build.rs to not link to libruby
+# `#[rubyclass]`, `#[rubymethods]` and `#[rubyfunction]` (the `rutie-derive` crate)
+derive = ["dep:rutie-derive"]
 
 [dependencies]
 libc = "0.2.151"
 lazy_static = "1.4.0"
+rutie-derive = { version = "=0.14.3", path = "rutie-derive", optional = true }
+
+[dev-dependencies]
+trybuild = "1.0"
+
+[[test]]
+name = "derive"
+harness = false
+required-features = ["derive"]
+
+# The derive macros' compile errors; run on stable Rust (the messages
+# include rustc's own, which change between versions).
+[[test]]
+name = "derive_ui"
+required-features = ["derive"]
 
 [badges]
 travis-ci = { repository = "danielpclark/rutie", branch = "master" }

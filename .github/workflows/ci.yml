@@ -90,6 +90,12 @@ jobs:
         ruby -e 'puts "ENABLE_SHARED=#{RbConfig::CONFIG["ENABLE_SHARED"]}"'
         cargo build -vv
         cargo test -vv
+        # The `derive` feature: its integration test and module doctest, and
+        # (on stable, as the expected messages include rustc's) its compile
+        # errors.
+        cargo test --features derive --test derive
+        cargo test --features derive --doc derive
+        if [ "${{ matrix.rust }}" = "stable" ]; then cargo test --features derive --test derive_ui; fi
 
     # The examples use the crate the way users do: an embedding program, and
     # two Ruby extensions built and loaded through the `rutie` gem (from the
@@ -102,7 +108,7 @@ jobs:
       run: |
         cargo run --example eval -- "raise 'eval example failed' unless 1 + 1 == 2"
         (cd examples/rutie_rust_example && cargo test)
-        for example in rutie_ruby_example rutie_ruby_gvl_example; do
+        for example in rutie_ruby_example rutie_ruby_gvl_example rutie_derive_example; do
           (
             cd "examples/$example"
             bundle install
@@ -118,6 +124,8 @@ jobs:
         ruby -v
         cargo build -vv
         cargo test -vv
+        cargo test --features derive --test derive
+        cargo test --features derive --doc derive
 
     # The GNU host toolchain brings its own MinGW linker.
     - name: Build and Test (Windows, GNU toolchain)
@@ -135,7 +143,7 @@ jobs:
       run: |
         cargo run --example eval -- "raise 'eval example failed' unless 1 + 1 == 2"
         (cd examples/rutie_rust_example && cargo test)
-        for example in rutie_ruby_example rutie_ruby_gvl_example; do
+        for example in rutie_ruby_example rutie_ruby_gvl_example rutie_derive_example; do
           (
             cd "examples/$example"
             bundle install

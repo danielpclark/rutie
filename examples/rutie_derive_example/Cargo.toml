@@ -1,0 +1,12 @@
+[package]
+name = "rutie_derive_example"
+version = "0.1.0"
+authors = ["Daniel P. Clark <6ftdan@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+rutie = { path = "../../", features = ["derive"] }
+
+[lib]
+name = "rutie_derive_example"
+crate-type = ["dylib"]
