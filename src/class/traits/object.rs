@@ -199,7 +199,7 @@ pub trait Object: From<Value> {
     ///     }
     /// }
     ///
-    /// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER);
+    /// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER_INSTANCE);
     ///
     /// class!(RubyServer);
     ///
@@ -211,17 +211,17 @@ pub trait Object: From<Value> {
     ///         let server = Server::new(host.unwrap().to_string(),
     ///                                  port.unwrap().to_i64() as u16);
     ///
-    ///         Class::from_existing("RubyServer").wrap_data(server, &*SERVER_WRAPPER)
+    ///         Class::from_existing("RubyServer").wrap_data(server, &*SERVER_WRAPPER_INSTANCE)
     ///     }
     ///
     ///     fn ruby_server_host() -> RString {
-    ///         let host = rtself.get_data(&*SERVER_WRAPPER).host();
+    ///         let host = rtself.get_data(&*SERVER_WRAPPER_INSTANCE).host();
     ///
     ///         RString::new_utf8(host)
     ///     }
     ///
     ///     fn ruby_server_port() -> Fixnum {
-    ///         let port = rtself.get_data(&*SERVER_WRAPPER).port();
+    ///         let port = rtself.get_data(&*SERVER_WRAPPER_INSTANCE).port();
     ///
     ///         Fixnum::new(port as i64)
     ///     }
@@ -239,8 +239,8 @@ pub trait Object: From<Value> {
     ///     });
     ///
     ///     let server = VM::eval("RubyServer.new('127.0.0.1', 3000)").unwrap();
-    ///     assert_eq!(server.get_data(&*SERVER_WRAPPER).port(), 3000);
-    ///     assert_eq!(server.get_data(&*SERVER_WRAPPER).host(), "127.0.0.1");
+    ///     assert_eq!(server.get_data(&*SERVER_WRAPPER_INSTANCE).port(), 3000);
+    ///     assert_eq!(server.get_data(&*SERVER_WRAPPER_INSTANCE).host(), "127.0.0.1");
     /// }
     /// ```
     ///
@@ -270,16 +270,16 @@ pub trait Object: From<Value> {
     ///     count: u32,
     /// }
     ///
-    /// wrappable_struct!(Counter, CounterWrapper, COUNTER_WRAPPER);
+    /// wrappable_struct!(Counter, CounterWrapper, COUNTER_WRAPPER_INSTANCE);
     ///
     /// fn main() {
     ///     # VM::init();
     ///     let mut counter: AnyObject =
-    ///         Class::new("Counter", None).wrap_data(Counter { count: 0 }, &*COUNTER_WRAPPER);
+    ///         Class::new("Counter", None).wrap_data(Counter { count: 0 }, &*COUNTER_WRAPPER_INSTANCE);
     ///
-    ///     counter.get_data_mut(&*COUNTER_WRAPPER).count += 2;
+    ///     counter.get_data_mut(&*COUNTER_WRAPPER_INSTANCE).count += 2;
     ///
-    ///     assert_eq!(counter.get_data(&*COUNTER_WRAPPER).count, 2);
+    ///     assert_eq!(counter.get_data(&*COUNTER_WRAPPER_INSTANCE).count, 2);
     /// }
     /// ```
     fn get_data_mut<'a, T>(&'a mut self, wrapper: &'a dyn DataTypeWrapper<T>) -> &'a mut T {
