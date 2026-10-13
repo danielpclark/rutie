@@ -14,12 +14,17 @@ API and may have breaking changes during a teeny version change.
    @abinoam
 
 ### Changed
+ - `wrappable_struct!` no longer needs a `lazy_static` dependency in the
+   crate using it: the macro reaches `lazy_static` through Rutie (a hidden
+   re-export) instead of `::lazy_static`, which made a crate without the
+   dependency fail with "could not find `lazy_static`". The generated static
+   is the same `lazy_static` as before, so existing code, including crates
+   that still depend on `lazy_static`, is unchanged
  - The `wrappable_struct!` examples in the docs name the static
    `NAME_WRAPPER_INSTANCE` instead of `NAME_WRAPPER`, so it isn't confused
    with the `NameWrapper` type, and the macro's docs explain what it does
-   and its three names (#123), thanks to @abinoam. They also say that only a
-   `lazy_static` dependency is needed (no `#[macro_use]`), and the
-   `RubyServer` example undefines the class's allocator
+   and its three names (#123), thanks to @abinoam. The `RubyServer` example
+   also undefines the class's allocator
 
 ## [0.12.3] - 2026-10-11
 ### Added
