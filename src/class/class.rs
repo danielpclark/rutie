@@ -708,14 +708,14 @@ impl Class {
     ///     count: i64,
     /// }
     ///
-    /// wrappable_struct!(Counter, CounterWrapper, COUNTER_WRAPPER);
+    /// wrappable_struct!(Counter, CounterWrapper, COUNTER_WRAPPER_INSTANCE);
     ///
     /// class!(RubyCounter);
     ///
     /// // `extern "C"` (`extern "C-unwind"` on Windows), see `rutie_callback!`.
     /// rutie_callback! {
     ///     fn counter_alloc(klass: Class) -> AnyObject {
-    ///         klass.wrap_data(Counter { count: 0 }, &*COUNTER_WRAPPER)
+    ///         klass.wrap_data(Counter { count: 0 }, &*COUNTER_WRAPPER_INSTANCE)
     ///     }
     /// }
     ///
@@ -724,7 +724,7 @@ impl Class {
     ///     rtself,
     ///
     ///     fn counter_increment() -> Fixnum {
-    ///         let counter = rtself.get_data_mut(&*COUNTER_WRAPPER);
+    ///         let counter = rtself.get_data_mut(&*COUNTER_WRAPPER_INSTANCE);
     ///         counter.count += 1;
     ///
     ///         Fixnum::new(counter.count)
@@ -1201,7 +1201,7 @@ impl Class {
     ///     }
     /// }
     ///
-    /// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER);
+    /// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER_INSTANCE);
     ///
     /// class!(RubyServer);
     ///
@@ -1213,17 +1213,17 @@ impl Class {
     ///         let server = Server::new(host.unwrap().to_string(),
     ///                                  port.unwrap().to_i64() as u16);
     ///
-    ///         Class::from_existing("RubyServer").wrap_data(server, &*SERVER_WRAPPER)
+    ///         Class::from_existing("RubyServer").wrap_data(server, &*SERVER_WRAPPER_INSTANCE)
     ///     }
     ///
     ///     fn ruby_server_host() -> RString {
-    ///         let host = rtself.get_data(&*SERVER_WRAPPER).host();
+    ///         let host = rtself.get_data(&*SERVER_WRAPPER_INSTANCE).host();
     ///
     ///         RString::new_utf8(host)
     ///     }
     ///
     ///     fn ruby_server_port() -> Fixnum {
-    ///         let port = rtself.get_data(&*SERVER_WRAPPER).port();
+    ///         let port = rtself.get_data(&*SERVER_WRAPPER_INSTANCE).port();
     ///
     ///         Fixnum::new(port as i64)
     ///     }

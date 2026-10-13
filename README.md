@@ -28,6 +28,7 @@ This project is a continuation of:
 * [Using Ruby in Rust](https://github.com/danielpclark/rutie#using-ruby-in-rust)
 * [Using Rust in Ruby](https://github.com/danielpclark/rutie#using-rust-in-ruby)
 * [Custom Ruby Objects in Rust](https://github.com/danielpclark/rutie#custom-ruby-objects-in-rust)
+* [Wrapping Rust Data in Ruby Objects](https://github.com/danielpclark/rutie#wrapping-rust-data-in-ruby-objects)
 * [Variadic Functions / Splat Operator](https://github.com/danielpclark/rutie#variadic-functions--splat-operator)
 * [Raising Exceptions from Rust](https://github.com/danielpclark/rutie#raising-exceptions-from-rust)
 * [Ruby Classes from Rust Types (the `derive` feature)](https://github.com/danielpclark/rutie#ruby-classes-from-rust-types-the-derive-feature)
@@ -300,6 +301,78 @@ it before generating a new instance of it.  This object is now compatible to
 be returned into Ruby directly from Rust/Rutie.  _Note that this definition is
 merely a Rust compatible representation of the Ruby object and doesn't define
 any Ruby methods which can be used from Ruby._
+
+## Wrapping Rust Data in Ruby Objects
+
+`wrappable_struct!` lets a Ruby object carry a Rust struct. The struct is
+stored inside the object as typed data: Ruby owns it from then on, drops it
+when the object is garbage collected, and Rust gets it back with `get_data`.
+It isn't an instance variable, so Ruby code can't see or replace it.
+
+The macro takes three names: your struct (`Server`), a wrapper type for the
+macro to define (`ServerWrapper`), and a static instance of that type
+(`SERVER_WRAPPER_INSTANCE`), the value you pass to `wrap_data` and
+`get_data`. It describes the struct type, so all `Server` objects share it.
+The macro uses the `lazy_static` crate, so add `lazy_static` to your
+`Cargo.toml` dependencies too.
+
+```rust
+#[macro_use]
+extern crate rutie;
+
+use rutie::{AnyObject, Class, Integer, Object, RString, VM};
+
+pub struct Server {
+    host: String,
+    port: u16,
+}
+
+wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER_INSTANCE);
+
+class!(RubyServer, "RubyServer");
+
+methods!(
+    RubyServer,
+    rtself,
+
+    // `RubyServer.new(host, port)`: wraps a new `Server`.
+    fn ruby_server_new(host: RString, port: Integer) -> AnyObject {
+        let server = Server {
+            host: host.unwrap().to_string(),
+            port: port.unwrap().to_i64() as u16,
+        };
+
+        Class::from_existing("RubyServer").wrap_data(server, &*SERVER_WRAPPER_INSTANCE)
+    }
+
+    // `server.address`: reads the `Server` back out.
+    fn ruby_server_address() -> RString {
+        let server = rtself.get_data(&*SERVER_WRAPPER_INSTANCE);
+
+        RString::new_utf8(&format!("{}:{}", server.host, server.port))
+    }
+);
+
+fn main() {
+    VM::init();
+    Class::new("RubyServer", None).define(|klass| {
+        // Objects of the class only come from `wrap_data`, so it has no
+        // allocator: `RubyServer.allocate` would make one without a `Server`.
+        klass.undef_alloc_func();
+        klass.def_self("new", ruby_server_new);
+        klass.def("address", ruby_server_address);
+    });
+}
+```
+
+If the struct holds Ruby objects, give the macro a `mark(data) { ... }`
+block that marks them with `GC::mark`, or the garbage collector may free
+them; `size` and `compact` blocks are optional too. See the
+[`wrappable_struct!` documentation](https://docs.rs/rutie/latest/rutie/macro.wrappable_struct.html).
+
+With the `derive` feature, `#[rubyclass]` on the struct does all of this
+for you, also marking the Ruby objects held in its fields and checking
+borrows; see [Ruby Classes from Rust Types](https://github.com/danielpclark/rutie#ruby-classes-from-rust-types-the-derive-feature).
 
 ## Variadic Functions / Splat Operator
 

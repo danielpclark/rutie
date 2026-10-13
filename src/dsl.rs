@@ -667,21 +667,36 @@ macro_rules! methods {
 
 /// Makes a Rust struct wrappable for Ruby objects.
 ///
-/// **Note:** Currently to be able to use `wrappable_struct!` macro, you should include
-/// `lazy_static` crate to the crate you are working on.
+/// Wrapping stores the struct *inside* a Ruby object, as typed data: Ruby
+/// owns it from then on, frees it (running its `Drop`) when the object is
+/// garbage collected, and Rust gets it back with
+/// [`Object::get_data`](trait.Object.html#method.get_data). The struct isn't
+/// an instance variable, so Ruby code can't see or change it; Ruby only
+/// knows the object is of the type the macro describes.
+///
+/// The macro takes three names:
+///
+/// | | example | what it is |
+/// |---|---|---|
+/// | the struct | `Server` | your Rust data, unchanged |
+/// | the wrapper type | `ServerWrapper` | a type the macro defines, describing `Server` to Ruby |
+/// | the wrapper instance | `SERVER_WRAPPER_INSTANCE` | a static of that type, the one value passed to `wrap_data` and `get_data` |
+///
+/// The instance describes the struct type, not an object, so every object
+/// holding a `Server` uses the same `SERVER_WRAPPER_INSTANCE`.
+///
+/// With the `derive` feature, `#[rubyclass]` does all of this for you (and
+/// marks Ruby objects held in fields, and checks borrows); see the
+/// [`derive`](derive/index.html) module.
+///
+/// **Note:** The macro uses the `lazy_static` crate (as `::lazy_static`), so the
+/// crate using it must depend on `lazy_static` too; no `#[macro_use]` import is
+/// needed.
 ///
 /// `Cargo.toml`
 ///
 /// ```toml
-/// lazy_static = "0.2.1" # the version is not a strict requirement
-/// ```
-///
-/// Crate root `lib.rs` or `main.rs`
-///
-/// ```
-/// #[macro_use]
-/// extern crate lazy_static;
-/// # fn main() {}
+/// lazy_static = "1.4" # the version is not a strict requirement
 /// ```
 ///
 /// # Arguments
@@ -712,16 +727,16 @@ macro_rules! methods {
 ///         port: u16,
 ///     }
 ///
-///     wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER);
+///     wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER_INSTANCE);
 ///
 ///     # fn main() {
 ///     # VM::init();
 ///     let class = Class::new("SharedWrapperServer", None);
-///     let server1: AnyObject = class.wrap_data(Server { port: 3000 }, &*SERVER_WRAPPER);
-///     let server2: AnyObject = class.wrap_data(Server { port: 3001 }, &*SERVER_WRAPPER);
+///     let server1: AnyObject = class.wrap_data(Server { port: 3000 }, &*SERVER_WRAPPER_INSTANCE);
+///     let server2: AnyObject = class.wrap_data(Server { port: 3001 }, &*SERVER_WRAPPER_INSTANCE);
 ///
-///     assert_eq!(server1.get_data(&*SERVER_WRAPPER).port, 3000);
-///     assert_eq!(server2.get_data(&*SERVER_WRAPPER).port, 3001); // <-- the same `SERVER_WRAPPER`
+///     assert_eq!(server1.get_data(&*SERVER_WRAPPER_INSTANCE).port, 3000);
+///     assert_eq!(server2.get_data(&*SERVER_WRAPPER_INSTANCE).port, 3001); // <-- the same `SERVER_WRAPPER_INSTANCE`
 ///     # }
 ///     ```
 ///
@@ -764,16 +779,16 @@ macro_rules! methods {
 ///
 /// pub struct Server;
 ///
-/// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER);
+/// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER_INSTANCE);
 ///
 /// // produces
 /// //
 /// // pub struct ServerWrapper<T> { /* ... */ }
 /// //
-/// // lazy_static! { pub static ref SERVER_WRAPPER: ServerWrapper<Server> = /* ... */; }
+/// // lazy_static! { pub static ref SERVER_WRAPPER_INSTANCE: ServerWrapper<Server> = /* ... */; }
 ///
 /// # fn main() {
-/// let wrapper: &ServerWrapper<Server> = &*SERVER_WRAPPER;
+/// let wrapper: &ServerWrapper<Server> = &*SERVER_WRAPPER_INSTANCE;
 /// let _: &dyn DataTypeWrapper<Server> = wrapper;
 /// # }
 /// ```
@@ -824,7 +839,7 @@ macro_rules! methods {
 ///     }
 /// }
 ///
-/// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER);
+/// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER_INSTANCE);
 ///
 /// class!(RubyServer);
 ///
@@ -836,17 +851,17 @@ macro_rules! methods {
 ///         let server = Server::new(host.unwrap().to_string(),
 ///                                  port.unwrap().to_i64() as u16);
 ///
-///         Class::from_existing("RubyServer").wrap_data(server, &*SERVER_WRAPPER)
+///         Class::from_existing("RubyServer").wrap_data(server, &*SERVER_WRAPPER_INSTANCE)
 ///     }
 ///
 ///     fn ruby_server_host() -> RString {
-///         let host = rtself.get_data(&*SERVER_WRAPPER).host();
+///         let host = rtself.get_data(&*SERVER_WRAPPER_INSTANCE).host();
 ///
 ///         RString::new_utf8(host)
 ///     }
 ///
 ///     fn ruby_server_port() -> Fixnum {
-///         let port = rtself.get_data(&*SERVER_WRAPPER).port();
+///         let port = rtself.get_data(&*SERVER_WRAPPER_INSTANCE).port();
 ///
 ///         Fixnum::new(port as i64)
 ///     }
@@ -857,6 +872,10 @@ macro_rules! methods {
 ///     let data_class = Class::from_existing("Object");
 ///
 ///     Class::new("RubyServer", Some(&data_class)).define(|klass| {
+///         // Objects come only from `wrap_data`: no allocator (Ruby 3.2+
+///         // warns when `wrap_data` finds one, and `allocate` would make an
+///         // object without a `Server`).
+///         klass.undef_alloc_func();
 ///         klass.def_self("new", ruby_server_new);
 ///
 ///         klass.def("host", ruby_server_host);
@@ -915,7 +934,7 @@ macro_rules! methods {
 /// wrappable_struct! {
 ///     VectorOfObjects,
 ///     VectorOfObjectsWrapper,
-///     VECTOR_OF_OBJECTS_WRAPPER,
+///     VECTOR_OF_OBJECTS_WRAPPER_INSTANCE,
 ///
 ///     // Mark each `AnyObject` element of the `inner` vector to prevent garbage collection.
 ///     // `data` is a mutable reference to the wrapped data (`&mut VectorOfObjects`).
@@ -935,17 +954,17 @@ macro_rules! methods {
 ///     fn new() -> AnyObject {
 ///         let vec = VectorOfObjects::new();
 ///
-///         Class::from_existing("RustyArray").wrap_data(vec, &*VECTOR_OF_OBJECTS_WRAPPER)
+///         Class::from_existing("RustyArray").wrap_data(vec, &*VECTOR_OF_OBJECTS_WRAPPER_INSTANCE)
 ///     }
 ///
 ///     fn push(object: AnyObject) -> NilClass {
-///         rtself.get_data_mut(&*VECTOR_OF_OBJECTS_WRAPPER).push(object.unwrap());
+///         rtself.get_data_mut(&*VECTOR_OF_OBJECTS_WRAPPER_INSTANCE).push(object.unwrap());
 ///
 ///         NilClass::new()
 ///     }
 ///
 ///     fn length() -> Fixnum {
-///         let length = rtself.get_data(&*VECTOR_OF_OBJECTS_WRAPPER).len() as i64;
+///         let length = rtself.get_data(&*VECTOR_OF_OBJECTS_WRAPPER_INSTANCE).len() as i64;
 ///
 ///         Fixnum::new(length)
 ///     }
@@ -991,7 +1010,7 @@ macro_rules! methods {
 /// wrappable_struct! {
 ///     Buffer,
 ///     BufferWrapper,
-///     BUFFER_WRAPPER,
+///     BUFFER_WRAPPER_INSTANCE,
 ///
 ///     size(data) {
 ///         std::mem::size_of::<Buffer>() + data.bytes.capacity()
@@ -1001,7 +1020,7 @@ macro_rules! methods {
 /// fn main() {
 ///     # VM::init();
 ///     let buffer = Buffer { bytes: vec![0; 64 * 1024] };
-///     let object: AnyObject = Class::new("RutieBuffer", None).wrap_data(buffer, &*BUFFER_WRAPPER);
+///     let object: AnyObject = Class::new("RutieBuffer", None).wrap_data(buffer, &*BUFFER_WRAPPER_INSTANCE);
 ///
 ///     VM::init_loadpath();
 ///     VM::protect_require("objspace").unwrap();
