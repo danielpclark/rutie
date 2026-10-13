@@ -692,15 +692,8 @@ macro_rules! methods {
 /// marks Ruby objects held in fields, and checks borrows); see the
 /// [`derive`](derive/index.html) module.
 ///
-/// **Note:** The macro uses the `lazy_static` crate (as `::lazy_static`), so the
-/// crate using it must depend on `lazy_static` too; no `#[macro_use]` import is
-/// needed.
-///
-/// `Cargo.toml`
-///
-/// ```toml
-/// lazy_static = "1.4" # the version is not a strict requirement
-/// ```
+/// The static is a `lazy_static` (through Rutie's own dependency, so your
+/// crate doesn't need `lazy_static`).
 ///
 /// # Arguments
 ///
@@ -724,7 +717,6 @@ macro_rules! methods {
 ///
 ///     ```
 ///     # #[macro_use] extern crate rutie;
-///     # #[macro_use] extern crate lazy_static;
 ///     # use rutie::{AnyObject, Class, Object, VM};
 ///     pub struct Server {
 ///         port: u16,
@@ -783,7 +775,6 @@ macro_rules! methods {
 ///
 /// ```
 /// # #[macro_use] extern crate rutie;
-/// # #[macro_use] extern crate lazy_static;
 /// use rutie::typed_data::DataTypeWrapper;
 ///
 /// pub struct Server;
@@ -821,7 +812,6 @@ macro_rules! methods {
 ///
 /// ```
 /// #[macro_use] extern crate rutie;
-/// #[macro_use] extern crate lazy_static;
 ///
 /// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM};
 ///
@@ -908,7 +898,6 @@ macro_rules! methods {
 ///
 /// ```
 /// #[macro_use] extern crate rutie;
-/// #[macro_use] extern crate lazy_static;
 ///
 /// use std::ops::{Deref, DerefMut};
 ///
@@ -1008,7 +997,6 @@ macro_rules! methods {
 ///
 /// ```
 /// #[macro_use] extern crate rutie;
-/// #[macro_use] extern crate lazy_static;
 ///
 /// use rutie::{AnyObject, Class, Fixnum, Object, VM};
 ///
@@ -1135,7 +1123,7 @@ macro_rules! wrappable_struct {
             _marker: ::std::marker::PhantomData<T>,
         }
 
-        ::lazy_static::lazy_static! {
+        $crate::__lazy_static::lazy_static! {
             pub static ref $static_name: $wrapper<$struct_name> = $wrapper::new();
         }
 
