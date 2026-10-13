@@ -700,7 +700,6 @@ impl Class {
     ///
     /// ```
     /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
     ///
     /// use rutie::{AnyObject, Class, Fixnum, NilClass, Object, VM};
     ///
@@ -1303,7 +1302,6 @@ impl Class {
     ///
     /// ```
     /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
     ///
     /// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM};
     ///
