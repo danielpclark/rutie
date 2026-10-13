@@ -2,6 +2,11 @@
 #[macro_use]
 extern crate lazy_static;
 
+// `wrappable_struct!` defines its static through this, so the crate using
+// the macro doesn't have to depend on `lazy_static` itself.
+#[doc(hidden)]
+pub extern crate lazy_static as __lazy_static;
+
 #[cfg(windows)]
 /// Defines a function for Ruby to call, or names the type of one, with the
 /// right ABI: `extern "C"`, or `extern "C-unwind"` on Windows.
