@@ -251,7 +251,7 @@ impl GC {
     /// wrappable_struct! {
     ///     Names,
     ///     NamesWrapper,
-    ///     NAMES_WRAPPER,
+    ///     NAMES_WRAPPER_INSTANCE,
     ///
     ///     // Called by the GC; the Rust heap is not scanned, so these objects
     ///     // are only kept alive by being marked here.
@@ -264,11 +264,11 @@ impl GC {
     ///     # VM::init();
     ///     let names = (0..4).map(|i| RString::new_utf8(&i.to_string())).collect();
     ///     let object: AnyObject = Class::new("Names", None)
-    ///         .wrap_data(Names { names }, &*NAMES_WRAPPER);
+    ///         .wrap_data(Names { names }, &*NAMES_WRAPPER_INSTANCE);
     ///
     ///     GC::start();
     ///
-    ///     let names = &object.get_data(&*NAMES_WRAPPER).names;
+    ///     let names = &object.get_data(&*NAMES_WRAPPER_INSTANCE).names;
     ///     assert_eq!(names[3].to_str(), "3");
     /// }
     /// ```
@@ -299,7 +299,7 @@ impl GC {
     /// wrappable_struct! {
     ///     Label,
     ///     LabelWrapper,
-    ///     LABEL_WRAPPER,
+    ///     LABEL_WRAPPER_INSTANCE,
     ///
     ///     mark(data) {
     ///         GC::mark_movable(&data.text);
@@ -314,12 +314,12 @@ impl GC {
     /// fn main() {
     ///     # VM::init();
     ///     let label: AnyObject = Class::new("Label", None)
-    ///         .wrap_data(Label { text: RString::new_utf8("still here") }, &*LABEL_WRAPPER);
+    ///         .wrap_data(Label { text: RString::new_utf8("still here") }, &*LABEL_WRAPPER_INSTANCE);
     ///
     ///     // `NotImplementedError` where the platform can't compact.
     ///     let _ = GC::compact();
     ///
-    ///     assert_eq!(label.get_data(&*LABEL_WRAPPER).text.to_str(), "still here");
+    ///     assert_eq!(label.get_data(&*LABEL_WRAPPER_INSTANCE).text.to_str(), "still here");
     /// }
     /// ```
     pub fn mark_movable(object: &impl Object) {
@@ -389,7 +389,7 @@ impl GC {
     /// wrappable_struct! {
     ///     Names,
     ///     NamesWrapper,
-    ///     NAMES_WRAPPER,
+    ///     NAMES_WRAPPER_INSTANCE,
     ///
     ///     // Called by the GC; the Rust heap is not scanned, so these objects
     ///     // are only kept alive by being marked here.
@@ -402,11 +402,11 @@ impl GC {
     ///     # VM::init();
     ///     let names = (0..4).map(|i| RString::new_utf8(&i.to_string())).collect();
     ///     let object: AnyObject = Class::new("Names", None)
-    ///         .wrap_data(Names { names }, &*NAMES_WRAPPER);
+    ///         .wrap_data(Names { names }, &*NAMES_WRAPPER_INSTANCE);
     ///
     ///     GC::start();
     ///
-    ///     let names = &object.get_data(&*NAMES_WRAPPER).names;
+    ///     let names = &object.get_data(&*NAMES_WRAPPER_INSTANCE).names;
     ///     assert_eq!(names[3].to_str(), "3");
     /// }
     /// ```
@@ -437,7 +437,7 @@ impl GC {
     /// wrappable_struct! {
     ///     Names,
     ///     NamesWrapper,
-    ///     NAMES_WRAPPER,
+    ///     NAMES_WRAPPER_INSTANCE,
     ///
     ///     // Called by the GC; the Rust heap is not scanned, so these objects
     ///     // are only kept alive by being marked here.
@@ -450,11 +450,11 @@ impl GC {
     ///     # VM::init();
     ///     let names = (0..4).map(|i| RString::new_utf8(&i.to_string())).collect();
     ///     let object: AnyObject = Class::new("Names", None)
-    ///         .wrap_data(Names { names }, &*NAMES_WRAPPER);
+    ///         .wrap_data(Names { names }, &*NAMES_WRAPPER_INSTANCE);
     ///
     ///     GC::start();
     ///
-    ///     let names = &object.get_data(&*NAMES_WRAPPER).names;
+    ///     let names = &object.get_data(&*NAMES_WRAPPER_INSTANCE).names;
     ///     assert_eq!(names[3].to_str(), "3");
     /// }
     /// ```

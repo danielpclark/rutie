@@ -7,6 +7,20 @@ for the public APIs. `rubysys`, even though shared publicly, is considered a pri
 API and may have breaking changes during a teeny version change.
 
 
+## [Unreleased]
+### Added
+ - README: a "Wrapping Rust Data in Ruby Objects" section on
+   `wrappable_struct!`, which the README never mentioned (#122), thanks to
+   @abinoam
+
+### Changed
+ - The `wrappable_struct!` examples in the docs name the static
+   `NAME_WRAPPER_INSTANCE` instead of `NAME_WRAPPER`, so it isn't confused
+   with the `NameWrapper` type, and the macro's docs explain what it does
+   and its three names (#123), thanks to @abinoam. They also say that only a
+   `lazy_static` dependency is needed (no `#[macro_use]`), and the
+   `RubyServer` example undefines the class's allocator
+
 ## [0.13.3] - 2026-10-11
 ### Added
  - A `methods!` or `unsafe_methods!` method may return

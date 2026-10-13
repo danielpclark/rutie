@@ -1249,7 +1249,7 @@ impl Module {
     ///     }
     /// }
     ///
-    /// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER);
+    /// wrappable_struct!(Server, ServerWrapper, SERVER_WRAPPER_INSTANCE);
     ///
     /// class!(RubyServer);
     ///
@@ -1261,17 +1261,17 @@ impl Module {
     ///         let server = Server::new(host.unwrap().to_string(),
     ///                                  port.unwrap().to_i64() as u16);
     ///
-    ///         Class::from_existing("RubyServer").wrap_data(server, &*SERVER_WRAPPER)
+    ///         Class::from_existing("RubyServer").wrap_data(server, &*SERVER_WRAPPER_INSTANCE)
     ///     }
     ///
     ///     fn ruby_server_host() -> RString {
-    ///         let host = rtself.get_data(&*SERVER_WRAPPER).host();
+    ///         let host = rtself.get_data(&*SERVER_WRAPPER_INSTANCE).host();
     ///
     ///         RString::new_utf8(host)
     ///     }
     ///
     ///     fn ruby_server_port() -> Fixnum {
-    ///         let port = rtself.get_data(&*SERVER_WRAPPER).port();
+    ///         let port = rtself.get_data(&*SERVER_WRAPPER_INSTANCE).port();
     ///
     ///         Fixnum::new(port as i64)
     ///     }
