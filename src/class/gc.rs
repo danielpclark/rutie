@@ -240,7 +240,6 @@ impl GC {
     ///
     /// ```
     /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
     ///
     /// use rutie::{AnyObject, Class, Object, RString, GC, VM};
     ///
@@ -288,7 +287,6 @@ impl GC {
     ///
     /// ```
     /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
     ///
     /// use rutie::{AnyObject, Class, Object, RString, GC, VM};
     ///
@@ -378,7 +376,6 @@ impl GC {
     ///
     /// ```
     /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
     ///
     /// use rutie::{AnyObject, Class, Object, RString, GC, VM};
     ///
@@ -426,7 +423,6 @@ impl GC {
     ///
     /// ```
     /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
     ///
     /// use rutie::{AnyObject, Class, Object, RString, GC, VM};
     ///
