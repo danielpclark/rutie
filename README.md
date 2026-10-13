@@ -335,8 +335,6 @@ The macro takes three names: your struct (`Server`), a wrapper type for the
 macro to define (`ServerWrapper`), and a static instance of that type
 (`SERVER_WRAPPER_INSTANCE`), the value you pass to `wrap_data` and
 `get_data`. It describes the struct type, so all `Server` objects share it.
-The macro uses the `lazy_static` crate, so add `lazy_static` to your
-`Cargo.toml` dependencies too.
 
 ```rust
 #[macro_use]
