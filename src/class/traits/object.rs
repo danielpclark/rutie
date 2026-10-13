@@ -172,7 +172,6 @@ pub trait Object: From<Value> {
     ///
     /// ```
     /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
     ///
     /// use rutie::{AnyObject, Class, Fixnum, Object, RString, VM};
     ///
@@ -262,7 +261,6 @@ pub trait Object: From<Value> {
     ///
     /// ```
     /// #[macro_use] extern crate rutie;
-    /// #[macro_use] extern crate lazy_static;
     ///
     /// use rutie::{AnyObject, Class, Object, VM};
     ///
