@@ -262,7 +262,7 @@ pub struct Pathname {
 impl Pathname {
     pub fn new(path: &str) -> Pathname {
         let arguments = [RString::new_utf8(path).to_any_object()];
-        let instance = Class::from_existing("Pathname").new_instance(Some(&arguments));
+        let instance = Class::from_existing("Pathname").new_instance(&arguments);
 
         Pathname { value: instance.value() }
     }
@@ -556,7 +556,7 @@ I'm writing this section to bring to light that, as of this writing, the safety 
 
 Rutie is an official fork of the project Ruru and because of this a great deal of the decisions in design for the project remain unchanged.  Rutie also brought in the `ruby-sys` crate and treats it as an internal private API/module; and yet shares it openly for other developers to have full control to design their own API on top of it.
 
-One of the glaring things that Rutie has that goes against the Rust Philosophy on Safety is that any of the methods that call Ruby code, can potentially raise an exception, and don't return the type `Option<AnyObject, AnyException>` will panic when an exception is raised from Ruby… which kills the application process running.  The way to avoid panics is simple: either guarantee the Ruby code you're running will never raise an exception, or [Handling exceptions raised from Ruby in Rust code](https://github.com/danielpclark/rutie#handling-exceptions-raised-from-ruby-in-rust-code) with "protect" methods that return the type `Option<AnyObject, AnyException>`.  Anyone can implement this safety by reading and understanding how the **protect** methods are written in this library and working with them.
+One of the glaring things that Rutie has that goes against the Rust Philosophy on Safety is that any of the methods that call Ruby code, can potentially raise an exception, and don't return the type `Result<AnyObject, AnyException>` will panic when an exception is raised from Ruby… which kills the application process running.  The way to avoid panics is simple: either guarantee the Ruby code you're running will never raise an exception, or [Handling exceptions raised from Ruby in Rust code](https://github.com/danielpclark/rutie#handling-exceptions-raised-from-ruby-in-rust-code) with "protect" methods that return the type `Result<AnyObject, AnyException>`.  Anyone can implement this safety by reading and understanding how the **protect** methods are written in this library and working with them.
 
 The important thing to consider as to **“why doesn't every method guarantee the safety as Rust would prescribe to?”** is that exception handling in Ruby is **not a zero cost abstraction**.  So there is a cost in performance when you need to implement it.  One can easily argue that the guarantee of safety is far more important than leaving the risk in the hands of inexperienced developers.  But one could also argue that it is better to leave the choice of performance cost, and the fact that exception capturing is occasionally unnecessary, up to the developer.  Seeing how the legacy of design decisions is largely inherited this project leans towards the latter argument where the choice of being absolutely safe everywhere vs some extra speed in performance is up to the developer.
 
