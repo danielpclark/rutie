@@ -26,6 +26,18 @@ API and may have breaking changes during a teeny version change.
    and its three names (#123), thanks to @abinoam. The `RubyServer` example
    also undefines the class's allocator
 
+### Fixed
+ - The documentation builds on docs.rs. docs.rs has no Ruby, so the build
+   script panicked ("ruby not found") and no release's documentation built.
+   Under docs.rs (`DOCS_RS`) libruby is not linked, and when no Ruby is found
+   and none is to be linked (docs.rs, the `no-link` feature or
+   `NO_LINK_RUTIE`) the Ruby version cfgs assume the newest Ruby this Rutie
+   supports, so `cargo doc` and `cargo check` without a Ruby cover the whole
+   API instead of failing (0.13 referenced version-gated items
+   unconditionally) or leaving out version-gated items. docs.rs also
+   documents the `derive` feature's attributes, and CI builds the docs
+   without a Ruby
+
 ## [0.11.5] - 2026-10-11
 ### Added
  - A `methods!` or `unsafe_methods!` method may return
