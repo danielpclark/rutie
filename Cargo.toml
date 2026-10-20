@@ -17,6 +17,12 @@ license = "MIT"
 build = "build.rs"
 links = "ruby"
 
+# docs.rs has no Ruby: `build.rs` then links nothing (`DOCS_RS`) and assumes
+# the newest supported Ruby for the version cfgs, and the `derive` attributes
+# are documented too.
+[package.metadata.docs.rs]
+features = ["derive"]
+
 [features]
 no-link = [] # tells build.rs to not link to libruby
 # `#[rubyclass]`, `#[rubymethods]` and `#[rubyfunction]` (the `rutie-derive` crate)

@@ -1180,7 +1180,7 @@ macro_rules! wrappable_struct {
     };
 }
 
-/// eval(string [, binding [, filename [,lineno]]]) → obj
+/// `eval(string [, binding [, filename [,lineno]]]) → obj`
 ///
 /// # Examples
 /// ```
