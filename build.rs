@@ -69,10 +69,25 @@ fn ruby_version_cfgs() {
             }
         },
         _ => {
-            // Without linking (the `no-link` feature or `NO_LINK_RUTIE`) a Ruby
-            // is not required to build, so a missing Ruby is not an error here.
-            ci_stderr_log!("ruby not found; no Ruby version cfg flags were set");
-            return;
+            // Without linking (docs.rs, the `no-link` feature or
+            // `NO_LINK_RUTIE`) a Ruby is not required to build, so a missing
+            // Ruby is not an error here: the newest supported Ruby stands in,
+            // so `cargo doc` and `cargo check` see the whole API (some
+            // bindings reference version-gated items unconditionally, and
+            // without any cfg they would not compile). With linking, `rbconfig`
+            // reports the missing Ruby.
+            if should_link() {
+                ci_stderr_log!("ruby not found; no Ruby version cfg flags were set");
+                return;
+            }
+
+            let (major, minor) = (2, *SUPPORTED_RUBY_2_MINORS.last().unwrap());
+            println!(
+                "cargo:warning=ruby not found; assuming Ruby {}.{} (the newest \
+                 this Rutie supports) for the Ruby version cfg flags.",
+                major, minor
+            );
+            (major, minor)
         }
     };
 
@@ -476,9 +491,12 @@ fn is_static() -> bool {
     env::var_os("RUBY_STATIC").is_some()
 }
 
+// docs.rs builds the documentation on a machine without a Ruby (it sets
+// `DOCS_RS`), so there is nothing to link to there.
 fn should_link() -> bool {
     std::env::var_os("NO_LINK_RUTIE").is_none()
         && std::env::var_os("CARGO_FEATURE_NO_LINK").is_none()
+        && std::env::var_os("DOCS_RS").is_none()
 }
 
 // A Windows DLL cannot leave symbols to be found when it is loaded, so a
