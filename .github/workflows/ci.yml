@@ -171,6 +171,13 @@ jobs:
         cargo test --features derive --doc derive
         if [ "${{ matrix.rust }}" = "stable" ]; then cargo test --features derive --test derive_ui; fi
 
+    # docs.rs builds the documentation on a machine without a Ruby, so the
+    # build script must neither link libruby nor need a Ruby for the version
+    # cfgs, and the docs must still cover the whole API.
+    - name: Build docs without a Ruby (as docs.rs does)
+      if: (runner.os == 'Linux') && (env.TEST_ALL || (env.TEST_ALL == false && matrix.ruby_version == '2.7.8' && matrix.rust == 'stable' && matrix.ruby_static == false))
+      run: DOCS_RS=1 RUBY=/nonexistent/ruby cargo doc --no-deps --features derive
+
     # The examples use the crate the way users do: an embedding program, and
     # two Ruby extensions loaded through the `rutie` gem and tested with
     # minitest. Static Ruby builds cannot load extensions built this way.
